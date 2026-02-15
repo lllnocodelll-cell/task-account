@@ -12,10 +12,27 @@ import { Notifications } from './pages/Notifications';
 import { Chat } from './pages/Chat';
 import { Notes } from './pages/Notes';
 import { UserRole } from './types';
+import { supabase } from './utils/supabaseClient';
+import { Loader2 } from 'lucide-react';
+
+// Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
+interface UserProfile {
+  id: string;
+  full_name: string | null;
+  role: string;
+  email: string | null;
+  phone: string | null;
+  location: string | null;
+  avatar_url: string | null;
+  org_name: string | null;
+  job_title?: string | null;
+}
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole>('gestor');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -30,18 +47,66 @@ function App() {
     }
   }, [isDarkMode]);
 
+  // Auth Listener Effect
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchUserProfile(session);
+      else setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        fetchUserProfile(session);
+      } else {
+        setLoading(false);
+        setUserProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchUserProfile = async (session: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (data) {
+        setUserRole(data.role as UserRole);
+        setUserProfile({
+          ...data,
+          email: session.user.email,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshUserProfile = () => {
+    if (session) {
+      fetchUserProfile(session);
+    }
+  };
+
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
   };
 
-  const handleLogin = (role: UserRole) => {
-    setUserRole(role);
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setActiveTab('dashboard'); // Reset tab on logout
+    setUserProfile(null);
   };
 
   const renderContent = () => {
@@ -59,7 +124,7 @@ function App() {
       case 'settings':
         return <Settings />;
       case 'profile':
-        return <Profile userRole={userRole} />;
+        return <Profile userRole={userRole} onProfileUpdate={refreshUserProfile} />;
       case 'notifications':
         return <Notifications />;
       case 'support':
@@ -76,38 +141,49 @@ function App() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (loading) {
     return (
-      <Auth 
-        onLogin={handleLogin} 
-        isDarkMode={isDarkMode} 
-        toggleTheme={toggleTheme} 
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <Auth
+        onLogin={() => { }} // Handle by auth listener
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
       />
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-300">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         isCollapsed={isSidebarCollapsed}
         toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onLogout={handleLogout}
         userRole={userRole}
       />
-      
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
-        <Header 
-          isDarkMode={isDarkMode} 
-          toggleTheme={toggleTheme} 
+
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
+        <Header
+          isDarkMode={isDarkMode}
+          toggleTheme={toggleTheme}
           onProfileClick={() => setActiveTab('profile')}
           onNotificationsClick={() => setActiveTab('notifications')}
           userRole={userRole}
+          userProfile={userProfile}
         />
-        
+
         <main className="flex-1 p-8 overflow-y-auto">
-          {renderContent()}
+          <div className="max-w-7xl mx-auto">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>
