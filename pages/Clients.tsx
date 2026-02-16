@@ -22,7 +22,8 @@ import {
     Building2,
     Loader2,
     CheckSquare,
-    Square
+    Square,
+    MapPin
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -44,7 +45,7 @@ interface ClientLegislation { id?: string; client_id?: string; description: stri
 const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null }> = ({ onBack, initialData }) => {
     const isEditing = !!initialData;
     const [loading, setLoading] = useState(false);
-    const [personType, setPersonType] = useState('juridica');
+    const [personType, setPersonType] = useState(initialData?.person_type || 'juridica');
     const [activeTab, setActiveTab] = useState('inscricoes');
 
     // Main Client Data State
@@ -55,20 +56,20 @@ const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null }> 
         document: initialData?.document || '',
         status: (initialData?.status as 'Ativo' | 'Inativo') || 'Ativo',
         segment: initialData?.segment || 'Tecnologia',
-        admin_partner_name: '',
-        admin_partner_cpf: '',
-        admin_partner_birthdate: '',
-        constitution_date: '',
-        entry_date: '',
-        exit_date: '',
-        has_branches: 'n',
-        cep: '',
-        street: '',
-        number: '',
-        complement: '',
-        neighborhood: '',
-        city: '',
-        state: ''
+        admin_partner_name: initialData?.admin_partner_name || '',
+        admin_partner_cpf: initialData?.admin_partner_cpf || '',
+        admin_partner_birthdate: initialData?.admin_partner_birthdate || '',
+        constitution_date: initialData?.constitution_date || '',
+        entry_date: initialData?.entry_date || '',
+        exit_date: initialData?.exit_date || '',
+        has_branches: initialData?.has_branches === true ? 's' : 'n',
+        cep: initialData?.zip_code || '',
+        street: initialData?.street || '',
+        number: initialData?.street_number || '',
+        complement: initialData?.complement || '',
+        neighborhood: initialData?.neighborhood || '',
+        city: initialData?.city || '',
+        state: initialData?.state || ''
     });
 
     // --- Sub-Lists State ---
@@ -192,6 +193,7 @@ const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null }> 
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Usuário não autenticado');
 
+            // Fix: Include all fields and map to DB column names
             const clientData = {
                 org_id: user.id,
                 code: formData.code,
@@ -201,6 +203,21 @@ const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null }> 
                 status: formData.status,
                 segment: formData.segment,
                 person_type: personType,
+                // New Fields
+                constitution_date: formData.constitution_date || null,
+                entry_date: formData.entry_date || null,
+                exit_date: formData.exit_date || null,
+                admin_partner_name: formData.admin_partner_name,
+                admin_partner_cpf: formData.admin_partner_cpf,
+                admin_partner_birthdate: formData.admin_partner_birthdate || null,
+                has_branches: formData.has_branches === 's',
+                zip_code: formData.cep,
+                street: formData.street,
+                street_number: formData.number,
+                complement: formData.complement,
+                neighborhood: formData.neighborhood,
+                city: formData.city,
+                state: formData.state,
             };
 
             let clientId = initialData?.id;
@@ -218,13 +235,33 @@ const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null }> 
 
             const prepareItems = (items: any[]) => items.filter(i => !i.id).map(i => ({ ...i, client_id: clientId }));
 
+            // Custom mappers for tables with field name mismatches
+            const prepareCertificates = (items: any[]) => items.filter(i => !i.id).map(i => ({
+                client_id: clientId,
+                model: i.model,
+                expires_at: i.expiration_date || null, // Map expiration_date -> expires_at
+                password: i.password,
+                signatory: i.signatory
+            }));
+
+            const prepareLicenses = (items: any[]) => items.filter(i => !i.id).map(i => ({
+                client_id: clientId,
+                license_name: i.license_name,
+                license_number: i.number, // Map number -> license_number
+                expiry_date: i.expiration_date || null, // Map expiration_date -> expiry_date
+                access_url: i.access_url
+            }));
+
             if (prepareItems(inscriptions).length > 0) await (supabase.from('client_inscriptions') as any).insert(prepareItems(inscriptions));
             if (prepareItems(contacts).length > 0) await (supabase.from('client_contacts') as any).insert(prepareItems(contacts));
             if (prepareItems(taxRegimes).length > 0) await (supabase.from('client_tax_regime_history') as any).insert(prepareItems(taxRegimes));
             if (prepareItems(activities).length > 0) await (supabase.from('client_activities') as any).insert(prepareItems(activities));
             if (prepareItems(accesses).length > 0) await (supabase.from('client_accesses') as any).insert(prepareItems(accesses));
-            if (prepareItems(certificates).length > 0) await (supabase.from('client_certificates') as any).insert(prepareItems(certificates));
-            if (prepareItems(licenses).length > 0) await (supabase.from('client_licenses') as any).insert(prepareItems(licenses));
+
+            // Use custom mappers for certificates and licenses
+            if (prepareCertificates(certificates).length > 0) await (supabase.from('client_certificates') as any).insert(prepareCertificates(certificates));
+            if (prepareLicenses(licenses).length > 0) await (supabase.from('client_licenses') as any).insert(prepareLicenses(licenses));
+
             if (prepareItems(legislations).length > 0) await (supabase.from('client_legislations') as any).insert(prepareItems(legislations));
 
             alert('Cliente salvo com sucesso!');
@@ -1144,26 +1181,45 @@ export const Clients: React.FC = () => {
 
             const { data, error } = await supabase
                 .from('clients')
-                .select('*')
+                .select('*, client_contacts(*)')
                 .eq('org_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
             if (data) {
                 // Map DB snake_case to UI camelCase
-                const mappedData: Client[] = data.map((c: any) => ({
-                    id: c.id,
-                    code: c.code,
-                    companyName: c.company_name, // Map snake to camel
-                    tradeName: c.trade_name,
-                    document: c.document,
-                    contactName: c.contact_name,
-                    phoneFixed: c.phone_fixed,
-                    phoneMobile: c.phone_mobile,
-                    email: c.email,
-                    status: c.status,
-                    segment: c.segment
-                }));
+                const mappedData: Client[] = data.map((c: any) => {
+                    const firstContact = c.client_contacts?.[0];
+                    return {
+                        id: c.id,
+                        code: c.code,
+                        companyName: c.company_name,
+                        tradeName: c.trade_name,
+                        document: c.document,
+                        contactName: firstContact?.name || '',
+                        phoneFixed: firstContact?.phone_fixed || '',
+                        phoneMobile: firstContact?.phone_mobile || '',
+                        email: firstContact?.email || '',
+                        status: c.status,
+                        segment: c.segment,
+                        person_type: c.person_type,
+                        constitution_date: c.constitution_date,
+                        entry_date: c.entry_date,
+                        exit_date: c.exit_date,
+                        admin_partner_name: c.admin_partner_name,
+                        admin_partner_cpf: c.admin_partner_cpf,
+                        admin_partner_birthdate: c.admin_partner_birthdate,
+                        has_branches: c.has_branches,
+                        zip_code: c.zip_code,
+                        street: c.street,
+                        street_number: c.street_number,
+                        complement: c.complement,
+                        neighborhood: c.neighborhood,
+                        city: c.city,
+                        state: c.state,
+                        created_at: c.created_at
+                    };
+                });
                 setClients(mappedData);
             }
 
@@ -1228,7 +1284,10 @@ export const Clients: React.FC = () => {
     if (viewState === 'create' || viewState === 'edit') {
         return (
             <ClientForm
-                onBack={() => setViewState('list')}
+                onBack={() => {
+                    setViewState('list');
+                    fetchClients();
+                }}
                 initialData={selectedClient}
             />
         );
@@ -1260,8 +1319,11 @@ export const Clients: React.FC = () => {
                 <MetricCard title="Ativos" value={clients.filter(c => c.status === 'Ativo').length.toString()} icon={<UserCheck size={20} />} color="emerald" />
                 <MetricCard title="Inativos" value={clients.filter(c => c.status === 'Inativo').length.toString()} icon={<UserX size={20} />} color="rose" />
                 <MetricCard title="Novos no Mês" value={clients.filter(c => {
-                    // Basic check for new in month if we had created_at in Client type, but for now just mock or 0
-                    return false;
+                    if (!c.created_at) return false;
+                    const createdAt = new Date(c.created_at);
+                    const now = new Date();
+                    return createdAt.getMonth() === now.getMonth() &&
+                        createdAt.getFullYear() === now.getFullYear();
                 }).length.toString()} icon={<Calendar size={20} />} color="amber" />
             </div>
 
@@ -1431,7 +1493,17 @@ export const Clients: React.FC = () => {
                                     filteredClients.map((client) => (
                                         <tr key={client.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                             <td className="px-6 py-4 font-mono text-slate-500">{client.code}</td>
-                                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{client.companyName}</td>
+                                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                                                <div className="flex flex-col">
+                                                    <span>{client.companyName}</span>
+                                                    {(client.city || client.state) && (
+                                                        <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                                                            <MapPin size={10} className="text-slate-400" />
+                                                            <span>{client.city}{client.city && client.state ? ', ' : ''}{client.state}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4">{client.document}</td>
                                             <td className="px-6 py-4">{client.contactName}</td>
                                             <td className="px-6 py-4">{client.phoneFixed}</td>
@@ -1443,16 +1515,7 @@ export const Clients: React.FC = () => {
                                                 </span>
 
                                                 {/* Hover Actions Overlay */}
-                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 bg-white dark:bg-slate-900 shadow-lg px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 z-10 animate-in fade-in duration-200">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        icon={<Eye size={16} />}
-                                                        title="Visualizar"
-                                                        className="h-8 w-8 p-0"
-                                                        onClick={() => handleEdit(client)}
-                                                    />
-                                                    <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                                                <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 bg-white dark:bg-slate-900 shadow-lg px-1 py-1 rounded-lg border border-slate-200 dark:border-slate-700 z-10 animate-in fade-in duration-200">
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
