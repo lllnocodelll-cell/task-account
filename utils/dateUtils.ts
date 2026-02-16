@@ -15,30 +15,38 @@ export const HOLIDAYS = [
   { date: '12-25', name: 'Natal', type: 'Nacional' },
 ];
 
-export const isBusinessDay = (date: Date): boolean => {
+export const isBusinessDay = (date: Date, externalHolidays: string[] = []): boolean => {
   const day = date.getDay();
   // 0 = Domingo, 6 = Sábado
   if (day === 0 || day === 6) return false;
 
-  // Formato MM-DD para comparar com a lista de feriados (ignorando ano para simplificar a base)
+  // Formato MM-DD para feriados fixos
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const dayDate = date.getDate().toString().padStart(2, '0');
-  const dateString = `${month}-${dayDate}`;
+  const dayOfMonth = date.getDate().toString().padStart(2, '0');
+  const fixedDateStr = `${month}-${dayOfMonth}`;
 
-  return !HOLIDAYS.some(h => h.date === dateString);
+  // Formato YYYY-MM-DD para feriados dinâmicos (manual para evitar problemas de timezone)
+  const year = date.getFullYear();
+  const fullDateStr = `${year}-${month}-${dayOfMonth}`;
+
+  const isFixedHoliday = HOLIDAYS.some(h => h.date === fixedDateStr);
+  const isExternalHoliday = externalHolidays.includes(fullDateStr);
+
+  return !isFixedHoliday && !isExternalHoliday;
 };
 
-export const calculateAdjustedDate = (baseDateStr: string, rule: 'none' | 'antecipar' | 'prorrogar'): string => {
-  if (!baseDateStr || rule === 'none') return baseDateStr;
+export const calculateAdjustedDate = (baseDateStr: string, rule: string, externalHolidays: string[] = []): string => {
+  if (!baseDateStr || rule === 'nao_aplica' || rule === 'none') return baseDateStr;
 
-  let date = new Date(baseDateStr + 'T12:00:00'); // T12:00:00 evita problemas de timezone
-  
+  let date = new Date(baseDateStr + 'T12:00:00');
+
   // Se já é dia útil, retorna a própria data
-  if (isBusinessDay(date)) return baseDateStr;
+  if (isBusinessDay(date, externalHolidays)) return baseDateStr;
 
   const direction = rule === 'antecipar' ? -1 : 1;
 
-  while (!isBusinessDay(date)) {
+  // Loop até encontrar o próximo dia útil na direção desejada
+  while (!isBusinessDay(date, externalHolidays)) {
     date.setDate(date.getDate() + direction);
   }
 

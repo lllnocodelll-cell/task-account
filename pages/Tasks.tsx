@@ -23,7 +23,8 @@ import {
   Square,
   Info,
   Upload,
-  File
+  File,
+  Trash2
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -33,53 +34,7 @@ import { Input, Select, SearchableSelect, Toggle } from '../components/ui/Input'
 import { supabase } from '../utils/supabaseClient';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 
-// --- MOCK DATA ---
-const MOCK_TASKS: Task[] = [
-  {
-    id: '1',
-    clientName: 'Tech Solutions Ltda',
-    taskName: 'Fechamento Fiscal',
-    competence: '01/2026',
-    taxRegime: 'Simples Nacional',
-    priority: Priority.ALTA,
-    sector: 'Fiscal',
-    responsible: 'Ana Souza',
-    status: TaskStatus.PENDENTE,
-  },
-  {
-    id: '2',
-    clientName: 'Mercado Silva',
-    taskName: 'Folha de Pagamento',
-    competence: '01/2026',
-    taxRegime: 'Lucro Presumido',
-    priority: Priority.MEDIA,
-    sector: 'DP',
-    responsible: 'Carlos Oliveira',
-    status: TaskStatus.INICIADA,
-  },
-  {
-    id: '3',
-    clientName: 'Consultoria XYZ',
-    taskName: 'DAS',
-    competence: '12/2025',
-    taxRegime: 'Simples Nacional',
-    priority: Priority.ALTA,
-    sector: 'Fiscal',
-    responsible: 'Ana Souza',
-    status: TaskStatus.ATRASADA,
-  },
-  {
-    id: '4',
-    clientName: 'Padaria do João',
-    taskName: 'Recolhimento FGTS',
-    competence: '01/2026',
-    taxRegime: 'Simples Nacional',
-    priority: Priority.BAIXA,
-    sector: 'DP',
-    responsible: 'Carlos Oliveira',
-    status: TaskStatus.PENDENTE,
-  },
-];
+// --- CONFIGS ---
 
 const DF_MODELS = [
   { id: 'nfse', label: 'NFS-e', desc: 'Nota Fiscal de Serviços Eletrônica' },
@@ -145,9 +100,10 @@ interface ActionMenuProps {
   onStatusChange: (id: string, status: TaskStatus) => void;
   onConclude: (id: string) => void;
   onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
 }
 
-const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclude, onEdit }) => {
+const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclude, onEdit, onDelete }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -176,15 +132,17 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
-          <button
-            onClick={() => {
-              onEdit(task);
-              setIsOpen(false);
-            }}
-            className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
-          >
-            <Pencil size={16} className="text-slate-500" /> Editar
-          </button>
+          {task.status !== TaskStatus.CONCLUIDA && (
+            <button
+              onClick={() => {
+                onEdit(task);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
+            >
+              <Pencil size={16} className="text-slate-500" /> Editar
+            </button>
+          )}
 
           {task.status === TaskStatus.CONCLUIDA ? (
             <button
@@ -227,12 +185,26 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
                   onStatusChange(task.id, TaskStatus.PENDENTE);
                   setIsOpen(false);
                 }}
-                className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
+                className="w-full text-left px-4 py-2.5 text-sm text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-2"
               >
                 <XCircle size={16} /> Cancelar
               </button>
             </>
           )}
+
+          <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
+
+          <button
+            onClick={() => {
+              if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
+                onDelete(task.id);
+                setIsOpen(false);
+              }
+            }}
+            className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
+          >
+            <Trash2 size={16} /> Excluir Tarefa
+          </button>
         </div>
       )}
     </div>
@@ -246,6 +218,7 @@ interface KanbanColumnProps {
   tasks: Task[];
   onEdit: (task: Task) => void;
   onConclude: (id: string) => void;
+  onDelete: (id: string) => void;
   color: string;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDrop: (e: React.DragEvent, status: TaskStatus) => void;
@@ -257,6 +230,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   tasks,
   onEdit,
   onConclude,
+  onDelete,
   color,
   onDragStart,
   onDrop
@@ -311,8 +285,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             key={task.id}
             draggable
             onDragStart={(e) => onDragStart(e, task.id)}
-            className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing group select-none"
-            onClick={() => onEdit(task)}
+            className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow active:cursor-grabbing group select-none ${task.status === TaskStatus.CONCLUIDA ? 'cursor-default' : 'cursor-pointer'}`}
+            onClick={() => task.status !== TaskStatus.CONCLUIDA && onEdit(task)}
           >
             <div className="flex justify-between items-start mb-2">
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
@@ -332,18 +306,32 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
               <span className="text-xs text-slate-400">{task.competence}</span>
-              {status !== TaskStatus.CONCLUIDA && (
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {status !== TaskStatus.CONCLUIDA && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConclude(task.id);
+                    }}
+                    className="text-emerald-500 hover:text-emerald-600 p-1"
+                    title="Concluir Rápido"
+                  >
+                    <CheckCircle size={16} />
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onConclude(task.id);
+                    if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
+                      onDelete(task.id);
+                    }
                   }}
-                  className="text-emerald-500 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                  title="Concluir Rápido"
+                  className="text-red-400 hover:text-red-500 p-1"
+                  title="Excluir"
                 >
-                  <CheckCircle size={16} />
+                  <Trash2 size={14} />
                 </button>
-              )}
+              </div>
             </div>
           </div>
         ))}
@@ -367,7 +355,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 export const Tasks: React.FC = () => {
   const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
   const [layoutMode, setLayoutMode] = useState<'list' | 'kanban'>('list');
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [concludeModalOpen, setConcludeModalOpen] = useState(false);
   const [selectedTaskForConclude, setSelectedTaskForConclude] = useState<string | null>(null);
@@ -429,6 +418,61 @@ export const Tasks: React.FC = () => {
     setVisibleFilters({});
   };
 
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(`
+          *,
+          attachments:task_attachments(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        // Map DB fields to component Task type if names differ
+        const mappedTasks: Task[] = data.map((t: any) => ({
+          id: t.id,
+          clientName: t.client_name,
+          taskName: t.task_name,
+          competence: t.competence,
+          taxRegime: t.tax_regime,
+          priority: t.priority as Priority,
+          sector: t.sector,
+          responsible: t.responsible,
+          status: t.status as TaskStatus,
+          dueDate: t.due_date,
+          variableAdjustment: t.variable_adjustment,
+          recurrence: t.recurrence,
+          recurrenceMonths: t.recurrence_months,
+          registrationRegime: t.registration_regime,
+          observation: t.observation,
+          noMovement: t.no_movement,
+          exceededSublimit: t.exceeded_sublimit,
+          factorR: t.factor_r,
+          selectedAnnexes: t.selected_annexes,
+          selectedDfes: t.selected_dfes,
+          attachments: t.attachments?.map((a: any) => ({
+            name: a.file_name,
+            size: a.file_size,
+            url: a.download_url
+          }))
+        }));
+        setTasks(mappedTasks);
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
   // CRUD Handlers
   const handleEdit = (task: Task) => {
     setSelectedTask(task);
@@ -441,8 +485,36 @@ export const Tasks: React.FC = () => {
   };
 
   // Status Handlers
-  const handleStatusChange = (id: string, newStatus: TaskStatus) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+  const handleStatusChange = async (id: string, newStatus: TaskStatus) => {
+    try {
+      const { error } = await (supabase
+        .from('tasks') as any)
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Erro ao atualizar status da tarefa');
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTasks(prev => prev.filter(t => t.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting task:', error);
+      alert('Erro ao excluir tarefa: ' + (error.message || 'Erro desconhecido'));
+    }
   };
 
   const openConcludeModal = (id: string) => {
@@ -451,27 +523,44 @@ export const Tasks: React.FC = () => {
     setConcludeModalOpen(true);
   };
 
-  const handleConcludeTask = () => {
+  const handleConcludeTask = async () => {
     if (selectedTaskForConclude) {
-      const newAttachments = concludeFiles.map(f => ({
-        name: f.name,
-        size: f.size,
-        url: URL.createObjectURL(f) // Mocking a URL for preview
-      }));
+      try {
+        setLoading(true);
 
-      setTasks(prev => prev.map(t =>
-        t.id === selectedTaskForConclude
-          ? {
-            ...t,
-            status: TaskStatus.CONCLUIDA,
-            attachments: [...(t.attachments || []), ...newAttachments]
+        // 1. Update Status
+        const { error: statusError } = await (supabase
+          .from('tasks') as any)
+          .update({ status: TaskStatus.CONCLUIDA })
+          .eq('id', selectedTaskForConclude);
+
+        if (statusError) throw statusError;
+
+        // 2. Insert Conclusion Attachments
+        if (concludeFiles.length > 0) {
+          for (const file of concludeFiles) {
+            await supabase.from('task_attachments').insert({
+              task_id: selectedTaskForConclude,
+              file_name: file.name,
+              file_size: file.size,
+              storage_path: `tasks/${selectedTaskForConclude}/conclude/${file.name}`,
+              is_conclude_attachment: true
+            } as any);
           }
-          : t
-      ));
+        }
 
-      setConcludeModalOpen(false);
-      setSelectedTaskForConclude(null);
-      setConcludeFiles([]);
+        // 3. Local Refresh or Refetch
+        await fetchTasks();
+
+        setConcludeModalOpen(false);
+        setSelectedTaskForConclude(null);
+        setConcludeFiles([]);
+      } catch (error: any) {
+        console.error('Error concluding task:', error);
+        alert('Erro ao concluir tarefa: ' + (error.message || 'Erro desconhecido'));
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -495,7 +584,10 @@ export const Tasks: React.FC = () => {
   if (viewState === 'create' || viewState === 'edit') {
     return (
       <TaskForm
-        onBack={() => setViewState('list')}
+        onBack={() => {
+          setViewState('list');
+          fetchTasks();
+        }}
         initialData={selectedTask}
       />
     );
@@ -525,6 +617,26 @@ export const Tasks: React.FC = () => {
               <LayoutGrid size={18} />
             </button>
           </div>
+
+          <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg px-3 border border-slate-200 dark:border-slate-800 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+            <Calendar size={16} className="text-slate-400 mr-2 group-focus-within:text-indigo-500" />
+            <input
+              type="month"
+              className="bg-transparent border-none text-xs font-semibold text-slate-700 dark:text-slate-200 focus:ring-0 p-0 w-36 uppercase"
+              value={filters.competence}
+              onChange={(e) => handleFilterChange('competence', e.target.value)}
+              title="Filtrar por Competência"
+            />
+            {filters.competence && (
+              <button
+                onClick={() => handleFilterChange('competence', '')}
+                className="ml-1 p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-red-500 transition-colors"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
           <Button
             variant="secondary"
             onClick={clearFilters}
@@ -545,257 +657,270 @@ export const Tasks: React.FC = () => {
         <MetricCard title="Concluídas" value={tasks.filter(t => t.status === TaskStatus.CONCLUIDA).length} icon={<CheckCircle size={20} />} color="emerald" />
       </div>
 
-      {layoutMode === 'list' ? (
-        <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
-          <div className="overflow-auto custom-scrollbar flex-1">
-            <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400">
-              <thead className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-10 shadow-sm">
-                <tr>
-                  <HeaderCell
-                    label="Cliente"
-                    fieldKey="clientName"
-                    filterValue={filters.clientName}
-                    isVisible={!!visibleFilters['clientName']}
-                    onToggle={toggleFilterVisibility}
-                    widthClass="min-w-[200px]"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Buscar cliente..."
-                      className={headerInputClass}
-                      value={filters.clientName}
-                      onChange={(e) => handleFilterChange('clientName', e.target.value)}
-                      autoFocus
-                    />
-                  </HeaderCell>
-
-                  <HeaderCell
-                    label="Tarefa"
-                    fieldKey="taskName"
-                    filterValue={filters.taskName}
-                    isVisible={!!visibleFilters['taskName']}
-                    onToggle={toggleFilterVisibility}
-                    widthClass="min-w-[180px]"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Nome da tarefa..."
-                      className={headerInputClass}
-                      value={filters.taskName}
-                      onChange={(e) => handleFilterChange('taskName', e.target.value)}
-                      autoFocus
-                    />
-                  </HeaderCell>
-
-                  <HeaderCell
-                    label="Competência"
-                    fieldKey="competence"
-                    filterValue={filters.competence}
-                    isVisible={!!visibleFilters['competence']}
-                    onToggle={toggleFilterVisibility}
-                    widthClass="min-w-[120px]"
-                  >
-                    <input
-                      type="text"
-                      placeholder="MM/AAAA"
-                      className={headerInputClass}
-                      value={filters.competence}
-                      onChange={(e) => handleFilterChange('competence', e.target.value)}
-                      autoFocus
-                    />
-                  </HeaderCell>
-
-                  <HeaderCell
-                    label="Regime"
-                    fieldKey="taxRegime"
-                    filterValue={filters.taxRegime}
-                    isVisible={!!visibleFilters['taxRegime']}
-                    onToggle={toggleFilterVisibility}
-                    widthClass="min-w-[150px]"
-                  >
-                    <select
-                      className={headerInputClass}
-                      value={filters.taxRegime}
-                      onChange={(e) => handleFilterChange('taxRegime', e.target.value)}
-                      autoFocus
-                    >
-                      <option value="">Todos</option>
-                      <option value="Simples Nacional">Simples Nacional</option>
-                      <option value="Lucro Presumido">Lucro Presumido</option>
-                      <option value="Lucro Real">Lucro Real</option>
-                      <option value="MEI">MEI</option>
-                    </select>
-                  </HeaderCell>
-
-                  <HeaderCell
-                    label="Prioridade"
-                    fieldKey="priority"
-                    filterValue={filters.priority}
-                    isVisible={!!visibleFilters['priority']}
-                    onToggle={toggleFilterVisibility}
-                    widthClass="min-w-[120px]"
-                  >
-                    <select
-                      className={headerInputClass}
-                      value={filters.priority}
-                      onChange={(e) => handleFilterChange('priority', e.target.value)}
-                      autoFocus
-                    >
-                      <option value="">Todas</option>
-                      <option value="Alta">Alta</option>
-                      <option value="Média">Média</option>
-                      <option value="Baixa">Baixa</option>
-                    </select>
-                  </HeaderCell>
-
-                  <HeaderCell
-                    label="Responsável"
-                    fieldKey="responsible"
-                    filterValue={filters.responsible}
-                    isVisible={!!visibleFilters['responsible']}
-                    onToggle={toggleFilterVisibility}
-                    widthClass="min-w-[150px]"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Nome..."
-                      className={headerInputClass}
-                      value={filters.responsible}
-                      onChange={(e) => handleFilterChange('responsible', e.target.value)}
-                      autoFocus
-                    />
-                  </HeaderCell>
-
-                  <HeaderCell
-                    label="Status"
-                    fieldKey="status"
-                    filterValue={filters.status}
-                    isVisible={!!visibleFilters['status']}
-                    onToggle={toggleFilterVisibility}
-                    widthClass="min-w-[130px]"
-                  >
-                    <select
-                      className={headerInputClass}
-                      value={filters.status}
-                      onChange={(e) => handleFilterChange('status', e.target.value)}
-                      autoFocus
-                    >
-                      <option value="">Todos</option>
-                      <option value={TaskStatus.PENDENTE}>{TaskStatus.PENDENTE}</option>
-                      <option value={TaskStatus.INICIADA}>{TaskStatus.INICIADA}</option>
-                      <option value={TaskStatus.ATRASADA}>{TaskStatus.ATRASADA}</option>
-                      <option value={TaskStatus.CONCLUIDA}>{TaskStatus.CONCLUIDA}</option>
-                    </select>
-                  </HeaderCell>
-
-                  <th className="px-6 py-4 w-[80px]"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {filteredTasks.length === 0 ? (
+      {
+        loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <RotateCcw className="animate-spin text-indigo-500" size={32} />
+              <p className="text-sm text-slate-500">Carregando tarefas...</p>
+            </div>
+          </div>
+        ) : layoutMode === 'list' ? (
+          <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="overflow-auto custom-scrollbar flex-1">
+              <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400">
+                <thead className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
-                      Nenhuma tarefa encontrada com os filtros selecionados.
-                    </td>
+                    <HeaderCell
+                      label="Cliente"
+                      fieldKey="clientName"
+                      filterValue={filters.clientName}
+                      isVisible={!!visibleFilters['clientName']}
+                      onToggle={toggleFilterVisibility}
+                      widthClass="min-w-[200px]"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Buscar cliente..."
+                        className={headerInputClass}
+                        value={filters.clientName}
+                        onChange={(e) => handleFilterChange('clientName', e.target.value)}
+                        autoFocus
+                      />
+                    </HeaderCell>
+
+                    <HeaderCell
+                      label="Tarefa"
+                      fieldKey="taskName"
+                      filterValue={filters.taskName}
+                      isVisible={!!visibleFilters['taskName']}
+                      onToggle={toggleFilterVisibility}
+                      widthClass="min-w-[180px]"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Nome da tarefa..."
+                        className={headerInputClass}
+                        value={filters.taskName}
+                        onChange={(e) => handleFilterChange('taskName', e.target.value)}
+                        autoFocus
+                      />
+                    </HeaderCell>
+
+                    <HeaderCell
+                      label="Competência"
+                      fieldKey="competence"
+                      filterValue={filters.competence}
+                      isVisible={!!visibleFilters['competence']}
+                      onToggle={toggleFilterVisibility}
+                      widthClass="min-w-[150px]"
+                    >
+                      <input
+                        type="month"
+                        className={headerInputClass}
+                        value={filters.competence}
+                        onChange={(e) => handleFilterChange('competence', e.target.value)}
+                        autoFocus
+                      />
+                    </HeaderCell>
+
+                    <HeaderCell
+                      label="Regime"
+                      fieldKey="taxRegime"
+                      filterValue={filters.taxRegime}
+                      isVisible={!!visibleFilters['taxRegime']}
+                      onToggle={toggleFilterVisibility}
+                      widthClass="min-w-[150px]"
+                    >
+                      <select
+                        className={headerInputClass}
+                        value={filters.taxRegime}
+                        onChange={(e) => handleFilterChange('taxRegime', e.target.value)}
+                        autoFocus
+                      >
+                        <option value="">Todos</option>
+                        <option value="Simples Nacional">Simples Nacional</option>
+                        <option value="Lucro Presumido">Lucro Presumido</option>
+                        <option value="Lucro Real">Lucro Real</option>
+                        <option value="MEI">MEI</option>
+                      </select>
+                    </HeaderCell>
+
+                    <HeaderCell
+                      label="Prioridade"
+                      fieldKey="priority"
+                      filterValue={filters.priority}
+                      isVisible={!!visibleFilters['priority']}
+                      onToggle={toggleFilterVisibility}
+                      widthClass="min-w-[120px]"
+                    >
+                      <select
+                        className={headerInputClass}
+                        value={filters.priority}
+                        onChange={(e) => handleFilterChange('priority', e.target.value)}
+                        autoFocus
+                      >
+                        <option value="">Todas</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Média">Média</option>
+                        <option value="Baixa">Baixa</option>
+                      </select>
+                    </HeaderCell>
+
+                    <HeaderCell
+                      label="Responsável"
+                      fieldKey="responsible"
+                      filterValue={filters.responsible}
+                      isVisible={!!visibleFilters['responsible']}
+                      onToggle={toggleFilterVisibility}
+                      widthClass="min-w-[150px]"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Nome..."
+                        className={headerInputClass}
+                        value={filters.responsible}
+                        onChange={(e) => handleFilterChange('responsible', e.target.value)}
+                        autoFocus
+                      />
+                    </HeaderCell>
+
+                    <HeaderCell
+                      label="Status"
+                      fieldKey="status"
+                      filterValue={filters.status}
+                      isVisible={!!visibleFilters['status']}
+                      onToggle={toggleFilterVisibility}
+                      widthClass="min-w-[130px]"
+                    >
+                      <select
+                        className={headerInputClass}
+                        value={filters.status}
+                        onChange={(e) => handleFilterChange('status', e.target.value)}
+                        autoFocus
+                      >
+                        <option value="">Todos</option>
+                        <option value={TaskStatus.PENDENTE}>{TaskStatus.PENDENTE}</option>
+                        <option value={TaskStatus.INICIADA}>{TaskStatus.INICIADA}</option>
+                        <option value={TaskStatus.ATRASADA}>{TaskStatus.ATRASADA}</option>
+                        <option value={TaskStatus.CONCLUIDA}>{TaskStatus.CONCLUIDA}</option>
+                      </select>
+                    </HeaderCell>
+
+                    <th className="px-6 py-4 w-[80px]"></th>
                   </tr>
-                ) : (
-                  filteredTasks.map((task) => (
-                    <tr key={task.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{task.clientName}</td>
-                      <td className="px-6 py-4">{task.taskName}</td>
-                      <td className="px-6 py-4">{task.competence}</td>
-                      <td className="px-6 py-4">{task.taxRegime}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                          task.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                            'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                          }`}>
-                          {task.priority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">{task.responsible}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${task.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
-                          task.status === TaskStatus.ATRASADA ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
-                            task.status === TaskStatus.INICIADA ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
-                              'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-                          }`}>
-                          {task.status === TaskStatus.CONCLUIDA && <CheckCircle size={12} />}
-                          {task.status === TaskStatus.ATRASADA && <XCircle size={12} />}
-                          {task.status === TaskStatus.INICIADA && <Play size={12} />}
-                          {task.status === TaskStatus.PENDENTE && <Clock size={12} />}
-                          {task.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <ActionMenu
-                          task={task}
-                          onStatusChange={handleStatusChange}
-                          onConclude={openConcludeModal}
-                          onEdit={handleEdit}
-                        />
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {filteredTasks.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                        Nenhuma tarefa encontrada com os filtros selecionados.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredTasks.map((task) => (
+                      <tr key={task.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{task.clientName}</td>
+                        <td className="px-6 py-4">{task.taskName}</td>
+                        <td className="px-6 py-4">{task.competence}</td>
+                        <td className="px-6 py-4">{task.taxRegime}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                            task.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                              'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                            }`}>
+                            {task.priority}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">{task.responsible}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${task.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                            task.status === TaskStatus.ATRASADA ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
+                              task.status === TaskStatus.INICIADA ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
+                                'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                            }`}>
+                            {task.status === TaskStatus.CONCLUIDA && <CheckCircle size={12} />}
+                            {task.status === TaskStatus.ATRASADA && <XCircle size={12} />}
+                            {task.status === TaskStatus.INICIADA && <Play size={12} />}
+                            {task.status === TaskStatus.PENDENTE && <Clock size={12} />}
+                            {task.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <ActionMenu
+                            task={task}
+                            onStatusChange={handleStatusChange}
+                            onConclude={openConcludeModal}
+                            onEdit={handleEdit}
+                            onDelete={handleDeleteTask}
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        ) : (
+          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-4 h-full min-w-[1000px] pb-2">
+              <div className="flex-1 min-w-[250px]">
+                <KanbanColumn
+                  title="Pendentes"
+                  status={TaskStatus.PENDENTE}
+                  tasks={filteredTasks.filter(t => t.status === TaskStatus.PENDENTE)}
+                  onEdit={handleEdit}
+                  onConclude={openConcludeModal}
+                  onDelete={handleDeleteTask}
+                  color="border-slate-400"
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                />
+              </div>
+              <div className="flex-1 min-w-[250px]">
+                <KanbanColumn
+                  title="Em Andamento"
+                  status={TaskStatus.INICIADA}
+                  tasks={filteredTasks.filter(t => t.status === TaskStatus.INICIADA)}
+                  onEdit={handleEdit}
+                  onConclude={openConcludeModal}
+                  onDelete={handleDeleteTask}
+                  color="border-amber-400"
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                />
+              </div>
+              <div className="flex-1 min-w-[250px]">
+                <KanbanColumn
+                  title="Atrasadas"
+                  status={TaskStatus.ATRASADA}
+                  tasks={filteredTasks.filter(t => t.status === TaskStatus.ATRASADA)}
+                  onEdit={handleEdit}
+                  onConclude={openConcludeModal}
+                  onDelete={handleDeleteTask}
+                  color="border-rose-400"
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                />
+              </div>
+              <div className="flex-1 min-w-[250px]">
+                <KanbanColumn
+                  title="Concluídas"
+                  status={TaskStatus.CONCLUIDA}
+                  tasks={filteredTasks.filter(t => t.status === TaskStatus.CONCLUIDA)}
+                  onEdit={handleEdit}
+                  onConclude={openConcludeModal}
+                  onDelete={handleDeleteTask}
+                  color="border-emerald-400"
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                />
+              </div>
+            </div>
           </div>
-        </Card>
-      ) : (
-        <div className="flex-1 overflow-x-auto overflow-y-hidden">
-          <div className="flex gap-4 h-full min-w-[1000px] pb-2">
-            <div className="flex-1 min-w-[250px]">
-              <KanbanColumn
-                title="Pendentes"
-                status={TaskStatus.PENDENTE}
-                tasks={filteredTasks.filter(t => t.status === TaskStatus.PENDENTE)}
-                onEdit={handleEdit}
-                onConclude={openConcludeModal}
-                color="border-slate-400"
-                onDragStart={handleDragStart}
-                onDrop={handleDrop}
-              />
-            </div>
-            <div className="flex-1 min-w-[250px]">
-              <KanbanColumn
-                title="Iniciadas"
-                status={TaskStatus.INICIADA}
-                tasks={filteredTasks.filter(t => t.status === TaskStatus.INICIADA)}
-                onEdit={handleEdit}
-                onConclude={openConcludeModal}
-                color="border-blue-500"
-                onDragStart={handleDragStart}
-                onDrop={handleDrop}
-              />
-            </div>
-            <div className="flex-1 min-w-[250px]">
-              <KanbanColumn
-                title="Atrasadas"
-                status={TaskStatus.ATRASADA}
-                tasks={filteredTasks.filter(t => t.status === TaskStatus.ATRASADA)}
-                onEdit={handleEdit}
-                onConclude={openConcludeModal}
-                color="border-red-500"
-                onDragStart={handleDragStart}
-                onDrop={handleDrop}
-              />
-            </div>
-            <div className="flex-1 min-w-[250px]">
-              <KanbanColumn
-                title="Concluídas"
-                status={TaskStatus.CONCLUIDA}
-                tasks={filteredTasks.filter(t => t.status === TaskStatus.CONCLUIDA)}
-                onEdit={handleEdit}
-                onConclude={openConcludeModal}
-                color="border-emerald-500"
-                onDragStart={handleDragStart}
-                onDrop={handleDrop}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Confirmation Modal */}
       <Modal
@@ -857,7 +982,7 @@ export const Tasks: React.FC = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </div >
   );
 };
 
@@ -865,12 +990,15 @@ export const Tasks: React.FC = () => {
 
 const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({ onBack, initialData }) => {
   const isEditing = !!initialData;
-  const [activeTab, setActiveTab] = useState('simples');
-  const [semMovimento, setSemMovimento] = useState(false);
-  const [selectedDfe, setSelectedDfe] = useState<string[]>([]);
-  const [selectedAnnexes, setSelectedAnnexes] = useState<string[]>([]);
-  const [excedeuSublimite, setExcedeuSublimite] = useState(false);
-  const [fatorR, setFatorR] = useState(false);
+  const [activeTab, setActiveTab] = useState(initialData?.taxRegime === 'simples' ? 'simples' : 'observacao');
+  const [taxRegime, setTaxRegime] = useState(initialData?.taxRegime || 'simples');
+  const [regimeRegistro, setRegimeRegistro] = useState(initialData?.registrationRegime || 'competencia');
+  const [semMovimento, setSemMovimento] = useState(initialData?.noMovement || false);
+  const [selectedDfe, setSelectedDfe] = useState<string[]>(initialData?.selectedDfes || []);
+  const [selectedAnnexes, setSelectedAnnexes] = useState<string[]>(initialData?.selectedAnnexes || []);
+  const [excedeuSublimite, setExcedeuSublimite] = useState(initialData?.exceededSublimit || false);
+  const [fatorR, setFatorR] = useState(initialData?.factorR || false);
+  const [observation, setObservation] = useState(initialData?.observation || '');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<{ name: string; size: number; url?: string }[]>(initialData?.attachments || []);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -880,45 +1008,41 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
   const [sectors, setSectors] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [holidayDates, setHolidayDates] = useState<string[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   // Form State
   const [selectedClientId, setSelectedClientId] = useState(initialData?.clientName || '');
-  const [taxRegime, setTaxRegime] = useState(initialData?.taxRegime === 'Simples Nacional' ? 'simples' : 'lp');
-  const [regimeRegistro, setRegimeRegistro] = useState('competencia');
 
   // Multi-task State
-  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+  const [pendingTasks, setPendingTasks] = useState<any[]>(
+    initialData ? [{
+      id: initialData.id,
+      taskName: initialData.taskName,
+      sector: initialData.sector,
+      responsible: initialData.responsible,
+      competence: initialData.competence,
+      vencimento: initialData.dueDate || '',
+      vencimentoVariavel: initialData.variableAdjustment || 'nao_aplica',
+      recurrence: initialData.recurrence || 'mensal',
+      months: initialData.recurrenceMonths || [],
+      priority: initialData.priority || Priority.MEDIA
+    }] : []
+  );
+
   const [tempTask, setTempTask] = useState({
     taskTypeId: '',
-    taskName: '',
-    sector: '',
-    responsible: '',
-    priority: Priority.MEDIA,
-    competence: new Date().toISOString().substring(0, 7), // YYYY-MM
-    vencimento: '',
-    vencimentoVariavel: 'nao_aplica',
-    recurrence: 'mensal',
-    months: [] as number[],
+    taskName: initialData?.taskName || '',
+    sector: initialData?.sector || '',
+    responsible: initialData?.responsible || '',
+    priority: initialData?.priority || Priority.MEDIA,
+    competence: initialData?.competence || new Date().toISOString().substring(0, 7), // YYYY-MM
+    vencimento: initialData?.dueDate || '',
+    vencimentoVariavel: initialData?.variableAdjustment || 'nao_aplica',
+    recurrence: initialData?.recurrence || 'mensal',
+    months: initialData?.recurrenceMonths || [] as number[],
   });
 
-  // Load editing data into pending if editing
-  useEffect(() => {
-    if (isEditing && initialData) {
-      setTempTask({
-        taskTypeId: '', // We don't have ID in mock
-        taskName: initialData.taskName,
-        sector: initialData.sector,
-        responsible: initialData.responsible,
-        priority: initialData.priority,
-        competence: initialData.competence,
-        vencimento: '', // Mock doesn't have specific date
-        vencimentoVariavel: 'nao_aplica',
-        recurrence: 'mensal',
-        months: [],
-      });
-    }
-  }, [isEditing, initialData]);
 
   useEffect(() => {
     fetchFormData();
@@ -929,16 +1053,18 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [taskTypesRes, sectorsRes, membersRes, clientsRes] = await Promise.all([
+      const [taskTypesRes, sectorsRes, membersRes, clientsRes, holidaysRes] = await Promise.all([
         supabase.from('task_types').select('*').eq('org_id', user.id),
         supabase.from('sectors').select('*').eq('org_id', user.id),
         supabase.from('members').select('*').eq('org_id', user.id),
-        supabase.from('clients').select('*').eq('org_id', user.id).eq('status', 'Ativo')
+        supabase.from('clients').select('*').eq('org_id', user.id).eq('status', 'Ativo'),
+        supabase.from('holidays').select('date').eq('org_id', user.id)
       ]);
 
       if (taskTypesRes.data) setTaskTypes(taskTypesRes.data);
       if (sectorsRes.data) setSectors(sectorsRes.data);
       if (membersRes.data) setMembers(membersRes.data);
+      if (holidaysRes.data) setHolidayDates(holidaysRes.data.map((h: any) => h.date));
       if (clientsRes.data) {
         const mappedClients: Client[] = clientsRes.data.map((c: any) => ({
           id: c.id,
@@ -983,7 +1109,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
     if (!tempTask.taskName || !tempTask.responsible || !tempTask.competence) {
       return alert('Preencha os campos obrigatórios da tarefa (Tarefa, Responsável e Competência)');
     }
-    if (tempTask.recurrence !== 'mensal' && tempTask.months.length === 0) {
+    if (tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'unica' && tempTask.months.length === 0) {
       return alert('Selecione pelo menos um mês para esta recorrência');
     }
     setPendingTasks([...pendingTasks, { ...tempTask, id: Date.now().toString() }]);
@@ -1002,30 +1128,170 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
   };
 
   const handleSaveAll = async () => {
-    if (!selectedClientId) return alert('Selecione uma empresa');
+    // Find client ID
+    const client = clients.find(c => c.companyName === selectedClientId);
+    if (!client) return alert('Selecione uma empresa válida');
+
     if (pendingTasks.length === 0 && !tempTask.taskName) return alert('Adicione pelo menos uma tarefa');
 
-    // If there's something in tempTask and list is empty, add it automatically? 
-    // Better to force clicking "Adicionar" to avoid confusion, or handle the last one here.
     let tasksToSave = [...pendingTasks];
     if (tasksToSave.length === 0 && tempTask.taskName) {
-      tasksToSave.push({ ...tempTask, id: 'temp' });
+      tasksToSave.push({ ...tempTask, id: 'temp-' + Date.now() });
     }
 
     try {
       setLoadingData(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) return alert('Usuário não autenticado');
 
-      // Prepare records for Supabase (Need to check actual column names in DB)
-      // This part will need mapping based on the actual 'tasks' table schema
-      console.log('Saving tasks for client:', selectedClientId, tasksToSave);
+      const allPayloads: any[] = [];
+
+      for (const t of tasksToSave) {
+        // Recurrence logic: if it's a NEW task, we expand it. If editing, we only update the specific one.
+        if (isEditing && t.id === initialData.id) {
+          const adjustedDate = calculateAdjustedDate(t.vencimento, t.vencimentoVariavel, holidayDates);
+          allPayloads.push({
+            id: t.id,
+            client_id: client.id,
+            client_name: client.companyName,
+            task_name: t.taskName,
+            sector: t.sector,
+            responsible: t.responsible,
+            competence: t.competence,
+            due_date: adjustedDate || null,
+            variable_adjustment: t.vencimentoVariavel,
+            priority: t.priority,
+            status: initialData.status,
+            recurrence: t.recurrence,
+            recurrence_months: t.months,
+            tax_regime: taxRegime,
+            registration_regime: regimeRegistro,
+            no_movement: semMovimento,
+            exceeded_sublimit: excedeuSublimite,
+            factor_r: fatorR,
+            selected_annexes: selectedAnnexes,
+            selected_dfes: selectedDfe,
+            observation: observation,
+            org_id: user.id
+          });
+        } else {
+          // Expansion logic for creation
+          const [startYear, startMonth] = t.competence.split('-').map(Number);
+
+          let monthOffset = 0;
+          let baseDay = 10;
+
+          if (t.vencimento) {
+            const dDate = new Date(t.vencimento + 'T12:00:00');
+            const dYear = dDate.getFullYear();
+            const dMonth = dDate.getMonth() + 1;
+            monthOffset = (dYear - startYear) * 12 + (dMonth - startMonth);
+            baseDay = dDate.getDate();
+          }
+
+          const createIteration = (month: number, year: number) => {
+            const compStr = `${year}-${month.toString().padStart(2, '0')}`;
+
+            // Calculate base due date by applying the same month offset and day
+            const targetDueDate = new Date(year, (month - 1) + monthOffset, baseDay, 12, 0, 0);
+            const yearVal = targetDueDate.getFullYear();
+            const monthVal = (targetDueDate.getMonth() + 1).toString().padStart(2, '0');
+            const dayVal = targetDueDate.getDate().toString().padStart(2, '0');
+            const rawDueStr = `${yearVal}-${monthVal}-${dayVal}`;
+
+            const finalDate = calculateAdjustedDate(rawDueStr, t.vencimentoVariavel, holidayDates);
+
+            allPayloads.push({
+              client_id: client.id,
+              client_name: client.companyName,
+              task_name: t.taskName,
+              sector: t.sector,
+              responsible: t.responsible,
+              competence: compStr,
+              due_date: finalDate,
+              variable_adjustment: t.vencimentoVariavel,
+              priority: t.priority,
+              status: TaskStatus.PENDENTE,
+              recurrence: t.recurrence,
+              recurrence_months: t.months,
+              tax_regime: taxRegime,
+              registration_regime: regimeRegistro,
+              no_movement: semMovimento,
+              exceeded_sublimit: excedeuSublimite,
+              factor_r: fatorR,
+              selected_annexes: selectedAnnexes,
+              selected_dfes: selectedDfe,
+              observation: observation,
+              org_id: user.id
+            });
+          };
+
+          if (t.recurrence === 'mensal') {
+            for (let m = startMonth; m <= 12; m++) {
+              createIteration(m, startYear);
+            }
+          } else if (t.recurrence === 'unica') {
+            createIteration(startMonth, startYear);
+          } else {
+            // Periodic: register month + chosen months in the future
+            const months = t.months || [];
+            const iterations = new Set<number>();
+            iterations.add(startMonth);
+            months.forEach((m: number) => {
+              if (m > startMonth) iterations.add(m); // Check for strictly greater as startMonth is added above
+            });
+
+            Array.from(iterations).sort((a, b) => a - b).forEach(m => {
+              createIteration(m, startYear);
+            });
+          }
+        }
+      }
+
+      for (const payload of allPayloads) {
+        let taskData;
+        let taskError;
+
+        if (payload.id) {
+          const { data, error } = await (supabase
+            .from('tasks') as any)
+            .update(payload)
+            .eq('id', payload.id)
+            .select()
+            .single();
+          taskData = data;
+          taskError = error;
+        } else {
+          const { data, error } = await (supabase
+            .from('tasks') as any)
+            .insert(payload)
+            .select()
+            .single();
+          taskData = data;
+          taskError = error;
+        }
+
+        if (taskError) throw taskError;
+
+        // 2. Upload and Link Files
+        if (uploadedFiles.length > 0 && taskData) {
+          for (const file of uploadedFiles) {
+            await (supabase.from('task_attachments') as any).insert({
+              task_id: (taskData as any).id,
+              file_name: file.name,
+              file_size: file.size,
+              storage_path: `tasks/${(taskData as any).id}/${file.name}`,
+              is_conclude_attachment: false
+            });
+          }
+        }
+      }
 
       alert(`${tasksToSave.length} tarefa(s) cadastrada(s) com sucesso!`);
       onBack();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving tasks:', error);
-      alert('Erro ao salvar tarefas');
+      alert('Erro ao salvar tarefas: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setLoadingData(false);
     }
@@ -1115,16 +1381,18 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
           {/* TABBARS REDUZIDAS PARA CONTEXTO GERAL */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto bg-slate-50 dark:bg-slate-900/50">
-              {tabs.filter(t => t.id !== 'recorrencia').map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 px-4 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
-                    }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+              {tabs
+                .filter(t => t.id !== 'recorrencia')
+                .map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 px-4 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
             </div>
             <div className="p-4 max-h-[400px] overflow-auto custom-scrollbar">
               {activeTab === 'simples' && (
@@ -1156,6 +1424,8 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
 
               {activeTab === 'observacao' && (
                 <textarea
+                  value={observation}
+                  onChange={(e) => setObservation(e.target.value)}
                   className="w-full h-32 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Observações gerais para este cliente..."
                 />
@@ -1324,6 +1594,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                       label="Recorrência"
                       className="text-[11px]"
                       options={[
+                        { value: 'unica', label: 'Única' },
                         { value: 'mensal', label: 'Mensal' },
                         { value: 'bimestral', label: 'Bimestral' },
                         { value: 'trimestral', label: 'Trimestral' },
@@ -1331,7 +1602,11 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                         { value: 'anual', label: 'Anual' },
                       ]}
                       value={tempTask.recurrence}
-                      onChange={(e) => setTempTask(prev => ({ ...prev, recurrence: e.target.value, months: e.target.value === 'mensal' ? [] : prev.months }))}
+                      onChange={(e) => setTempTask(prev => ({
+                        ...prev,
+                        recurrence: e.target.value,
+                        months: (e.target.value === 'mensal' || e.target.value === 'unica') ? [] : prev.months
+                      }))}
                     />
                   </div>
                   <div className="md:col-span-4">
@@ -1362,32 +1637,35 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                 </div>
 
                 {/* MONTH SELECTOR FOR NON-MONTHLY */}
-                {tempTask.recurrence !== 'mensal' && (
+                {tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'unica' && (
                   <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">
                       Selecione os meses de repetição
                     </label>
                     <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2">
-                      {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((month, idx) => (
-                        <button
-                          key={month}
-                          type="button"
-                          onClick={() => {
-                            setTempTask(prev => ({
-                              ...prev,
-                              months: prev.months.includes(idx)
-                                ? prev.months.filter(m => m !== idx)
-                                : [...prev.months, idx]
-                            }));
-                          }}
-                          className={`py-2 px-1 rounded-lg border text-xs font-bold transition-all ${tempTask.months.includes(idx)
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-indigo-300'
-                            }`}
-                        >
-                          {month}
-                        </button>
-                      ))}
+                      {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((month, idx) => {
+                        const monthNum = idx + 1;
+                        return (
+                          <button
+                            key={month}
+                            type="button"
+                            onClick={() => {
+                              setTempTask(prev => ({
+                                ...prev,
+                                months: prev.months.includes(monthNum)
+                                  ? prev.months.filter(m => m !== monthNum)
+                                  : [...prev.months, monthNum]
+                              }));
+                            }}
+                            className={`py-2 px-1 rounded-lg border text-xs font-bold transition-all ${tempTask.months.includes(monthNum)
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-indigo-300'
+                              }`}
+                          >
+                            {month}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

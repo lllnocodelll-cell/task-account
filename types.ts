@@ -21,13 +21,22 @@ export interface Task {
   clientName: string;
   taskName: string;
   competence: string; // MM/YYYY
-  taxRegime: string;
   priority: Priority;
   sector: string;
   responsible: string;
   status: TaskStatus;
   dueDate?: string;
+  variableAdjustment?: string;
   recurrence?: string;
+  recurrenceMonths?: number[];
+  observation?: string;
+  taxRegime?: string;
+  registrationRegime?: string;
+  noMovement?: boolean;
+  exceededSublimit?: boolean;
+  factorR?: boolean;
+  selectedAnnexes?: string[];
+  selectedDfes?: string[];
   attachments?: { name: string; size: number; url?: string }[];
 }
 
