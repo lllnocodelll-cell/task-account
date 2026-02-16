@@ -28,6 +28,7 @@ export interface Task {
   status: TaskStatus;
   dueDate?: string;
   recurrence?: string;
+  attachments?: { name: string; size: number; url?: string }[];
 }
 
 export interface Client {

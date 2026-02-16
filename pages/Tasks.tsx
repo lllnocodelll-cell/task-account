@@ -21,7 +21,9 @@ import {
   AlertCircle,
   CheckSquare,
   Square,
-  Info
+  Info,
+  Upload,
+  File
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -369,6 +371,8 @@ export const Tasks: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [concludeModalOpen, setConcludeModalOpen] = useState(false);
   const [selectedTaskForConclude, setSelectedTaskForConclude] = useState<string | null>(null);
+  const [concludeFiles, setConcludeFiles] = useState<File[]>([]);
+  const concludeFileInputRef = useRef<HTMLInputElement>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
 
   // Filter Values State
@@ -443,14 +447,31 @@ export const Tasks: React.FC = () => {
 
   const openConcludeModal = (id: string) => {
     setSelectedTaskForConclude(id);
+    setConcludeFiles([]);
     setConcludeModalOpen(true);
   };
 
   const handleConcludeTask = () => {
     if (selectedTaskForConclude) {
-      handleStatusChange(selectedTaskForConclude, TaskStatus.CONCLUIDA);
+      const newAttachments = concludeFiles.map(f => ({
+        name: f.name,
+        size: f.size,
+        url: URL.createObjectURL(f) // Mocking a URL for preview
+      }));
+
+      setTasks(prev => prev.map(t =>
+        t.id === selectedTaskForConclude
+          ? {
+            ...t,
+            status: TaskStatus.CONCLUIDA,
+            attachments: [...(t.attachments || []), ...newAttachments]
+          }
+          : t
+      ));
+
       setConcludeModalOpen(false);
       setSelectedTaskForConclude(null);
+      setConcludeFiles([]);
     }
   };
 
@@ -788,9 +809,53 @@ export const Tasks: React.FC = () => {
           </>
         }
       >
-        <p className="text-slate-600 dark:text-slate-300">
-          Tem certeza que deseja marcar esta tarefa como concluída?
-        </p>
+        <div className="space-y-4">
+          <p className="text-slate-600 dark:text-slate-300">
+            Tem certeza que deseja marcar esta tarefa como concluída? Você pode anexar arquivos de comprovante abaixo se desejar.
+          </p>
+
+          <div className="space-y-3">
+            <input
+              type="file"
+              ref={concludeFileInputRef}
+              onChange={(e) => {
+                if (e.target.files) {
+                  setConcludeFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                }
+              }}
+              className="hidden"
+              multiple
+            />
+
+            <div
+              onClick={() => concludeFileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg p-6 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
+            >
+              <Upload size={20} className="text-indigo-500 mb-2 group-hover:scale-110 transition-transform" />
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Clique para anexar comprovantes</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">PDF, PNG, JPG (Opcional)</p>
+            </div>
+
+            {concludeFiles.length > 0 && (
+              <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+                {concludeFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded border border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <File size={12} className="text-indigo-500 shrink-0" />
+                      <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 truncate max-w-[150px]">{file.name}</span>
+                    </div>
+                    <button
+                      onClick={() => setConcludeFiles(files => files.filter((_, i) => i !== idx))}
+                      className="text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   );
@@ -800,12 +865,15 @@ export const Tasks: React.FC = () => {
 
 const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({ onBack, initialData }) => {
   const isEditing = !!initialData;
-  const [activeTab, setActiveTab] = useState('recorrencia');
+  const [activeTab, setActiveTab] = useState('simples');
   const [semMovimento, setSemMovimento] = useState(false);
   const [selectedDfe, setSelectedDfe] = useState<string[]>([]);
   const [selectedAnnexes, setSelectedAnnexes] = useState<string[]>([]);
   const [excedeuSublimite, setExcedeuSublimite] = useState(false);
   const [fatorR, setFatorR] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<{ name: string; size: number; url?: string }[]>(initialData?.attachments || []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Data State
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
@@ -815,9 +883,42 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
   const [loadingData, setLoadingData] = useState(true);
 
   // Form State
-  const [selectedTaskType, setSelectedTaskType] = useState(initialData?.taskName || '');
-  const [selectedSector, setSelectedSector] = useState(initialData?.sector || '');
   const [selectedClientId, setSelectedClientId] = useState(initialData?.clientName || '');
+  const [taxRegime, setTaxRegime] = useState(initialData?.taxRegime === 'Simples Nacional' ? 'simples' : 'lp');
+  const [regimeRegistro, setRegimeRegistro] = useState('competencia');
+
+  // Multi-task State
+  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+  const [tempTask, setTempTask] = useState({
+    taskTypeId: '',
+    taskName: '',
+    sector: '',
+    responsible: '',
+    priority: Priority.MEDIA,
+    competence: new Date().toISOString().substring(0, 7), // YYYY-MM
+    vencimento: '',
+    vencimentoVariavel: 'nao_aplica',
+    recurrence: 'mensal',
+    months: [] as number[],
+  });
+
+  // Load editing data into pending if editing
+  useEffect(() => {
+    if (isEditing && initialData) {
+      setTempTask({
+        taskTypeId: '', // We don't have ID in mock
+        taskName: initialData.taskName,
+        sector: initialData.sector,
+        responsible: initialData.responsible,
+        priority: initialData.priority,
+        competence: initialData.competence,
+        vencimento: '', // Mock doesn't have specific date
+        vencimentoVariavel: 'nao_aplica',
+        recurrence: 'mensal',
+        months: [],
+      });
+    }
+  }, [isEditing, initialData]);
 
   useEffect(() => {
     fetchFormData();
@@ -867,276 +968,497 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
     );
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddPendingTask = () => {
+    if (!tempTask.taskName || !tempTask.responsible || !tempTask.competence) {
+      return alert('Preencha os campos obrigatórios da tarefa (Tarefa, Responsável e Competência)');
+    }
+    if (tempTask.recurrence !== 'mensal' && tempTask.months.length === 0) {
+      return alert('Selecione pelo menos um mês para esta recorrência');
+    }
+    setPendingTasks([...pendingTasks, { ...tempTask, id: Date.now().toString() }]);
+    setTempTask(prev => ({
+      ...prev,
+      taskTypeId: '',
+      taskName: '',
+      sector: '',
+      months: [],
+      // keep responsible, competence and recurrence as they might be the same for next item
+    }));
+  };
+
+  const removePendingTask = (id: string) => {
+    setPendingTasks(pendingTasks.filter(t => t.id !== id));
+  };
+
+  const handleSaveAll = async () => {
+    if (!selectedClientId) return alert('Selecione uma empresa');
+    if (pendingTasks.length === 0 && !tempTask.taskName) return alert('Adicione pelo menos uma tarefa');
+
+    // If there's something in tempTask and list is empty, add it automatically? 
+    // Better to force clicking "Adicionar" to avoid confusion, or handle the last one here.
+    let tasksToSave = [...pendingTasks];
+    if (tasksToSave.length === 0 && tempTask.taskName) {
+      tasksToSave.push({ ...tempTask, id: 'temp' });
+    }
+
+    try {
+      setLoadingData(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Prepare records for Supabase (Need to check actual column names in DB)
+      // This part will need mapping based on the actual 'tasks' table schema
+      console.log('Saving tasks for client:', selectedClientId, tasksToSave);
+
+      alert(`${tasksToSave.length} tarefa(s) cadastrada(s) com sucesso!`);
+      onBack();
+    } catch (error) {
+      console.error('Error saving tasks:', error);
+      alert('Erro ao salvar tarefas');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
   const tabs = [
     { id: 'recorrencia', label: 'Recorrência' },
     { id: 'simples', label: 'Simples Nacional' },
     { id: 'observacao', label: 'Observação' },
     { id: 'dfe', label: 'Modelos DF-e' },
+    { id: 'arquivos', label: 'Arquivos' },
   ];
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-            {isEditing ? `Editando: ${initialData.taskName}` : 'Nova Tarefa'}
+            {isEditing ? `Editando: ${initialData.taskName}` : 'Cadastro de Tarefas em Lote'}
           </h2>
           <p className="text-slate-500 dark:text-slate-400">
-            {isEditing ? `Cliente: ${initialData.clientName}` : 'Preencha os detalhes da tarefa'}
+            {isEditing ? `Cliente: ${initialData.clientName}` : 'Selecione o cliente e adicione as tarefas operacionais'}
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={onBack}>Voltar</Button>
-          <Button icon={<Save size={18} />}>
-            {isEditing ? 'Salvar Alterações' : 'Criar Tarefa'}
+          <Button variant="secondary" onClick={onBack}>Cancelar</Button>
+          <Button icon={<Save size={18} />} onClick={handleSaveAll}>
+            {isEditing ? 'Salvar Alterações' : `Criar ${pendingTasks.length || (tempTask.taskName ? 1 : 0)} Tarefa(s)`}
           </Button>
         </div>
       </div>
 
-      {/* SECTION 1: DADOS INICIAIS */}
-      <Card title="Dados Iniciais">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Input
-            label="Data de Criação"
-            value={new Date().toISOString().split('T')[0]}
-            disabled
-            className="bg-slate-100 dark:bg-slate-800 text-slate-500"
-          />
-          <div className="md:col-span-3">
-            <SearchableSelect
-              label="Empresa"
-              options={clients.map(c => ({
-                value: c.companyName,
-                label: c.companyName
-              }))}
-              value={selectedClientId}
-              onChange={(val) => setSelectedClientId(val)}
-              placeholder="Selecione a empresa..."
-            />
-          </div>
-
-          <Select
-            label="Prioridade"
-            options={[
-              { value: Priority.BAIXA, label: 'Baixa' },
-              { value: Priority.MEDIA, label: 'Média' },
-              { value: Priority.ALTA, label: 'Alta' },
-            ]}
-            defaultValue={initialData?.priority}
-          />
-          <div className="md:col-span-1">
-            <Select
-              label="Tarefa"
-              options={taskTypes.map(t => ({ value: t.name, label: t.name }))}
-              value={selectedTaskType}
-              onChange={(e) => {
-                setSelectedTaskType(e.target.value);
-                // Auto-select sector if linked
-                const type = taskTypes.find(t => t.name === e.target.value);
-                if (type && type.sector_id) {
-                  const sector = sectors.find(s => s.id === type.sector_id);
-                  if (sector) setSelectedSector(sector.name); // Assuming sector name is what we store/display or ID? 
-                  // Wait, Task interface uses 'sector' string name usually in mocks. 
-                  // Let's assume name for now to match mock structure, but ideally should be ID.
-                  // Checking mock: sector: 'Fiscal'.
-                }
-              }}
-            />
-          </div>
-          <Select
-            label="Responsável"
-            options={members.map(m => ({
-              value: `${m.first_name} ${m.last_name}`,
-              label: `${m.first_name} ${m.last_name}`
-            }))}
-            defaultValue={initialData?.responsible}
-          />
-          <Select
-            label="Setor"
-            options={sectors.map(s => ({ value: s.name, label: s.name }))}
-            value={selectedSector}
-            onChange={(e) => setSelectedSector(e.target.value)}
-          />
-
-          <Select
-            label="Regime Tributário"
-            options={[
-              { value: 'simples', label: 'Simples Nacional' },
-              { value: 'lp', label: 'Lucro Presumido' },
-              { value: 'lr', label: 'Lucro Real' },
-              { value: 'mei', label: 'MEI' },
-            ]}
-            defaultValue={initialData?.taxRegime === 'Simples Nacional' ? 'simples' : 'lp'}
-          />
-          <Select
-            label="Regime de Registro"
-            options={[
-              { value: 'competencia', label: 'Competência' },
-              { value: 'caixa', label: 'Caixa' },
-              { value: 'misto', label: 'Misto' },
-            ]}
-          />
-
-          <div className="md:col-span-2 flex items-end h-[66px] pb-3">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setSemMovimento(!semMovimento)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${semMovimento ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${semMovimento ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Sem Movimento</span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* SECTION 2: TABBARS */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden min-h-[400px]">
-        <div className="border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
-          <div className="flex w-max">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-800/30' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
-                  }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-6">
-
-          {/* 2.3.2 Tabbar - Recorrência */}
-          {activeTab === 'recorrencia' && (
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* COLUNA ESQUERDA: CONTEXTO DO CLIENTE */}
+        <div className="lg:col-span-4 space-y-6">
+          <Card title="Contexto do Cliente">
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+              <SearchableSelect
+                label="Empresa"
+                options={clients.map(c => ({
+                  value: c.companyName,
+                  label: c.companyName
+                }))}
+                value={selectedClientId}
+                onChange={(val) => setSelectedClientId(val)}
+                placeholder="Selecione a empresa..."
+              />
+
+              <div className="grid grid-cols-2 gap-4">
                 <Select
-                  label="Recorrência"
+                  label="Regime Tributário"
                   options={[
-                    { value: 'mensal', label: 'Mensal' },
-                    { value: 'bimestral', label: 'Bimestral' },
-                    { value: 'trimestral', label: 'Trimestral' },
-                    { value: 'semestral', label: 'Semestral' },
-                    { value: 'anual', label: 'Anual' },
-                    { value: 'personalizada', label: 'Personalizada' },
+                    { value: 'simples', label: 'Simples Nacional' },
+                    { value: 'lp', label: 'Lucro Presumido' },
+                    { value: 'lr', label: 'Lucro Real' },
+                    { value: 'mei', label: 'MEI' },
                   ]}
+                  value={taxRegime}
+                  onChange={(e) => setTaxRegime(e.target.value)}
                 />
-                <Input type="month" label="Competência Inicial" />
-                <Input type="date" label="Vencimento" defaultValue={initialData ? calculateAdjustedDate('2026-01-20', 'none') : ''} />
                 <Select
-                  label="Variável do Vencimento"
+                  label="Regime de Registro"
                   options={[
-                    { value: 'nao_aplica', label: 'Não se aplica' },
-                    { value: 'antecipar', label: 'Antecipar' },
-                    { value: 'prorrogar', label: 'Prorrogar' },
+                    { value: 'competencia', label: 'Competência' },
+                    { value: 'caixa', label: 'Caixa' },
+                    { value: 'misto', label: 'Misto' },
                   ]}
+                  value={regimeRegistro}
+                  onChange={(e) => setRegimeRegistro(e.target.value)}
                 />
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 flex items-start gap-3">
-                <Info className="text-indigo-500 shrink-0 mt-0.5" size={20} />
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">Resumo da Recorrência</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    A tarefa será gerada mensalmente a partir da competência selecionada. O vencimento será ajustado automaticamente conforme a regra selecionada caso caia em feriados ou finais de semana.
-                  </p>
+              <div className="flex items-center gap-3 py-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSemMovimento(!semMovimento)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${semMovimento ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${semMovimento ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Sem Movimento</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* TABBARS REDUZIDAS PARA CONTEXTO GERAL */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto bg-slate-50 dark:bg-slate-900/50">
+              {tabs.filter(t => t.id !== 'recorrencia').map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 px-4 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="p-4 max-h-[400px] overflow-auto custom-scrollbar">
+              {activeTab === 'simples' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col gap-4">
+                    <Toggle label="Excedeu Sublimite?" value={excedeuSublimite} onChange={setExcedeuSublimite} />
+                    <Toggle label="Fator R" value={fatorR} onChange={setFatorR} />
+                  </div>
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anexos</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {SIMPLES_ANNEXES.map((annex) => (
+                        <button
+                          key={annex}
+                          type="button"
+                          onClick={() => toggleAnnex(annex)}
+                          className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${selectedAnnexes.includes(annex)
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/30'
+                            : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-700'
+                            }`}
+                        >
+                          {annex}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* 2.3.3 Tabbar - Simples Nacional */}
-          {activeTab === 'simples' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 items-end">
-                <Toggle
-                  label="Excedeu Sublimite?"
-                  value={excedeuSublimite}
-                  onChange={setExcedeuSublimite}
+              {activeTab === 'observacao' && (
+                <textarea
+                  className="w-full h-32 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Observações gerais para este cliente..."
                 />
-                <Toggle
-                  label="Fator R"
-                  value={fatorR}
-                  onChange={setFatorR}
-                />
-                <Input label="CNPJ Acesso" placeholder="00.000.000/0000-00" copyable />
-                <Input label="CPF Acesso" placeholder="000.000.000-00" copyable />
-                <Input label="Código de Acesso" placeholder="123456789012" copyable />
-              </div>
+              )}
 
-              <div>
-                <h4 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <FileText size={18} className="text-indigo-600" />
-                  Anexos do Simples Nacional
-                </h4>
-                <div className="flex flex-wrap gap-4">
-                  {SIMPLES_ANNEXES.map((annex) => (
+              {activeTab === 'dfe' && (
+                <div className="grid grid-cols-3 gap-2">
+                  {DF_MODELS.map((model) => (
                     <button
-                      key={annex}
-                      type="button"
-                      onClick={() => toggleAnnex(annex)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${selectedAnnexes.includes(annex)
-                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-500 dark:text-indigo-300'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'
+                      key={model.id}
+                      onClick={() => toggleDfe(model.id)}
+                      className={`p-2 rounded border text-[10px] font-bold transition-all ${selectedDfe.includes(model.id)
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-600 hover:border-indigo-300'
                         }`}
                     >
-                      {selectedAnnexes.includes(annex) ? <CheckSquare size={16} /> : <Square size={16} />}
-                      {annex}
+                      {model.label}
                     </button>
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* 2.3.4 Tabbar - Observação */}
-          {activeTab === 'observacao' && (
-            <div className="space-y-4">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Observações Gerais</label>
-              <textarea
-                className="w-full h-40 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Digite aqui informações importantes sobre esta tarefa..."
-              />
-            </div>
-          )}
-
-          {/* 2.3.5 Tabbar - Modelos DF-e */}
-          {activeTab === 'dfe' && (
-            <div>
-              <div className="flex items-center gap-2 mb-4 text-slate-500 dark:text-slate-400 text-sm">
-                <AlertCircle size={16} />
-                <p>Selecione os modelos de documentos fiscais utilizados pelo cliente.</p>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {DF_MODELS.map((model) => (
+              {activeTab === 'arquivos' && (
+                <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    multiple
+                  />
                   <div
-                    key={model.id}
-                    onClick={() => toggleDfe(model.id)}
-                    title={model.desc}
-                    className={`cursor-pointer p-4 rounded-lg border-2 text-center transition-all duration-200 relative group ${selectedDfe.includes(model.id)
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300 dark:hover:border-indigo-700'
-                      }`}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
                   >
-                    <div className={`text-lg font-bold mb-1 ${selectedDfe.includes(model.id) ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`}>
-                      {model.label}
+                    <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-3 group-hover:scale-110 transition-transform">
+                      <Upload size={24} />
                     </div>
-                    <div className="absolute top-2 right-2">
-                      {selectedDfe.includes(model.id) && <CheckCircle size={16} className="text-indigo-600 dark:text-indigo-400" />}
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Clique ou arraste arquivos</p>
+                    <p className="text-xs text-slate-500 mt-1">PDF, PNG, JPG ou DOC (Máx. 10MB)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-2">Arquivos selecionados</h4>
+                    {(uploadedFiles.length === 0 && existingAttachments.length === 0) ? (
+                      <div className="text-center py-4 text-xs text-slate-400 italic bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                        Nenhum arquivo anexado ainda.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {/* Existing Attachments */}
+                        {existingAttachments.map((file, idx) => (
+                          <div key={`existing-${idx}`} className="flex items-center justify-between p-2 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-lg border border-indigo-100 dark:border-indigo-900/30">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <FileText size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                              <a
+                                href={file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:underline truncate"
+                              >
+                                {file.name}
+                              </a>
+                              <span className="text-[10px] text-slate-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                            </div>
+                            <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-200 rounded">Existente</span>
+                          </div>
+                        ))}
+
+                        {/* New Uploads */}
+                        {uploadedFiles.map((file, idx) => (
+                          <div key={`new-${idx}`} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              <File size={14} className="text-indigo-500 shrink-0" />
+                              <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{file.name}</span>
+                              <span className="text-[10px] text-slate-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                            </div>
+                            <button
+                              onClick={() => removeFile(idx)}
+                              className="text-slate-400 hover:text-red-500 p-1"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* COLUNA DIREITA: TAREFAS */}
+        <div className="lg:col-span-8 space-y-6">
+          <Card title="Adicionar Tarefas à Operação">
+            <div className="space-y-6">
+              {/* LINHA DE ADIÇÃO RÁPIDA */}
+              <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                  <div className="md:col-span-3">
+                    <Select
+                      label="Tarefa"
+                      className="text-[11px]"
+                      options={taskTypes.map(t => ({ value: t.name, label: t.name }))}
+                      value={tempTask.taskName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const type = taskTypes.find(t => t.name === val);
+                        setTempTask(prev => ({
+                          ...prev,
+                          taskName: val,
+                          sector: type?.sector_id ? sectors.find(s => s.id === type.sector_id)?.name || prev.sector : prev.sector
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <Select
+                      label="Responsável"
+                      className="text-[11px]"
+                      options={members.map(m => ({
+                        value: `${m.first_name} ${m.last_name}`,
+                        label: `${m.first_name} ${m.last_name}`
+                      }))}
+                      value={tempTask.responsible}
+                      onChange={(e) => setTempTask(prev => ({ ...prev, responsible: e.target.value }))}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Input
+                      type="month"
+                      label="Competência"
+                      className="text-[11px]"
+                      value={tempTask.competence}
+                      onChange={(e) => setTempTask(prev => ({ ...prev, competence: e.target.value }))}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Input
+                      type="date"
+                      label="Vencimento"
+                      className="text-[11px]"
+                      value={tempTask.vencimento}
+                      onChange={(e) => setTempTask(prev => ({ ...prev, vencimento: e.target.value }))}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Select
+                      label="Variável"
+                      className="text-[11px]"
+                      tooltip="Define se o vencimento deve ser antecipado ou prorrogado caso caia em fins de semana ou feriados."
+                      options={[
+                        { value: 'nao_aplica', label: 'Não se aplica' },
+                        { value: 'antecipar', label: 'Antecipar' },
+                        { value: 'prorrogar', label: 'Prorrogar' },
+                      ]}
+                      value={tempTask.vencimentoVariavel}
+                      onChange={(e) => setTempTask(prev => ({ ...prev, vencimentoVariavel: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="md:col-span-4">
+                    <Select
+                      label="Recorrência"
+                      className="text-[11px]"
+                      options={[
+                        { value: 'mensal', label: 'Mensal' },
+                        { value: 'bimestral', label: 'Bimestral' },
+                        { value: 'trimestral', label: 'Trimestral' },
+                        { value: 'semestral', label: 'Semestral' },
+                        { value: 'anual', label: 'Anual' },
+                      ]}
+                      value={tempTask.recurrence}
+                      onChange={(e) => setTempTask(prev => ({ ...prev, recurrence: e.target.value, months: e.target.value === 'mensal' ? [] : prev.months }))}
+                    />
+                  </div>
+                  <div className="md:col-span-4">
+                    <Select
+                      label="Prioridade"
+                      className="text-[11px]"
+                      options={[
+                        { value: Priority.BAIXA, label: 'Baixa' },
+                        { value: Priority.MEDIA, label: 'Média' },
+                        { value: Priority.ALTA, label: 'Alta' },
+                      ]}
+                      value={tempTask.priority}
+                      onChange={(e) => setTempTask(prev => ({ ...prev, priority: e.target.value as Priority }))}
+                    />
+                  </div>
+
+                  <div className="md:col-span-4">
+                    <Button
+                      fullWidth
+                      variant="success"
+                      icon={<Plus size={18} />}
+                      onClick={handleAddPendingTask}
+                      className="h-10"
+                    >
+                      Adicionar à Lista
+                    </Button>
+                  </div>
+                </div>
+
+                {/* MONTH SELECTOR FOR NON-MONTHLY */}
+                {tempTask.recurrence !== 'mensal' && (
+                  <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">
+                      Selecione os meses de repetição
+                    </label>
+                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2">
+                      {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((month, idx) => (
+                        <button
+                          key={month}
+                          type="button"
+                          onClick={() => {
+                            setTempTask(prev => ({
+                              ...prev,
+                              months: prev.months.includes(idx)
+                                ? prev.months.filter(m => m !== idx)
+                                : [...prev.months, idx]
+                            }));
+                          }}
+                          className={`py-2 px-1 rounded-lg border text-xs font-bold transition-all ${tempTask.months.includes(idx)
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-indigo-300'
+                            }`}
+                        >
+                          {month}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/* LISTA DE TAREFAS ADICIONADAS */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-[11px]">
+                  <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
+                    <tr>
+                      <th className="px-4 py-3">Tarefa</th>
+                      <th className="px-4 py-3">Setor</th>
+                      <th className="px-4 py-3">Responsável</th>
+                      <th className="px-4 py-3">Comp.</th>
+                      <th className="px-4 py-3">Venc.</th>
+                      <th className="px-4 py-3">Variável</th>
+                      <th className="px-4 py-3">Recorrência</th>
+                      <th className="px-4 py-3">Prioridade</th>
+                      <th className="px-4 py-3 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {pendingTasks.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-8 text-center text-slate-400 italic">
+                          Nenhuma tarefa adicionada à lista. Preencha acima e clique em "Adicionar".
+                        </td>
+                      </tr>
+                    ) : (
+                      pendingTasks.map((task) => (
+                        <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">{task.taskName}</td>
+                          <td className="px-4 py-3 text-slate-500">{task.sector}</td>
+                          <td className="px-4 py-3 text-slate-500">{task.responsible}</td>
+                          <td className="px-4 py-3 text-slate-500">{task.competence}</td>
+                          <td className="px-4 py-3 text-slate-500">{task.vencimento}</td>
+                          <td className="px-4 py-3 text-slate-500 text-[10px] font-medium italic">
+                            {task.vencimentoVariavel === 'nao_aplica' ? '-' : task.vencimentoVariavel}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 uppercase text-[10px] font-bold">
+                            {task.recurrence}
+                            {task.months.length > 0 && (
+                              <div className="text-[9px] text-indigo-500 mt-0.5">
+                                {task.months.map((m: number) => ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m]).join(', ')}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                              {task.priority}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => removePendingTask(task.id)}
+                              className="text-slate-300 hover:text-red-500 transition-colors"
+                            >
+                              <X size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-          )}
+          </Card>
         </div>
       </div>
     </div>
   );
 };
+

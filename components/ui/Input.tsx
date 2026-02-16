@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Copy, Check, Search, ChevronDown } from 'lucide-react';
+import { Copy, Check, Search, ChevronDown, Info } from 'lucide-react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -65,6 +65,7 @@ export const Input: React.FC<InputProps> = ({
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
+  tooltip?: string;
   error?: string;
   options: { value: string | number; label: string }[];
 }
@@ -77,8 +78,21 @@ export const Select: React.FC<SelectProps> = ({
   ...props
 }) => {
   return (
-    <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>}
+    <div className="flex flex-col gap-1.5 font-sans">
+      {label && (
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>
+          {props.tooltip && (
+            <div className="group relative">
+              <Info size={12} className="text-slate-400 hover:text-indigo-500 cursor-help transition-colors" />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+                {props.tooltip}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <select
         className={`w-full h-10 rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all
           ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} ${className}
