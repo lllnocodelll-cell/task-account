@@ -94,36 +94,61 @@ const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null }> 
 
     const [otherInscriptionType, setOtherInscriptionType] = useState(false);
 
-    // --- Load Sub-Data on Edit ---
+    // --- Load Sub-Data on Edit or Fetch Next Code on Create ---
     useEffect(() => {
-        if (isEditing && initialData?.id) {
-            const fetchSubData = async () => {
-                const { data: insc } = await supabase.from('client_inscriptions').select('*').eq('client_id', initialData.id);
-                if (insc) setInscriptions(insc);
+        const loadInitialData = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
 
-                const { data: cont } = await supabase.from('client_contacts').select('*').eq('client_id', initialData.id);
-                if (cont) setContacts(cont);
+            if (isEditing && initialData?.id) {
+                const fetchSubData = async () => {
+                    const { data: insc } = await supabase.from('client_inscriptions').select('*').eq('client_id', initialData.id);
+                    if (insc) setInscriptions(insc);
 
-                const { data: tax } = await supabase.from('client_tax_regime_history').select('*').eq('client_id', initialData.id);
-                if (tax) setTaxRegimes(tax);
+                    const { data: cont } = await supabase.from('client_contacts').select('*').eq('client_id', initialData.id);
+                    if (cont) setContacts(cont);
 
-                const { data: act } = await supabase.from('client_activities').select('*').eq('client_id', initialData.id);
-                if (act) setActivities(act);
+                    const { data: tax } = await supabase.from('client_tax_regime_history').select('*').eq('client_id', initialData.id);
+                    if (tax) setTaxRegimes(tax);
 
-                const { data: acc } = await supabase.from('client_accesses').select('*').eq('client_id', initialData.id);
-                if (acc) setAccesses(acc);
+                    const { data: act } = await supabase.from('client_activities').select('*').eq('client_id', initialData.id);
+                    if (act) setActivities(act);
 
-                const { data: cert } = await supabase.from('client_certificates').select('*').eq('client_id', initialData.id);
-                if (cert) setCertificates(cert);
+                    const { data: acc } = await supabase.from('client_accesses').select('*').eq('client_id', initialData.id);
+                    if (acc) setAccesses(acc);
 
-                const { data: lic } = await supabase.from('client_licenses').select('*').eq('client_id', initialData.id);
-                if (lic) setLicenses(lic);
+                    const { data: cert } = await supabase.from('client_certificates').select('*').eq('client_id', initialData.id);
+                    if (cert) setCertificates(cert);
 
-                const { data: leg } = await supabase.from('client_legislations').select('*').eq('client_id', initialData.id);
-                if (leg) setLegislations(leg);
-            };
-            fetchSubData();
-        }
+                    const { data: lic } = await supabase.from('client_licenses').select('*').eq('client_id', initialData.id);
+                    if (lic) setLicenses(lic);
+
+                    const { data: leg } = await supabase.from('client_legislations').select('*').eq('client_id', initialData.id);
+                    if (leg) setLegislations(leg);
+                };
+                fetchSubData();
+            } else if (!isEditing) {
+                // Fetch Next Code for New Client
+                const { data, error } = await supabase
+                    .from('clients')
+                    .select('code')
+                    .eq('org_id', user.id)
+                    .order('code', { ascending: false })
+                    .limit(1) as { data: { code: string }[] | null, error: any };
+
+                if (!error && data && data.length > 0) {
+                    const lastCode = parseInt(data[0].code, 10);
+                    if (!isNaN(lastCode)) {
+                        const nextCode = (lastCode + 1).toString().padStart(6, '0');
+                        setFormData(prev => ({ ...prev, code: nextCode }));
+                    }
+                } else if (!error && (!data || data.length === 0)) {
+                    // First client
+                    setFormData(prev => ({ ...prev, code: '000001' }));
+                }
+            }
+        };
+        loadInitialData();
     }, [isEditing, initialData]);
 
     // --- Handlers ---

@@ -25,9 +25,9 @@ import {
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Task, TaskStatus, Priority } from '../types';
+import { Task, TaskStatus, Priority, Client } from '../types';
 import { Modal } from '../components/ui/Modal';
-import { Input, Select } from '../components/ui/Input';
+import { Input, Select, SearchableSelect, Toggle } from '../components/ui/Input';
 import { supabase } from '../utils/supabaseClient';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 
@@ -804,16 +804,20 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
   const [semMovimento, setSemMovimento] = useState(false);
   const [selectedDfe, setSelectedDfe] = useState<string[]>([]);
   const [selectedAnnexes, setSelectedAnnexes] = useState<string[]>([]);
+  const [excedeuSublimite, setExcedeuSublimite] = useState(false);
+  const [fatorR, setFatorR] = useState(false);
 
   // Dynamic Data State
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   // Form State
   const [selectedTaskType, setSelectedTaskType] = useState(initialData?.taskName || '');
   const [selectedSector, setSelectedSector] = useState(initialData?.sector || '');
+  const [selectedClientId, setSelectedClientId] = useState(initialData?.clientName || '');
 
   useEffect(() => {
     fetchFormData();
@@ -824,15 +828,26 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [taskTypesRes, sectorsRes, membersRes] = await Promise.all([
+      const [taskTypesRes, sectorsRes, membersRes, clientsRes] = await Promise.all([
         supabase.from('task_types').select('*').eq('org_id', user.id),
         supabase.from('sectors').select('*').eq('org_id', user.id),
-        supabase.from('members').select('*').eq('org_id', user.id)
+        supabase.from('members').select('*').eq('org_id', user.id),
+        supabase.from('clients').select('*').eq('org_id', user.id).eq('status', 'Ativo')
       ]);
 
       if (taskTypesRes.data) setTaskTypes(taskTypesRes.data);
       if (sectorsRes.data) setSectors(sectorsRes.data);
       if (membersRes.data) setMembers(membersRes.data);
+      if (clientsRes.data) {
+        const mappedClients: Client[] = clientsRes.data.map((c: any) => ({
+          id: c.id,
+          code: c.code,
+          companyName: c.company_name,
+          tradeName: c.trade_name,
+          status: c.status
+        })) as any;
+        setClients(mappedClients);
+      }
     } catch (error) {
       console.error('Error fetching form data:', error);
     } finally {
@@ -889,14 +904,15 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
             className="bg-slate-100 dark:bg-slate-800 text-slate-500"
           />
           <div className="md:col-span-3">
-            <Select
+            <SearchableSelect
               label="Empresa"
-              options={[
-                { value: '1', label: 'Tech Solutions Ltda' },
-                { value: '2', label: 'Mercado Silva' },
-                { value: '3', label: 'Consultoria XYZ' },
-              ]}
-              defaultValue={initialData?.clientName === 'Tech Solutions Ltda' ? '1' : ''}
+              options={clients.map(c => ({
+                value: c.companyName,
+                label: c.companyName
+              }))}
+              value={selectedClientId}
+              onChange={(val) => setSelectedClientId(val)}
+              placeholder="Selecione a empresa..."
             />
           </div>
 
@@ -1038,10 +1054,16 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
           {/* 2.3.3 Tabbar - Simples Nacional */}
           {activeTab === 'simples' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                <Select
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 items-end">
+                <Toggle
                   label="Excedeu Sublimite?"
-                  options={[{ value: 's', label: 'Sim' }, { value: 'n', label: 'Não' }]}
+                  value={excedeuSublimite}
+                  onChange={setExcedeuSublimite}
+                />
+                <Toggle
+                  label="Fator R"
+                  value={fatorR}
+                  onChange={setFatorR}
                 />
                 <Input label="CNPJ Acesso" placeholder="00.000.000/0000-00" copyable />
                 <Input label="CPF Acesso" placeholder="000.000.000-00" copyable />
