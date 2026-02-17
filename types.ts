@@ -18,6 +18,7 @@ export type UserRole = 'gestor' | 'operacional';
 
 export interface Task {
   id: string;
+  clientId?: string;
   clientName: string;
   taskName: string;
   competence: string; // MM/YYYY
@@ -37,6 +38,9 @@ export interface Task {
   factorR?: boolean;
   selectedAnnexes?: string[];
   selectedDfes?: string[];
+  clientCity?: string;
+  clientState?: string;
+  hasBranches?: boolean;
   attachments?: { name: string; size: number; url?: string }[];
 }
 

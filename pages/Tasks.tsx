@@ -10,6 +10,8 @@ import {
   Clock,
   MoreHorizontal,
   X,
+  User,
+  ExternalLink,
   ListFilter,
   Pencil,
   Save,
@@ -24,7 +26,14 @@ import {
   Info,
   Upload,
   File,
-  Trash2
+  Trash2,
+  MapPin,
+  GitMerge,
+  FileStack,
+  Activity,
+  Layers,
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -53,6 +62,18 @@ const DF_MODELS = [
 ];
 
 const SIMPLES_ANNEXES = ['Anexo I', 'Anexo II', 'Anexo III', 'Anexo IV', 'Anexo V'];
+
+const TAX_REGIME_LABELS: Record<string, string> = {
+  'simples': 'Simples Nacional',
+  'lp': 'Lucro Presumido',
+  'lr': 'Lucro Real',
+  'mei': 'MEI'
+};
+
+const REGISTRATION_REGIME_LABELS: Record<string, string> = {
+  'competencia': 'Competência',
+  'caixa': 'Caixa'
+};
 
 // --- SHARED COMPONENTS ---
 
@@ -222,6 +243,7 @@ interface KanbanColumnProps {
   color: string;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDrop: (e: React.DragEvent, status: TaskStatus) => void;
+  onNavigateToClient?: (clientId: string) => void;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -233,7 +255,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onDelete,
   color,
   onDragStart,
-  onDrop
+  onDrop,
+  onNavigateToClient
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -302,7 +325,31 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             </div>
 
             <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1 line-clamp-2">{task.taskName}</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2 truncate">{task.clientName}</p>
+            <div className="flex items-center gap-1.5 group/client cursor-pointer" onClick={(e) => {
+              e.stopPropagation();
+              task.clientId && onNavigateToClient?.(task.clientId);
+            }}>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5 truncate flex-1">{task.clientName}</p>
+              <User size={12} className="text-indigo-400 opacity-0 group-hover/client:opacity-100 transition-opacity" />
+            </div>
+            {(task.clientCity || task.clientState) && (
+              <div className="flex items-center gap-1 mb-1 text-[10px] text-slate-400">
+                <MapPin size={10} className="text-slate-300 dark:text-slate-500" />
+                <span className="truncate">{task.clientCity}{task.clientCity && task.clientState ? ', ' : ''}{task.clientState}</span>
+              </div>
+            )}
+            {task.hasBranches && (
+              <div className="flex items-center gap-1 mb-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold">
+                <GitMerge size={10} />
+                <span>Filiais</span>
+              </div>
+            )}
+            {task.selectedDfes && task.selectedDfes.length > 0 && (
+              <div className="flex items-center gap-1 mb-2 text-[10px] text-slate-400">
+                <FileStack size={10} className="text-slate-300 dark:text-slate-500" />
+                <span className="truncate">DF-e: {task.selectedDfes.map(dfe => dfe.toUpperCase()).join(', ')}</span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
               <span className="text-xs text-slate-400">{task.competence}</span>
@@ -352,7 +399,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
 // --- MAIN TASKS PAGE ---
 
-export const Tasks: React.FC = () => {
+export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }> = ({ onNavigateToClient }) => {
   const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
   const [layoutMode, setLayoutMode] = useState<'list' | 'kanban'>('list');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -425,6 +472,7 @@ export const Tasks: React.FC = () => {
         .from('tasks')
         .select(`
           *,
+          clients(city, state, has_branches),
           attachments:task_attachments(*)
         `)
         .order('created_at', { ascending: false });
@@ -435,6 +483,7 @@ export const Tasks: React.FC = () => {
         // Map DB fields to component Task type if names differ
         const mappedTasks: Task[] = data.map((t: any) => ({
           id: t.id,
+          clientId: t.client_id,
           clientName: t.client_name,
           taskName: t.task_name,
           competence: t.competence,
@@ -454,6 +503,9 @@ export const Tasks: React.FC = () => {
           factorR: t.factor_r,
           selectedAnnexes: t.selected_annexes,
           selectedDfes: t.selected_dfes,
+          clientCity: t.clients?.city,
+          clientState: t.clients?.state,
+          hasBranches: t.clients?.has_branches,
           attachments: t.attachments?.map((a: any) => ({
             name: a.file_name,
             size: a.file_size,
@@ -708,12 +760,12 @@ export const Tasks: React.FC = () => {
                     </HeaderCell>
 
                     <HeaderCell
-                      label="Competência"
+                      label="Período"
                       fieldKey="competence"
                       filterValue={filters.competence}
                       isVisible={!!visibleFilters['competence']}
                       onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[150px]"
+                      widthClass="min-w-[110px]"
                     >
                       <input
                         type="month"
@@ -730,7 +782,7 @@ export const Tasks: React.FC = () => {
                       filterValue={filters.taxRegime}
                       isVisible={!!visibleFilters['taxRegime']}
                       onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[150px]"
+                      widthClass="min-w-[200px]"
                     >
                       <select
                         className={headerInputClass}
@@ -739,10 +791,9 @@ export const Tasks: React.FC = () => {
                         autoFocus
                       >
                         <option value="">Todos</option>
-                        <option value="Simples Nacional">Simples Nacional</option>
-                        <option value="Lucro Presumido">Lucro Presumido</option>
-                        <option value="Lucro Real">Lucro Real</option>
-                        <option value="MEI">MEI</option>
+                        {Object.entries(TAX_REGIME_LABELS).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
                       </select>
                     </HeaderCell>
 
@@ -820,10 +871,88 @@ export const Tasks: React.FC = () => {
                   ) : (
                     filteredTasks.map((task) => (
                       <tr key={task.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{task.clientName}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <div
+                              className="flex items-center gap-2 group/client cursor-pointer w-fit"
+                              onClick={() => task.clientId && onNavigateToClient?.(task.clientId)}
+                              title="Ver cadastro do cliente"
+                            >
+                              <span className="font-medium text-slate-900 dark:text-white">{task.clientName}</span>
+                              <User size={14} className="text-indigo-400 opacity-0 group-hover/client:opacity-100 transition-opacity" />
+                            </div>
+                            {(task.clientCity || task.clientState) && (
+                              <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium">
+                                <MapPin size={10} className="text-slate-300" />
+                                <span>{task.clientCity}{task.clientCity && task.clientState ? ', ' : ''}{task.clientState}</span>
+                              </div>
+                            )}
+                            {task.hasBranches && (
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold">
+                                <GitMerge size={10} />
+                                <span>Filiais</span>
+                              </div>
+                            )}
+                            {task.selectedDfes && task.selectedDfes.length > 0 && (
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-400 font-medium">
+                                <FileStack size={10} className="text-slate-300" />
+                                <span>DF-e: {task.selectedDfes.map(dfe => dfe.toUpperCase()).join(', ')}</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4">{task.taskName}</td>
-                        <td className="px-6 py-4">{task.competence}</td>
-                        <td className="px-6 py-4">{task.taxRegime}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-slate-900 dark:text-white uppercase">{task.competence}</span>
+                            {task.dueDate && (
+                              <div
+                                className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium cursor-help"
+                                title="Vencimento"
+                              >
+                                <Calendar size={10} className="text-slate-300" />
+                                <span>{task.dueDate.split('-').reverse().join('/')}</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-semibold text-slate-700 dark:text-slate-200">
+                              {TAX_REGIME_LABELS[task.taxRegime] || task.taxRegime}
+                            </span>
+
+                            {task.registrationRegime && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                                <Activity size={10} className="text-slate-300" />
+                                <span>{REGISTRATION_REGIME_LABELS[task.registrationRegime] || task.registrationRegime}</span>
+                              </div>
+                            )}
+
+                            {task.taxRegime === 'simples' && (
+                              <div className="flex flex-col gap-0.5 mt-0.5">
+                                {task.selectedAnnexes && task.selectedAnnexes.length > 0 && (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                                    <Layers size={10} className="text-slate-300" />
+                                    <span>Anexos: {task.selectedAnnexes.map(a => a.replace('Anexo ', '')).join(', ')}</span>
+                                  </div>
+                                )}
+                                {task.factorR && (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-indigo-500 font-bold">
+                                    <Zap size={10} fill="currentColor" />
+                                    <span>Fator R</span>
+                                  </div>
+                                )}
+                                {task.exceededSublimit && (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-bold">
+                                    <AlertTriangle size={10} />
+                                    <span>Excedeu Sublimite</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                             task.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
@@ -867,7 +996,7 @@ export const Tasks: React.FC = () => {
             <div className="flex gap-4 h-full min-w-[1000px] pb-2">
               <div className="flex-1 min-w-[250px]">
                 <KanbanColumn
-                  title="Pendentes"
+                  title="Pendente"
                   status={TaskStatus.PENDENTE}
                   tasks={filteredTasks.filter(t => t.status === TaskStatus.PENDENTE)}
                   onEdit={handleEdit}
@@ -876,6 +1005,7 @@ export const Tasks: React.FC = () => {
                   color="border-slate-400"
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
+                  onNavigateToClient={onNavigateToClient}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -889,6 +1019,7 @@ export const Tasks: React.FC = () => {
                   color="border-amber-400"
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
+                  onNavigateToClient={onNavigateToClient}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -902,6 +1033,7 @@ export const Tasks: React.FC = () => {
                   color="border-rose-400"
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
+                  onNavigateToClient={onNavigateToClient}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -915,6 +1047,7 @@ export const Tasks: React.FC = () => {
                   color="border-emerald-400"
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
+                  onNavigateToClient={onNavigateToClient}
                 />
               </div>
             </div>

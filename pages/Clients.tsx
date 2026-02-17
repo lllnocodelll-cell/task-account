@@ -1173,7 +1173,7 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
     </th>
 );
 
-export const Clients: React.FC = () => {
+export const Clients: React.FC<{ initialClientId?: string | null, onClearInitialClientId?: () => void }> = ({ initialClientId, onClearInitialClientId }) => {
     const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
     const [clients, setClients] = useState<Client[]>([]); // Use DB data
     const [loading, setLoading] = useState(true);
@@ -1194,9 +1194,63 @@ export const Clients: React.FC = () => {
     // Filter Visibility State
     const [visibleFilters, setVisibleFilters] = useState<Record<string, boolean>>({});
 
+    // Initial load and handling specialized navigation
     useEffect(() => {
-        fetchClients();
-    }, []);
+        const load = async () => {
+            await fetchClients();
+
+            if (initialClientId) {
+                // Find client in loaded list or fetch directly if not present
+                const target = clients.find(c => c.id === initialClientId);
+                if (target) {
+                    handleEdit(target);
+                } else {
+                    // Fetch directly if not in current list view (though it should be)
+                    const { data, error } = await supabase
+                        .from('clients')
+                        .select('*, client_contacts(*)')
+                        .eq('id', initialClientId)
+                        .single();
+
+                    if (data && !error) {
+                        const firstContact = (data as any).client_contacts?.[0];
+                        const mapped: Client = {
+                            id: (data as any).id,
+                            code: (data as any).code,
+                            companyName: (data as any).company_name,
+                            tradeName: (data as any).trade_name,
+                            document: (data as any).document,
+                            contactName: firstContact?.name || '',
+                            phoneFixed: firstContact?.phone_fixed || '',
+                            phoneMobile: firstContact?.phone_mobile || '',
+                            email: firstContact?.email || '',
+                            status: (data as any).status,
+                            segment: (data as any).segment,
+                            person_type: (data as any).person_type,
+                            constitution_date: (data as any).constitution_date,
+                            entry_date: (data as any).entry_date,
+                            exit_date: (data as any).exit_date,
+                            admin_partner_name: (data as any).admin_partner_name,
+                            admin_partner_cpf: (data as any).admin_partner_cpf,
+                            admin_partner_birthdate: (data as any).admin_partner_birthdate,
+                            has_branches: (data as any).has_branches,
+                            zip_code: (data as any).zip_code,
+                            street: (data as any).street,
+                            street_number: (data as any).street_number,
+                            complement: (data as any).complement,
+                            neighborhood: (data as any).neighborhood,
+                            city: (data as any).city,
+                            state: (data as any).state
+                        };
+                        handleEdit(mapped);
+                    }
+                }
+                onClearInitialClientId?.();
+            }
+        };
+
+        load();
+    }, [initialClientId]);
 
     const fetchClients = async () => {
         try {

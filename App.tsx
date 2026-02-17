@@ -34,8 +34,14 @@ function App() {
   const [userRole, setUserRole] = useState<UserRole>('gestor');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [initialClientsTabClientId, setInitialClientsTabClientId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(true);
+
+  const handleNavigateToClient = (clientId: string) => {
+    setInitialClientsTabClientId(clientId);
+    setActiveTab('clients');
+  };
 
   // Toggle Theme Effect
   useEffect(() => {
@@ -80,9 +86,9 @@ function App() {
         .single();
 
       if (data) {
-        setUserRole(data.role as UserRole);
+        setUserRole((data as any).role as UserRole);
         setUserProfile({
-          ...data,
+          ...(data as any),
           email: session.user.email,
         });
       }
@@ -114,9 +120,14 @@ function App() {
       case 'dashboard':
         return <Dashboard userRole={userRole} />;
       case 'tasks':
-        return <Tasks />;
+        return <Tasks onNavigateToClient={handleNavigateToClient} />;
       case 'clients':
-        return <Clients />;
+        return (
+          <Clients
+            initialClientId={initialClientsTabClientId}
+            onClearInitialClientId={() => setInitialClientsTabClientId(null)}
+          />
+        );
       case 'chat':
         return <Chat />;
       case 'notes':
