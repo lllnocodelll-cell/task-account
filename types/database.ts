@@ -345,7 +345,7 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "client_licenses_client_id_fkey"
-            columns: [\"client_id\"]
+            columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["id"]

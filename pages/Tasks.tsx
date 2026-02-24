@@ -42,6 +42,7 @@ import { Modal } from '../components/ui/Modal';
 import { Input, Select, SearchableSelect, Toggle } from '../components/ui/Input';
 import { supabase } from '../utils/supabaseClient';
 import { calculateAdjustedDate } from '../utils/dateUtils';
+import { ClientForm } from '../components/ClientForm';
 
 // --- CONFIGS ---
 
@@ -241,9 +242,11 @@ interface KanbanColumnProps {
   onConclude: (id: string) => void;
   onDelete: (id: string) => void;
   color: string;
-  onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDrop: (e: React.DragEvent, status: TaskStatus) => void;
   onNavigateToClient?: (clientId: string) => void;
+  onViewTask: (task: Task) => void;
+  onViewClient: (client: Client) => void;
+  clients: Client[];
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -256,7 +259,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   color,
   onDragStart,
   onDrop,
-  onNavigateToClient
+  onNavigateToClient,
+  onViewTask,
+  onViewClient,
+  clients
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -309,7 +315,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             draggable
             onDragStart={(e) => onDragStart(e, task.id)}
             className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow active:cursor-grabbing group select-none ${task.status === TaskStatus.CONCLUIDA ? 'cursor-default' : 'cursor-pointer'}`}
-            onClick={() => task.status !== TaskStatus.CONCLUIDA && onEdit(task)}
+            onClick={() => {
+              if (task.status !== TaskStatus.CONCLUIDA) {
+                onViewTask(task);
+              }
+            }}
           >
             <div className="flex justify-between items-start mb-2">
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
@@ -324,13 +334,26 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </div>
             </div>
 
-            <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1 line-clamp-2">{task.taskName}</h4>
-            <div className="flex items-center gap-1.5 group/client cursor-pointer" onClick={(e) => {
-              e.stopPropagation();
-              task.clientId && onNavigateToClient?.(task.clientId);
-            }}>
+            <h4
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewTask(task);
+              }}
+              className="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1 line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors"
+            >
+              {task.taskName}
+            </h4>
+            <div
+              className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                const clientData = clients.find(c => c.id === task.clientId);
+                if (clientData) {
+                  onViewClient(clientData);
+                }
+              }}
+            >
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5 truncate flex-1">{task.clientName}</p>
-              <User size={12} className="text-indigo-400 opacity-0 group-hover/client:opacity-100 transition-opacity" />
             </div>
             {(task.clientCity || task.clientState) && (
               <div className="flex items-center gap-1 mb-1 text-[10px] text-slate-400">
@@ -393,7 +416,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
@@ -410,6 +433,11 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
   const [concludeFiles, setConcludeFiles] = useState<File[]>([]);
   const concludeFileInputRef = useRef<HTMLInputElement>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedTaskForView, setSelectedTaskForView] = useState<Task | null>(null);
+  const [clientViewModalOpen, setClientViewModalOpen] = useState(false);
+  const [selectedClientForView, setSelectedClientForView] = useState<Client | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
 
   // Filter Values State
   const [filters, setFilters] = useState({
@@ -521,8 +549,58 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
     }
   };
 
+  const fetchClients = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('org_id', user.id);
+
+      if (error) throw error;
+
+      if (data) {
+        const mappedClients: Client[] = data.map((c: any) => ({
+          id: c.id,
+          code: c.code,
+          companyName: c.company_name,
+          tradeName: c.trade_name,
+          document: c.document,
+          contactName: c.contact_name,
+          phoneFixed: c.phone_fixed,
+          phoneMobile: c.phone_mobile,
+          email: c.email,
+          status: c.status,
+          segment: c.segment,
+          person_type: c.person_type,
+          constitution_date: c.constitution_date,
+          entry_date: c.entry_date,
+          exit_date: c.exit_date,
+          admin_partner_name: c.admin_partner_name,
+          admin_partner_cpf: c.admin_partner_cpf,
+          admin_partner_birthdate: c.admin_partner_birthdate,
+          has_branches: c.has_branches,
+          zip_code: c.zip_code,
+          street: c.street,
+          street_number: c.street_number,
+          complement: c.complement,
+          neighborhood: c.neighborhood,
+          city: c.city,
+          state: c.state,
+          updated_at: c.updated_at
+        }));
+        setClients(mappedClients);
+      }
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
+    fetchClients();
   }, []);
 
   // CRUD Handlers
@@ -641,6 +719,7 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
           fetchTasks();
         }}
         initialData={selectedTask}
+        clients={clients}
       />
     );
   }
@@ -874,12 +953,16 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <div
-                              className="flex items-center gap-2 group/client cursor-pointer w-fit"
-                              onClick={() => task.clientId && onNavigateToClient?.(task.clientId)}
-                              title="Ver cadastro do cliente"
+                              className="font-medium text-slate-900 dark:text-white cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                              onClick={() => {
+                                const clientData = clients.find(c => c.id === task.clientId);
+                                if (clientData) {
+                                  setSelectedClientForView(clientData);
+                                  setClientViewModalOpen(true);
+                                }
+                              }}
                             >
-                              <span className="font-medium text-slate-900 dark:text-white">{task.clientName}</span>
-                              <User size={14} className="text-indigo-400 opacity-0 group-hover/client:opacity-100 transition-opacity" />
+                              {task.clientName}
                             </div>
                             {(task.clientCity || task.clientState) && (
                               <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium">
@@ -901,7 +984,17 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">{task.taskName}</td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => {
+                              setSelectedTaskForView(task);
+                              setViewModalOpen(true);
+                            }}
+                            className="font-bold text-slate-800 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 text-left transition-colors"
+                          >
+                            {task.taskName}
+                          </button>
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <span className="font-medium text-slate-900 dark:text-white uppercase">{task.competence}</span>
@@ -1006,6 +1099,15 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
+                  onViewTask={(task) => {
+                    setSelectedTaskForView(task);
+                    setViewModalOpen(true);
+                  }}
+                  onViewClient={(client) => {
+                    setSelectedClientForView(client);
+                    setClientViewModalOpen(true);
+                  }}
+                  clients={clients}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -1020,6 +1122,15 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
+                  onViewTask={(task) => {
+                    setSelectedTaskForView(task);
+                    setViewModalOpen(true);
+                  }}
+                  onViewClient={(client) => {
+                    setSelectedClientForView(client);
+                    setClientViewModalOpen(true);
+                  }}
+                  clients={clients}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -1034,6 +1145,15 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
+                  onViewTask={(task) => {
+                    setSelectedTaskForView(task);
+                    setViewModalOpen(true);
+                  }}
+                  onViewClient={(client) => {
+                    setSelectedClientForView(client);
+                    setClientViewModalOpen(true);
+                  }}
+                  clients={clients}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -1048,6 +1168,15 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
+                  onViewTask={(task) => {
+                    setSelectedTaskForView(task);
+                    setViewModalOpen(true);
+                  }}
+                  onViewClient={(client) => {
+                    setSelectedClientForView(client);
+                    setClientViewModalOpen(true);
+                  }}
+                  clients={clients}
                 />
               </div>
             </div>
@@ -1115,37 +1244,337 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
           </div>
         </div>
       </Modal>
+
+      {/* Task Detail View Modal */}
+      <Modal
+        isOpen={viewModalOpen}
+        onClose={() => setViewModalOpen(false)}
+        title="Detalhes da Tarefa"
+        size="lg"
+        footer={
+          <div className="flex justify-between w-full items-center">
+            <div className="flex gap-2">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${selectedTaskForView?.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                selectedTaskForView?.status === TaskStatus.ATRASADA ? 'bg-red-50 text-red-700 border-red-200' :
+                  selectedTaskForView?.status === TaskStatus.INICIADA ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                    'bg-slate-100 text-slate-600 border-slate-200'
+                }`}>
+                {selectedTaskForView?.status}
+              </span>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${selectedTaskForView?.priority === Priority.ALTA ? 'bg-red-100 text-red-700 border-red-200' :
+                selectedTaskForView?.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                  'bg-slate-100 text-slate-700 border-slate-200'
+                }`}>
+                Prioridade: {selectedTaskForView?.priority}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={() => setViewModalOpen(false)}>Fechar</Button>
+              {selectedTaskForView?.status !== TaskStatus.CONCLUIDA && (
+                <>
+                  <Button
+                    variant="secondary"
+                    icon={<Pencil size={18} />}
+                    onClick={() => {
+                      if (selectedTaskForView) {
+                        handleEdit(selectedTaskForView);
+                        setViewModalOpen(false);
+                      }
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="success"
+                    icon={<CheckCircle size={18} />}
+                    onClick={() => {
+                      if (selectedTaskForView) {
+                        openConcludeModal(selectedTaskForView.id);
+                        setViewModalOpen(false);
+                      }
+                    }}
+                  >
+                    Concluir
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        }
+      >
+        {selectedTaskForView && (
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
+            {/* Header Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</label>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900 dark:text-white text-lg">{selectedTaskForView.clientName}</span>
+                </div>
+                {(selectedTaskForView.clientCity || selectedTaskForView.clientState) && (
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <MapPin size={12} className="text-slate-400" />
+                    <span>{selectedTaskForView.clientCity}{selectedTaskForView.clientCity && selectedTaskForView.clientState ? ', ' : ''}{selectedTaskForView.clientState}</span>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tarefa</label>
+                <div className="font-bold text-indigo-600 dark:text-indigo-400 text-lg leading-tight">
+                  {selectedTaskForView.taskName}
+                </div>
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-700 shadow-sm">
+                    <Calendar size={12} className="text-indigo-500" />
+                    <span>Comp: <span className="uppercase">{selectedTaskForView.competence}</span></span>
+                  </div>
+                  {selectedTaskForView.dueDate && (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-700 shadow-sm">
+                      <Clock size={12} className="text-amber-500" />
+                      <span>Venc: {selectedTaskForView.dueDate.split('-').reverse().join('/')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Configs e Detalhes Fiscais */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <Activity size={18} className="text-indigo-500" />
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Perfil da Empresa</h3>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-slate-500">Regime Tributário</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                      {TAX_REGIME_LABELS[selectedTaskForView.taxRegime] || selectedTaskForView.taxRegime}
+                    </span>
+                  </div>
+                  {selectedTaskForView.registrationRegime && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-xs text-slate-500">Regime de Registro</span>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                        {REGISTRATION_REGIME_LABELS[selectedTaskForView.registrationRegime] || selectedTaskForView.registrationRegime}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-slate-500">Sem Movimento</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${selectedTaskForView.noMovement ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
+                      {selectedTaskForView.noMovement ? 'Sim' : 'Não'}
+                    </span>
+                  </div>
+                  {selectedTaskForView.taxRegime === 'simples' && (
+                    <>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-xs text-slate-500">Fator R</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${selectedTaskForView.factorR ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {selectedTaskForView.factorR ? 'Sim' : 'Não'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-xs text-slate-500">Excedeu Sublimite</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${selectedTaskForView.exceededSublimit ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'}`}>
+                          {selectedTaskForView.exceededSublimit ? 'Sim' : 'Não'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <FileStack size={18} className="text-indigo-500" />
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Obrigações e DF-e</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {selectedTaskForView.selectedAnnexes && selectedTaskForView.selectedAnnexes.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Anexos Vinculados</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedTaskForView.selectedAnnexes.map(annex => (
+                          <span key={annex} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded">
+                            {annex}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedTaskForView.selectedDfes && selectedTaskForView.selectedDfes.length > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Modelos DF-e</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedTaskForView.selectedDfes.map(dfe => (
+                          <span key={dfe} className="px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded border border-indigo-100 dark:border-indigo-500/20">
+                            {dfe.toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!selectedTaskForView.selectedAnnexes?.length && !selectedTaskForView.selectedDfes?.length && (
+                    <div className="text-xs text-slate-400 italic py-4 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-lg">
+                      Nenhum anexo ou modelo DF-e selecionado
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Observação */}
+            {selectedTaskForView.observation && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <FileText size={18} className="text-indigo-500" />
+                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Observações</h3>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic border border-slate-100 dark:border-slate-800">
+                  "{selectedTaskForView.observation}"
+                </div>
+              </div>
+            )}
+
+            {/* Arquivos */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                <FileBadge size={18} className="text-indigo-500" />
+                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Anexos e Documentos</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {selectedTaskForView.attachments && selectedTaskForView.attachments.length > 0 ? (
+                  selectedTaskForView.attachments.map((file, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-indigo-200 transition-colors shadow-sm group">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg group-hover:bg-indigo-100 transition-colors">
+                          <File size={16} className="text-indigo-500" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</span>
+                          <span className="text-[10px] text-slate-400 font-medium">{(file.size / 1024).toFixed(1)} KB</span>
+                        </div>
+                      </div>
+                      {file.url && (
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
+                        >
+                          <ExternalLink size={16} />
+                        </a>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-2 py-8 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl text-slate-400">
+                    <File size={24} className="mb-2 opacity-50" />
+                    <span className="text-xs">Nenhum arquivo anexado a esta tarefa</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Auditoria Simples */}
+            <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-6 h-10 items-center">
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                <User size={12} />
+                <span>Responsável: {selectedTaskForView.responsible}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                <Activity size={12} />
+                <span>Setor: {selectedTaskForView.sector}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Client Detail View Modal */}
+      <Modal
+        isOpen={clientViewModalOpen}
+        onClose={() => setClientViewModalOpen(false)}
+        size="7xl"
+      >
+        {selectedClientForView && (
+          <ClientForm
+            onBack={() => setClientViewModalOpen(false)}
+            initialData={selectedClientForView}
+            isViewOnly={true}
+          />
+        )}
+      </Modal>
+
     </div >
   );
 };
 
 // --- TASK FORM COMPONENT ---
 
-const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({ onBack, initialData }) => {
+interface ClientConfig {
+  taxRegime: string;
+  regimeRegistro: string;
+  semMovimento: boolean;
+  selectedDfe: string[];
+  selectedAnnexes: string[];
+  excedeuSublimite: boolean;
+  fatorR: boolean;
+  observation: string;
+  uploadedFiles: File[];
+  existingAttachments: { name: string; size: number; url?: string }[];
+}
+
+function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initialData?: Task | null; clients: Client[] }) {
   const isEditing = !!initialData;
+
+  // Selected Clients State
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>(
+    initialData?.clientName ? [initialData.clientName] : []
+  );
+  const [activeClientId, setActiveClientId] = useState<string | null>(
+    initialData?.clientName || null
+  );
+
+  // Default config for new clients
+  const createDefaultConfig = (data?: Task | null): ClientConfig => ({
+    taxRegime: data?.taxRegime || 'simples',
+    regimeRegistro: data?.registrationRegime || 'competencia',
+    semMovimento: data?.noMovement || false,
+    selectedDfe: data?.selectedDfes || [],
+    selectedAnnexes: data?.selectedAnnexes || [],
+    excedeuSublimite: data?.exceededSublimit || false,
+    fatorR: data?.factorR || false,
+    observation: data?.observation || '',
+    uploadedFiles: [],
+    existingAttachments: data?.attachments || []
+  });
+
+  // Client Configurations Map
+  const [clientConfigs, setClientConfigs] = useState<Record<string, ClientConfig>>(
+    initialData?.clientName
+      ? { [initialData.clientName]: createDefaultConfig(initialData) }
+      : {}
+  );
+
   const [activeTab, setActiveTab] = useState(initialData?.taxRegime === 'simples' ? 'simples' : 'observacao');
-  const [taxRegime, setTaxRegime] = useState(initialData?.taxRegime || 'simples');
-  const [regimeRegistro, setRegimeRegistro] = useState(initialData?.registrationRegime || 'competencia');
-  const [semMovimento, setSemMovimento] = useState(initialData?.noMovement || false);
-  const [selectedDfe, setSelectedDfe] = useState<string[]>(initialData?.selectedDfes || []);
-  const [selectedAnnexes, setSelectedAnnexes] = useState<string[]>(initialData?.selectedAnnexes || []);
-  const [excedeuSublimite, setExcedeuSublimite] = useState(initialData?.exceededSublimit || false);
-  const [fatorR, setFatorR] = useState(initialData?.factorR || false);
-  const [observation, setObservation] = useState(initialData?.observation || '');
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [existingAttachments, setExistingAttachments] = useState<{ name: string; size: number; url?: string }[]>(initialData?.attachments || []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Data State
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
   const [holidayDates, setHolidayDates] = useState<string[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   // Form State
-  const [selectedClientId, setSelectedClientId] = useState(initialData?.clientName || '');
+  // (We use client IDs as the key in clientConfigs, which is the companyName for now since SearchableSelect uses it)
 
   // Multi-task State
   const [pendingTasks, setPendingTasks] = useState<any[]>(
@@ -1174,6 +1603,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
     vencimentoVariavel: initialData?.variableAdjustment || 'nao_aplica',
     recurrence: initialData?.recurrence || 'mensal',
     months: initialData?.recurrenceMonths || [] as number[],
+    repetitions: 1,
   });
 
 
@@ -1198,16 +1628,6 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
       if (sectorsRes.data) setSectors(sectorsRes.data);
       if (membersRes.data) setMembers(membersRes.data);
       if (holidaysRes.data) setHolidayDates(holidaysRes.data.map((h: any) => h.date));
-      if (clientsRes.data) {
-        const mappedClients: Client[] = clientsRes.data.map((c: any) => ({
-          id: c.id,
-          code: c.code,
-          companyName: c.company_name,
-          tradeName: c.trade_name,
-          status: c.status
-        })) as any;
-        setClients(mappedClients);
-      }
     } catch (error) {
       console.error('Error fetching form data:', error);
     } finally {
@@ -1216,33 +1636,56 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
   };
 
   const toggleDfe = (id: string) => {
-    setSelectedDfe(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
+    if (!activeClientId) return;
+    setClientConfigs(prev => {
+      const config = prev[activeClientId];
+      const newDfe = config.selectedDfe.includes(id)
+        ? config.selectedDfe.filter(x => x !== id)
+        : [...config.selectedDfe, id];
+      return { ...prev, [activeClientId]: { ...config, selectedDfe: newDfe } };
+    });
   };
 
   const toggleAnnex = (annex: string) => {
-    setSelectedAnnexes(prev =>
-      prev.includes(annex) ? prev.filter(x => x !== annex) : [...prev, annex]
-    );
+    if (!activeClientId) return;
+    setClientConfigs(prev => {
+      const config = prev[activeClientId];
+      const newAnnexes = config.selectedAnnexes.includes(annex)
+        ? config.selectedAnnexes.filter(x => x !== annex)
+        : [...config.selectedAnnexes, annex];
+      return { ...prev, [activeClientId]: { ...config, selectedAnnexes: newAnnexes } };
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
+    if (e.target.files && activeClientId) {
       const newFiles = Array.from(e.target.files);
-      setUploadedFiles(prev => [...prev, ...newFiles]);
+      setClientConfigs(prev => ({
+        ...prev,
+        [activeClientId]: {
+          ...prev[activeClientId],
+          uploadedFiles: [...prev[activeClientId].uploadedFiles, ...newFiles]
+        }
+      }));
     }
   };
 
   const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    if (!activeClientId) return;
+    setClientConfigs(prev => ({
+      ...prev,
+      [activeClientId]: {
+        ...prev[activeClientId],
+        uploadedFiles: prev[activeClientId].uploadedFiles.filter((_, i) => i !== index)
+      }
+    }));
   };
 
   const handleAddPendingTask = () => {
     if (!tempTask.taskName || !tempTask.responsible || !tempTask.competence) {
       return alert('Preencha os campos obrigatórios da tarefa (Tarefa, Responsável e Competência)');
     }
-    if (tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'unica' && tempTask.months.length === 0) {
+    if (tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'personalizado' && tempTask.months.length === 0) {
       return alert('Selecione pelo menos um mês para esta recorrência');
     }
     setPendingTasks([...pendingTasks, { ...tempTask, id: Date.now().toString() }]);
@@ -1261,166 +1704,176 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
   };
 
   const handleSaveAll = async () => {
-    // Find client ID
-    const client = clients.find(c => c.companyName === selectedClientId);
-    if (!client) return alert('Selecione uma empresa válida');
-
+    if (selectedClientIds.length === 0) return alert('Selecione pelo menos uma empresa');
     if (pendingTasks.length === 0 && !tempTask.taskName) return alert('Adicione pelo menos uma tarefa');
-
-    let tasksToSave = [...pendingTasks];
-    if (tasksToSave.length === 0 && tempTask.taskName) {
-      tasksToSave.push({ ...tempTask, id: 'temp-' + Date.now() });
-    }
 
     try {
       setLoadingData(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return alert('Usuário não autenticado');
 
-      const allPayloads: any[] = [];
+      let tasksToSave = [...pendingTasks];
+      if (tasksToSave.length === 0 && tempTask.taskName) {
+        tasksToSave.push({ ...tempTask, id: 'temp-' + Date.now() });
+      }
 
-      for (const t of tasksToSave) {
-        // Recurrence logic: if it's a NEW task, we expand it. If editing, we only update the specific one.
-        if (isEditing && t.id === initialData.id) {
-          const adjustedDate = calculateAdjustedDate(t.vencimento, t.vencimentoVariavel, holidayDates);
-          allPayloads.push({
-            id: t.id,
-            client_id: client.id,
-            client_name: client.companyName,
-            task_name: t.taskName,
-            sector: t.sector,
-            responsible: t.responsible,
-            competence: t.competence,
-            due_date: adjustedDate || null,
-            variable_adjustment: t.vencimentoVariavel,
-            priority: t.priority,
-            status: initialData.status,
-            recurrence: t.recurrence,
-            recurrence_months: t.months,
-            tax_regime: taxRegime,
-            registration_regime: regimeRegistro,
-            no_movement: semMovimento,
-            exceeded_sublimit: excedeuSublimite,
-            factor_r: fatorR,
-            selected_annexes: selectedAnnexes,
-            selected_dfes: selectedDfe,
-            observation: observation,
-            org_id: user.id
-          });
-        } else {
-          // Expansion logic for creation
-          const [startYear, startMonth] = t.competence.split('-').map(Number);
+      // We will iterate over EACH selected client
+      for (const clientName of selectedClientIds) {
+        const client = clients.find(c => c.companyName === clientName);
+        if (!client) continue;
 
-          let monthOffset = 0;
-          let baseDay = 10;
+        const config = clientConfigs[clientName];
+        if (!config) continue;
 
-          if (t.vencimento) {
-            const dDate = new Date(t.vencimento + 'T12:00:00');
-            const dYear = dDate.getFullYear();
-            const dMonth = dDate.getMonth() + 1;
-            monthOffset = (dYear - startYear) * 12 + (dMonth - startMonth);
-            baseDay = dDate.getDate();
-          }
+        const allPayloadsForClient: any[] = [];
 
-          const createIteration = (month: number, year: number) => {
-            const compStr = `${year}-${month.toString().padStart(2, '0')}`;
-
-            // Calculate base due date by applying the same month offset and day
-            const targetDueDate = new Date(year, (month - 1) + monthOffset, baseDay, 12, 0, 0);
-            const yearVal = targetDueDate.getFullYear();
-            const monthVal = (targetDueDate.getMonth() + 1).toString().padStart(2, '0');
-            const dayVal = targetDueDate.getDate().toString().padStart(2, '0');
-            const rawDueStr = `${yearVal}-${monthVal}-${dayVal}`;
-
-            const finalDate = calculateAdjustedDate(rawDueStr, t.vencimentoVariavel, holidayDates);
-
-            allPayloads.push({
+        for (const t of tasksToSave) {
+          // Recurrence logic: if it's a NEW task, we expand it. If editing, we only update the specific one.
+          if (isEditing && t.id === initialData.id) {
+            const adjustedDate = calculateAdjustedDate(t.vencimento, t.vencimentoVariavel, holidayDates);
+            allPayloadsForClient.push({
+              id: t.id,
               client_id: client.id,
               client_name: client.companyName,
               task_name: t.taskName,
               sector: t.sector,
               responsible: t.responsible,
-              competence: compStr,
-              due_date: finalDate,
+              competence: t.competence,
+              due_date: adjustedDate || null,
               variable_adjustment: t.vencimentoVariavel,
               priority: t.priority,
-              status: TaskStatus.PENDENTE,
+              status: initialData.status,
               recurrence: t.recurrence,
               recurrence_months: t.months,
-              tax_regime: taxRegime,
-              registration_regime: regimeRegistro,
-              no_movement: semMovimento,
-              exceeded_sublimit: excedeuSublimite,
-              factor_r: fatorR,
-              selected_annexes: selectedAnnexes,
-              selected_dfes: selectedDfe,
-              observation: observation,
+              tax_regime: config.taxRegime,
+              registration_regime: config.regimeRegistro,
+              no_movement: config.semMovimento,
+              exceeded_sublimit: config.excedeuSublimite,
+              factor_r: config.fatorR,
+              selected_annexes: config.selectedAnnexes,
+              selected_dfes: config.selectedDfe,
+              observation: config.observation,
               org_id: user.id
             });
-          };
-
-          if (t.recurrence === 'mensal') {
-            for (let m = startMonth; m <= 12; m++) {
-              createIteration(m, startYear);
-            }
-          } else if (t.recurrence === 'unica') {
-            createIteration(startMonth, startYear);
           } else {
-            // Periodic: register month + chosen months in the future
-            const months = t.months || [];
-            const iterations = new Set<number>();
-            iterations.add(startMonth);
-            months.forEach((m: number) => {
-              if (m > startMonth) iterations.add(m); // Check for strictly greater as startMonth is added above
-            });
+            // Expansion logic for creation
+            const [startYear, startMonth] = t.competence.split('-').map(Number);
+            let monthOffset = 0;
+            let baseDay = 10;
 
-            Array.from(iterations).sort((a, b) => a - b).forEach(m => {
-              createIteration(m, startYear);
-            });
+            if (t.vencimento) {
+              const dDate = new Date(t.vencimento + 'T12:00:00');
+              const dYear = dDate.getFullYear();
+              const dMonth = dDate.getMonth() + 1;
+              monthOffset = (dYear - startYear) * 12 + (dMonth - startMonth);
+              baseDay = dDate.getDate();
+            }
+
+            const createIterationPayload = (month: number, year: number) => {
+              const compStr = `${year}-${month.toString().padStart(2, '0')}`;
+              const targetDueDate = new Date(year, (month - 1) + monthOffset, baseDay, 12, 0, 0);
+              const yearVal = targetDueDate.getFullYear();
+              const monthVal = (targetDueDate.getMonth() + 1).toString().padStart(2, '0');
+              const dayVal = targetDueDate.getDate().toString().padStart(2, '0');
+              const rawDueStr = `${yearVal}-${monthVal}-${dayVal}`;
+              const finalDate = calculateAdjustedDate(rawDueStr, t.vencimentoVariavel, holidayDates);
+
+              return {
+                client_id: client.id,
+                client_name: client.companyName,
+                task_name: t.taskName,
+                sector: t.sector,
+                responsible: t.responsible,
+                competence: compStr,
+                due_date: finalDate,
+                variable_adjustment: t.vencimentoVariavel,
+                priority: t.priority,
+                status: TaskStatus.PENDENTE,
+                recurrence: t.recurrence,
+                recurrence_months: t.months,
+                tax_regime: config.taxRegime,
+                registration_regime: config.regimeRegistro,
+                no_movement: config.semMovimento,
+                exceeded_sublimit: config.excedeuSublimite,
+                factor_r: config.fatorR,
+                selected_annexes: config.selectedAnnexes,
+                selected_dfes: config.selectedDfe,
+                observation: config.observation,
+                org_id: user.id
+              };
+            };
+
+            if (t.recurrence === 'mensal') {
+              for (let m = startMonth; m <= 12; m++) {
+                allPayloadsForClient.push(createIterationPayload(m, startYear));
+              }
+            } else if (t.recurrence === 'personalizado') {
+              for (let i = 0; i < (t.repetitions || 1); i++) {
+                let currentMonth = startMonth + i;
+                let currentYear = startYear;
+                // Simple year rollover logic
+                while (currentMonth > 12) {
+                  currentMonth -= 12;
+                  currentYear++;
+                }
+                allPayloadsForClient.push(createIterationPayload(currentMonth, currentYear));
+              }
+            } else {
+              const months = t.months || [];
+              const iterations = new Set<number>();
+              iterations.add(startMonth);
+              months.forEach((m: number) => {
+                if (m > startMonth) iterations.add(m);
+              });
+              Array.from(iterations).sort((a, b) => a - b).forEach(m => {
+                allPayloadsForClient.push(createIterationPayload(m, startYear));
+              });
+            }
+          }
+        }
+
+        // Insert/Update tasks for THIS client
+        for (const payload of allPayloadsForClient) {
+          let taskData;
+          let taskError;
+
+          if (payload.id) {
+            const { data, error } = await (supabase
+              .from('tasks') as any)
+              .update(payload)
+              .eq('id', payload.id)
+              .select()
+              .single();
+            taskData = data;
+            taskError = error;
+          } else {
+            const { data, error } = await (supabase
+              .from('tasks') as any)
+              .insert(payload)
+              .select()
+              .single();
+            taskData = data;
+            taskError = error;
+          }
+
+          if (taskError) throw taskError;
+
+          // Upload and Link Files for THIS task
+          if (config.uploadedFiles.length > 0 && taskData) {
+            for (const file of config.uploadedFiles) {
+              await (supabase.from('task_attachments') as any).insert({
+                task_id: (taskData as any).id,
+                file_name: file.name,
+                file_size: file.size,
+                storage_path: `tasks/${(taskData as any).id}/${file.name}`,
+                is_conclude_attachment: false
+              });
+            }
           }
         }
       }
 
-      for (const payload of allPayloads) {
-        let taskData;
-        let taskError;
-
-        if (payload.id) {
-          const { data, error } = await (supabase
-            .from('tasks') as any)
-            .update(payload)
-            .eq('id', payload.id)
-            .select()
-            .single();
-          taskData = data;
-          taskError = error;
-        } else {
-          const { data, error } = await (supabase
-            .from('tasks') as any)
-            .insert(payload)
-            .select()
-            .single();
-          taskData = data;
-          taskError = error;
-        }
-
-        if (taskError) throw taskError;
-
-        // 2. Upload and Link Files
-        if (uploadedFiles.length > 0 && taskData) {
-          for (const file of uploadedFiles) {
-            await (supabase.from('task_attachments') as any).insert({
-              task_id: (taskData as any).id,
-              file_name: file.name,
-              file_size: file.size,
-              storage_path: `tasks/${(taskData as any).id}/${file.name}`,
-              is_conclude_attachment: false
-            });
-          }
-        }
-      }
-
-      alert(`${tasksToSave.length} tarefa(s) cadastrada(s) com sucesso!`);
+      alert(`${selectedClientIds.length} empresa(s) processada(s) com sucesso!`);
       onBack();
     } catch (error: any) {
       console.error('Error saving tasks:', error);
@@ -1447,7 +1900,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
             {isEditing ? `Editando: ${initialData.taskName}` : 'Cadastro de Tarefas em Lote'}
           </h2>
           <p className="text-slate-500 dark:text-slate-400">
-            {isEditing ? `Cliente: ${initialData.clientName}` : 'Selecione o cliente e adicione as tarefas operacionais'}
+            {isEditing ? `Cliente: ${initialData.clientName}` : `${selectedClientIds.length} empresa(s) selecionada(s). Adicione as tarefas operacionais.`}
           </p>
         </div>
         <div className="flex gap-3">
@@ -1461,50 +1914,136 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* COLUNA ESQUERDA: CONTEXTO DO CLIENTE */}
         <div className="lg:col-span-4 space-y-6">
-          <Card title="Contexto do Cliente">
+          <Card
+            title={
+              <div className="flex items-center justify-between w-full">
+                <span>Contexto do Cliente</span>
+                {activeClientId && (
+                  <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold rounded-full uppercase tracking-tighter animate-pulse">
+                    Editando: {activeClientId}
+                  </span>
+                )}
+              </div>
+            }
+          >
             <div className="space-y-6">
-              <SearchableSelect
-                label="Empresa"
-                options={clients.map(c => ({
-                  value: c.companyName,
-                  label: c.companyName
-                }))}
-                value={selectedClientId}
-                onChange={(val) => setSelectedClientId(val)}
-                placeholder="Selecione a empresa..."
-              />
+              <div className="space-y-4">
+                <SearchableSelect
+                  label="Empresa"
+                  options={clients
+                    .filter(c => !selectedClientIds.includes(c.companyName))
+                    .map(c => ({
+                      value: c.companyName,
+                      label: c.companyName
+                    }))}
+                  value=""
+                  onChange={(val) => {
+                    if (val && !selectedClientIds.includes(val)) {
+                      const newIds = [...selectedClientIds, val];
+                      setSelectedClientIds(newIds);
+                      if (!activeClientId) setActiveClientId(val);
+                      setClientConfigs(prev => ({
+                        ...prev,
+                        [val]: createDefaultConfig()
+                      }));
+                    }
+                  }}
+                  placeholder="Selecione e adicione empresas..."
+                />
+
+                {selectedClientIds.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresas Selecionadas</label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedClientIds.map(id => (
+                        <div
+                          key={id}
+                          onClick={() => setActiveClientId(id)}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all ${activeClientId === id
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 hover:border-indigo-300'
+                            }`}
+                        >
+                          <span className="truncate max-w-[150px]">{id}</span>
+                          {!isEditing && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newIds = selectedClientIds.filter(x => x !== id);
+                                setSelectedClientIds(newIds);
+                                if (activeClientId === id) setActiveClientId(newIds[0] || null);
+                                setClientConfigs(prev => {
+                                  const { [id]: _, ...rest } = prev;
+                                  return rest;
+                                });
+                              }}
+                              className={`p-0.5 rounded-full hover:bg-white/20 ${activeClientId === id ? 'text-indigo-100' : 'text-slate-400'}`}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <Select
                   label="Regime Tributário"
+                  disabled={!activeClientId}
                   options={[
                     { value: 'simples', label: 'Simples Nacional' },
                     { value: 'lp', label: 'Lucro Presumido' },
                     { value: 'lr', label: 'Lucro Real' },
                     { value: 'mei', label: 'MEI' },
                   ]}
-                  value={taxRegime}
-                  onChange={(e) => setTaxRegime(e.target.value)}
+                  value={activeClientId ? clientConfigs[activeClientId].taxRegime : ''}
+                  onChange={(e) => {
+                    if (activeClientId) {
+                      setClientConfigs(prev => ({
+                        ...prev,
+                        [activeClientId]: { ...prev[activeClientId], taxRegime: e.target.value }
+                      }));
+                    }
+                  }}
                 />
                 <Select
                   label="Regime de Registro"
+                  disabled={!activeClientId}
                   options={[
                     { value: 'competencia', label: 'Competência' },
                     { value: 'caixa', label: 'Caixa' },
                     { value: 'misto', label: 'Misto' },
                   ]}
-                  value={regimeRegistro}
-                  onChange={(e) => setRegimeRegistro(e.target.value)}
+                  value={activeClientId ? clientConfigs[activeClientId].regimeRegistro : ''}
+                  onChange={(e) => {
+                    if (activeClientId) {
+                      setClientConfigs(prev => ({
+                        ...prev,
+                        [activeClientId]: { ...prev[activeClientId], regimeRegistro: e.target.value }
+                      }));
+                    }
+                  }}
                 />
               </div>
 
               <div className="flex items-center gap-3 py-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setSemMovimento(!semMovimento)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${semMovimento ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                  disabled={!activeClientId}
+                  onClick={() => {
+                    if (activeClientId) {
+                      setClientConfigs(prev => ({
+                        ...prev,
+                        [activeClientId]: { ...prev[activeClientId], semMovimento: !prev[activeClientId].semMovimento }
+                      }));
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${activeClientId && clientConfigs[activeClientId].semMovimento ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${semMovimento ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${activeClientId && clientConfigs[activeClientId].semMovimento ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Sem Movimento</span>
               </div>
@@ -1528,11 +2067,25 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                 ))}
             </div>
             <div className="p-4 max-h-[400px] overflow-auto custom-scrollbar">
-              {activeTab === 'simples' && (
+              {activeTab === 'simples' && activeClientId && (
                 <div className="space-y-6">
                   <div className="flex flex-col gap-4">
-                    <Toggle label="Excedeu Sublimite?" value={excedeuSublimite} onChange={setExcedeuSublimite} />
-                    <Toggle label="Fator R" value={fatorR} onChange={setFatorR} />
+                    <Toggle
+                      label="Excedeu Sublimite?"
+                      value={clientConfigs[activeClientId].excedeuSublimite}
+                      onChange={(val) => setClientConfigs(prev => ({
+                        ...prev,
+                        [activeClientId]: { ...prev[activeClientId], excedeuSublimite: val }
+                      }))}
+                    />
+                    <Toggle
+                      label="Fator R"
+                      value={clientConfigs[activeClientId].fatorR}
+                      onChange={(val) => setClientConfigs(prev => ({
+                        ...prev,
+                        [activeClientId]: { ...prev[activeClientId], fatorR: val }
+                      }))}
+                    />
                   </div>
                   <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Anexos</h4>
@@ -1542,7 +2095,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                           key={annex}
                           type="button"
                           onClick={() => toggleAnnex(annex)}
-                          className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${selectedAnnexes.includes(annex)
+                          className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${clientConfigs[activeClientId].selectedAnnexes.includes(annex)
                             ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/30'
                             : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-700'
                             }`}
@@ -1555,22 +2108,28 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                 </div>
               )}
 
-              {activeTab === 'observacao' && (
+              {activeTab === 'observacao' && activeClientId && (
                 <textarea
-                  value={observation}
-                  onChange={(e) => setObservation(e.target.value)}
+                  value={clientConfigs[activeClientId].observation}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setClientConfigs(prev => ({
+                      ...prev,
+                      [activeClientId]: { ...prev[activeClientId], observation: val }
+                    }));
+                  }}
                   className="w-full h-32 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Observações gerais para este cliente..."
                 />
               )}
 
-              {activeTab === 'dfe' && (
+              {activeTab === 'dfe' && activeClientId && (
                 <div className="grid grid-cols-3 gap-2">
                   {DF_MODELS.map((model) => (
                     <button
                       key={model.id}
                       onClick={() => toggleDfe(model.id)}
-                      className={`p-2 rounded border text-[10px] font-bold transition-all ${selectedDfe.includes(model.id)
+                      className={`p-2 rounded border text-[10px] font-bold transition-all ${clientConfigs[activeClientId].selectedDfe.includes(model.id)
                         ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20'
                         : 'border-slate-200 dark:border-slate-800 text-slate-600 hover:border-indigo-300'
                         }`}
@@ -1581,7 +2140,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                 </div>
               )}
 
-              {activeTab === 'arquivos' && (
+              {activeTab === 'arquivos' && activeClientId && (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
                   <input
                     type="file"
@@ -1603,14 +2162,14 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
 
                   <div className="space-y-2">
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-2">Arquivos selecionados</h4>
-                    {(uploadedFiles.length === 0 && existingAttachments.length === 0) ? (
+                    {(clientConfigs[activeClientId].uploadedFiles.length === 0 && clientConfigs[activeClientId].existingAttachments.length === 0) ? (
                       <div className="text-center py-4 text-xs text-slate-400 italic bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
                         Nenhum arquivo anexado ainda.
                       </div>
                     ) : (
                       <div className="space-y-2">
                         {/* Existing Attachments */}
-                        {existingAttachments.map((file, idx) => (
+                        {clientConfigs[activeClientId].existingAttachments.map((file: any, idx: number) => (
                           <div key={`existing-${idx}`} className="flex items-center justify-between p-2 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-lg border border-indigo-100 dark:border-indigo-900/30">
                             <div className="flex items-center gap-2 overflow-hidden">
                               <FileText size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
@@ -1629,7 +2188,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                         ))}
 
                         {/* New Uploads */}
-                        {uploadedFiles.map((file, idx) => (
+                        {clientConfigs[activeClientId].uploadedFiles.map((file, idx) => (
                           <div key={`new-${idx}`} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
                             <div className="flex items-center gap-2 overflow-hidden">
                               <File size={14} className="text-indigo-500 shrink-0" />
@@ -1727,7 +2286,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                       label="Recorrência"
                       className="text-[11px]"
                       options={[
-                        { value: 'unica', label: 'Única' },
+                        { value: 'personalizado', label: 'Personalizado' },
                         { value: 'mensal', label: 'Mensal' },
                         { value: 'bimestral', label: 'Bimestral' },
                         { value: 'trimestral', label: 'Trimestral' },
@@ -1738,7 +2297,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                       onChange={(e) => setTempTask(prev => ({
                         ...prev,
                         recurrence: e.target.value,
-                        months: (e.target.value === 'mensal' || e.target.value === 'unica') ? [] : prev.months
+                        months: (e.target.value === 'mensal' || e.target.value === 'personalizado') ? [] : prev.months
                       }))}
                     />
                   </div>
@@ -1756,6 +2315,20 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                     />
                   </div>
 
+                  {tempTask.recurrence === 'personalizado' && (
+                    <div className="md:col-span-4 animate-in fade-in zoom-in-95 duration-200">
+                      <Input
+                        type="number"
+                        label="Quantidade de Repetições"
+                        min={1}
+                        max={60}
+                        className="text-[11px]"
+                        value={tempTask.repetitions}
+                        onChange={(e) => setTempTask(prev => ({ ...prev, repetitions: parseInt(e.target.value) || 1 }))}
+                      />
+                    </div>
+                  )}
+
                   <div className="md:col-span-4">
                     <Button
                       fullWidth
@@ -1770,7 +2343,7 @@ const TaskForm: React.FC<{ onBack: () => void; initialData?: Task | null }> = ({
                 </div>
 
                 {/* MONTH SELECTOR FOR NON-MONTHLY */}
-                {tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'unica' && (
+                {tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'personalizado' && (
                   <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">
                       Selecione os meses de repetição
