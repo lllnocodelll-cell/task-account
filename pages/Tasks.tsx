@@ -34,7 +34,8 @@ import {
   Layers,
   Zap,
   AlertTriangle,
-  MinusCircle
+  MinusCircle,
+  ChevronRight
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -123,7 +124,7 @@ interface ActionMenuProps {
   onStatusChange: (id: string, status: TaskStatus) => void;
   onConclude: (id: string) => void;
   onEdit: (task: Task) => void;
-  onDelete: (id: string) => void;
+  onDelete: (task: Task) => void;
 }
 
 const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclude, onEdit, onDelete }) => {
@@ -219,10 +220,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
 
           <button
             onClick={() => {
-              if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
-                onDelete(task.id);
-                setIsOpen(false);
-              }
+              onDelete(task);
+              setIsOpen(false);
             }}
             className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
           >
@@ -241,8 +240,9 @@ interface KanbanColumnProps {
   tasks: Task[];
   onEdit: (task: Task) => void;
   onConclude: (id: string) => void;
-  onDelete: (id: string) => void;
+  onDelete: (task: Task) => void;
   color: string;
+  onDragStart: (e: React.DragEvent, id: string) => void;
   onDrop: (e: React.DragEvent, status: TaskStatus) => void;
   onNavigateToClient?: (clientId: string) => void;
   onViewTask: (task: Task) => void;
@@ -405,9 +405,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
-                      onDelete(task.id);
-                    }
+                    onDelete(task);
                   }}
                   className="text-red-400 hover:text-red-500 p-1"
                   title="Excluir"
@@ -444,6 +442,8 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
   const [concludeModalOpen, setConcludeModalOpen] = useState(false);
   const [selectedTaskForConclude, setSelectedTaskForConclude] = useState<string | null>(null);
   const [concludeFiles, setConcludeFiles] = useState<File[]>([]);
+  const [showDeleteRecurrenceModal, setShowDeleteRecurrenceModal] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const concludeFileInputRef = useRef<HTMLInputElement>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -644,7 +644,21 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
     }
   };
 
-  const handleDeleteTask = async (id: string) => {
+  const handleDeleteTask = async (task: Task) => {
+    // Check if recurring
+    const isRecurring = task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence);
+
+    if (isRecurring) {
+      setTaskToDelete(task);
+      setShowDeleteRecurrenceModal(true);
+    } else {
+      if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
+        await executeDelete(task.id);
+      }
+    }
+  };
+
+  const executeDelete = async (id: string) => {
     try {
       const { error } = await supabase
         .from('tasks')
@@ -652,11 +666,52 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
         .eq('id', id);
 
       if (error) throw error;
-
       setTasks(prev => prev.filter(t => t.id !== id));
     } catch (error: any) {
       console.error('Error deleting task:', error);
       alert('Erro ao excluir tarefa: ' + (error.message || 'Erro desconhecido'));
+    }
+  };
+
+  const handleConfirmDelete = async (type: 'current' | 'future') => {
+    if (!taskToDelete) return;
+
+    try {
+      setLoading(true);
+
+      if (type === 'current') {
+        await executeDelete(taskToDelete.id);
+      } else {
+        // Delete current
+        const { error: currentError } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('id', taskToDelete.id);
+
+        if (currentError) throw currentError;
+
+        // Delete future
+        const { error: futureError } = await (supabase
+          .from('tasks') as any)
+          .delete()
+          .eq('client_id', taskToDelete.clientId)
+          .eq('task_name', taskToDelete.taskName)
+          .eq('org_id', (await supabase.auth.getUser()).data.user?.id)
+          .gt('competence', taskToDelete.competence);
+
+        if (futureError) throw futureError;
+
+        // Refresh list
+        await fetchTasks();
+      }
+
+      setShowDeleteRecurrenceModal(false);
+      setTaskToDelete(null);
+    } catch (error: any) {
+      console.error('Error in batch delete:', error);
+      alert('Erro ao excluir tarefas em lote: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1543,6 +1598,55 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
         )}
       </Modal>
 
+      {/* Modal de Confirmação de Exclusão de Recorrência */}
+      <Modal
+        isOpen={showDeleteRecurrenceModal}
+        onClose={() => {
+          setShowDeleteRecurrenceModal(false);
+          setTaskToDelete(null);
+        }}
+        title="Excluir Tarefa Recorrente"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Esta é uma tarefa recorrente. Como você deseja prosseguir com a exclusão?
+          </p>
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              onClick={() => handleConfirmDelete('current')}
+              className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all group"
+            >
+              <div className="text-left">
+                <div className="font-bold text-slate-900 dark:text-white group-hover:text-red-600">Apenas este mês</div>
+                <div className="text-xs text-slate-500">Exclui apenas o lançamento de {taskToDelete?.competence}</div>
+              </div>
+              <ChevronRight size={20} className="text-slate-400 group-hover:text-red-500" />
+            </button>
+
+            <button
+              onClick={() => handleConfirmDelete('future')}
+              className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all group"
+            >
+              <div className="text-left">
+                <div className="font-bold text-slate-900 dark:text-white group-hover:text-red-600">Este mês e futuros</div>
+                <div className="text-xs text-slate-500">Exclui este e todos os lançamentos posteriores vinculados</div>
+              </div>
+              <Trash2 size={20} className="text-slate-400 group-hover:text-red-500" />
+            </button>
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowDeleteRecurrenceModal(false);
+                setTaskToDelete(null);
+              }}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div >
   );
 };
@@ -1604,6 +1708,10 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
   const [holidayDates, setHolidayDates] = useState<string[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
+  // Recurrence Update Flow State
+  const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
+  const [updateFutureTasks, setUpdateFutureTasks] = useState<boolean | null>(null);
+
   // Form State
   // (We use client IDs as the key in clientConfigs, which is the companyName for now since SearchableSelect uses it)
 
@@ -1641,6 +1749,12 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
   useEffect(() => {
     fetchFormData();
   }, []);
+
+  useEffect(() => {
+    if (updateFutureTasks !== null) {
+      handleSaveAll();
+    }
+  }, [updateFutureTasks]);
 
   const fetchFormData = async () => {
     try {
@@ -1737,6 +1851,15 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
   const handleSaveAll = async () => {
     if (selectedClientIds.length === 0) return alert('Selecione pelo menos uma empresa');
     if (pendingTasks.length === 0 && !tempTask.taskName) return alert('Adicione pelo menos uma tarefa');
+
+    // Recurrence Check for Editing
+    // We consider it recurring if it has a recurrence value other than common non-recurring terms
+    const isRecurring = initialData?.recurrence && !['unico', 'nao_recorre', 'none'].includes(initialData.recurrence);
+
+    if (isEditing && isRecurring && updateFutureTasks === null) {
+      setShowRecurrenceModal(true);
+      return;
+    }
 
     try {
       setLoadingData(true);
@@ -1869,42 +1992,106 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
           let taskError;
 
           if (payload.id) {
-            const { data, error } = await (supabase
+            const { data: taskData, error: taskError } = await (supabase
               .from('tasks') as any)
               .update(payload)
               .eq('id', payload.id)
               .select()
               .single();
-            taskData = data;
-            taskError = error;
+
+            if (taskError) throw taskError;
+
+            // Update Future Tasks if requested
+            if (isEditing && updateFutureTasks && taskData) {
+              const { data: futureTasks, error: fetchFutureError } = await (supabase
+                .from('tasks') as any)
+                .select('id, competence')
+                .eq('client_id', payload.client_id)
+                .eq('org_id', user.id)
+                .eq('task_name', initialData.taskName) // Use original name to find buddies
+                .gt('competence', initialData.competence);
+
+              if (fetchFutureError) throw fetchFutureError;
+
+              if (futureTasks && futureTasks.length > 0) {
+                // Get the new day from the updated task
+                const newDueDate = new Date(payload.due_date + 'T12:00:00');
+                const newDay = newDueDate.getDate();
+
+                for (const ft of futureTasks) {
+                  const [fYear, fMonth] = ft.competence.split('-').map(Number);
+
+                  // Handle months with fewer days (e.g., June 31 -> June 30)
+                  const lastDayOfMonth = new Date(fYear, fMonth, 0).getDate();
+                  const safeDay = Math.min(newDay, lastDayOfMonth);
+
+                  const rawDueStr = `${fYear}-${fMonth.toString().padStart(2, '0')}-${safeDay.toString().padStart(2, '0')}`;
+                  const finalDate = calculateAdjustedDate(rawDueStr, payload.variable_adjustment, holidayDates);
+
+                  const { error: futureUpdateError } = await (supabase
+                    .from('tasks') as any)
+                    .update({
+                      task_name: payload.task_name,
+                      sector: payload.sector,
+                      responsible: payload.responsible,
+                      due_date: finalDate,
+                      variable_adjustment: payload.variable_adjustment,
+                      priority: payload.priority,
+                      observation: payload.observation,
+                      tax_regime: payload.tax_regime,
+                      registration_regime: payload.registration_regime,
+                      no_movement: payload.no_movement,
+                      exceeded_sublimit: payload.exceeded_sublimit,
+                      factor_r: payload.factor_r,
+                      selected_annexes: payload.selected_annexes,
+                      selected_dfes: payload.selected_dfes
+                    })
+                    .eq('id', ft.id);
+
+                  if (futureUpdateError) throw futureUpdateError;
+                }
+              }
+            }
+
+            // Upload and Link Files for THIS task
+            if (config.uploadedFiles.length > 0 && taskData) {
+              for (const file of config.uploadedFiles) {
+                await (supabase.from('task_attachments') as any).insert({
+                  task_id: (taskData as any).id,
+                  file_name: file.name,
+                  file_size: file.size,
+                  storage_path: `tasks/${(taskData as any).id}/${file.name}`,
+                  is_conclude_attachment: false
+                });
+              }
+            }
           } else {
-            const { data, error } = await (supabase
+            const { data: taskData, error: taskError } = await (supabase
               .from('tasks') as any)
               .insert(payload)
               .select()
               .single();
-            taskData = data;
-            taskError = error;
-          }
 
-          if (taskError) throw taskError;
+            if (taskError) throw taskError;
 
-          // Upload and Link Files for THIS task
-          if (config.uploadedFiles.length > 0 && taskData) {
-            for (const file of config.uploadedFiles) {
-              await (supabase.from('task_attachments') as any).insert({
-                task_id: (taskData as any).id,
-                file_name: file.name,
-                file_size: file.size,
-                storage_path: `tasks/${(taskData as any).id}/${file.name}`,
-                is_conclude_attachment: false
-              });
+            // Upload and Link Files for THIS task
+            if (config.uploadedFiles.length > 0 && taskData) {
+              for (const file of config.uploadedFiles) {
+                await (supabase.from('task_attachments') as any).insert({
+                  task_id: (taskData as any).id,
+                  file_name: file.name,
+                  file_size: file.size,
+                  storage_path: `tasks/${(taskData as any).id}/${file.name}`,
+                  is_conclude_attachment: false
+                });
+              }
             }
           }
         }
       }
 
       alert(`${selectedClientIds.length} empresa(s) processada(s) com sucesso!`);
+      setUpdateFutureTasks(null); // Reset state
       onBack();
     } catch (error: any) {
       console.error('Error saving tasks:', error);
@@ -2362,7 +2549,7 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
 
                   <div className="md:col-span-4">
                     <Button
-                      fullWidth
+                      fullwidth={true}
                       variant="success"
                       icon={<Plus size={18} />}
                       onClick={handleAddPendingTask}
@@ -2473,6 +2660,50 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
           </Card>
         </div>
       </div>
+
+      {/* Recurrence Update Confirmation Modal */}
+      <Modal
+        isOpen={showRecurrenceModal}
+        onClose={() => setShowRecurrenceModal(false)}
+        title="Atualizar Tarefas Recorrentes"
+        footer={
+          <div className="flex gap-3 justify-end w-full">
+            <Button variant="ghost" onClick={() => setShowRecurrenceModal(false)}>Cancelar</Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setUpdateFutureTasks(false);
+                setShowRecurrenceModal(false);
+                // The handleSaveAll will be called in a useEffect or we can trigger it here
+              }}
+            >
+              Apenas este mês
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setUpdateFutureTasks(true);
+                setShowRecurrenceModal(false);
+              }}
+            >
+              Este mês e futuros
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg">
+            <Info className="text-amber-500" size={24} />
+            <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+              Esta é uma tarefa recorrente. Como você deseja aplicar as alterações?
+            </p>
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            <strong>Apenas este mês:</strong> Altera somente a tarefa da competência {initialData?.competence}.<br /><br />
+            <strong>Este mês e futuros:</strong> Altera a tarefa atual e todas as tarefas subsequentes com o mesmo nome para este cliente.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };
