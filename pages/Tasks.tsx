@@ -33,7 +33,8 @@ import {
   Activity,
   Layers,
   Zap,
-  AlertTriangle
+  AlertTriangle,
+  MinusCircle
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -343,6 +344,18 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             >
               {task.taskName}
             </h4>
+            {task.observation && (
+              <div className="flex items-center gap-1 mb-2 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                <Info size={10} />
+                <span>Observação</span>
+              </div>
+            )}
+            {task.noMovement && (
+              <div className="flex items-center gap-1 mb-2 text-[10px] text-red-600 dark:text-red-400 font-bold tracking-tight">
+                <MinusCircle size={10} />
+                <span>Sem movimento</span>
+              </div>
+            )}
             <div
               className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600 transition-colors"
               onClick={(e) => {
@@ -994,6 +1007,18 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                           >
                             {task.taskName}
                           </button>
+                          {task.observation && (
+                            <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                              <Info size={10} />
+                              <span>Observação</span>
+                            </div>
+                          )}
+                          {task.noMovement && (
+                            <div className="flex items-center gap-1 mt-1 text-[10px] text-red-600 dark:text-red-400 font-bold tracking-tight">
+                              <MinusCircle size={10} />
+                              <span>Sem movimento</span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
@@ -1332,6 +1357,12 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                     <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-700 shadow-sm">
                       <Clock size={12} className="text-amber-500" />
                       <span>Venc: {selectedTaskForView.dueDate.split('-').reverse().join('/')}</span>
+                    </div>
+                  )}
+                  {selectedTaskForView.noMovement && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded-md border border-red-100 dark:border-red-900/50 shadow-sm tracking-tight">
+                      <MinusCircle size={12} className="text-red-500" />
+                      <span>Sem movimento</span>
                     </div>
                   )}
                 </div>
