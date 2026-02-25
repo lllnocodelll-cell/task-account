@@ -35,7 +35,8 @@ import {
   Zap,
   AlertTriangle,
   MinusCircle,
-  ChevronRight
+  ChevronRight,
+  Repeat
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -453,15 +454,21 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
   const [clients, setClients] = useState<Client[]>([]);
 
   // Filter Values State
-  const [filters, setFilters] = useState({
-    clientName: '',
-    taskName: '',
-    competence: '',
-    taxRegime: '',
-    priority: '',
-    sector: '',
-    responsible: '',
-    status: '',
+  const [filters, setFilters] = useState(() => {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const defaultCompetence = `${lastMonth.getFullYear()}-${(lastMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+
+    return {
+      clientName: '',
+      taskName: '',
+      competence: defaultCompetence,
+      taxRegime: '',
+      priority: '',
+      sector: '',
+      responsible: '',
+      status: '',
+    };
   });
 
   // Filter Visibility State
@@ -493,10 +500,14 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
   };
 
   const clearFilters = () => {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const defaultCompetence = `${lastMonth.getFullYear()}-${(lastMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+
     setFilters({
       clientName: '',
       taskName: '',
-      competence: '',
+      competence: defaultCompetence,
       taxRegime: '',
       priority: '',
       sector: '',
@@ -630,6 +641,14 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
   // Status Handlers
   const handleStatusChange = async (id: string, newStatus: TaskStatus) => {
     try {
+      // Find current status to check for reopen confirmation
+      const currentTask = tasks.find(t => t.id === id);
+      if (currentTask?.status === TaskStatus.CONCLUIDA && newStatus !== TaskStatus.CONCLUIDA) {
+        if (!confirm('Deseja realmente reabrir esta tarefa?')) {
+          return;
+        }
+      }
+
       const { error } = await (supabase
         .from('tasks') as any)
         .update({ status: newStatus })
@@ -737,13 +756,13 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
         // 2. Insert Conclusion Attachments
         if (concludeFiles.length > 0) {
           for (const file of concludeFiles) {
-            await supabase.from('task_attachments').insert({
+            await (supabase.from('task_attachments') as any).insert({
               task_id: selectedTaskForConclude,
               file_name: file.name,
               file_size: file.size,
               storage_path: `tasks/${selectedTaskForConclude}/conclude/${file.name}`,
               is_conclude_attachment: true
-            } as any);
+            });
           }
         }
 
@@ -1325,57 +1344,57 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
         </div>
       </Modal>
 
-      {/* Task Detail View Modal */}
+      {/* Task Detail View Modal - Premium Redesign */}
       <Modal
         isOpen={viewModalOpen}
         onClose={() => setViewModalOpen(false)}
-        title="Detalhes da Tarefa"
+        title={null} // We'll make our own custom header
         size="lg"
         footer={
           <div className="flex justify-between w-full items-center">
             <div className="flex gap-2">
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${selectedTaskForView?.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                selectedTaskForView?.status === TaskStatus.ATRASADA ? 'bg-red-50 text-red-700 border-red-200' :
-                  selectedTaskForView?.status === TaskStatus.INICIADA ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                    'bg-slate-100 text-slate-600 border-slate-200'
+              <span className={`px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm ${selectedTaskForView?.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                selectedTaskForView?.status === TaskStatus.ATRASADA ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' :
+                  selectedTaskForView?.status === TaskStatus.INICIADA ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
+                    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                 }`}>
                 {selectedTaskForView?.status}
               </span>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${selectedTaskForView?.priority === Priority.ALTA ? 'bg-red-100 text-red-700 border-red-200' :
-                selectedTaskForView?.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                  'bg-slate-100 text-slate-700 border-slate-200'
+              <span className={`px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm ${selectedTaskForView?.priority === Priority.ALTA ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30' :
+                selectedTaskForView?.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30' :
+                  'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                 }`}>
-                Prioridade: {selectedTaskForView?.priority}
+                {selectedTaskForView?.priority}
               </span>
             </div>
             <div className="flex gap-3">
               <Button variant="ghost" onClick={() => setViewModalOpen(false)}>Fechar</Button>
               {selectedTaskForView?.status !== TaskStatus.CONCLUIDA && (
                 <>
-                  <Button
-                    variant="secondary"
-                    icon={<Pencil size={18} />}
+                  <button
                     onClick={() => {
                       if (selectedTaskForView) {
                         handleEdit(selectedTaskForView);
                         setViewModalOpen(false);
                       }
                     }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700"
                   >
+                    <Pencil size={18} />
                     Editar
-                  </Button>
-                  <Button
-                    variant="success"
-                    icon={<CheckCircle size={18} />}
+                  </button>
+                  <button
                     onClick={() => {
                       if (selectedTaskForView) {
                         openConcludeModal(selectedTaskForView.id);
                         setViewModalOpen(false);
                       }
                     }}
+                    className="flex items-center gap-2 px-6 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
                   >
+                    <CheckCircle size={18} />
                     Concluir
-                  </Button>
+                  </button>
                 </>
               )}
             </div>
@@ -1383,108 +1402,119 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
         }
       >
         {selectedTaskForView && (
-          <div className="space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
-            {/* Header Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</label>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900 dark:text-white text-lg">{selectedTaskForView.clientName}</span>
-                </div>
-                {(selectedTaskForView.clientCity || selectedTaskForView.clientState) && (
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <MapPin size={12} className="text-slate-400" />
-                    <span>{selectedTaskForView.clientCity}{selectedTaskForView.clientCity && selectedTaskForView.clientState ? ', ' : ''}{selectedTaskForView.clientState}</span>
-                  </div>
-                )}
+          <div className="space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar pr-2 -m-1 p-1">
+            {/* Main Header Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 dark:from-indigo-600/20 dark:to-indigo-900/40 p-6 text-white shadow-xl shadow-indigo-500/10 border border-indigo-500/20">
+              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <FileBadge size={120} strokeWidth={1} />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tarefa</label>
-                <div className="font-bold text-indigo-600 dark:text-indigo-400 text-lg leading-tight">
-                  {selectedTaskForView.taskName}
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded backdrop-blur-md">
+                    Tarefa Operacional
+                  </span>
                 </div>
-                <div className="flex items-center gap-3 mt-1">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <Calendar size={12} className="text-indigo-500" />
-                    <span>Comp: <span className="uppercase">{selectedTaskForView.competence}</span></span>
+                <h2 className="text-2xl font-black mb-1 leading-tight drop-shadow-sm truncate">
+                  {selectedTaskForView.taskName}
+                </h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-indigo-100/80 font-bold text-sm flex items-center gap-1.5">
+                    <User size={14} />
+                    {selectedTaskForView.clientName}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-white/10">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] text-white/50 uppercase font-black tracking-wider">Competência</span>
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <Calendar size={14} className="text-indigo-300" />
+                      <span className="uppercase">{selectedTaskForView.competence}</span>
+                    </div>
                   </div>
                   {selectedTaskForView.dueDate && (
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-700 shadow-sm">
-                      <Clock size={12} className="text-amber-500" />
-                      <span>Venc: {selectedTaskForView.dueDate.split('-').reverse().join('/')}</span>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-white/50 uppercase font-black tracking-wider">Vencimento</span>
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <Clock size={14} className="text-amber-300" />
+                        <span>{selectedTaskForView.dueDate.split('-').reverse().join('/')}</span>
+                      </div>
                     </div>
                   )}
                   {selectedTaskForView.noMovement && (
-                    <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded-md border border-red-100 dark:border-red-900/50 shadow-sm tracking-tight">
-                      <MinusCircle size={12} className="text-red-500" />
-                      <span>Sem movimento</span>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-white/50 uppercase font-black tracking-wider">Status Especial</span>
+                      <div className="flex items-center gap-1.5 font-bold text-red-200">
+                        <MinusCircle size={14} />
+                        <span>Sem Movimento</span>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Configs e Detalhes Fiscais */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <Activity size={18} className="text-indigo-500" />
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Perfil da Empresa</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Card: Perfil Fiscal */}
+              <div className="bg-white dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                <div className="flex items-center gap-2.5 mb-5">
+                  <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg text-indigo-600 dark:text-indigo-400 font-bold shadow-sm">
+                    <Activity size={18} />
+                  </div>
+                  <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight uppercase">Perfil Fiscal</h3>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-xs text-slate-500">Regime Tributário</span>
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                    <span className="text-xs font-bold text-slate-500">Regime</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white">
                       {TAX_REGIME_LABELS[selectedTaskForView.taxRegime] || selectedTaskForView.taxRegime}
                     </span>
                   </div>
+
                   {selectedTaskForView.registrationRegime && (
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-xs text-slate-500">Regime de Registro</span>
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                      <span className="text-xs font-bold text-slate-500">Registro</span>
+                      <span className="text-xs font-black text-slate-900 dark:text-white">
                         {REGISTRATION_REGIME_LABELS[selectedTaskForView.registrationRegime] || selectedTaskForView.registrationRegime}
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center py-1">
-                    <span className="text-xs text-slate-500">Sem Movimento</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${selectedTaskForView.noMovement ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
-                      {selectedTaskForView.noMovement ? 'Sim' : 'Não'}
-                    </span>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Fator R</span>
+                      <span className={`text-xs font-black ${selectedTaskForView.factorR ? 'text-indigo-600' : 'text-slate-400'}`}>
+                        {selectedTaskForView.factorR ? 'Ativado' : 'Inativo'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Sublimite</span>
+                      <span className={`text-xs font-black ${selectedTaskForView.exceededSublimit ? 'text-rose-600' : 'text-slate-400'}`}>
+                        {selectedTaskForView.exceededSublimit ? 'Excedido' : 'Normal'}
+                      </span>
+                    </div>
                   </div>
-                  {selectedTaskForView.taxRegime === 'simples' && (
-                    <>
-                      <div className="flex justify-between items-center py-1">
-                        <span className="text-xs text-slate-500">Fator R</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${selectedTaskForView.factorR ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
-                          {selectedTaskForView.factorR ? 'Sim' : 'Não'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center py-1">
-                        <span className="text-xs text-slate-500">Excedeu Sublimite</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${selectedTaskForView.exceededSublimit ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'}`}>
-                          {selectedTaskForView.exceededSublimit ? 'Sim' : 'Não'}
-                        </span>
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <FileStack size={18} className="text-indigo-500" />
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Obrigações e DF-e</h3>
+              {/* Card: Obrigações Adicionais */}
+              <div className="bg-white dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                <div className="flex items-center gap-2.5 mb-5">
+                  <div className="p-2 bg-amber-50 dark:bg-amber-500/10 rounded-lg text-amber-600 dark:text-amber-400 font-bold shadow-sm">
+                    <FileStack size={18} />
+                  </div>
+                  <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight uppercase">Obrigações e DF-e</h3>
                 </div>
 
-                <div className="space-y-4">
-                  {selectedTaskForView.selectedAnnexes && selectedTaskForView.selectedAnnexes.length > 0 && (
+                <div className="space-y-5">
+                  {(selectedTaskForView.selectedAnnexes?.length || 0) > 0 && (
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Anexos Vinculados</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Anexos Vinculados</label>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedTaskForView.selectedAnnexes.map(annex => (
-                          <span key={annex} className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded">
+                          <span key={annex} className="px-2 py-1 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-black rounded-lg border border-amber-100 dark:border-amber-500/20">
                             {annex}
                           </span>
                         ))}
@@ -1492,12 +1522,12 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                     </div>
                   )}
 
-                  {selectedTaskForView.selectedDfes && selectedTaskForView.selectedDfes.length > 0 && (
+                  {(selectedTaskForView.selectedDfes?.length || 0) > 0 && (
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Modelos DF-e</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Modelos DF-e</label>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedTaskForView.selectedDfes.map(dfe => (
-                          <span key={dfe} className="px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded border border-indigo-100 dark:border-indigo-500/20">
+                          <span key={dfe} className="px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-100 dark:border-indigo-500/20">
                             {dfe.toUpperCase()}
                           </span>
                         ))}
@@ -1506,78 +1536,116 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                   )}
 
                   {!selectedTaskForView.selectedAnnexes?.length && !selectedTaskForView.selectedDfes?.length && (
-                    <div className="text-xs text-slate-400 italic py-4 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-lg">
-                      Nenhum anexo ou modelo DF-e selecionado
+                    <div className="h-full flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                      <Layers size={24} className="text-slate-300 mb-2" />
+                      <span className="text-[11px] text-slate-400 font-bold uppercase text-center">Nenhuma obrigação especial</span>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Observação */}
-            {selectedTaskForView.observation && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <FileText size={18} className="text-indigo-500" />
-                  <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Observações</h3>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic border border-slate-100 dark:border-slate-800">
-                  "{selectedTaskForView.observation}"
-                </div>
-              </div>
-            )}
-
-            {/* Arquivos */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                <FileBadge size={18} className="text-indigo-500" />
-                <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Anexos e Documentos</h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {selectedTaskForView.attachments && selectedTaskForView.attachments.length > 0 ? (
-                  selectedTaskForView.attachments.map((file, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-indigo-200 transition-colors shadow-sm group">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                          <File size={16} className="text-indigo-500" />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</span>
-                          <span className="text-[10px] text-slate-400 font-medium">{(file.size / 1024).toFixed(1)} KB</span>
-                        </div>
-                      </div>
-                      {file.url && (
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
-                        >
-                          <ExternalLink size={16} />
-                        </a>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-2 py-8 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl text-slate-400">
-                    <File size={24} className="mb-2 opacity-50" />
-                    <span className="text-xs">Nenhum arquivo anexado a esta tarefa</span>
+            {/* Row: Observações e Arquivos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Observações - Col Span 1 */}
+              <div className="md:col-span-1 space-y-3">
+                <div className="bg-white dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm h-full">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileText size={18} className="text-indigo-500" />
+                    <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight uppercase">Observações</h3>
                   </div>
-                )}
+                  {selectedTaskForView.observation ? (
+                    <div className="bg-indigo-50/30 dark:bg-indigo-500/5 p-4 rounded-xl border-l-4 border-indigo-500">
+                      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                        {selectedTaskForView.observation}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="h-[120px] flex items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl">
+                      <span className="text-[11px] text-slate-400 font-bold uppercase italic">Sem observações</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Arquivos - Col Span 1 */}
+              <div className="md:col-span-1 space-y-3">
+                <div className="bg-white dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <FileBadge size={18} className="text-indigo-500" />
+                      <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight uppercase">Arquivos e Anexos</h3>
+                    </div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                      {selectedTaskForView.attachments?.length || 0} Itens
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedTaskForView.attachments && selectedTaskForView.attachments.length > 0 ? (
+                      selectedTaskForView.attachments.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-900 hidden-overflow rounded-xl border border-slate-100 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/50 transition-all group overflow-hidden">
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                            <div className="p-1.5 bg-white dark:bg-slate-800 rounded-lg text-indigo-500 shadow-sm">
+                              <File size={14} />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 truncate">{file.name}</span>
+                              <span className="text-[9px] text-slate-400 font-bold">{(file.size / 1024).toFixed(1)} KB</span>
+                            </div>
+                          </div>
+                          {file.url && (
+                            <a
+                              href={file.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all shadow-sm shrink-0"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="h-[120px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl text-slate-300">
+                        <Upload size={20} className="mb-1 opacity-50" />
+                        <span className="text-[11px] font-bold uppercase">Nenhum anexo disponível</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Auditoria Simples */}
-            <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-6 h-10 items-center">
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                <User size={12} />
-                <span>Responsável: {selectedTaskForView.responsible}</span>
+            {/* Footer Audit */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 border border-slate-200 dark:border-slate-700">
+                    <User size={14} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Responsável</span>
+                    <span className="text-xs font-black text-slate-700 dark:text-slate-200">{selectedTaskForView.responsible}</span>
+                  </div>
+                </div>
+
+                <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
+
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Setor Executor</span>
+                  <div className="flex items-center gap-1.5">
+                    <Activity size={12} className="text-indigo-500" />
+                    <span className="text-xs font-black text-slate-700 dark:text-slate-200">{selectedTaskForView.sector}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                <Activity size={12} />
-                <span>Setor: {selectedTaskForView.sector}</span>
-              </div>
+
+              {selectedTaskForView.id && (
+                <div className="text-[9px] text-slate-300 dark:text-slate-600 font-mono tracking-tighter">
+                  ID: {selectedTaskForView.id.substring(0, 8)}...
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1608,42 +1676,53 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
         title="Excluir Tarefa Recorrente"
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Esta é uma tarefa recorrente. Como você deseja prosseguir com a exclusão?
-          </p>
+          <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl mb-2">
+            <AlertTriangle className="text-red-500" size={24} />
+            <p className="text-sm text-red-800 dark:text-red-200 font-medium leading-relaxed">
+              Esta é uma tarefa recorrente. Como você deseja proceder com a exclusão?
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 gap-3">
             <button
               onClick={() => handleConfirmDelete('current')}
-              className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all group"
+              className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all group relative overflow-hidden"
             >
-              <div className="text-left">
-                <div className="font-bold text-slate-900 dark:text-white group-hover:text-red-600">Apenas este mês</div>
-                <div className="text-xs text-slate-500">Exclui apenas o lançamento de {taskToDelete?.competence}</div>
+              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-white dark:group-hover:bg-slate-700 group-hover:text-red-600 transition-colors">
+                <Calendar size={24} />
               </div>
-              <ChevronRight size={20} className="text-slate-400 group-hover:text-red-500" />
+              <div className="text-left flex-1">
+                <div className="font-bold text-slate-900 dark:text-white group-hover:text-red-600 transition-colors">Apenas este mês</div>
+                <div className="text-xs text-slate-500">Remove somente o lançamento de {taskToDelete?.competence}</div>
+              </div>
+              <ChevronRight size={20} className="text-slate-300 group-hover:text-red-500 transition-all group-hover:translate-x-1" />
             </button>
 
             <button
               onClick={() => handleConfirmDelete('future')}
-              className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all group"
+              className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all group relative overflow-hidden"
             >
-              <div className="text-left">
-                <div className="font-bold text-slate-900 dark:text-white group-hover:text-red-600">Este mês e futuros</div>
-                <div className="text-xs text-slate-500">Exclui este e todos os lançamentos posteriores vinculados</div>
+              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-white dark:group-hover:bg-slate-700 group-hover:text-red-600 transition-colors">
+                <Trash2 size={24} />
               </div>
-              <Trash2 size={20} className="text-slate-400 group-hover:text-red-500" />
+              <div className="text-left flex-1">
+                <div className="font-bold text-slate-900 dark:text-white group-hover:text-red-600 transition-colors">Este mês e futuros</div>
+                <div className="text-xs text-slate-500">Remove esta e todas as tarefas subsequentes vinculadas</div>
+              </div>
+              <ChevronRight size={20} className="text-slate-300 group-hover:text-red-500 transition-all group-hover:translate-x-1" />
             </button>
           </div>
-          <div className="flex justify-end pt-2">
-            <Button
-              variant="secondary"
+
+          <div className="flex justify-center pt-2">
+            <button
               onClick={() => {
                 setShowDeleteRecurrenceModal(false);
                 setTaskToDelete(null);
               }}
+              className="px-6 py-2 text-sm font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
             >
               Cancelar
-            </Button>
+            </button>
           </div>
         </div>
       </Modal>
@@ -1733,17 +1812,19 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
 
   const [tempTask, setTempTask] = useState({
     taskTypeId: '',
-    taskName: initialData?.taskName || '',
-    sector: initialData?.sector || '',
-    responsible: initialData?.responsible || '',
-    priority: initialData?.priority || Priority.MEDIA,
-    competence: initialData?.competence || new Date().toISOString().substring(0, 7), // YYYY-MM
-    vencimento: initialData?.dueDate || '',
-    vencimentoVariavel: initialData?.variableAdjustment || 'nao_aplica',
-    recurrence: initialData?.recurrence || 'mensal',
-    months: initialData?.recurrenceMonths || [] as number[],
+    taskName: '',
+    sector: '',
+    responsible: '',
+    priority: Priority.MEDIA,
+    competence: new Date().toISOString().substring(0, 7), // YYYY-MM
+    vencimento: '',
+    vencimentoVariavel: 'nao_aplica',
+    recurrence: 'mensal',
+    months: [] as number[],
     repetitions: 1,
   });
+
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -1833,15 +1914,65 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
     if (tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'personalizado' && tempTask.months.length === 0) {
       return alert('Selecione pelo menos um mês para esta recorrência');
     }
-    setPendingTasks([...pendingTasks, { ...tempTask, id: Date.now().toString() }]);
-    setTempTask(prev => ({
-      ...prev,
+
+    if (editingTaskId) {
+      // Update existing
+      setPendingTasks(prev => prev.map(t =>
+        t.id === editingTaskId ? { ...tempTask, id: editingTaskId } : t
+      ));
+      setEditingTaskId(null);
+    } else {
+      // Add new
+      setPendingTasks([...pendingTasks, { ...tempTask, id: Date.now().toString() }]);
+    }
+
+    setTempTask({
       taskTypeId: '',
       taskName: '',
       sector: '',
+      responsible: '',
+      priority: Priority.MEDIA,
+      competence: new Date().toISOString().substring(0, 7),
+      vencimento: '',
+      vencimentoVariavel: 'nao_aplica',
+      recurrence: 'mensal',
       months: [],
-      // keep responsible, competence and recurrence as they might be the same for next item
-    }));
+      repetitions: 1,
+    });
+  };
+
+  const handleEditPendingTask = (task: any) => {
+    setEditingTaskId(task.id);
+    setTempTask({
+      taskTypeId: '', // We don't track the ID back, just the name/sector
+      taskName: task.taskName,
+      sector: task.sector,
+      responsible: task.responsible,
+      priority: task.priority,
+      competence: task.competence,
+      vencimento: task.vencimento,
+      vencimentoVariavel: task.vencimentoVariavel,
+      recurrence: task.recurrence,
+      months: task.months || [],
+      repetitions: task.repetitions || 1,
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingTaskId(null);
+    setTempTask({
+      taskTypeId: '',
+      taskName: '',
+      sector: '',
+      responsible: '',
+      priority: Priority.MEDIA,
+      competence: new Date().toISOString().substring(0, 7),
+      vencimento: '',
+      vencimentoVariavel: 'nao_aplica',
+      recurrence: 'mensal',
+      months: [],
+      repetitions: 1,
+    });
   };
 
   const removePendingTask = (id: string) => {
@@ -2010,6 +2141,11 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                 .eq('org_id', user.id)
                 .eq('task_name', initialData.taskName) // Use original name to find buddies
                 .gt('competence', initialData.competence);
+
+              const { data: futureAttachments, error: attachmentsError } = await (supabase
+                .from('task_attachments') as any)
+                .select('*')
+                .in('task_id', futureTasks.map(t => t.id));
 
               if (fetchFutureError) throw fetchFutureError;
 
@@ -2336,7 +2472,7 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                       [activeClientId]: { ...prev[activeClientId], observation: val }
                     }));
                   }}
-                  className="w-full h-32 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full h-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Observações gerais para este cliente..."
                 />
               )}
@@ -2547,16 +2683,36 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                     </div>
                   )}
 
-                  <div className="md:col-span-4">
-                    <Button
-                      fullwidth={true}
-                      variant="success"
-                      icon={<Plus size={18} />}
-                      onClick={handleAddPendingTask}
-                      className="h-10"
-                    >
-                      Adicionar à Lista
-                    </Button>
+                  <div className="md:col-span-4 flex gap-2">
+                    {editingTaskId ? (
+                      <button
+                        onClick={handleAddPendingTask}
+                        className="flex-1 h-10 flex items-center justify-center gap-2 px-4 rounded-xl bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 font-bold text-sm hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:scale-[1.02] active:scale-[0.98] transition-all animate-in fade-in zoom-in-95 duration-200"
+                      >
+                        <Save size={18} />
+                        Atualizar
+                      </button>
+                    ) : (
+                      <Button
+                        fullwidth={true}
+                        variant="success"
+                        icon={<Plus size={18} />}
+                        onClick={handleAddPendingTask}
+                        className="h-10 font-bold"
+                      >
+                        Adicionar à Lista
+                      </Button>
+                    )}
+
+                    {editingTaskId && (
+                      <button
+                        onClick={cancelEditing}
+                        className="h-10 flex items-center justify-center gap-2 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+                      >
+                        <X size={18} />
+                        Cancelar
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -2643,12 +2799,22 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <button
-                              onClick={() => removePendingTask(task.id)}
-                              className="text-slate-300 hover:text-red-500 transition-colors"
-                            >
-                              <X size={16} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEditPendingTask(task)}
+                                className={`p-1 rounded transition-colors ${editingTaskId === task.id ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-indigo-500 hover:bg-indigo-50'}`}
+                                title="Editar tarefa"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={() => removePendingTask(task.id)}
+                                className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                title="Remover da lista"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -2665,46 +2831,63 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
       <Modal
         isOpen={showRecurrenceModal}
         onClose={() => setShowRecurrenceModal(false)}
-        title="Atualizar Tarefas Recorrentes"
-        footer={
-          <div className="flex gap-3 justify-end w-full">
-            <Button variant="ghost" onClick={() => setShowRecurrenceModal(false)}>Cancelar</Button>
-            <Button
-              variant="secondary"
+        title="Atualizar Tarefa Recorrente"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl mb-2">
+            <Info className="text-indigo-500" size={24} />
+            <p className="text-sm text-indigo-800 dark:text-indigo-200 font-medium leading-relaxed">
+              Esta é uma tarefa recorrente. Como você deseja aplicar as alterações realizadas?
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            <button
               onClick={() => {
                 setUpdateFutureTasks(false);
                 setShowRecurrenceModal(false);
-                // The handleSaveAll will be called in a useEffect or we can trigger it here
               }}
+              className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group group relative overflow-hidden"
             >
-              Apenas este mês
-            </Button>
-            <Button
-              variant="primary"
+              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-white dark:group-hover:bg-slate-700 group-hover:text-indigo-600 transition-colors">
+                <Calendar size={24} />
+              </div>
+              <div className="text-left flex-1">
+                <div className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">Apenas este mês</div>
+                <div className="text-xs text-slate-500">Altera somente o lançamento de {initialData?.competence}</div>
+              </div>
+              <ChevronRight size={20} className="text-slate-300 group-hover:text-indigo-500 transition-all group-hover:translate-x-1" />
+            </button>
+
+            <button
               onClick={() => {
                 setUpdateFutureTasks(true);
                 setShowRecurrenceModal(false);
               }}
+              className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group relative overflow-hidden"
             >
-              Este mês e futuros
-            </Button>
+              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-white dark:group-hover:bg-slate-700 group-hover:text-indigo-600 transition-colors">
+                <Repeat size={24} />
+              </div>
+              <div className="text-left flex-1">
+                <div className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">Este mês e futuros</div>
+                <div className="text-xs text-slate-500">Altera esta e todas as tarefas subsequentes deste cliente</div>
+              </div>
+              <ChevronRight size={20} className="text-slate-300 group-hover:text-indigo-500 transition-all group-hover:translate-x-1" />
+            </button>
           </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-lg">
-            <Info className="text-amber-500" size={24} />
-            <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
-              Esta é uma tarefa recorrente. Como você deseja aplicar as alterações?
-            </p>
+
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setShowRecurrenceModal(false)}
+              className="px-6 py-2 text-sm font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            >
+              Cancelar
+            </button>
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            <strong>Apenas este mês:</strong> Altera somente a tarefa da competência {initialData?.competence}.<br /><br />
-            <strong>Este mês e futuros:</strong> Altera a tarefa atual e todas as tarefas subsequentes com o mesmo nome para este cliente.
-          </p>
         </div>
       </Modal>
     </div>
   );
-};
+}
 
