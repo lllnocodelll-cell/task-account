@@ -2150,18 +2150,29 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
               if (fetchFutureError) throw fetchFutureError;
 
               if (futureTasks && futureTasks.length > 0) {
-                // Get the new day from the updated task
+                // Calculate the month offset between the edited task's competence and its due date
                 const newDueDate = new Date(payload.due_date + 'T12:00:00');
                 const newDay = newDueDate.getDate();
+                const [editCompYear, editCompMonth] = payload.competence.split('-').map(Number);
+                const dueDateYear = newDueDate.getFullYear();
+                const dueDateMonth = newDueDate.getMonth() + 1;
+                // monthOffset = how many months ahead the due date is from the competence
+                const monthOffset = (dueDateYear - editCompYear) * 12 + (dueDateMonth - editCompMonth);
 
                 for (const ft of futureTasks) {
                   const [fYear, fMonth] = ft.competence.split('-').map(Number);
 
-                  // Handle months with fewer days (e.g., June 31 -> June 30)
-                  const lastDayOfMonth = new Date(fYear, fMonth, 0).getDate();
+                  // Apply the same month offset to the future task's competence
+                  let targetMonth = fMonth + monthOffset;
+                  let targetYear = fYear;
+                  while (targetMonth > 12) { targetMonth -= 12; targetYear++; }
+                  while (targetMonth < 1) { targetMonth += 12; targetYear--; }
+
+                  // Handle months with fewer days (e.g., day 31 in a month with 30 days)
+                  const lastDayOfMonth = new Date(targetYear, targetMonth, 0).getDate();
                   const safeDay = Math.min(newDay, lastDayOfMonth);
 
-                  const rawDueStr = `${fYear}-${fMonth.toString().padStart(2, '0')}-${safeDay.toString().padStart(2, '0')}`;
+                  const rawDueStr = `${targetYear}-${targetMonth.toString().padStart(2, '0')}-${safeDay.toString().padStart(2, '0')}`;
                   const finalDate = calculateAdjustedDate(rawDueStr, payload.variable_adjustment, holidayDates);
 
                   const { error: futureUpdateError } = await (supabase
@@ -2789,7 +2800,7 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                             {task.recurrence}
                             {task.months.length > 0 && (
                               <div className="text-[9px] text-indigo-500 mt-0.5">
-                                {task.months.map((m: number) => ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m]).join(', ')}
+                                {task.months.map((m: number) => ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m - 1]).join(', ')}
                               </div>
                             )}
                           </td>
