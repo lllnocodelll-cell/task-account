@@ -2639,7 +2639,7 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                   <div className="md:col-span-2">
                     <Input
                       type="month"
-                      label="Competência"
+                      label="Período Inicial"
                       className="text-[11px]"
                       value={tempTask.competence}
                       onChange={(e) => setTempTask(prev => ({ ...prev, competence: e.target.value }))}
