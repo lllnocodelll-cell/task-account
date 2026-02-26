@@ -663,6 +663,7 @@ export type Database = {
           full_name: string | null
           id: string
           location: string | null
+          org_id: string | null
           org_name: string | null
           phone: string | null
           role: string
@@ -674,6 +675,7 @@ export type Database = {
           full_name?: string | null
           id: string
           location?: string | null
+          org_id?: string | null
           org_name?: string | null
           phone?: string | null
           role?: string
@@ -685,6 +687,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           location?: string | null
+          org_id?: string | null
           org_name?: string | null
           phone?: string | null
           role?: string

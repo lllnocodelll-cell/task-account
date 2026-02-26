@@ -3,11 +3,17 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 
-export const Settings: React.FC = () => {
+interface SettingsProps {
+  userProfile: any;
+}
+
+export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
   const [activeTab, setActiveTab] = useState<'equipe' | 'setores' | 'tipos' | 'calendario'>('equipe');
+
+  const contentProps = { userProfile };
 
   return (
     <div className="space-y-6">
@@ -46,10 +52,10 @@ export const Settings: React.FC = () => {
         </div>
 
         <div className="p-6">
-          {activeTab === 'equipe' && <TeamSettings />}
-          {activeTab === 'setores' && <SectorSettings />}
-          {activeTab === 'tipos' && <TaskTypeSettings />}
-          {activeTab === 'calendario' && <CalendarSettings />}
+          {activeTab === 'equipe' && <TeamSettings {...contentProps} />}
+          {activeTab === 'setores' && <SectorSettings {...contentProps} />}
+          {activeTab === 'tipos' && <TaskTypeSettings {...contentProps} />}
+          {activeTab === 'calendario' && <CalendarSettings {...contentProps} />}
         </div>
       </div>
     </div>
@@ -58,7 +64,7 @@ export const Settings: React.FC = () => {
 
 // ------------------- TEAM SETTINGS -------------------
 
-const TeamSettings: React.FC = () => {
+const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [members, setMembers] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,8 +88,8 @@ const TeamSettings: React.FC = () => {
       if (!user) return;
 
       const [membersRes, sectorsRes] = await Promise.all([
-        supabase.from('members').select('*, sectors(name)').eq('org_id', user.id),
-        supabase.from('sectors').select('*').eq('org_id', user.id)
+        supabase.from('members').select('*, sectors(name)').eq('org_id', userProfile.org_id),
+        supabase.from('sectors').select('*').eq('org_id', userProfile.org_id)
       ]);
 
       if (membersRes.data) setMembers(membersRes.data);
@@ -107,7 +113,7 @@ const TeamSettings: React.FC = () => {
       if (!user) throw new Error('No user');
 
       const { data, error } = await supabase.from('members').insert({
-        org_id: user.id,
+        org_id: userProfile.org_id,
         first_name: firstName,
         last_name: lastName,
         email,
@@ -190,7 +196,34 @@ const TeamSettings: React.FC = () => {
                 {member.sectors.name}
               </span>
             )}
-            <Button size="sm" variant="secondary" icon={<Send size={14} />}>Reenviar Convite</Button>
+            <div className="flex flex-col gap-2 w-full">
+              <Button
+                size="sm"
+                variant="primary"
+                icon={<Send size={14} />}
+                onClick={() => {
+                  const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
+                  const subject = encodeURIComponent('Convite para acessar o Task Account');
+                  const body = encodeURIComponent(`Olá ${member.first_name},\n\nVocê foi convidado para participar da organização no Task Account!\n\nPara finalizar seu cadastro, acesse o link abaixo usando este e-mail (${member.email}):\n\n${inviteLink}\n\nSeja bem-vindo!`);
+                  window.location.href = `mailto:${member.email}?subject=${subject}&body=${body}`;
+                }}
+              >
+                Enviar por E-mail
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Copy size={14} />}
+                onClick={() => {
+                  const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
+                  const msg = `Olá ${member.first_name}, você foi convidado para o Task Account! Finalize seu cadastro em: ${inviteLink}`;
+                  navigator.clipboard.writeText(msg);
+                  alert('Link de convite copiado!');
+                }}
+              >
+                Copiar Link
+              </Button>
+            </div>
           </div>
         ))}
         {members.length === 0 && (
@@ -203,7 +236,7 @@ const TeamSettings: React.FC = () => {
 
 // ------------------- SECTOR SETTINGS -------------------
 
-const SectorSettings: React.FC = () => {
+const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -221,7 +254,7 @@ const SectorSettings: React.FC = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from('sectors').select('*').eq('org_id', user.id);
+      const { data } = await supabase.from('sectors').select('*').eq('org_id', userProfile.org_id);
       if (data) setSectors(data);
     } catch (error) {
       console.error(error);
@@ -238,7 +271,7 @@ const SectorSettings: React.FC = () => {
       if (!user) return;
 
       const { data, error } = await supabase.from('sectors').insert({
-        org_id: user.id,
+        org_id: userProfile.org_id,
         name,
         leader,
         cost_center: costCenter
@@ -305,7 +338,7 @@ const SectorSettings: React.FC = () => {
 
 // ------------------- TASK TYPE SETTINGS -------------------
 
-const TaskTypeSettings: React.FC = () => {
+const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -325,8 +358,8 @@ const TaskTypeSettings: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const [typesRes, sectorsRes] = await Promise.all([
-        supabase.from('task_types').select('*, sectors(name)').eq('org_id', user.id),
-        supabase.from('sectors').select('*').eq('org_id', user.id)
+        supabase.from('task_types').select('*, sectors(name)').eq('org_id', userProfile.org_id),
+        supabase.from('sectors').select('*').eq('org_id', userProfile.org_id)
       ]);
       if (typesRes.data) setTaskTypes(typesRes.data);
       if (sectorsRes.data) setSectors(sectorsRes.data);
@@ -341,7 +374,7 @@ const TaskTypeSettings: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data, error } = await supabase.from('task_types').insert({
-        org_id: user.id,
+        org_id: userProfile.org_id,
         name,
         sector_id: sectorId || null,
         federative_entity: entity
@@ -425,7 +458,7 @@ const TaskTypeSettings: React.FC = () => {
 
 // ------------------- CALENDAR SETTINGS -------------------
 
-const CalendarSettings: React.FC = () => {
+const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [year, setYear] = useState(new Date().getFullYear());
   const [holidays, setHolidays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -444,7 +477,7 @@ const CalendarSettings: React.FC = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase.from('holidays').select('*').eq('org_id', user.id);
+      const { data } = await supabase.from('holidays').select('*').eq('org_id', userProfile.org_id);
       if (data) setHolidays(data);
     } catch (e) { }
     finally { setLoading(false); }
@@ -457,7 +490,7 @@ const CalendarSettings: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data, error } = await supabase.from('holidays').insert({
-        org_id: user.id,
+        org_id: userProfile.org_id,
         date,
         name,
         type
@@ -548,8 +581,8 @@ const CalendarSettings: React.FC = () => {
                 <div key={h.id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                   <div className="flex items-center gap-4">
                     <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center border shadow-sm ${h.type === 'Facultativo'
-                        ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30'
-                        : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/30'
+                      ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30'
+                      : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/30'
                       }`}>
                       <span className="text-[10px] font-bold uppercase tracking-wider">{month.replace('.', '')}</span>
                       <span className="text-xl font-bold leading-none">{day}</span>

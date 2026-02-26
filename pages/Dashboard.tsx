@@ -1,22 +1,22 @@
 
 import React from 'react';
 import { MetricCard, Card } from '../components/ui/Card';
-import { 
-  CheckCircle, 
-  Clock, 
-  AlertTriangle, 
+import {
+  CheckCircle,
+  Clock,
+  AlertTriangle,
   PlayCircle,
   TrendingUp,
   Briefcase
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
   ResponsiveContainer,
   LineChart,
   Line
@@ -40,10 +40,11 @@ const dataProductivity = [
 ];
 
 interface DashboardProps {
-  userRole?: UserRole;
+  userProfile: any;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ userRole = 'gestor' }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ userProfile }) => {
+  const userRole = userProfile?.role || 'gestor';
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -59,31 +60,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole = 'gestor' }) => 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard 
-          title="Tarefas Concluídas" 
-          value="1,248" 
-          icon={<CheckCircle size={24} />} 
+        <MetricCard
+          title="Tarefas Concluídas"
+          value="1,248"
+          icon={<CheckCircle size={24} />}
           trend="+12% esse mês"
           color="emerald"
         />
-        <MetricCard 
-          title="Em Andamento" 
-          value="45" 
-          icon={<PlayCircle size={24} />} 
+        <MetricCard
+          title="Em Andamento"
+          value="45"
+          icon={<PlayCircle size={24} />}
           trend="8 novas hoje"
           color="indigo"
         />
-        <MetricCard 
-          title="Atrasadas" 
-          value="12" 
-          icon={<AlertTriangle size={24} />} 
+        <MetricCard
+          title="Atrasadas"
+          value="12"
+          icon={<AlertTriangle size={24} />}
           trend="-2% que a média"
           color="rose"
         />
-        <MetricCard 
-          title="Clientes Ativos" 
-          value="89" 
-          icon={<Briefcase size={24} />} 
+        <MetricCard
+          title="Clientes Ativos"
+          value="89"
+          icon={<Briefcase size={24} />}
           trend="+3 novos clientes"
           color="amber"
         />
@@ -97,7 +98,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole = 'gestor' }) => 
                 <CartesianGrid strokeDasharray="3 3" stroke="#64748b" strokeOpacity={0.2} />
                 <XAxis dataKey="name" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc', borderRadius: '8px' }}
                 />
                 <Legend />
@@ -109,16 +110,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole = 'gestor' }) => 
         </Card>
 
         <Card title="Produtividade Semanal">
-           <div className="h-[300px] w-full mt-4">
+          <div className="h-[300px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dataProductivity}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#64748b" strokeOpacity={0.2} />
                 <XAxis dataKey="name" stroke="#64748b" />
                 <YAxis stroke="#64748b" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc', borderRadius: '8px' }}
                 />
-                <Line type="monotone" dataKey="Tarefas" stroke="#38bdf8" strokeWidth={3} dot={{r: 4, fill: '#38bdf8'}} />
+                <Line type="monotone" dataKey="Tarefas" stroke="#38bdf8" strokeWidth={3} dot={{ r: 4, fill: '#38bdf8' }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -126,40 +127,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole = 'gestor' }) => 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         <Card title="Próximos Vencimentos">
-            <div className="space-y-4 mt-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-500">
-                      <Clock size={16} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">Fechamento Fiscal - Cliente ABC</p>
-                      <p className="text-xs text-slate-500">Vence em 2 dias</p>
-                    </div>
+        <Card title="Próximos Vencimentos">
+          <div className="space-y-4 mt-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-500">
+                    <Clock size={16} />
                   </div>
-                  <span className="text-xs font-semibold px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded text-slate-600 dark:text-slate-300">Alta</span>
-                </div>
-              ))}
-            </div>
-         </Card>
-         
-         <Card title="Atividades Recentes">
-             <div className="space-y-4 mt-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-start gap-3 p-3">
-                  <div className="mt-1 w-2 h-2 rounded-full bg-indigo-500"></div>
                   <div>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">
-                      <span className="font-semibold text-slate-900 dark:text-white">João Silva</span> concluiu a tarefa <span className="text-indigo-600 dark:text-indigo-400">DAS - 01/2026</span>
-                    </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">Há 15 minutos</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">Fechamento Fiscal - Cliente ABC</p>
+                    <p className="text-xs text-slate-500">Vence em 2 dias</p>
                   </div>
                 </div>
-              ))}
-            </div>
-         </Card>
+                <span className="text-xs font-semibold px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded text-slate-600 dark:text-slate-300">Alta</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Atividades Recentes">
+          <div className="space-y-4 mt-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-start gap-3 p-3">
+                <div className="mt-1 w-2 h-2 rounded-full bg-indigo-500"></div>
+                <div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    <span className="font-semibold text-slate-900 dark:text-white">João Silva</span> concluiu a tarefa <span className="text-indigo-600 dark:text-indigo-400">DAS - 01/2026</span>
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">Há 15 minutos</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   );

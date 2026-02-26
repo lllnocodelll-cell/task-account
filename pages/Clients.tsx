@@ -78,7 +78,7 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
     </th>
 );
 
-export const Clients: React.FC<{ initialClientId?: string | null, onClearInitialClientId?: () => void }> = ({ initialClientId, onClearInitialClientId }) => {
+export const Clients: React.FC<{ userProfile: any, initialClientId?: string | null, onClearInitialClientId?: () => void }> = ({ userProfile, initialClientId, onClearInitialClientId }) => {
     const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
     const [clients, setClients] = useState<Client[]>([]); // Use DB data
     const [loading, setLoading] = useState(true);
@@ -115,6 +115,7 @@ export const Clients: React.FC<{ initialClientId?: string | null, onClearInitial
                         .from('clients')
                         .select('*, client_contacts(*)')
                         .eq('id', initialClientId)
+                        .eq('org_id', userProfile.org_id)
                         .single();
 
                     if (data && !error) {
@@ -166,7 +167,7 @@ export const Clients: React.FC<{ initialClientId?: string | null, onClearInitial
             const { data, error } = await supabase
                 .from('clients')
                 .select('*, client_contacts(*)')
-                .eq('org_id', user.id)
+                .eq('org_id', userProfile.org_id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -273,6 +274,7 @@ export const Clients: React.FC<{ initialClientId?: string | null, onClearInitial
                     fetchClients();
                 }}
                 initialData={selectedClient}
+                userProfile={userProfile}
             />
         );
     }

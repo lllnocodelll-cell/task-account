@@ -8,7 +8,7 @@ import { UserRole } from '../types';
 import { supabase } from '../utils/supabaseClient';
 
 interface ProfileProps {
-   userRole?: UserRole;
+   userProfile: any;
    onProfileUpdate?: () => void;
 }
 
@@ -22,9 +22,10 @@ interface UserProfile {
    location: string | null;
    avatar_url: string | null;
    org_name: string | null;
+   org_id?: string;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ userRole = 'gestor', onProfileUpdate }) => {
+export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }) => {
    const [activeTab, setActiveTab] = useState('personal');
    const [loading, setLoading] = useState(true);
    const [updating, setUpdating] = useState(false);
@@ -287,7 +288,7 @@ export const Profile: React.FC<ProfileProps> = ({ userRole = 'gestor', onProfile
                      </div>
                   </div>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white">{profile?.full_name || 'Usuário'}</h2>
-                  <p className="text-slate-500 dark:text-slate-400 capitalize">{profile?.job_title || profile?.role || userRole}</p>
+                  <p className="text-slate-500 dark:text-slate-400 capitalize">{profile?.job_title || profile?.role || 'Usuário'}</p>
                   {profile?.org_name && (
                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 font-medium">{profile.org_name}</p>
                   )}

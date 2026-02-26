@@ -26,6 +26,7 @@ interface UserProfile {
   avatar_url: string | null;
   org_name: string | null;
   job_title?: string | null;
+  org_id: string | null;
 }
 
 function App() {
@@ -81,16 +82,31 @@ function App() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, org_id')
         .eq('id', session.user.id)
         .single();
 
       if (data) {
-        setUserRole((data as any).role as UserRole);
-        setUserProfile({
+        let finalProfile = {
           ...(data as any),
           email: session.user.email,
-        });
+        };
+
+        // Auto-fix for NULL org_id (Owner Migration Fallback)
+        if (!data.org_id && data.role === 'gestor') {
+          console.log('Self-healing: Assigning org_id to gestor');
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ org_id: session.user.id })
+            .eq('id', session.user.id);
+
+          if (!updateError) {
+            finalProfile.org_id = session.user.id;
+          }
+        }
+
+        setUserRole(data.role as UserRole);
+        setUserProfile(finalProfile);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -118,12 +134,13 @@ function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard userRole={userRole} />;
+        return <Dashboard userProfile={userProfile} />;
       case 'tasks':
-        return <Tasks onNavigateToClient={handleNavigateToClient} />;
+        return <Tasks userProfile={userProfile} onNavigateToClient={handleNavigateToClient} />;
       case 'clients':
         return (
           <Clients
+            userProfile={userProfile}
             initialClientId={initialClientsTabClientId}
             onClearInitialClientId={() => setInitialClientsTabClientId(null)}
           />
@@ -133,9 +150,9 @@ function App() {
       case 'notes':
         return <Notes />;
       case 'settings':
-        return <Settings />;
+        return <Settings userProfile={userProfile} />;
       case 'profile':
-        return <Profile userRole={userRole} onProfileUpdate={refreshUserProfile} />;
+        return <Profile userProfile={userProfile} onProfileUpdate={refreshUserProfile} />;
       case 'notifications':
         return <Notifications />;
       case 'support':

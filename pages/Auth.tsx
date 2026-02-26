@@ -22,6 +22,15 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, isDarkMode, toggleTheme }) 
   const [fullName, setFullName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const emailParam = params.get('email');
+    if (emailParam) {
+      setEmail(emailParam);
+      setActiveTab('register');
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -112,8 +121,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, isDarkMode, toggleTheme }) 
           <button
             onClick={() => { setActiveTab('login'); setError(null); }}
             className={`flex-1 py-4 text-sm font-medium transition-all relative ${activeTab === 'login'
-                ? 'text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              ? 'text-indigo-600 dark:text-indigo-400'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
           >
             Acessar Conta
@@ -124,8 +133,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, isDarkMode, toggleTheme }) 
           <button
             onClick={() => { setActiveTab('register'); setError(null); }}
             className={`flex-1 py-4 text-sm font-medium transition-all relative ${activeTab === 'register'
-                ? 'text-indigo-600 dark:text-indigo-400'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              ? 'text-indigo-600 dark:text-indigo-400'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
           >
             Criar Nova Conta

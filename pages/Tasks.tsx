@@ -243,6 +243,7 @@ interface KanbanColumnProps {
   onViewTask: (task: Task) => void;
   onViewClient: (client: Client) => void;
   clients: Client[];
+  userProfile: any;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -258,7 +259,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onNavigateToClient,
   onViewTask,
   onViewClient,
-  clients
+  clients,
+  userProfile
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -428,7 +430,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
 // --- MAIN TASKS PAGE ---
 
-export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }> = ({ onNavigateToClient }) => {
+export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId: string) => void }> = ({ userProfile, onNavigateToClient }) => {
   const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
   const [layoutMode, setLayoutMode] = useState<'list' | 'kanban'>('list');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -575,7 +577,7 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
       const { data, error } = await supabase
         .from('clients')
         .select('*')
-        .eq('org_id', user.id);
+        .eq('org_id', userProfile.org_id);
 
       if (error) throw error;
 
@@ -801,6 +803,7 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
         }}
         initialData={selectedTask}
         clients={clients}
+        userProfile={userProfile}
       />
     );
   }
@@ -1225,6 +1228,7 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                     setClientViewModalOpen(true);
                   }}
                   clients={clients}
+                  userProfile={userProfile}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -1248,6 +1252,7 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                     setClientViewModalOpen(true);
                   }}
                   clients={clients}
+                  userProfile={userProfile}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -1271,6 +1276,7 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                     setClientViewModalOpen(true);
                   }}
                   clients={clients}
+                  userProfile={userProfile}
                 />
               </div>
               <div className="flex-1 min-w-[250px]">
@@ -1294,6 +1300,7 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                     setClientViewModalOpen(true);
                   }}
                   clients={clients}
+                  userProfile={userProfile}
                 />
               </div>
             </div>
@@ -1763,7 +1770,7 @@ interface ClientConfig {
   existingAttachments: { name: string; size: number; url?: string }[];
 }
 
-function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initialData?: Task | null; clients: Client[] }) {
+function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () => void; initialData?: Task | null; clients: Client[]; userProfile: any }) {
   const isEditing = !!initialData;
 
   // Selected Clients State
@@ -1861,11 +1868,11 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
       if (!user) return;
 
       const [taskTypesRes, sectorsRes, membersRes, clientsRes, holidaysRes] = await Promise.all([
-        supabase.from('task_types').select('*').eq('org_id', user.id),
-        supabase.from('sectors').select('*').eq('org_id', user.id),
-        supabase.from('members').select('*').eq('org_id', user.id),
-        supabase.from('clients').select('*').eq('org_id', user.id).eq('status', 'Ativo'),
-        supabase.from('holidays').select('date').eq('org_id', user.id)
+        supabase.from('task_types').select('*').eq('org_id', userProfile.org_id),
+        supabase.from('sectors').select('*').eq('org_id', userProfile.org_id),
+        supabase.from('members').select('*').eq('org_id', userProfile.org_id),
+        supabase.from('clients').select('*').eq('org_id', userProfile.org_id).eq('status', 'Ativo'),
+        supabase.from('holidays').select('date').eq('org_id', userProfile.org_id)
       ]);
 
       if (taskTypesRes.data) setTaskTypes(taskTypesRes.data);
@@ -2161,7 +2168,7 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                 .from('tasks') as any)
                 .select('id, competence')
                 .eq('client_id', payload.client_id)
-                .eq('org_id', user.id)
+                .eq('org_id', userProfile.org_id)
                 .eq('task_name', initialData.taskName) // Use original name to find buddies
                 .gt('competence', initialData.competence);
 

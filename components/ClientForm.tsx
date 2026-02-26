@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Input, Select } from './ui/Input';
+import { Input, Select, CopyButton } from './ui/Input';
 import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
 
@@ -44,7 +44,7 @@ type ClientTable =
     | 'client_licenses'
     | 'client_legislations';
 
-export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null; isViewOnly?: boolean }> = ({ onBack, initialData, isViewOnly = false }) => {
+export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null; isViewOnly?: boolean; userProfile: any }> = ({ onBack, initialData, isViewOnly = false, userProfile }) => {
     const isEditing = !!initialData;
     const [readOnly, setReadOnly] = useState(isViewOnly);
     const [loading, setLoading] = useState(false);
@@ -135,7 +135,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                 const { data, error } = await supabase
                     .from('clients')
                     .select('code')
-                    .eq('org_id', user.id)
+                    .eq('org_id', userProfile.org_id)
                     .order('code', { ascending: false })
                     .limit(1);
 
@@ -222,7 +222,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             if (!user) throw new Error('Usuário não autenticado');
 
             const clientData = {
-                org_id: user.id,
+                org_id: userProfile.org_id,
                 code: formData.code,
                 company_name: formData.companyName,
                 trade_name: formData.tradeName,
@@ -578,9 +578,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                                             {inscriptions.map((item, index) => (
                                                 <tr key={index}>
-                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.type}</td>
-                                                    <td className="px-4 py-3">{item.number}</td>
-                                                    <td className="px-4 py-3 text-slate-500">{item.observation}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.type}</span>
+                                                            <CopyButton text={item.type || ''} className="opacity-0 group-hover/copy:opacity-100" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.number}</span>
+                                                            <CopyButton text={item.number || ''} className="opacity-0 group-hover/copy:opacity-100" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-500">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.observation}</span>
+                                                            {item.observation && <CopyButton text={item.observation} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
                                                     {!readOnly && (
                                                         <td className="px-4 py-3 text-right">
                                                             <button onClick={() => handleRemoveItem(setInscriptions, inscriptions, index, 'client_inscriptions')} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -647,9 +662,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                                             {contacts.map((item, index) => (
                                                 <tr key={index}>
-                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.name}</td>
-                                                    <td className="px-4 py-3">{item.email}</td>
-                                                    <td className="px-4 py-3">{item.phone_mobile || item.phone_fixed}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.name}</span>
+                                                            <CopyButton text={item.name || ''} className="opacity-0 group-hover/copy:opacity-100" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.email}</span>
+                                                            {item.email && <CopyButton text={item.email} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.phone_mobile || item.phone_fixed}</span>
+                                                            {(item.phone_mobile || item.phone_fixed) && <CopyButton text={item.phone_mobile || item.phone_fixed} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
                                                     {!readOnly && (
                                                         <td className="px-4 py-3 text-right">
                                                             <button onClick={() => handleRemoveItem(setContacts, contacts, index, 'client_contacts')} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -725,10 +755,23 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                                             {taxRegimes.map((item, index) => (
                                                 <tr key={index}>
-                                                    <td className="px-4 py-3">{item.start_date}</td>
-                                                    <td className="px-4 py-3">{item.end_date}</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.start_date}</span>
+                                                            {item.start_date && <CopyButton text={item.start_date} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.end_date}</span>
+                                                            {item.end_date && <CopyButton text={item.end_date} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                                                        {item.regime === 'simples' ? 'Simples Nacional' : item.regime === 'lp' ? 'Lucro Presumido' : item.regime === 'lr' ? 'Lucro Real' : 'MEI'}
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.regime === 'simples' ? 'Simples Nacional' : item.regime === 'lp' ? 'Lucro Presumido' : item.regime === 'lr' ? 'Lucro Real' : 'MEI'}</span>
+                                                            <CopyButton text={item.regime === 'simples' ? 'Simples Nacional' : item.regime === 'lp' ? 'Lucro Presumido' : item.regime === 'lr' ? 'Lucro Real' : 'MEI'} className="opacity-0 group-hover/copy:opacity-100" />
+                                                        </div>
                                                     </td>
                                                     {!readOnly && (
                                                         <td className="px-4 py-3 text-right">
@@ -805,8 +848,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                             {item.order_type === 'principal' ? 'Principal' : 'Secundária'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 font-mono">{item.cnae_code}</td>
-                                                    <td className="px-4 py-3">{item.cnae_description}</td>
+                                                    <td className="px-4 py-3 font-mono">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.cnae_code}</span>
+                                                            <CopyButton text={item.cnae_code || ''} className="opacity-0 group-hover/copy:opacity-100" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.cnae_description}</span>
+                                                            {item.cnae_description && <CopyButton text={item.cnae_description} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
                                                     {!readOnly && (
                                                         <td className="px-4 py-3 text-right">
                                                             <button onClick={() => handleRemoveItem(setActivities, activities, index, 'client_activities')} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -883,9 +936,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                                             {accesses.map((item, index) => (
                                                 <tr key={index}>
-                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.access_name}</td>
-                                                    <td className="px-4 py-3">{item.username}</td>
-                                                    <td className="px-4 py-3 font-mono text-xs">{item.password}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.access_name}</span>
+                                                            <CopyButton text={item.access_name || ''} className="opacity-0 group-hover/copy:opacity-100" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.username}</span>
+                                                            {item.username && <CopyButton text={item.username} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 font-mono text-xs">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.password}</span>
+                                                            {item.password && <CopyButton text={item.password} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-3">
                                                         {item.access_url && (
                                                             <a href={item.access_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
@@ -976,7 +1044,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         {item.model === 'ecnpj_a1' ? 'eCNPJ - A1' : item.model === 'ecnpj_a3' ? 'eCNPJ - A3' : item.model === 'ecpf_a1' ? 'eCPF - A1' : 'eCPF - A3'}
                                                     </td>
                                                     <td className="px-4 py-3">{item.expiration_date || item.expires_at}</td>
-                                                    <td className="px-4 py-3 font-mono text-xs">{item.password}</td>
+                                                    <td className="px-4 py-3 font-mono text-xs">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.password}</span>
+                                                            {item.password && <CopyButton text={item.password} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-3">
                                                         {item.signatory === 'propria' ? 'Própria Empresa' : item.signatory === 'socio' ? 'Sócio Administrador' : 'Procurador'}
                                                     </td>
@@ -1057,8 +1130,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                                             {licenses.map((item, index) => (
                                                 <tr key={index}>
-                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.license_name}</td>
-                                                    <td className="px-4 py-3">{item.number || item.license_number}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.license_name}</span>
+                                                            <CopyButton text={item.license_name || ''} className="opacity-0 group-hover/copy:opacity-100" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.number || item.license_number}</span>
+                                                            {(item.number || item.license_number) && <CopyButton text={(item.number || item.license_number) as string} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-3">{item.expiration_date || item.expiry_date}</td>
                                                     <td className="px-4 py-3">
                                                         {item.access_url && (
@@ -1136,7 +1219,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                                             {legislations.map((item, index) => (
                                                 <tr key={index}>
-                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{item.description}</td>
+                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.description}</span>
+                                                            <CopyButton text={item.description || ''} className="opacity-0 group-hover/copy:opacity-100" />
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-3">
                                                         <span className={`px-2 py-1 rounded text-xs font-semibold ${item.status === 'vigente' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
                                                             {item.status?.charAt(0).toUpperCase() + item.status?.slice(1)}
