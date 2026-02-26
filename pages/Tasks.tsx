@@ -217,17 +217,21 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
             </>
           )}
 
-          <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
+          {task.status !== TaskStatus.CONCLUIDA && (
+            <>
+              <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
 
-          <button
-            onClick={() => {
-              onDelete(task);
-              setIsOpen(false);
-            }}
-            className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
-          >
-            <Trash2 size={16} /> Excluir Tarefa
-          </button>
+              <button
+                onClick={() => {
+                  onDelete(task);
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
+              >
+                <Trash2 size={16} /> Excluir Tarefa
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1104,6 +1108,12 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                               >
                                 <Calendar size={10} className="text-slate-300" />
                                 <span>{task.dueDate.split('-').reverse().join('/')}</span>
+                              </div>
+                            )}
+                            {task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence) && (
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold">
+                                <Repeat size={10} />
+                                <span className="capitalize">{task.recurrence}</span>
                               </div>
                             )}
                           </div>
@@ -2659,11 +2669,22 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                         { value: 'anual', label: 'Anual' },
                       ]}
                       value={tempTask.recurrence}
-                      onChange={(e) => setTempTask(prev => ({
-                        ...prev,
-                        recurrence: e.target.value,
-                        months: (e.target.value === 'mensal' || e.target.value === 'personalizado') ? [] : prev.months
-                      }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const defaultMonths: Record<string, number[]> = {
+                          mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                          bimestral: [2, 4, 6, 8, 10, 12],
+                          trimestral: [3, 6, 9, 12],
+                          semestral: [6, 12],
+                          anual: [],
+                          personalizado: [],
+                        };
+                        setTempTask(prev => ({
+                          ...prev,
+                          recurrence: val,
+                          months: defaultMonths[val] ?? []
+                        }));
+                      }}
                     />
                   </div>
                   <div className="md:col-span-4">
@@ -2727,8 +2748,8 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                   </div>
                 </div>
 
-                {/* MONTH SELECTOR FOR NON-MONTHLY */}
-                {tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'personalizado' && (
+                {/* MONTH SELECTOR */}
+                {tempTask.recurrence !== 'personalizado' && (
                   <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">
                       Selecione os meses de repetição
