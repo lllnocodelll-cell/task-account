@@ -2107,14 +2107,17 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
             };
 
             if (t.recurrence === 'mensal') {
-              for (let m = startMonth; m <= 12; m++) {
-                allPayloadsForClient.push(createIterationPayload(m, startYear));
+              // Create 12 monthly iterations starting from startMonth
+              for (let i = 0; i < 12; i++) {
+                let m = startMonth + i;
+                let y = startYear;
+                while (m > 12) { m -= 12; y++; }
+                allPayloadsForClient.push(createIterationPayload(m, y));
               }
             } else if (t.recurrence === 'personalizado') {
               for (let i = 0; i < (t.repetitions || 1); i++) {
                 let currentMonth = startMonth + i;
                 let currentYear = startYear;
-                // Simple year rollover logic
                 while (currentMonth > 12) {
                   currentMonth -= 12;
                   currentYear++;
@@ -2122,15 +2125,17 @@ function TaskForm({ onBack, initialData, clients }: { onBack: () => void; initia
                 allPayloadsForClient.push(createIterationPayload(currentMonth, currentYear));
               }
             } else {
-              const months = t.months || [];
-              const iterations = new Set<number>();
-              iterations.add(startMonth);
-              months.forEach((m: number) => {
-                if (m > startMonth) iterations.add(m);
-              });
-              Array.from(iterations).sort((a, b) => a - b).forEach(m => {
-                allPayloadsForClient.push(createIterationPayload(m, startYear));
-              });
+              // bimestral, trimestral, semestral, anual
+              // Scan 12 months from startMonth and create tasks for selected months
+              const selectedMonths = t.months || [];
+              for (let i = 0; i < 12; i++) {
+                let m = startMonth + i;
+                let y = startYear;
+                while (m > 12) { m -= 12; y++; }
+                if (selectedMonths.includes(m)) {
+                  allPayloadsForClient.push(createIterationPayload(m, y));
+                }
+              }
             }
           }
         }
