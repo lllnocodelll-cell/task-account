@@ -157,17 +157,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
-          {task.status !== TaskStatus.CONCLUIDA && (
-            <button
-              onClick={() => {
-                onEdit(task);
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
-            >
-              <Pencil size={16} className="text-slate-500" /> Editar
-            </button>
-          )}
+
 
           {task.status === TaskStatus.CONCLUIDA ? (
             <button
@@ -1055,6 +1045,14 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                             >
                               {task.clientName}
                             </div>
+                            {(() => {
+                              const clientData = clients.find(c => c.id === task.clientId);
+                              return clientData?.status === 'Inativo' ? (
+                                <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded">
+                                  <AlertCircle size={9} /> Inativo
+                                </span>
+                              ) : null;
+                            })()}
                             {(task.clientCity || task.clientState) && (
                               <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium">
                                 <MapPin size={10} className="text-slate-300" />
@@ -1163,7 +1161,17 @@ export const Tasks: React.FC<{ onNavigateToClient?: (clientId: string) => void }
                             {task.priority}
                           </span>
                         </td>
-                        <td className="px-6 py-4">{task.responsible}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-slate-700 dark:text-slate-200">{task.responsible}</span>
+                            {task.sector && (
+                              <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium">
+                                <Layers size={10} className="text-slate-300" />
+                                <span>{task.sector}</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${task.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
                             task.status === TaskStatus.ATRASADA ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
