@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
 import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
+import { Toggle } from '../components/ui/Toggle';
 
 interface SettingsProps {
   userProfile: any;
@@ -138,6 +139,29 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
   };
 
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Ativo' ? 'Inativo' : 'Ativo';
+
+    // Otimista: atualiza a lista local imediatamente
+    setMembers(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
+
+    try {
+      const { error } = await supabase
+        .from('members')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error);
+      // Reverte se der erro
+      setMembers(prev => prev.map(m => m.id === id ? { ...m, status: currentStatus } : m));
+      alert('Erro ao atualizar situação: ' + (error.message || 'Erro desconhecido'));
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja remover este membro?')) return;
     try {
@@ -192,10 +216,21 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             <h4 className="font-semibold text-slate-900 dark:text-white">{member.first_name} {member.last_name}</h4>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{member.email}</p>
             {member.sectors?.name && (
-              <span className="text-xs px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full mb-4">
+              <span className="text-xs px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full mb-2">
                 {member.sectors.name}
               </span>
             )}
+
+            <div className="flex items-center gap-2 mb-4 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+              <Toggle
+                checked={member.status !== 'Inativo'}
+                onChange={() => handleToggleStatus(member.id, member.status || 'Ativo')}
+              />
+              <span className={`text-xs font-semibold ${member.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                {member.status === 'Inativo' ? 'Inativo' : 'Ativo'}
+              </span>
+            </div>
+
             <div className="flex flex-col gap-2 w-full">
               <Button
                 size="sm"
@@ -246,6 +281,12 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [leader, setLeader] = useState('');
   const [costCenter, setCostCenter] = useState('');
 
+  // Edit Form
+  const [editingSectorId, setEditingSectorId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editLeader, setEditLeader] = useState('');
+  const [editCostCenter, setEditCostCenter] = useState('');
+
   useEffect(() => {
     fetchSectors();
   }, []);
@@ -291,12 +332,64 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Remover setor?')) return;
+  const handleToggleSectorStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Ativo' ? 'Inativo' : 'Ativo';
+
+    // Otimista
+    setSectors(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
+
     try {
-      await supabase.from('sectors').delete().eq('id', id);
-      setSectors(sectors.filter(s => s.id !== id));
-    } catch (e) { }
+      const { error } = await supabase
+        .from('sectors')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Erro ao atualizar status do setor:', error);
+      // Reverte se der erro
+      setSectors(prev => prev.map(s => s.id === id ? { ...s, status: currentStatus } : s));
+      alert('Erro ao atualizar situação do setor: ' + (error.message || 'Erro desconhecido'));
+    }
+  };
+
+  const startEditing = (sector: any) => {
+    setEditingSectorId(sector.id);
+    setEditName(sector.name);
+    setEditLeader(sector.leader || '');
+    setEditCostCenter(sector.cost_center || '');
+  };
+
+  const cancelEditing = () => {
+    setEditingSectorId(null);
+    setEditName('');
+    setEditLeader('');
+    setEditCostCenter('');
+  };
+
+  const handleUpdateSector = async (id: string) => {
+    if (!editName) return alert('Nome é obrigatório');
+
+    // Otimista
+    const originalSectors = [...sectors];
+    setSectors(prev => prev.map(s => s.id === id ? { ...s, name: editName, leader: editLeader, cost_center: editCostCenter } : s));
+
+    try {
+      const { error } = await supabase
+        .from('sectors')
+        .update({
+          name: editName,
+          leader: editLeader,
+          cost_center: editCostCenter
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      setEditingSectorId(null);
+    } catch (error: any) {
+      setSectors(originalSectors); // rollback
+      alert('Erro ao atualizar setor: ' + error.message);
+    }
   };
 
   if (loading) return <Loader2 className="animate-spin" />;
@@ -317,18 +410,46 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {sectors.map(sector => (
-          <div key={sector.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 shadow-sm group relative">
-            <button
-              onClick={() => handleDelete(sector.id)}
-              className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Trash2 size={16} />
-            </button>
-            <div className="flex justify-between items-start mb-2">
-              <h4 className="font-semibold text-slate-900 dark:text-white text-lg">{sector.name}</h4>
-              {sector.cost_center && <span className="text-xs font-mono text-slate-500">CC: {sector.cost_center}</span>}
-            </div>
-            {sector.leader && <p className="text-sm text-slate-500 dark:text-slate-400">Líder: <span className="text-slate-900 dark:text-white">{sector.leader}</span></p>}
+          <div key={sector.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 shadow-sm group relative flex flex-col justify-between">
+            {editingSectorId === sector.id ? (
+              <div className="space-y-3">
+                <Input label="Nome do Setor" value={editName} onChange={e => setEditName(e.target.value)} />
+                <Input label="Líder" value={editLeader} onChange={e => setEditLeader(e.target.value)} />
+                <Input label="Centro de Custo" value={editCostCenter} onChange={e => setEditCostCenter(e.target.value)} />
+
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="secondary" size="sm" onClick={cancelEditing}>Cancelar</Button>
+                  <Button variant="primary" size="sm" onClick={() => handleUpdateSector(sector.id)}>Salvar</Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => startEditing(sector)}
+                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Editar Setor"
+                >
+                  <SettingsIcon size={16} />
+                </button>
+                <div>
+                  <div className="flex justify-between items-start mb-2 pr-6">
+                    <h4 className="font-semibold text-slate-900 dark:text-white text-lg">{sector.name}</h4>
+                    {sector.cost_center && <span className="text-xs font-mono text-slate-500 whitespace-nowrap">CC: {sector.cost_center}</span>}
+                  </div>
+                  {sector.leader && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Líder: <span className="text-slate-900 dark:text-white">{sector.leader}</span></p>}
+                </div>
+
+                <div className="flex items-center gap-2 mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <Toggle
+                    checked={sector.status !== 'Inativo'}
+                    onChange={() => handleToggleSectorStatus(sector.id, sector.status || 'Ativo')}
+                  />
+                  <span className={`text-xs font-semibold ${sector.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {sector.status === 'Inativo' ? 'Inativo' : 'Ativo'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>
@@ -348,6 +469,12 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [name, setName] = useState('');
   const [sectorId, setSectorId] = useState('');
   const [entity, setEntity] = useState('');
+
+  // Edit Form
+  const [editingTaskTypeId, setEditingTaskTypeId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editSectorId, setEditSectorId] = useState('');
+  const [editEntity, setEditEntity] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -400,10 +527,74 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     finally { setAdding(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Remover?")) return;
-    await supabase.from('task_types').delete().eq('id', id);
-    setTaskTypes(taskTypes.filter(t => t.id !== id));
+  const handleToggleTaskTypeStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Ativo' ? 'Inativo' : 'Ativo';
+
+    // Otimista
+    setTaskTypes(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+
+    try {
+      const { error } = await supabase
+        .from('task_types')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Erro ao atualizar status:', error);
+      // Reverte se der erro
+      setTaskTypes(prev => prev.map(t => t.id === id ? { ...t, status: currentStatus } : t));
+      alert('Erro ao atualizar situação: ' + (error.message || 'Erro desconhecido'));
+    }
+  };
+
+  const startEditing = (task: any) => {
+    setEditingTaskTypeId(task.id);
+    setEditName(task.name);
+    setEditSectorId(task.sector_id || '');
+    setEditEntity(task.federative_entity || 'Outro');
+  };
+
+  const cancelEditing = () => {
+    setEditingTaskTypeId(null);
+    setEditName('');
+    setEditSectorId('');
+    setEditEntity('');
+  };
+
+  const handleUpdateTaskType = async (id: string) => {
+    if (!editName) return alert('Nome é obrigatório');
+
+    // Otimista parcial (vamos manter backup do estado)
+    const originalTaskTypes = [...taskTypes];
+
+    // Procura o nome do setor visualmente para update otimista
+    const sectorName = sectors.find(s => s.id === editSectorId)?.name || '';
+
+    setTaskTypes(prev => prev.map(t => t.id === id ? {
+      ...t,
+      name: editName,
+      sector_id: editSectorId,
+      federative_entity: editEntity,
+      sectors: sectorName ? { name: sectorName } : null
+    } : t));
+
+    try {
+      const { error } = await supabase
+        .from('task_types')
+        .update({
+          name: editName,
+          sector_id: editSectorId || null,
+          federative_entity: editEntity
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      setEditingTaskTypeId(null);
+    } catch (error: any) {
+      setTaskTypes(originalTaskTypes); // rollback
+      alert('Erro ao atualizar tarefa: ' + error.message);
+    }
   };
 
   if (loading) return <Loader2 className="animate-spin" />;
@@ -442,13 +633,64 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {taskTypes.map(task => (
-          <div key={task.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 shadow-sm group relative">
-            <button onClick={() => handleDelete(task.id)} className="absolute top-2 right-2 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
-            <h4 className="font-semibold text-slate-900 dark:text-white mb-2">{task.name}</h4>
-            <div className="space-y-1">
-              {task.sectors?.name && <p className="text-xs text-slate-500 dark:text-slate-400">Setor: <span className="text-indigo-600 dark:text-indigo-400">{task.sectors?.name}</span></p>}
-              {task.federative_entity && <p className="text-xs text-slate-500 dark:text-slate-400">Ente: <span className="text-emerald-600 dark:text-emerald-400">{task.federative_entity}</span></p>}
-            </div>
+          <div key={task.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 shadow-sm group relative flex flex-col justify-between">
+            {editingTaskTypeId === task.id ? (
+              <div className="space-y-3">
+                <Input label="Nome da Tarefa" value={editName} onChange={e => setEditName(e.target.value)} />
+                <Select
+                  label="Setor Responsável"
+                  value={editSectorId}
+                  onChange={e => setEditSectorId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Sem restrição' },
+                    ...sectors.map(s => ({ value: s.id, label: s.name }))
+                  ]}
+                />
+                <Select
+                  label="Ente Federativo"
+                  value={editEntity}
+                  onChange={e => setEditEntity(e.target.value)}
+                  options={[
+                    { value: 'Municipal', label: 'Municipal' },
+                    { value: 'Estadual', label: 'Estadual' },
+                    { value: 'Federal', label: 'Federal' },
+                    { value: 'Outro', label: 'Outro' },
+                  ]}
+                />
+
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="secondary" size="sm" onClick={cancelEditing}>Cancelar</Button>
+                  <Button variant="primary" size="sm" onClick={() => handleUpdateTaskType(task.id)}>Salvar</Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => startEditing(task)}
+                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Editar Tipo de Tarefa"
+                >
+                  <SettingsIcon size={16} />
+                </button>
+                <div>
+                  <h4 className="font-semibold text-slate-900 dark:text-white mb-2 pr-6">{task.name}</h4>
+                  <div className="space-y-1 mb-4">
+                    {task.sectors?.name && <p className="text-xs text-slate-500 dark:text-slate-400">Setor: <span className="text-indigo-600 dark:text-indigo-400">{task.sectors?.name}</span></p>}
+                    {task.federative_entity && <p className="text-xs text-slate-500 dark:text-slate-400">Ente: <span className="text-emerald-600 dark:text-emerald-400">{task.federative_entity}</span></p>}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <Toggle
+                    checked={task.status !== 'Inativo'}
+                    onChange={() => handleToggleTaskTypeStatus(task.id, task.status || 'Ativo')}
+                  />
+                  <span className={`text-xs font-semibold ${task.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {task.status === 'Inativo' ? 'Inativo' : 'Ativo'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>

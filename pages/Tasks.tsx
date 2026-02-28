@@ -2635,10 +2635,16 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                     <Select
                       label="Responsável"
                       className="text-[11px]"
-                      options={members.map(m => ({
-                        value: `${m.first_name} ${m.last_name}`,
-                        label: `${m.first_name} ${m.last_name}`
-                      }))}
+                      options={[
+                        ...(userProfile ? [{
+                          value: userProfile.full_name || userProfile.email || 'Eu',
+                          label: userProfile.full_name || userProfile.email || 'Eu'
+                        }] : []),
+                        ...members.map(m => ({
+                          value: `${m.first_name} ${m.last_name}`,
+                          label: `${m.first_name} ${m.last_name}`
+                        }))
+                      ]}
                       value={tempTask.responsible}
                       onChange={(e) => setTempTask(prev => ({ ...prev, responsible: e.target.value }))}
                     />

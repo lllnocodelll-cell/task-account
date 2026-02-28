@@ -31,6 +31,7 @@ import { Input, Select } from '../components/ui/Input';
 import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { ClientForm } from '../components/ClientForm';
+import { Modal } from '../components/ui/Modal';
 
 
 
@@ -83,6 +84,10 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     const [clients, setClients] = useState<Client[]>([]); // Use DB data
     const [loading, setLoading] = useState(true);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+    // Deletion Modal State
+    const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+    const [deleteModalState, setDeleteModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
 
     // Filter Values State
     const [filters, setFilters] = useState({
@@ -248,6 +253,67 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     const handleCreate = () => {
         setSelectedClient(null);
         setViewState('create');
+    };
+
+    const initDeleteClient = async (client: Client) => {
+        setClientToDelete(client);
+        setDeleteModalState('checking');
+
+        try {
+            // Verifica se o cliente possui tarefas na base
+            const { count, error } = await supabase
+                .from('tasks')
+                .select('*', { count: 'exact', head: true })
+                .eq('client_id', client.id);
+
+            if (error) {
+                console.error("Erro ao verificar tarefas:", error);
+                setDeleteModalState('closed');
+                alert("Erro ao verificar dependências do cliente.");
+                return;
+            }
+
+            if (count && count > 0) {
+                setDeleteModalState('cannot_delete');
+            } else {
+                setDeleteModalState('can_delete');
+            }
+        } catch (error) {
+            console.error("Erro desconhecido:", error);
+            setDeleteModalState('closed');
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (!clientToDelete) return;
+
+        setDeleteModalState('deleting');
+
+        try {
+            // Exclui contatos primeiro (caso existam e não tenham ON DELETE CASCADE)
+            await supabase
+                .from('client_contacts')
+                .delete()
+                .eq('client_id', clientToDelete.id);
+
+            // Exclui o cliente
+            const { error } = await supabase
+                .from('clients')
+                .delete()
+                .eq('id', clientToDelete.id);
+
+            if (error) throw error;
+
+            // Remove o cliente da lista local
+            setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
+
+        } catch (error) {
+            console.error("Erro ao excluir cliente:", error);
+            alert("Ocorreu um erro ao excluir o cliente. Verifique o console.");
+        } finally {
+            setDeleteModalState('closed');
+            setClientToDelete(null);
+        }
     };
 
     // Derived filtered clients
@@ -510,6 +576,14 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         className="h-8 w-8 p-0 text-indigo-600 dark:text-indigo-400"
                                                         onClick={() => handleEdit(client)}
                                                     />
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        icon={<Trash2 size={16} />}
+                                                        title="Excluir"
+                                                        className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                                        onClick={() => initDeleteClient(client)}
+                                                    />
                                                 </div>
                                             </td>
                                         </tr>
@@ -520,6 +594,79 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                     </div>
                 )}
             </Card>
+
+            {/* Modais de Exclusão */}
+            <Modal
+                isOpen={deleteModalState !== 'closed'}
+                onClose={() => {
+                    if (deleteModalState !== 'deleting') {
+                        setDeleteModalState('closed');
+                    }
+                }}
+                title={deleteModalState === 'cannot_delete' ? "Exclusão Bloqueada" : "Confirmar Exclusão"}
+                size="md"
+                footer={
+                    deleteModalState === 'can_delete' ? (
+                        <>
+                            <Button variant="secondary" onClick={() => setDeleteModalState('closed')}>
+                                Cancelar
+                            </Button>
+                            <Button
+                                variant="danger"
+                                onClick={confirmDelete}
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                            >
+                                Excluir Cliente
+                            </Button>
+                        </>
+                    ) : deleteModalState === 'deleting' ? (
+                        <Button variant="secondary" disabled>
+                            <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                            Excluindo...
+                        </Button>
+                    ) : (
+                        <Button variant="secondary" onClick={() => setDeleteModalState('closed')}>
+                            Entendi
+                        </Button>
+                    )
+                }
+            >
+                {deleteModalState === 'checking' && (
+                    <div className="flex flex-col items-center justify-center py-6 text-slate-500 dark:text-slate-400">
+                        <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-600" />
+                        <p>Verificando dependências do cliente...</p>
+                    </div>
+                )}
+
+                {deleteModalState === 'cannot_delete' && (
+                    <div className="py-4 text-slate-700 dark:text-slate-300">
+                        <div className="flex items-center gap-3 mb-4 text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-500/10 p-4 rounded-lg">
+                            <ListFilter className="w-6 h-6 shrink-0" />
+                            <p className="font-medium">
+                                Não é possível excluir <strong>{clientToDelete?.companyName}</strong>.
+                            </p>
+                        </div>
+                        <p>
+                            Este cliente possui <strong>tarefas vinculadas</strong> no módulo de Tarefas.
+                            Para manter o histórico íntegro, a exclusão sistêmica foi bloqueada.
+                        </p>
+                        <p className="mt-4 text-sm text-slate-500">
+                            Caso ele não seja mais um cliente ativo, recomendamos alterar a Situação dele para <strong>Inativo</strong> através da edição.
+                        </p>
+                    </div>
+                )}
+
+                {deleteModalState === 'can_delete' && (
+                    <div className="py-4 text-slate-700 dark:text-slate-300">
+                        <p>
+                            Você tem certeza que deseja excluir permanentemente o cliente <strong>{clientToDelete?.companyName}</strong>?
+                        </p>
+                        <p className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded border border-red-100 dark:border-red-900/50">
+                            Esta ação é irreversível e todos os dados de contato vinculados também serão apagados.
+                        </p>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

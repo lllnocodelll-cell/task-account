@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
   public: {
     Tables: {
       chat_contacts: {
@@ -400,10 +405,8 @@ export type Database = {
           company_name: string
           complement: string | null
           constitution_date: string | null
-          contact_name: string | null
           created_at: string | null
           document: string | null
-          email: string | null
           entry_date: string | null
           exit_date: string | null
           has_branches: boolean | null
@@ -411,14 +414,11 @@ export type Database = {
           neighborhood: string | null
           org_id: string
           person_type: string | null
-          phone_fixed: string | null
-          phone_mobile: string | null
           segment: string | null
           state: string | null
           status: string
           street: string | null
           street_number: string | null
-          tax_regime: string | null
           trade_name: string | null
           updated_at: string | null
           zip_code: string | null
@@ -432,10 +432,8 @@ export type Database = {
           company_name: string
           complement?: string | null
           constitution_date?: string | null
-          contact_name?: string | null
           created_at?: string | null
           document?: string | null
-          email?: string | null
           entry_date?: string | null
           exit_date?: string | null
           has_branches?: boolean | null
@@ -443,14 +441,11 @@ export type Database = {
           neighborhood?: string | null
           org_id: string
           person_type?: string | null
-          phone_fixed?: string | null
-          phone_mobile?: string | null
           segment?: string | null
           state?: string | null
           status?: string
           street?: string | null
           street_number?: string | null
-          tax_regime?: string | null
           trade_name?: string | null
           updated_at?: string | null
           zip_code?: string | null
@@ -464,10 +459,8 @@ export type Database = {
           company_name?: string
           complement?: string | null
           constitution_date?: string | null
-          contact_name?: string | null
           created_at?: string | null
           document?: string | null
-          email?: string | null
           entry_date?: string | null
           exit_date?: string | null
           has_branches?: boolean | null
@@ -475,14 +468,11 @@ export type Database = {
           neighborhood?: string | null
           org_id?: string
           person_type?: string | null
-          phone_fixed?: string | null
-          phone_mobile?: string | null
           segment?: string | null
           state?: string | null
           status?: string
           street?: string | null
           street_number?: string | null
-          tax_regime?: string | null
           trade_name?: string | null
           updated_at?: string | null
           zip_code?: string | null
@@ -541,6 +531,7 @@ export type Database = {
           last_name: string
           org_id: string
           sector_id: string | null
+          status: string | null
         }
         Insert: {
           created_at?: string | null
@@ -550,6 +541,7 @@ export type Database = {
           last_name: string
           org_id: string
           sector_id?: string | null
+          status?: string | null
         }
         Update: {
           created_at?: string | null
@@ -559,6 +551,7 @@ export type Database = {
           last_name?: string
           org_id?: string
           sector_id?: string | null
+          status?: string | null
         }
         Relationships: [
           {
@@ -583,6 +576,7 @@ export type Database = {
           content: string | null
           created_at: string | null
           id: string
+          is_archived: boolean | null
           is_pinned: boolean | null
           title: string
           updated_at: string | null
@@ -593,6 +587,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           id?: string
+          is_archived?: boolean | null
           is_pinned?: boolean | null
           title: string
           updated_at?: string | null
@@ -603,6 +598,7 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           id?: string
+          is_archived?: boolean | null
           is_pinned?: boolean | null
           title?: string
           updated_at?: string | null
@@ -662,6 +658,7 @@ export type Database = {
           created_at: string | null
           full_name: string | null
           id: string
+          job_title: string | null
           location: string | null
           org_id: string | null
           org_name: string | null
@@ -674,6 +671,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id: string
+          job_title?: string | null
           location?: string | null
           org_id?: string | null
           org_name?: string | null
@@ -686,6 +684,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string
+          job_title?: string | null
           location?: string | null
           org_id?: string | null
           org_name?: string | null
@@ -703,6 +702,7 @@ export type Database = {
           leader: string | null
           name: string
           org_id: string
+          status: string | null
         }
         Insert: {
           cost_center?: string | null
@@ -711,6 +711,7 @@ export type Database = {
           leader?: string | null
           name: string
           org_id: string
+          status?: string | null
         }
         Update: {
           cost_center?: string | null
@@ -719,6 +720,7 @@ export type Database = {
           leader?: string | null
           name?: string
           org_id?: string
+          status?: string | null
         }
         Relationships: [
           {
@@ -730,28 +732,40 @@ export type Database = {
           },
         ]
       }
-      task_dfe_models: {
+      task_attachments: {
         Row: {
-          created_at: string | null
+          created_at: string
+          download_url: string | null
+          file_name: string
+          file_size: number
           id: string
-          model_code: string
-          task_id: string
+          is_conclude_attachment: boolean | null
+          storage_path: string | null
+          task_id: string | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
+          download_url?: string | null
+          file_name: string
+          file_size: number
           id?: string
-          model_code: string
-          task_id: string
+          is_conclude_attachment?: boolean | null
+          storage_path?: string | null
+          task_id?: string | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
+          download_url?: string | null
+          file_name?: string
+          file_size?: number
           id?: string
-          model_code?: string
-          task_id?: string
+          is_conclude_attachment?: boolean | null
+          storage_path?: string | null
+          task_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "task_dfe_models_task_id_fkey"
+            foreignKeyName: "task_attachments_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
             referencedRelation: "tasks"
@@ -767,6 +781,7 @@ export type Database = {
           name: string
           org_id: string
           sector_id: string | null
+          status: string | null
         }
         Insert: {
           created_at?: string | null
@@ -775,6 +790,7 @@ export type Database = {
           name: string
           org_id: string
           sector_id?: string | null
+          status?: string | null
         }
         Update: {
           created_at?: string | null
@@ -783,6 +799,7 @@ export type Database = {
           name?: string
           org_id?: string
           sector_id?: string | null
+          status?: string | null
         }
         Relationships: [
           {
@@ -804,84 +821,78 @@ export type Database = {
       tasks: {
         Row: {
           client_id: string | null
-          competence: string | null
-          created_at: string | null
+          client_name: string
+          competence: string
+          created_at: string
           due_date: string | null
-          due_date_variable: string | null
+          exceeded_sublimit: boolean | null
+          factor_r: boolean | null
           id: string
-          initial_competence: string | null
+          no_movement: boolean | null
           observation: string | null
-          org_id: string
+          org_id: string | null
           priority: string
           recurrence: string | null
+          recurrence_months: number[] | null
           registration_regime: string | null
-          responsible_id: string | null
+          responsible: string | null
           sector: string | null
-          sem_movimento: boolean | null
-          sn_access_code: string | null
-          sn_annexes: string[] | null
-          sn_cnpj_access: string | null
-          sn_cpf_access: string | null
-          sn_exceeded_sublimit: boolean | null
+          selected_annexes: string[] | null
+          selected_dfes: string[] | null
           status: string
           task_name: string
-          task_type_id: string | null
           tax_regime: string | null
-          updated_at: string | null
+          variable_adjustment: string | null
         }
         Insert: {
           client_id?: string | null
-          competence?: string | null
-          created_at?: string | null
+          client_name: string
+          competence: string
+          created_at?: string
           due_date?: string | null
-          due_date_variable?: string | null
+          exceeded_sublimit?: boolean | null
+          factor_r?: boolean | null
           id?: string
-          initial_competence?: string | null
+          no_movement?: boolean | null
           observation?: string | null
-          org_id: string
-          priority?: string
+          org_id?: string | null
+          priority: string
           recurrence?: string | null
+          recurrence_months?: number[] | null
           registration_regime?: string | null
-          responsible_id?: string | null
+          responsible?: string | null
           sector?: string | null
-          sem_movimento?: boolean | null
-          sn_access_code?: string | null
-          sn_annexes?: string[] | null
-          sn_cnpj_access?: string | null
-          sn_cpf_access?: string | null
-          sn_exceeded_sublimit?: boolean | null
-          status?: string
+          selected_annexes?: string[] | null
+          selected_dfes?: string[] | null
+          status: string
           task_name: string
-          task_type_id?: string | null
           tax_regime?: string | null
-          updated_at?: string | null
+          variable_adjustment?: string | null
         }
         Update: {
           client_id?: string | null
-          competence?: string | null
-          created_at?: string | null
+          client_name?: string
+          competence?: string
+          created_at?: string
           due_date?: string | null
-          due_date_variable?: string | null
+          exceeded_sublimit?: boolean | null
+          factor_r?: boolean | null
           id?: string
-          initial_competence?: string | null
+          no_movement?: boolean | null
           observation?: string | null
-          org_id?: string
+          org_id?: string | null
           priority?: string
           recurrence?: string | null
+          recurrence_months?: number[] | null
           registration_regime?: string | null
-          responsible_id?: string | null
+          responsible?: string | null
           sector?: string | null
-          sem_movimento?: boolean | null
-          sn_access_code?: string | null
-          sn_annexes?: string[] | null
-          sn_cnpj_access?: string | null
-          sn_cpf_access?: string | null
-          sn_exceeded_sublimit?: boolean | null
+          selected_annexes?: string[] | null
+          selected_dfes?: string[] | null
           status?: string
           task_name?: string
-          task_type_id?: string | null
           tax_regime?: string | null
-          updated_at?: string | null
+          variable_adjustment?: string | null
         }
         Relationships: [
           {
@@ -891,27 +902,6 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "tasks_org_id_fkey"
-            columns: ["org_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_responsible_id_fkey"
-            columns: ["responsible_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tasks_task_type_id_fkey"
-            columns: ["task_type_id"]
-            isOneToOne: false
-            referencedRelation: "task_types"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
@@ -919,12 +909,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_client_access: {
-        Args: {
-          client_uuid: string
-        }
-        Returns: boolean
+      check_client_access: { Args: { client_uuid: string }; Returns: boolean }
+      get_adjusted_due_date: {
+        Args: { p_adjustment_type: string; p_date: string; p_org_id: string }
+        Returns: string
       }
+      get_auth_org_id: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -935,83 +925,125 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof Database },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof Database
+  schema: keyof DatabaseWithoutInternals
 }
-  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof Database },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-  ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof Database
+  schema: keyof DatabaseWithoutInternals
 }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof Database },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-  ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof Database
+  schema: keyof DatabaseWithoutInternals
 }
-  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
   }
-  ? U
-  : never
-  : never
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

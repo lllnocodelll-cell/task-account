@@ -80,6 +80,23 @@ function App() {
 
   const fetchUserProfile = async (session: any) => {
     try {
+      // 1. Verificar restrição de acesso por inatividade na tabela members
+      const { data: memberData } = await supabase
+        .from('members')
+        .select('status')
+        .eq('email', session.user.email)
+        .single();
+
+      if (memberData && memberData.status === 'Inativo') {
+        alert('Seu acesso foi desativado. Entre em contato com o administrador.');
+        await supabase.auth.signOut();
+        setSession(null);
+        setLoading(false);
+        setUserProfile(null);
+        return; // Break login flow
+      }
+
+      // 2. Fetch normal do perfil do usuário
       const { data, error } = await supabase
         .from('profiles')
         .select('*, org_id')
