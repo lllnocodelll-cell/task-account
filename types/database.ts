@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_channel_members: {
+        Row: {
+          channel_id: string | null
+          id: string
+          joined_at: string
+          role: string | null
+          user_id: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          id?: string
+          joined_at?: string
+          role?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          id?: string
+          joined_at?: string
+          role?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_channel_members_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_channels: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: []
+      }
       chat_contacts: {
         Row: {
           avatar: string | null
@@ -54,6 +110,7 @@ export type Database = {
       }
       chat_messages: {
         Row: {
+          channel_id: string | null
           contact_id: string
           created_at: string | null
           id: string
@@ -63,6 +120,7 @@ export type Database = {
           text: string
         }
         Insert: {
+          channel_id?: string | null
           contact_id: string
           created_at?: string | null
           id?: string
@@ -72,6 +130,7 @@ export type Database = {
           text: string
         }
         Update: {
+          channel_id?: string | null
           contact_id?: string
           created_at?: string | null
           id?: string
@@ -81,6 +140,13 @@ export type Database = {
           text?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "chat_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chat_messages_contact_id_fkey"
             columns: ["contact_id"]

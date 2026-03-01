@@ -312,7 +312,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             key={task.id}
             draggable
             onDragStart={(e) => onDragStart(e, task.id)}
-            className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-md transition-shadow active:cursor-grabbing group select-none ${task.status === TaskStatus.CONCLUIDA ? 'cursor-default' : 'cursor-pointer'}`}
+            className={`bg-white dark:bg-slate-800 p-4 rounded-xl shadow border border-slate-200 dark:border-slate-700 border-t-4 ${color.replace('border-', 'border-t-')} hover:-translate-y-1 hover:shadow-lg transition-all duration-200 active:cursor-grabbing group select-none ${task.status === TaskStatus.CONCLUIDA ? 'cursor-default' : 'cursor-pointer'}`}
             onClick={() => {
               if (task.status !== TaskStatus.CONCLUIDA) {
                 onViewTask(task);
@@ -2752,11 +2752,10 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                       </button>
                     ) : (
                       <Button
-                        fullwidth={true}
                         variant="success"
                         icon={<Plus size={18} />}
                         onClick={handleAddPendingTask}
-                        className="h-10 font-bold"
+                        className="w-full h-10 font-bold"
                       >
                         Adicionar à Lista
                       </Button>

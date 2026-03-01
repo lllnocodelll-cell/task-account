@@ -18,35 +18,41 @@ interface Note {
   created_at: string;
 }
 
-const NOTE_COLORS: Record<NoteColor, { bg: string, border: string, dot: string }> = {
+const NOTE_COLORS: Record<NoteColor, { bg: string, border: string, borderTop: string, dot: string }> = {
   yellow: {
     bg: 'bg-yellow-50 dark:bg-yellow-900/20',
     border: 'border-yellow-200 dark:border-yellow-700/50',
+    borderTop: 'border-t-4 border-t-yellow-400 dark:border-t-yellow-500',
     dot: 'bg-yellow-400'
   },
   blue: {
     bg: 'bg-sky-50 dark:bg-sky-900/20',
     border: 'border-sky-200 dark:border-sky-700/50',
+    borderTop: 'border-t-4 border-t-sky-400 dark:border-t-sky-500',
     dot: 'bg-sky-400'
   },
   green: {
     bg: 'bg-emerald-50 dark:bg-emerald-900/20',
     border: 'border-emerald-200 dark:border-emerald-700/50',
+    borderTop: 'border-t-4 border-t-emerald-400 dark:border-t-emerald-500',
     dot: 'bg-emerald-400'
   },
   pink: {
     bg: 'bg-pink-50 dark:bg-pink-900/20',
     border: 'border-pink-200 dark:border-pink-700/50',
+    borderTop: 'border-t-4 border-t-pink-400 dark:border-t-pink-500',
     dot: 'bg-pink-400'
   },
   purple: {
     bg: 'bg-violet-50 dark:bg-violet-900/20',
     border: 'border-violet-200 dark:border-violet-700/50',
+    borderTop: 'border-t-4 border-t-violet-400 dark:border-t-violet-500',
     dot: 'bg-violet-400'
   },
   slate: {
     bg: 'bg-slate-50 dark:bg-slate-800',
     border: 'border-slate-200 dark:border-slate-700',
+    borderTop: 'border-t-4 border-t-slate-400 dark:border-t-slate-500',
     dot: 'bg-slate-400'
   }
 };
@@ -228,8 +234,8 @@ export const Notes: React.FC = () => {
             <button
               onClick={() => setViewMode('active')}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'active'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
             >
               Ativas
@@ -237,8 +243,8 @@ export const Notes: React.FC = () => {
             <button
               onClick={() => setViewMode('archived')}
               className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'archived'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
             >
               Arquivadas
@@ -270,7 +276,7 @@ export const Notes: React.FC = () => {
           {/* Create Card Button (Visual) */}
           <button
             onClick={handleCreate}
-            className="group flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all min-h-[220px] h-full"
+            className="group flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 min-h-[220px] h-full"
           >
             <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-3">
               <Plus size={24} />
@@ -284,7 +290,7 @@ export const Notes: React.FC = () => {
               <div
                 key={note.id}
                 onClick={() => handleEdit(note)}
-                className={`group relative flex flex-col p-5 rounded-xl border transition-all duration-300 hover:shadow-md cursor-pointer min-h-[220px] ${safeColor.bg} ${safeColor.border}`}
+                className={`group relative flex flex-col p-5 rounded-xl border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer min-h-[220px] ${safeColor.bg} ${safeColor.border} ${safeColor.borderTop}`}
               >
                 <div className="flex justify-between items-start mb-3 gap-2">
                   <h3 className="font-bold text-slate-800 dark:text-slate-100 line-clamp-2">{note.title}</h3>
@@ -332,13 +338,13 @@ export const Notes: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={currentNote.id ? 'Editar Nota' : 'Nova Nota'}
+        size="lg"
         footer={
           <>
             {currentNote.id && (
               <div className="flex gap-2 mr-auto">
                 <Button
                   variant="danger"
-                  className="bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
                   onClick={(e) => handleDelete(currentNote.id!, e as any)}
                   icon={<Trash2 size={16} />}
                   disabled={saving}

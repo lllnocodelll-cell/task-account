@@ -36,14 +36,20 @@ export const MetricCard: React.FC<{
     amber: 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400',
   };
 
+  const borderTopClasses = {
+    indigo: 'border-t-4 border-t-indigo-500',
+    emerald: 'border-t-4 border-t-emerald-500',
+    rose: 'border-t-4 border-t-rose-500',
+    amber: 'border-t-4 border-t-amber-500',
+  };
+
   return (
-    <div 
+    <div
       onClick={onClick}
-      className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-start justify-between shadow-sm transition-all duration-300 ${
-        onClick 
-          ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.98] hover:border-indigo-200 dark:hover:border-indigo-800' 
+      className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex items-start justify-between shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-700 ${borderTopClasses[color]} ${onClick
+          ? 'cursor-pointer active:scale-[0.98]'
           : ''
-      }`}
+        }`}
     >
       <div>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{title}</p>

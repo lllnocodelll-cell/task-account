@@ -14,6 +14,7 @@ import { Notes } from './pages/Notes';
 import { UserRole } from './types';
 import { supabase } from './utils/supabaseClient';
 import { Loader2 } from 'lucide-react';
+import { GlobalCallListener } from './components/chat/GlobalCallListener';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -85,7 +86,7 @@ function App() {
         .from('members')
         .select('status')
         .eq('email', session.user.email)
-        .single();
+        .maybeSingle();
 
       if (memberData && memberData.status === 'Inativo') {
         alert('Seu acesso foi desativado. Entre em contato com o administrador.');
@@ -231,6 +232,13 @@ function App() {
           </div>
         </main>
       </div>
+
+      {session?.user && (
+        <GlobalCallListener
+          userId={session.user.id}
+          userName={userProfile?.full_name || 'Usuário Local'}
+        />
+      )}
     </div>
   );
 }
