@@ -19,6 +19,7 @@ export type Database = {
           channel_id: string | null
           id: string
           joined_at: string
+          last_read_at: string | null
           role: string | null
           user_id: string | null
         }
@@ -26,6 +27,7 @@ export type Database = {
           channel_id?: string | null
           id?: string
           joined_at?: string
+          last_read_at?: string | null
           role?: string | null
           user_id?: string | null
         }
@@ -33,6 +35,7 @@ export type Database = {
           channel_id?: string | null
           id?: string
           joined_at?: string
+          last_read_at?: string | null
           role?: string | null
           user_id?: string | null
         }
@@ -108,33 +111,87 @@ export type Database = {
           },
         ]
       }
+      chat_favorites: {
+        Row: {
+          channel_id: string
+          created_at: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_favorites_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_favorites_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
+          attachment_url: string | null
           channel_id: string | null
-          contact_id: string
+          contact_id: string | null
           created_at: string | null
+          file_name: string | null
+          file_size: number | null
+          file_type: string | null
           id: string
           is_me: boolean | null
+          reply_to_id: string | null
           sender_id: string
           status: string | null
           text: string
         }
         Insert: {
+          attachment_url?: string | null
           channel_id?: string | null
-          contact_id: string
+          contact_id?: string | null
           created_at?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
           id?: string
           is_me?: boolean | null
+          reply_to_id?: string | null
           sender_id: string
           status?: string | null
           text: string
         }
         Update: {
+          attachment_url?: string | null
           channel_id?: string | null
-          contact_id?: string
+          contact_id?: string | null
           created_at?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
           id?: string
           is_me?: boolean | null
+          reply_to_id?: string | null
           sender_id?: string
           status?: string | null
           text?: string
@@ -152,6 +209,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "chat_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
             referencedColumns: ["id"]
           },
           {
@@ -721,6 +785,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          chat_status: string | null
           created_at: string | null
           full_name: string | null
           id: string
@@ -734,6 +799,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          chat_status?: string | null
           created_at?: string | null
           full_name?: string | null
           id: string
@@ -747,6 +813,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          chat_status?: string | null
           created_at?: string | null
           full_name?: string | null
           id?: string
@@ -981,6 +1048,8 @@ export type Database = {
         Returns: string
       }
       get_auth_org_id: { Args: never; Returns: string }
+      is_channel_member: { Args: { channel_uuid: string }; Returns: boolean }
+      is_chat_member: { Args: { cid: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

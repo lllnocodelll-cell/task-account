@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Video, PhoneCall, PhoneOff } from 'lucide-react';
 import { supabase } from '../../utils/supabaseClient';
 import { getOrCreateDailyRoom } from '../../utils/dailyApi';
@@ -49,54 +50,28 @@ export const GlobalCallListener: React.FC<GlobalCallListenerProps> = ({ userId, 
         if (!userId) return;
 
         const sub = supabase
-            .channel(`global-call-${userId}`)
+            .channel(`user-call-${userId}`)
             .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-                async (payload) => {
-                    const newMsg = payload.new as any;
-                    if (newMsg.sender_id !== userId && newMsg.text?.includes('Iniciei uma chamada')) {
-                        const isVideo = newMsg.text.includes('vídeo');
+                'broadcast',
+                { event: 'incoming-call' },
+                (payload) => {
+                    const data = payload.payload as any;
+                    if (!data) return;
 
-                        try {
-                            // Buscar nome do caller
-                            let callerName = "Alguém";
-                            const { data: profileData } = await supabase.from('profiles').select('full_name').eq('id', newMsg.sender_id).maybeSingle();
-                            if (profileData?.full_name) callerName = profileData.full_name;
+                    console.log('[GlobalCallListener] Chamada recebida via broadcast:', data);
 
-                            // Buscar nome da Sala/Canal para grupos
-                            let roomName = callerName;
-                            const { data: channelData } = await supabase.from('chat_channels').select('type, name').eq('id', newMsg.channel_id).maybeSingle();
-                            if (channelData && channelData.type === 'group') {
-                                roomName = channelData.name;
-                            }
+                    setIncomingCall({
+                        channelId: data.channelId,
+                        callerName: data.callerName || 'Alguém',
+                        isVideoEnabled: data.isVideoEnabled ?? true
+                    });
 
-                            // Garantir que a mensagem é direcionada ao usuário (ele deve ser membro)
-                            const { data: member, error: memberErr } = await supabase.from('chat_channel_members')
-                                .select('id').eq('channel_id', newMsg.channel_id).eq('user_id', userId).maybeSingle();
+                    audioRef.current?.play().catch(e => console.log('Autoplay bloqueado pelo navegador:', e));
 
-                            if (memberErr) console.error("Erro member auth:", memberErr);
-                            if (!member) {
-                                console.log("Usuário não é membro deste canal. Canceleando notificação.");
-                                return;
-                            }
-
-                            setIncomingCall({
-                                channelId: newMsg.channel_id,
-                                callerName: roomName,
-                                isVideoEnabled: isVideo
-                            });
-
-                            audioRef.current?.play().catch(e => console.log('Autoplay prevent:', e));
-
-                            if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
-                            ringTimeoutRef.current = setTimeout(() => {
-                                handleDeclineCall();
-                            }, 30000);
-                        } catch (err) {
-                            console.error("Erro ao analisar chamada recebida", err);
-                        }
-                    }
+                    if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+                    ringTimeoutRef.current = setTimeout(() => {
+                        handleDeclineCall();
+                    }, 30000);
                 }
             )
             .subscribe();
@@ -144,7 +119,7 @@ export const GlobalCallListener: React.FC<GlobalCallListenerProps> = ({ userId, 
 
     return (
         <>
-            {incomingCall && (
+            {incomingCall && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md transition-all duration-300">
                     <div className="bg-slate-900 rounded-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center text-center shadow-2xl animate-in fade-in zoom-in duration-300 border border-slate-700">
                         <div className="w-24 h-24 bg-indigo-500/20 rounded-full flex items-center justify-center mb-6 relative">
@@ -176,7 +151,8 @@ export const GlobalCallListener: React.FC<GlobalCallListenerProps> = ({ userId, 
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {callState.isOpen && (

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import {
   LayoutDashboard,
@@ -34,10 +34,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userRole
 }) => {
   const [notesCount, setNotesCount] = useState<number>(0);
+  const [chatsCount, setChatsCount] = useState<number>(0);
+  const chatSubsRef = useRef<any[]>([]);
 
   useEffect(() => {
     fetchNotesCount();
-    // Optional: add realtime subscription if needed later
+    fetchChatsCountAndSetupRealtime();
+
+    return () => {
+      chatSubsRef.current.forEach(sub => supabase.removeChannel(sub));
+    };
   }, []);
 
   const fetchNotesCount = async () => {
@@ -59,6 +65,103 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const fetchChatsCountAndSetupRealtime = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: memberData, error: memberError } = await supabase
+        .from('chat_channel_members')
+        .select('channel_id, last_read_at')
+        .eq('user_id', user.id);
+
+      if (memberError || !memberData || memberData.length === 0) {
+        setChatsCount(0);
+        return;
+      }
+
+      const channelIds = memberData.map(m => m.channel_id);
+
+      const calculateTotalUnread = async (members: any[]) => {
+        let total = 0;
+        await Promise.all(
+          members.map(async (m: any) => {
+            const lastRead = m.last_read_at || '2000-01-01T00:00:00Z';
+            const { count, error } = await supabase
+              .from('chat_messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('channel_id', m.channel_id)
+              .neq('sender_id', user.id)
+              .gt('created_at', lastRead);
+
+            if (error) {
+              console.error('Falha de COUNT em messages no Sidebar:', error);
+            } else if (count) {
+              total += count;
+            }
+          })
+        );
+        return total;
+      };
+
+      const initialCount = await calculateTotalUnread(memberData);
+      setChatsCount(initialCount);
+
+      // Limpar antigos listeners antes de instanciar novos
+      chatSubsRef.current.forEach(sub => supabase.removeChannel(sub));
+      chatSubsRef.current = [];
+
+      // Listener global e abrangente para Inserções sem limites de Chunk no Postgres
+      const globalMessageSub = supabase
+        .channel(`sidebar-chats-global-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages'
+          },
+          (payload) => {
+            const newMsg = payload.new as any;
+            if (newMsg.sender_id !== user.id && channelIds.includes(newMsg.channel_id)) {
+              setChatsCount(prev => prev + 1);
+            }
+          }
+        )
+        .subscribe();
+
+      // Ouvinte para atualizações de leitura (last_read_at)
+      const memberSub = supabase
+        .channel('sidebar-memberships')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'chat_channel_members',
+            filter: `user_id=eq.${user.id}`
+          },
+          async () => {
+            const { data: updatedMemberData } = await supabase
+              .from('chat_channel_members')
+              .select('channel_id, last_read_at')
+              .eq('user_id', user.id);
+
+            if (updatedMemberData) {
+              const newTotal = await calculateTotalUnread(updatedMemberData);
+              setChatsCount(newTotal);
+            }
+          }
+        )
+        .subscribe();
+
+      chatSubsRef.current = [globalMessageSub, memberSub];
+
+    } catch (error) {
+      console.error('Error fetching chats count:', error);
+    }
+  };
+
   const mainMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { id: 'tasks', label: 'Tarefas', icon: <CheckSquare size={20} /> },
@@ -69,7 +172,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: <StickyNote size={20} />,
       badge: notesCount > 0 ? notesCount : undefined
     },
-    { id: 'chat', label: 'Chat Equipe', icon: <MessageSquare size={20} /> },
+    {
+      id: 'chat',
+      label: 'Chat Equipe',
+      icon: <MessageSquare size={20} />,
+      badge: chatsCount > 0 ? chatsCount : undefined
+    },
   ];
 
   const bottomMenuItems = [
