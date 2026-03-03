@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import {
@@ -36,13 +35,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [notesCount, setNotesCount] = useState<number>(0);
   const [chatsCount, setChatsCount] = useState<number>(0);
   const chatSubsRef = useRef<any[]>([]);
+  const pollIntervalRef = useRef<any>(null);
 
   useEffect(() => {
     fetchNotesCount();
     fetchChatsCountAndSetupRealtime();
 
+    // Polling unificado para ambos os badges (notas + chats)
+    pollIntervalRef.current = setInterval(() => {
+      fetchNotesCount();
+      fetchChatsCount();
+    }, 5000);
+
     return () => {
       chatSubsRef.current.forEach(sub => supabase.removeChannel(sub));
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, []);
 
@@ -62,6 +69,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     } catch (error) {
       console.error('Error fetching notes count:', error);
+    }
+  };
+
+  const fetchChatsCount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: memberData } = await supabase
+        .from('chat_channel_members')
+        .select('channel_id, last_read_at')
+        .eq('user_id', user.id);
+
+      if (!memberData || memberData.length === 0) {
+        setChatsCount(0);
+        return;
+      }
+
+      let total = 0;
+      await Promise.all(
+        memberData.map(async (m: any) => {
+          const lastRead = m.last_read_at || '2000-01-01T00:00:00Z';
+          const { count, error } = await supabase
+            .from('chat_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('channel_id', m.channel_id)
+            .neq('sender_id', user.id)
+            .gt('created_at', lastRead);
+
+          if (!error && count) {
+            total += count;
+          }
+        })
+      );
+      setChatsCount(total);
+    } catch (error) {
+      console.error('Error polling chats count:', error);
     }
   };
 
@@ -94,9 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               .neq('sender_id', user.id)
               .gt('created_at', lastRead);
 
-            if (error) {
-              console.error('Falha de COUNT em messages no Sidebar:', error);
-            } else if (count) {
+            if (!error && count) {
               total += count;
             }
           })
@@ -111,28 +153,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
       chatSubsRef.current.forEach(sub => supabase.removeChannel(sub));
       chatSubsRef.current = [];
 
-      // Listener global e abrangente para Inserções sem limites de Chunk no Postgres
-      const globalMessageSub = supabase
-        .channel(`sidebar-chats-global-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages'
-          },
-          (payload) => {
-            const newMsg = payload.new as any;
-            if (newMsg.sender_id !== user.id && channelIds.includes(newMsg.channel_id)) {
-              setChatsCount(prev => prev + 1);
+      // Subscriptions individuais por canal (padrão eq que funciona com RLS)
+      const channelSubs = channelIds.map(chId => {
+        return supabase
+          .channel(`sidebar-msg-${chId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `channel_id=eq.${chId}`
+            },
+            (payload) => {
+              const newMsg = payload.new as any;
+              if (newMsg.sender_id !== user.id) {
+                setChatsCount(prev => prev + 1);
+              }
             }
-          }
-        )
-        .subscribe();
+          )
+          .subscribe();
+      });
 
       // Ouvinte para atualizações de leitura (last_read_at)
       const memberSub = supabase
-        .channel('sidebar-memberships')
+        .channel(`sidebar-memberships-${user.id}`)
         .on(
           'postgres_changes',
           {
@@ -155,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )
         .subscribe();
 
-      chatSubsRef.current = [globalMessageSub, memberSub];
+      chatSubsRef.current = [...channelSubs, memberSub];
 
     } catch (error) {
       console.error('Error fetching chats count:', error);

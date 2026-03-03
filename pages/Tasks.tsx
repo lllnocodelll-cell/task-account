@@ -833,8 +833,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             </button>
           </div>
 
-          <div className="flex items-center bg-white dark:bg-slate-900 rounded-lg px-3 border border-slate-200 dark:border-slate-800 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
-            <Calendar size={16} className="text-slate-400 mr-2 group-focus-within:text-indigo-500" />
+          <div className={`flex items-center bg-white dark:bg-slate-900 rounded-lg px-3 border ${filters.competence ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'} h-10 group focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all`}>
+            <Calendar size={16} className="text-indigo-500 dark:text-indigo-400 mr-2 group-focus-within:text-indigo-600 dark:group-focus-within:text-indigo-300" />
             <input
               type="month"
               className="bg-transparent border-none text-xs font-semibold text-slate-700 dark:text-slate-200 focus:ring-0 p-0 w-36 uppercase"
@@ -845,9 +845,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             {filters.competence && (
               <button
                 onClick={() => handleFilterChange('competence', '')}
-                className="ml-1 p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-red-500 transition-colors"
+                className="ml-1 p-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
+                title="Limpar filtro de período"
               >
-                <X size={12} />
+                <X size={14} strokeWidth={2.5} />
               </button>
             )}
           </div>
