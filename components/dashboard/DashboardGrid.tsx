@@ -4,7 +4,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { supabase } from '../../utils/supabaseClient';
-import { Plus } from 'lucide-react';
+import { Settings2, Check } from 'lucide-react';
 
 // Import Widgets
 import { MonthlyVolumeWidget } from './widgets/MonthlyVolumeWidget';
@@ -15,6 +15,9 @@ import { DailyProductivityWidget } from './widgets/DailyProductivityWidget';
 import { UpcomingDeadlinesWidget } from './widgets/UpcomingDeadlinesWidget';
 import { TopTasksWidget } from './widgets/TopTasksWidget';
 import { DocumentAlertsWidget } from './widgets/DocumentAlertsWidget';
+import { ClientStatusWidget } from './widgets/ClientStatusWidget';
+import { TaxRegimesWidget } from './widgets/TaxRegimesWidget';
+import { LoggedUsersWidget } from './widgets/LoggedUsersWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -59,13 +62,28 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'Alertas de Documentos',
         component: DocumentAlertsWidget,
         defaultLayout: { i: 'documentAlerts', x: 8, y: 17, w: 4, h: 7, minW: 3, minH: 4 }
+    },
+    clientStatus: {
+        name: 'Status de Clientes',
+        component: ClientStatusWidget,
+        defaultLayout: { i: 'clientStatus', x: 0, y: 19, w: 3, h: 5, minW: 2, minH: 3 }
+    },
+    taxRegimes: {
+        name: 'Regimes Tributários',
+        component: TaxRegimesWidget,
+        defaultLayout: { i: 'taxRegimes', x: 3, y: 19, w: 4, h: 6, minW: 3, minH: 4 }
+    },
+    loggedUsers: {
+        name: 'Usuários Online',
+        component: LoggedUsersWidget,
+        defaultLayout: { i: 'loggedUsers', x: 7, y: 19, w: 4, h: 6, minW: 3, minH: 4 }
     }
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
     'monthlyVolume', 'topSegments', 'statusByUser',
     'monthlyEvolution', 'dailyProductivity',
-    'upcomingDeadlines', 'topTasks', 'documentAlerts'
+    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'clientStatus', 'taxRegimes', 'loggedUsers'
 ];
 
 interface DashboardGridProps {
@@ -79,7 +97,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const availableWidgets = Object.keys(WIDGET_REGISTRY).filter(id => !activeWidgets.includes(id));
+    const allWidgets = Object.keys(WIDGET_REGISTRY);
 
     // Fechar menu ao clicar fora
     useEffect(() => {
@@ -152,9 +170,27 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
         saveLayout(currentLayout);
     };
 
-    const removeWidget = (id: string) => {
-        const newWidgets = activeWidgets.filter(w => w !== id);
-        const newLayout = layouts.lg.filter(l => l.i !== id);
+    const toggleWidget = (id: string) => {
+        let newWidgets;
+        let newLayout = [...layouts.lg];
+
+        if (activeWidgets.includes(id)) {
+            // Desativar
+            newWidgets = activeWidgets.filter(w => w !== id);
+            newLayout = newLayout.filter(l => l.i !== id);
+        } else {
+            // Ativar
+            newWidgets = [...activeWidgets, id];
+            const defaultLayout = WIDGET_REGISTRY[id].defaultLayout;
+
+            // Tenta encontrar uma posição livre no fim
+            let maxY = 0;
+            newLayout.forEach(l => {
+                if (l.y + l.h > maxY) maxY = l.y + l.h;
+            });
+
+            newLayout.push({ ...defaultLayout, y: maxY });
+        }
 
         setActiveWidgets(newWidgets);
         setLayouts({ lg: newLayout });
@@ -166,25 +202,6 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
             widgets: newWidgets,
             updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
-    };
-
-    const addWidget = (id: string) => {
-        const layout = WIDGET_REGISTRY[id].defaultLayout;
-        const newWidgets = [...activeWidgets, id];
-        const newLayout = [...layouts.lg, layout];
-
-        setActiveWidgets(newWidgets);
-        setLayouts({ lg: newLayout });
-
-        // Save state
-        supabase.from('user_dashboard_configs').upsert({
-            user_id: userId,
-            layout: newLayout,
-            widgets: newWidgets,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-
-        setShowMenu(false);
     };
 
     if (loading) return <div className="animate-pulse flex space-x-4"><div className="flex-1 space-y-4 py-1"><div className="h-4 bg-slate-200 rounded w-3/4"></div></div></div>;
@@ -225,30 +242,35 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
             <div className="flex justify-end mb-4 relative" ref={menuRef}>
                 <button
                     onClick={() => setShowMenu(!showMenu)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium shadow-sm"
+                    className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
+                    title="Configurar Widgets"
                 >
-                    <Plus size={18} />
-                    Adicionar Widget
+                    <Settings2 size={20} />
                 </button>
                 {showMenu && (
-                    <div className="absolute top-12 right-0 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 py-2">
-                        <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Widgets Disponíveis</h3>
+                    <div className="absolute top-12 right-0 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-2">
+                        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Gerenciar Widgets</h3>
+                            <p className="text-xs text-slate-500 mt-1">Selecione o que deseja ver no dashboard.</p>
                         </div>
-                        <div className="max-h-64 overflow-y-auto p-2">
-                            {availableWidgets.length === 0 ? (
-                                <p className="px-2 py-3 text-sm text-slate-500 text-center">Todos os widgets já estão ativos.</p>
-                            ) : (
-                                availableWidgets.map(id => (
+                        <div className="max-h-80 overflow-y-auto p-2 space-y-1">
+                            {allWidgets.map(id => {
+                                const isActive = activeWidgets.includes(id);
+                                return (
                                     <button
                                         key={id}
-                                        onClick={() => addWidget(id)}
-                                        className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors"
+                                        onClick={() => toggleWidget(id)}
+                                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
                                     >
-                                        {WIDGET_REGISTRY[id].name}
+                                        <span className={`text-sm font-medium ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
+                                            {WIDGET_REGISTRY[id].name}
+                                        </span>
+                                        <div className={`w-10 h-5.5 rounded-full flex items-center transition-colors p-1 ${isActive ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${isActive ? 'translate-x-[18px]' : 'translate-x-0'}`} />
+                                        </div>
                                     </button>
-                                ))
-                            )}
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -272,7 +294,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
                     const WidgetComponent = widgetConfig.component;
                     return (
                         <div key={widgetId}>
-                            <WidgetComponent onRemove={() => removeWidget(widgetId)} orgId={userId} />
+                            <WidgetComponent onRemove={() => toggleWidget(widgetId)} orgId={userId} />
                         </div>
                     );
                 })}

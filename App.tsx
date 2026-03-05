@@ -79,6 +79,70 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // User Activity Tracker
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    let lastUpdateTime = 0;
+    const UPDATE_INTERVAL = 2 * 60 * 1000; // 2 minutes
+
+    const updateActivity = async (initialCheck = false) => {
+      const now = Date.now();
+
+      // Allow forced initial check or check if interval passed
+      if (initialCheck || now - lastUpdateTime > UPDATE_INTERVAL) {
+        lastUpdateTime = now;
+        try {
+          // Fetch current profile to check last_active_at and current_session_start
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('last_active_at, current_session_start')
+            .eq('id', session.user.id)
+            .single();
+
+          const updates: any = {
+            last_active_at: new Date().toISOString()
+          };
+
+          // If no session start, or if inactive for > 30 mins
+          if (profile) {
+            const lastActive = profile.last_active_at ? new Date(profile.last_active_at).getTime() : 0;
+            const thirtyMins = 30 * 60 * 1000;
+
+            if (!profile.current_session_start || (now - lastActive > thirtyMins)) {
+              updates.current_session_start = new Date().toISOString();
+            }
+          }
+
+          const { error } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', session.user.id);
+
+          if (error) console.error('Error auto-updating active state:', error);
+        } catch (error) {
+          // Silent ignore
+        }
+      }
+    };
+
+    // Initial update forced to check session state
+    updateActivity(true);
+
+    // Listeners for window events
+    window.addEventListener('mousemove', () => updateActivity(), { passive: true });
+    window.addEventListener('keydown', () => updateActivity(), { passive: true });
+    window.addEventListener('click', () => updateActivity(), { passive: true });
+    window.addEventListener('scroll', () => updateActivity(), { passive: true });
+
+    return () => {
+      window.removeEventListener('mousemove', () => updateActivity());
+      window.removeEventListener('keydown', () => updateActivity());
+      window.removeEventListener('click', () => updateActivity());
+      window.removeEventListener('scroll', () => updateActivity());
+    };
+  }, [session]);
+
   const fetchUserProfile = async (session: any) => {
     try {
       // 1. Verificar restrição de acesso por inatividade na tabela members
@@ -144,6 +208,16 @@ function App() {
   };
 
   const handleLogout = async () => {
+    if (session?.user?.id) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ current_session_start: null })
+          .eq('id', session.user.id);
+      } catch (e) {
+        console.error('Error clearing session start on logout', e);
+      }
+    }
     await supabase.auth.signOut();
     setActiveTab('dashboard'); // Reset tab on logout
     setUserProfile(null);
