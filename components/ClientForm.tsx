@@ -50,6 +50,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [loading, setLoading] = useState(false);
     const [personType, setPersonType] = useState(initialData?.person_type || 'juridica');
     const [activeTab, setActiveTab] = useState('inscricoes');
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
     // Main Client Data State
     const [formData, setFormData] = useState({
@@ -157,43 +158,99 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     // --- Handlers ---
     const handleAddInscription = () => {
         if (!tempInscription.number) return alert('Preencha o número da inscrição');
-        setInscriptions([...inscriptions, { ...tempInscription, type: otherInscriptionType ? tempInscription.custom_name || 'Outra' : tempInscription.type || 'Municipal' } as ClientInscription]);
+        if (editingIndex !== null) {
+            const newList = [...inscriptions];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempInscription, type: otherInscriptionType ? tempInscription.custom_name || 'Outra' : tempInscription.type || 'Municipal' } as ClientInscription;
+            setInscriptions(newList);
+            setEditingIndex(null);
+        } else {
+            setInscriptions([...inscriptions, { ...tempInscription, type: otherInscriptionType ? tempInscription.custom_name || 'Outra' : tempInscription.type || 'Municipal' } as ClientInscription]);
+        }
         setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' });
         setOtherInscriptionType(false);
     };
     const handleAddContact = () => {
         if (!tempContact.name) return alert('Preencha o nome do contato');
-        setContacts([...contacts, tempContact as ClientContact]);
+        if (editingIndex !== null) {
+            const newList = [...contacts];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempContact } as ClientContact;
+            setContacts(newList);
+            setEditingIndex(null);
+        } else {
+            setContacts([...contacts, tempContact as ClientContact]);
+        }
         setTempContact({});
     };
     const handleAddRegime = () => {
         if (!tempRegime.regime) return alert('Selecione um regime');
-        setTaxRegimes([...taxRegimes, tempRegime as ClientTaxRegime]);
+        if (editingIndex !== null) {
+            const newList = [...taxRegimes];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempRegime } as ClientTaxRegime;
+            setTaxRegimes(newList);
+            setEditingIndex(null);
+        } else {
+            setTaxRegimes([...taxRegimes, tempRegime as ClientTaxRegime]);
+        }
         setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
     };
     const handleAddActivity = () => {
         if (!tempActivity.cnae_code) return alert('Preencha o código CNAE');
-        setActivities([...activities, tempActivity as ClientActivity]);
+        if (editingIndex !== null) {
+            const newList = [...activities];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempActivity } as ClientActivity;
+            setActivities(newList);
+            setEditingIndex(null);
+        } else {
+            setActivities([...activities, tempActivity as ClientActivity]);
+        }
         setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' });
     };
     const handleAddAccess = () => {
         if (!tempAccess.access_name) return alert('Preencha o nome do acesso');
-        setAccesses([...accesses, tempAccess as ClientAccess]);
+        if (editingIndex !== null) {
+            const newList = [...accesses];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempAccess } as ClientAccess;
+            setAccesses(newList);
+            setEditingIndex(null);
+        } else {
+            setAccesses([...accesses, tempAccess as ClientAccess]);
+        }
         setTempAccess({});
     };
     const handleAddCertificate = () => {
         if (!tempCertificate.model) return alert('Selecione o modelo');
-        setCertificates([...certificates, tempCertificate as ClientCertificate]);
+        if (editingIndex !== null) {
+            const newList = [...certificates];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempCertificate } as ClientCertificate;
+            setCertificates(newList);
+            setEditingIndex(null);
+        } else {
+            setCertificates([...certificates, tempCertificate as ClientCertificate]);
+        }
         setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' });
     };
     const handleAddLicense = () => {
         if (!tempLicense.license_name) return alert('Preencha o nome da licença');
-        setLicenses([...licenses, tempLicense as ClientLicense]);
+        if (editingIndex !== null) {
+            const newList = [...licenses];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempLicense } as ClientLicense;
+            setLicenses(newList);
+            setEditingIndex(null);
+        } else {
+            setLicenses([...licenses, tempLicense as ClientLicense]);
+        }
         setTempLicense({});
     };
     const handleAddLegislation = () => {
         if (!tempLegislation.description) return alert('Preencha a descrição');
-        setLegislations([...legislations, tempLegislation as ClientLegislation]);
+        if (editingIndex !== null) {
+            const newList = [...legislations];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempLegislation } as ClientLegislation;
+            setLegislations(newList);
+            setEditingIndex(null);
+        } else {
+            setLegislations([...legislations, tempLegislation as ClientLegislation]);
+        }
         setTempLegislation({ status: 'vigente', description: '', access_url: '' });
     };
 
@@ -259,32 +316,42 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
             if (!clientId) throw new Error('Falha ao obter ID do cliente');
 
-            const prepareItems = (items: any[]) => items.filter(i => !i.id).map(i => ({ ...i, client_id: clientId }));
+            const processItems = async (table: string, items: any[], prepareFn: (i: any) => any) => {
+                const newItems = items.filter(i => !i.id).map(prepareFn);
+                const existingItems = items.filter(i => i.id).map(i => ({ id: i.id, ...prepareFn(i) }));
 
-            const prepareCertificates = (items: any[]) => items.filter(i => !i.id).map(i => ({
+                if (newItems.length > 0) {
+                    const { error } = await (supabase.from(table) as any).insert(newItems);
+                    if (error) console.error(`Error inserting new items in ${table}:`, error);
+                }
+
+                for (const item of existingItems) {
+                    const { id, created_at, ...updateData } = item;
+                    const { error } = await (supabase.from(table) as any).update(updateData).eq('id', id);
+                    if (error) console.error(`Error updating item in ${table}:`, error);
+                }
+            };
+
+            await processItems('client_inscriptions', inscriptions, i => ({ ...i, client_id: clientId }));
+            await processItems('client_contacts', contacts, i => ({ ...i, client_id: clientId }));
+            await processItems('client_tax_regime_history', taxRegimes, i => ({ ...i, client_id: clientId }));
+            await processItems('client_activities', activities, i => ({ ...i, client_id: clientId }));
+            await processItems('client_accesses', accesses, i => ({ ...i, client_id: clientId }));
+            await processItems('client_certificates', certificates, i => ({
                 client_id: clientId,
                 model: i.model,
                 expires_at: i.expiration_date || i.expires_at || null,
                 password: i.password,
                 signatory: i.signatory
             }));
-
-            const prepareLicenses = (items: any[]) => items.filter(i => !i.id).map(i => ({
+            await processItems('client_licenses', licenses, i => ({
                 client_id: clientId,
                 license_name: i.license_name,
                 license_number: i.number || i.license_number,
                 expiry_date: i.expiration_date || i.expiry_date || null,
                 access_url: i.access_url
             }));
-
-            if (prepareItems(inscriptions).length > 0) await (supabase.from('client_inscriptions') as any).insert(prepareItems(inscriptions));
-            if (prepareItems(contacts).length > 0) await (supabase.from('client_contacts') as any).insert(prepareItems(contacts));
-            if (prepareItems(taxRegimes).length > 0) await (supabase.from('client_tax_regime_history') as any).insert(prepareItems(taxRegimes));
-            if (prepareItems(activities).length > 0) await (supabase.from('client_activities') as any).insert(prepareItems(activities));
-            if (prepareItems(accesses).length > 0) await (supabase.from('client_accesses') as any).insert(prepareItems(accesses));
-            if (prepareCertificates(certificates).length > 0) await (supabase.from('client_certificates') as any).insert(prepareCertificates(certificates));
-            if (prepareLicenses(licenses).length > 0) await (supabase.from('client_licenses') as any).insert(prepareLicenses(licenses));
-            if (prepareItems(legislations).length > 0) await (supabase.from('client_legislations') as any).insert(prepareItems(legislations));
+            await processItems('client_legislations', legislations, i => ({ ...i, client_id: clientId }));
 
             alert('Cliente salvo com sucesso!');
             onBack();
@@ -504,7 +571,19 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => {
+                                    setActiveTab(tab.id);
+                                    setEditingIndex(null);
+                                    setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' });
+                                    setTempContact({});
+                                    setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
+                                    setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' });
+                                    setTempAccess({});
+                                    setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' });
+                                    setTempLicense({});
+                                    setTempLegislation({ status: 'vigente', description: '', access_url: '' });
+                                    setOtherInscriptionType(false);
+                                }}
                                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-800/30' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
                                     }`}
                             >
@@ -558,8 +637,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         value={tempInscription.observation}
                                         onChange={e => setTempInscription({ ...tempInscription, observation: e.target.value })}
                                     />
-                                    <div className="md:col-span-3 flex justify-end">
-                                        <Button size="sm" icon={<Plus size={16} />} onClick={handleAddInscription}>Adicionar Inscrição</Button>
+                                    <div className="md:col-span-3 flex justify-end gap-2">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' }); setOtherInscriptionType(false); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddInscription}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Inscrição'}
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -597,7 +681,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         </div>
                                                     </td>
                                                     {!readOnly && (
-                                                        <td className="px-4 py-3 text-right">
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempInscription(item); setOtherInscriptionType(!['Municipal', 'Estadual', 'Suframa', 'Nire'].includes(item.type)); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
                                                             <button onClick={() => handleRemoveItem(setInscriptions, inscriptions, index, 'client_inscriptions')} className="text-slate-400 hover:text-red-500 transition-colors">
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -642,8 +729,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         value={tempContact.phone_mobile}
                                         onChange={e => setTempContact({ ...tempContact, phone_mobile: e.target.value })}
                                     />
-                                    <div className="lg:col-span-4 flex justify-end">
-                                        <Button size="sm" icon={<Plus size={16} />} onClick={handleAddContact}>Adicionar Contato</Button>
+                                    <div className="lg:col-span-4 flex justify-end gap-2">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempContact({}); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddContact}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Contato'}
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -655,7 +747,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             <tr>
                                                 <th className="px-4 py-3">Nome</th>
                                                 <th className="px-4 py-3">Email</th>
-                                                <th className="px-4 py-3">Telefone</th>
+                                                <th className="px-4 py-3">Celular</th>
+                                                <th className="px-4 py-3">Fixo</th>
                                                 {!readOnly && <th className="px-4 py-3 text-right">Ações</th>}
                                             </tr>
                                         </thead>
@@ -676,12 +769,21 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-2 group/copy">
-                                                            <span>{item.phone_mobile || item.phone_fixed}</span>
-                                                            {(item.phone_mobile || item.phone_fixed) && <CopyButton text={item.phone_mobile || item.phone_fixed} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                            <span>{item.phone_mobile}</span>
+                                                            {item.phone_mobile && <CopyButton text={item.phone_mobile} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.phone_fixed}</span>
+                                                            {item.phone_fixed && <CopyButton text={item.phone_fixed} className="opacity-0 group-hover/copy:opacity-100" />}
                                                         </div>
                                                     </td>
                                                     {!readOnly && (
-                                                        <td className="px-4 py-3 text-right">
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempContact(item); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
                                                             <button onClick={() => handleRemoveItem(setContacts, contacts, index, 'client_contacts')} className="text-slate-400 hover:text-red-500 transition-colors">
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -735,8 +837,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             onChange={e => setTempRegime({ ...tempRegime, observation: e.target.value })}
                                         />
                                     </div>
-                                    <div className="md:col-span-3 flex justify-end">
-                                        <Button size="sm" icon={<Plus size={16} />} onClick={handleAddRegime}>Adicionar Histórico</Button>
+                                    <div className="md:col-span-3 flex justify-end gap-2">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' }); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddRegime}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Histórico'}
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -746,22 +853,23 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 font-medium border-b border-slate-200 dark:border-slate-800">
                                             <tr>
-                                                <th className="px-4 py-3">Início</th>
-                                                <th className="px-4 py-3">Fim</th>
+                                                <th className="px-4 py-3 max-w-[100px]">Início</th>
+                                                <th className="px-4 py-3 max-w-[100px]">Fim</th>
                                                 <th className="px-4 py-3">Regime</th>
+                                                <th className="px-4 py-3">Observação</th>
                                                 {!readOnly && <th className="px-4 py-3 text-right">Ações</th>}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                                             {taxRegimes.map((item, index) => (
                                                 <tr key={index}>
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-4 py-3 max-w-[100px]">
                                                         <div className="flex items-center gap-2 group/copy">
                                                             <span>{item.start_date}</span>
                                                             {item.start_date && <CopyButton text={item.start_date} className="opacity-0 group-hover/copy:opacity-100" />}
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-4 py-3 max-w-[100px]">
                                                         <div className="flex items-center gap-2 group/copy">
                                                             <span>{item.end_date}</span>
                                                             {item.end_date && <CopyButton text={item.end_date} className="opacity-0 group-hover/copy:opacity-100" />}
@@ -773,8 +881,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                             <CopyButton text={item.regime === 'simples' ? 'Simples Nacional' : item.regime === 'lp' ? 'Lucro Presumido' : item.regime === 'lr' ? 'Lucro Real' : 'MEI'} className="opacity-0 group-hover/copy:opacity-100" />
                                                         </div>
                                                     </td>
+                                                    <td className="px-4 py-3 text-xs text-slate-500 truncate max-w-xs">{item.observation}</td>
                                                     {!readOnly && (
-                                                        <td className="px-4 py-3 text-right">
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempRegime(item); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
                                                             <button onClick={() => handleRemoveItem(setTaxRegimes, taxRegimes, index, 'client_tax_regime_history')} className="text-slate-400 hover:text-red-500 transition-colors">
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -823,8 +935,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         value={tempActivity.cnae_description}
                                         onChange={e => setTempActivity({ ...tempActivity, cnae_description: e.target.value })}
                                     />
-                                    <div className="md:col-span-12 flex justify-end">
-                                        <Button size="sm" icon={<Plus size={16} />} onClick={handleAddActivity}>Adicionar CNAE</Button>
+                                    <div className="md:col-span-12 flex justify-end gap-2">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' }); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddActivity}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar CNAE'}
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -861,7 +978,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         </div>
                                                     </td>
                                                     {!readOnly && (
-                                                        <td className="px-4 py-3 text-right">
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempActivity(item); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
                                                             <button onClick={() => handleRemoveItem(setActivities, activities, index, 'client_activities')} className="text-slate-400 hover:text-red-500 transition-colors">
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -915,8 +1035,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="lg:col-span-4 flex justify-end">
-                                        <Button size="sm" icon={<Plus size={16} />} onClick={handleAddAccess}>Adicionar Acesso</Button>
+                                    <div className="lg:col-span-4 flex justify-end gap-2">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempAccess({}); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddAccess}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Acesso'}
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -962,7 +1087,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         )}
                                                     </td>
                                                     {!readOnly && (
-                                                        <td className="px-4 py-3 text-right">
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempAccess(item); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
                                                             <button onClick={() => handleRemoveItem(setAccesses, accesses, index, 'client_accesses')} className="text-slate-400 hover:text-red-500 transition-colors">
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -1019,8 +1147,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             { value: 'procurador', label: 'Procurador' },
                                         ]}
                                     />
-                                    <div className="lg:col-span-4 flex justify-end">
-                                        <Button size="sm" icon={<Plus size={16} />} onClick={handleAddCertificate}>Adicionar Certificado</Button>
+                                    <div className="lg:col-span-4 flex justify-end gap-2">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' }); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddCertificate}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Certificado'}
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -1054,7 +1187,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         {item.signatory === 'propria' ? 'Própria Empresa' : item.signatory === 'socio' ? 'Sócio Administrador' : 'Procurador'}
                                                     </td>
                                                     {!readOnly && (
-                                                        <td className="px-4 py-3 text-right">
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempCertificate({ ...item, expiration_date: item.expiration_date || item.expires_at }); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
                                                             <button onClick={() => handleRemoveItem(setCertificates, certificates, index, 'client_certificates')} className="text-slate-400 hover:text-red-500 transition-colors">
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -1109,8 +1245,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="lg:col-span-4 flex justify-end">
-                                        <Button size="sm" icon={<Plus size={16} />} onClick={handleAddLicense}>Adicionar Licença</Button>
+                                    <div className="lg:col-span-4 flex justify-end gap-2">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLicense({}); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddLicense}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Licença'}
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -1151,7 +1292,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         )}
                                                     </td>
                                                     {!readOnly && (
-                                                        <td className="px-4 py-3 text-right">
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempLicense({ ...item, expiration_date: item.expiration_date || item.expiry_date, number: item.number || item.license_number }); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
                                                             <button onClick={() => handleRemoveItem(setLicenses, licenses, index, 'client_licenses')} className="text-slate-400 hover:text-red-500 transition-colors">
                                                                 <Trash2 size={16} />
                                                             </button>
@@ -1199,8 +1343,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         value={tempLegislation.access_url}
                                         onChange={e => setTempLegislation({ ...tempLegislation, access_url: e.target.value })}
                                     />
-                                    <div className="lg:col-span-4 flex justify-end">
-                                        <Button size="sm" icon={<Plus size={16} />} onClick={handleAddLegislation}>Adicionar Legislação</Button>
+                                    <div className="lg:col-span-4 flex justify-end gap-2">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLegislation({ status: 'vigente', description: '', access_url: '' }); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddLegislation}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Legislação'}
+                                        </Button>
                                     </div>
                                 </div>
                             )}
@@ -1238,7 +1387,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         )}
                                                     </td>
                                                     {!readOnly && (
-                                                        <td className="px-4 py-3 text-right">
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempLegislation(item); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
                                                             <button onClick={() => handleRemoveItem(setLegislations, legislations, index, 'client_legislations')} className="text-slate-400 hover:text-red-500 transition-colors">
                                                                 <Trash2 size={16} />
                                                             </button>
