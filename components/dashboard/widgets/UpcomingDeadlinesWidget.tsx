@@ -16,14 +16,19 @@ export const UpcomingDeadlinesWidget: React.FC<Props> = ({ orgId, onRemove }) =>
         const fetchData = async () => {
             if (!orgId) return;
             try {
+                const today = new Date();
+                const nextWeek = new Date(today);
+                nextWeek.setDate(today.getDate() + 7);
+
                 const { data: result, error } = await supabase
                     .from('tasks')
                     .select('id, task_name, client_name, due_date')
                     .eq('org_id', orgId)
                     .neq('status', 'Concluída')
-                    .gte('due_date', new Date().toISOString().split('T')[0])
+                    .gte('due_date', today.toISOString().split('T')[0])
+                    .lte('due_date', nextWeek.toISOString().split('T')[0])
                     .order('due_date', { ascending: true })
-                    .limit(6);
+                    .limit(10);
 
                 if (error) throw error;
                 if (result) setData(result);

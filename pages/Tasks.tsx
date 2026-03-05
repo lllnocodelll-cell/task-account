@@ -549,6 +549,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           noMovement: t.no_movement,
           exceededSublimit: t.exceeded_sublimit,
           factorR: t.factor_r,
+          notifiedExclusion: t.notified_exclusion,
           selectedAnnexes: t.selected_annexes,
           selectedDfes: t.selected_dfes,
           clientCity: t.clients?.city,
@@ -1151,6 +1152,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                   <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-bold">
                                     <AlertTriangle size={10} />
                                     <span>Excedeu Sublimite</span>
+                                  </div>
+                                )}
+                                {task.notifiedExclusion && (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-rose-500 font-bold">
+                                    <AlertTriangle size={10} />
+                                    <span>Exclusão Notificada</span>
                                   </div>
                                 )}
                               </div>
@@ -1766,6 +1773,7 @@ interface ClientConfig {
   selectedAnnexes: string[];
   excedeuSublimite: boolean;
   fatorR: boolean;
+  notifiedExclusion: boolean;
   observation: string;
   uploadedFiles: File[];
   existingAttachments: { name: string; size: number; url?: string }[];
@@ -1791,6 +1799,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     selectedAnnexes: data?.selectedAnnexes || [],
     excedeuSublimite: data?.exceededSublimit || false,
     fatorR: data?.factorR || false,
+    notifiedExclusion: data?.notifiedExclusion || false,
     observation: data?.observation || '',
     uploadedFiles: [],
     existingAttachments: data?.attachments || []
@@ -2061,6 +2070,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
               no_movement: config.semMovimento,
               exceeded_sublimit: config.excedeuSublimite,
               factor_r: config.fatorR,
+              notified_exclusion: config.notifiedExclusion,
               selected_annexes: config.selectedAnnexes,
               selected_dfes: config.selectedDfe,
               observation: config.observation,
@@ -2107,6 +2117,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                 no_movement: config.semMovimento,
                 exceeded_sublimit: config.excedeuSublimite,
                 factor_r: config.fatorR,
+                notified_exclusion: config.notifiedExclusion,
                 selected_annexes: config.selectedAnnexes,
                 selected_dfes: config.selectedDfe,
                 observation: config.observation,
@@ -2466,6 +2477,14 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
               {activeTab === 'simples' && activeClientId && (
                 <div className="space-y-6">
                   <div className="flex flex-col gap-4">
+                    <Toggle
+                      label="Exclusão Notificada"
+                      value={clientConfigs[activeClientId].notifiedExclusion}
+                      onChange={(val) => setClientConfigs(prev => ({
+                        ...prev,
+                        [activeClientId]: { ...prev[activeClientId], notifiedExclusion: val }
+                      }))}
+                    />
                     <Toggle
                       label="Excedeu Sublimite?"
                       value={clientConfigs[activeClientId].excedeuSublimite}

@@ -747,8 +747,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             <tr>
                                                 <th className="px-4 py-3">Nome</th>
                                                 <th className="px-4 py-3">Email</th>
-                                                <th className="px-4 py-3">Celular</th>
                                                 <th className="px-4 py-3">Fixo</th>
+                                                <th className="px-4 py-3">Celular</th>
                                                 {!readOnly && <th className="px-4 py-3 text-right">Ações</th>}
                                             </tr>
                                         </thead>
@@ -769,14 +769,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-2 group/copy">
-                                                            <span>{item.phone_mobile}</span>
-                                                            {item.phone_mobile && <CopyButton text={item.phone_mobile} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                            <span>{item.phone_fixed}</span>
+                                                            {item.phone_fixed && <CopyButton text={item.phone_fixed} className="opacity-0 group-hover/copy:opacity-100" />}
                                                         </div>
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-2 group/copy">
-                                                            <span>{item.phone_fixed}</span>
-                                                            {item.phone_fixed && <CopyButton text={item.phone_fixed} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                            <span>{item.phone_mobile}</span>
+                                                            {item.phone_mobile && <CopyButton text={item.phone_mobile} className="opacity-0 group-hover/copy:opacity-100" />}
                                                         </div>
                                                     </td>
                                                     {!readOnly && (

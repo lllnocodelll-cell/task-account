@@ -18,6 +18,7 @@ import { DocumentAlertsWidget } from './widgets/DocumentAlertsWidget';
 import { ClientStatusWidget } from './widgets/ClientStatusWidget';
 import { TaxRegimesWidget } from './widgets/TaxRegimesWidget';
 import { LoggedUsersWidget } from './widgets/LoggedUsersWidget';
+import { NotifiedExclusionWidget } from './widgets/NotifiedExclusionWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -77,13 +78,18 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'Usuários Online',
         component: LoggedUsersWidget,
         defaultLayout: { i: 'loggedUsers', x: 7, y: 19, w: 4, h: 6, minW: 3, minH: 4 }
+    },
+    notifiedExclusion: {
+        name: 'Exclusão Notificada',
+        component: NotifiedExclusionWidget,
+        defaultLayout: { i: 'notifiedExclusion', x: 0, y: 25, w: 4, h: 6, minW: 3, minH: 4 }
     }
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
     'monthlyVolume', 'topSegments', 'statusByUser',
     'monthlyEvolution', 'dailyProductivity',
-    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'clientStatus', 'taxRegimes', 'loggedUsers'
+    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'clientStatus', 'taxRegimes', 'loggedUsers', 'notifiedExclusion'
 ];
 
 interface DashboardGridProps {

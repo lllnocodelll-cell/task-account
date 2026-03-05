@@ -36,6 +36,7 @@ export interface Task {
   noMovement?: boolean;
   exceededSublimit?: boolean;
   factorR?: boolean;
+  notifiedExclusion?: boolean;
   selectedAnnexes?: string[];
   selectedDfes?: string[];
   clientCity?: string;
