@@ -19,11 +19,12 @@ import { ClientStatusWidget } from './widgets/ClientStatusWidget';
 import { TaxRegimesWidget } from './widgets/TaxRegimesWidget';
 import { LoggedUsersWidget } from './widgets/LoggedUsersWidget';
 import { NotifiedExclusionWidget } from './widgets/NotifiedExclusionWidget';
+import { CollaboratorsByDeptWidget } from './widgets/CollaboratorsByDeptWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Registro de todos os widgets disponíveis
-export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC<any>, defaultLayout: Layout }> = {
+export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC<any>, defaultLayout: any }> = {
     monthlyVolume: {
         name: 'Volume Mensal',
         component: MonthlyVolumeWidget,
@@ -83,13 +84,18 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'Exclusão Notificada',
         component: NotifiedExclusionWidget,
         defaultLayout: { i: 'notifiedExclusion', x: 0, y: 25, w: 4, h: 6, minW: 3, minH: 4 }
+    },
+    collaboratorsByDept: {
+        name: 'Colaboradores por Setor',
+        component: CollaboratorsByDeptWidget,
+        defaultLayout: { i: 'collaboratorsByDept', x: 4, y: 25, w: 4, h: 6, minW: 3, minH: 4 }
     }
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
     'monthlyVolume', 'topSegments', 'statusByUser',
     'monthlyEvolution', 'dailyProductivity',
-    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'clientStatus', 'taxRegimes', 'loggedUsers', 'notifiedExclusion'
+    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'clientStatus', 'taxRegimes', 'loggedUsers', 'notifiedExclusion', 'collaboratorsByDept'
 ];
 
 interface DashboardGridProps {
@@ -97,7 +103,7 @@ interface DashboardGridProps {
 }
 
 export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
-    const [layouts, setLayouts] = useState<{ [key: string]: Layout[] }>({ lg: [] });
+    const [layouts, setLayouts] = useState<{ [key: string]: any[] }>({ lg: [] });
     const [activeWidgets, setActiveWidgets] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [showMenu, setShowMenu] = useState(false);
@@ -156,7 +162,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
         }
     }, [userId]);
 
-    const saveLayout = async (currentLayout: Layout[]) => {
+    const saveLayout = async (currentLayout: any[]) => {
         try {
             await supabase
                 .from('user_dashboard_configs')
@@ -171,7 +177,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
         }
     };
 
-    const onLayoutChange = (currentLayout: Layout[]) => {
+    const onLayoutChange = (currentLayout: any[]) => {
         setLayouts({ lg: currentLayout });
         saveLayout(currentLayout);
     };
