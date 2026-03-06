@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertOctagon, AlertTriangle } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, X } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
 
@@ -67,6 +67,26 @@ export const NotifiedExclusionWidget: React.FC<Props> = ({ orgId, onRemove }) =>
         fetchExclusions();
     }, [orgId]);
 
+    const handleDisableNotification = async (e: React.MouseEvent, clientId: string, competence: string) => {
+        e.stopPropagation();
+        try {
+            const { error } = await supabase
+                .from('tasks')
+                .update({ notified_exclusion: false } as any)
+                .eq('org_id', orgId)
+                .eq('client_id', clientId)
+                .eq('competence', competence)
+                .eq('notified_exclusion', true);
+
+            if (error) throw error;
+
+            setData(prev => prev.filter(item => !(item.clientId === clientId && item.competence === competence)));
+        } catch (err) {
+            console.error('Error disabling notification:', err);
+            alert('Erro ao remover notificação.');
+        }
+    };
+
     return (
         <WidgetContainer title="Exclusão Notificada" icon={<AlertOctagon size={18} className="text-rose-500" />} onRemove={onRemove}>
             <div className="flex-1 flex flex-col p-2 space-y-4 overflow-y-auto w-full custom-scrollbar">
@@ -92,11 +112,11 @@ export const NotifiedExclusionWidget: React.FC<Props> = ({ orgId, onRemove }) =>
                 ) : (
                     <div className="flex flex-col gap-3">
                         {data.map((item, index) => (
-                            <div key={index} className="flex items-start gap-3 p-3 rounded-xl bg-rose-50/50 dark:bg-rose-900/10 border border-rose-100/50 dark:border-rose-800/30 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors group">
+                            <div key={index} className="flex items-start gap-3 p-3 rounded-xl bg-rose-50/50 dark:bg-rose-900/10 border border-rose-100/50 dark:border-rose-800/30 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors group relative">
                                 <div className="mt-0.5 w-8 h-8 shrink-0 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-rose-100 dark:border-rose-900/50 flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">
                                     <AlertOctagon size={16} />
                                 </div>
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 pr-6">
                                     <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate pr-2">
                                         {item.clientName}
                                     </p>
@@ -106,6 +126,13 @@ export const NotifiedExclusionWidget: React.FC<Props> = ({ orgId, onRemove }) =>
                                         </span>
                                     </div>
                                 </div>
+                                <button
+                                    onClick={(e) => handleDisableNotification(e, item.clientId, item.competence)}
+                                    className="absolute top-3 right-3 p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-slate-700"
+                                    title="Remover notificação"
+                                >
+                                    <X size={14} />
+                                </button>
                             </div>
                         ))}
                     </div>

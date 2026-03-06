@@ -50,28 +50,64 @@ export const GlobalCallListener: React.FC<GlobalCallListenerProps> = ({ userId, 
         if (!userId) return;
 
         const sub = supabase
-            .channel(`user-call-${userId}`)
+            .channel(`global-call-listener-${userId}`)
             .on(
-                'broadcast',
-                { event: 'incoming-call' },
-                (payload) => {
-                    const data = payload.payload as any;
-                    if (!data) return;
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+                async (payload) => {
+                    const newMsg = payload.new as any;
+                    if (!newMsg || newMsg.sender_id === userId) return;
 
-                    console.log('[GlobalCallListener] Chamada recebida via broadcast:', data);
+                    const isVideoCall = newMsg.text?.includes('📹 Iniciei uma chamada de vídeo');
+                    const isAudioCall = newMsg.text?.includes('📞 Iniciei uma chamada de áudio');
 
-                    setIncomingCall({
-                        channelId: data.channelId,
-                        callerName: data.callerName || 'Alguém',
-                        isVideoEnabled: data.isVideoEnabled ?? true
-                    });
+                    if (isVideoCall || isAudioCall) {
+                        try {
+                            // Verify if it is for me
+                            const { data: memberData } = await supabase
+                                .from('chat_channel_members')
+                                .select('id')
+                                .eq('channel_id', newMsg.channel_id)
+                                .eq('user_id', userId)
+                                .single();
 
-                    audioRef.current?.play().catch(e => console.log('Autoplay bloqueado pelo navegador:', e));
+                            if (memberData) {
+                                let callerName = 'Alguém';
+                                const { data: callerProfile } = await supabase
+                                    .from('profiles')
+                                    .select('full_name')
+                                    .eq('id', newMsg.sender_id)
+                                    .maybeSingle();
 
-                    if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
-                    ringTimeoutRef.current = setTimeout(() => {
-                        handleDeclineCall();
-                    }, 30000);
+                                if (callerProfile?.full_name) callerName = callerProfile.full_name;
+
+                                const { data: channelInfo } = await supabase
+                                    .from('chat_channels')
+                                    .select('type, name')
+                                    .eq('id', newMsg.channel_id)
+                                    .maybeSingle();
+
+                                if (channelInfo && channelInfo.type === 'group') {
+                                    callerName = channelInfo.name;
+                                }
+
+                                setIncomingCall({
+                                    channelId: newMsg.channel_id,
+                                    callerName: callerName,
+                                    isVideoEnabled: isVideoCall
+                                });
+
+                                audioRef.current?.play().catch(e => console.log('Autoplay bloqueado pelo navegador:', e));
+
+                                if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+                                ringTimeoutRef.current = setTimeout(() => {
+                                    handleDeclineCall();
+                                }, 30000);
+                            }
+                        } catch (err) {
+                            console.error('Error verifying call target:', err);
+                        }
+                    }
                 }
             )
             .subscribe();

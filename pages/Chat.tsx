@@ -16,7 +16,8 @@ import {
   Users,
   X,
   PhoneCall,
-  PhoneOff
+  PhoneOff,
+  EyeOff
 } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { CreateGroupModal } from '../components/chat/CreateGroupModal';
@@ -44,6 +45,8 @@ interface Profile {
   role: string;
   status?: string;
   chat_status?: 'disponível' | 'ocupado' | 'ausente' | 'almoço' | 'férias';
+  current_session_start?: string | null;
+  last_active_at?: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -51,8 +54,16 @@ const STATUS_COLORS: Record<string, string> = {
   'ocupado': 'bg-red-500',
   'ausente': 'bg-amber-500',
   'almoço': 'bg-blue-500',
-  'férias': 'bg-slate-400'
+  'férias': 'bg-slate-400',
+  'offline': 'bg-slate-300 dark:bg-slate-600'
 };
+
+export interface Reaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+}
 
 interface Message {
   id: string;
@@ -65,6 +76,7 @@ interface Message {
   file_name?: string;
   file_type?: string;
   reply_to_id?: string;
+  reactions?: Reaction[];
 }
 
 export const Chat: React.FC = () => {
@@ -92,8 +104,8 @@ export const Chat: React.FC = () => {
   // Status Menu
   const [showStatusMenu, setShowStatusMenu] = useState(false);
 
-  // Emojis e Anexos
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reactionMessageId, setReactionMessageId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -133,12 +145,24 @@ export const Chat: React.FC = () => {
         theirId = rawName.substring(0, rawName.length - userId.length - 1);
       }
       const theirProfile = profiles.find(p => p.id === theirId);
+
+      let isOffline = true;
+      if (theirProfile?.current_session_start) {
+        const sessionStart = new Date(theirProfile.current_session_start).getTime();
+        const lastActive = theirProfile.last_active_at ? new Date(theirProfile.last_active_at).getTime() : sessionStart;
+        const now = Date.now();
+        // Se esteve ativo nos últimos 30 minutos (ou se a sessão iniciou a < 30 min sem last_active), consideramos online.
+        if (now - lastActive < 30 * 60 * 1000) {
+          isOffline = false;
+        }
+      }
+
       return {
         ...channel,
         name: theirProfile?.full_name || 'Usuário Desconhecido',
         avatar_url: theirProfile?.avatar_url,
         fallbackAvatar: theirProfile?.full_name?.substring(0, 2).toUpperCase() || 'DM',
-        contactStatus: theirProfile?.chat_status || 'disponível'
+        contactStatus: isOffline ? 'offline' : (theirProfile?.chat_status || 'disponível')
       };
     }
     return {
@@ -200,8 +224,10 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const prevMessageCountRef = useRef<number>(0);
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   useEffect(() => {
@@ -209,7 +235,17 @@ export const Chat: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
+    const isNewChannel = selectedChannelIdRef.current !== selectedChannelId;
+    const prevCount = prevMessageCountRef.current;
+    const currentCount = currentMessages.length;
+
+    let behavior: ScrollBehavior = 'auto';
+    if (!isNewChannel && currentCount > 0 && currentCount === prevCount + 1) {
+      behavior = 'smooth';
+    }
+
+    scrollToBottom(behavior);
+    prevMessageCountRef.current = currentCount;
   }, [currentMessages, selectedChannelId]);
 
   // Controlar o canal selecionado atual via Ref para não destruir/recriar o listener do websocket ao navegar
@@ -260,11 +296,49 @@ export const Chat: React.FC = () => {
           }
         )
         .subscribe();
-      return sub;
+
+      const reactionSub = supabase
+        .channel(`global-unread-reactions-${userId}-${index}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_reactions',
+            // O ideal seria filtrar por message_id.channel_id, mas o realtime do supabase não permite joins no filtro.
+            // Para resolver isso de forma simples pelo frontend sem comprometer muito: vamos permitir o evento passar
+            // e vamos verificar se temos a mensagem armazenada ou vamos ignorar se não tivermos. Mas como as reactions
+            // não trazem o channel_id e o realtime global não é por canal da reaction (a reaction nao tem channel_id),
+            // temos que escutar * e verificar.
+          },
+          async (payload) => {
+            const newRec = payload.new as any;
+            if (newRec.user_id !== userId) {
+              // Precisamos saber o channel_id dessa reação para incrementar a badge correcta.
+              // Buscar message_id
+              const { data } = await supabase.from('chat_messages').select('channel_id').eq('id', newRec.message_id).single();
+              if (data && data.channel_id && data.channel_id !== selectedChannelIdRef.current) {
+                // O canal dessa mensagem gerou uma notificacao, mas so se for um canal q pertencemos
+                if (channelIds.includes(data.channel_id)) {
+                  setChannels(prev =>
+                    prev.map(ch =>
+                      ch.id === data.channel_id
+                        ? { ...ch, unreadCount: (ch.unreadCount || 0) + 1 }
+                        : ch
+                    )
+                  );
+                }
+              }
+            }
+          }
+        )
+        .subscribe();
+
+      return [sub, reactionSub];
     });
 
     return () => {
-      globalSubs.forEach(sub => supabase.removeChannel(sub));
+      globalSubs.flat().forEach(sub => supabase.removeChannel(sub));
     };
   }, [userId, channelIdsStr]);
 
@@ -314,7 +388,12 @@ export const Chat: React.FC = () => {
           setProfiles(prevProfiles =>
             prevProfiles.map(p =>
               p.id === updatedProfile.id
-                ? { ...p, chat_status: updatedProfile.chat_status }
+                ? {
+                  ...p,
+                  chat_status: updatedProfile.chat_status,
+                  current_session_start: updatedProfile.current_session_start,
+                  last_active_at: updatedProfile.last_active_at
+                }
                 : p
             )
           );
@@ -388,11 +467,55 @@ export const Chat: React.FC = () => {
             markChannelAsRead(selectedChannelId);
           }
         }
-      )
-      .subscribe();
+      );
+
+    const reactionSubscription = supabase
+      .channel(`reactions:${selectedChannelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_reactions'
+        },
+        (payload) => {
+          setMessages(prev => {
+            const current = prev[selectedChannelId] || [];
+            const { eventType, new: newRec, old: oldRec } = payload as any;
+
+            const msgId = eventType === 'DELETE' ? oldRec.message_id : newRec.message_id;
+
+            // If the message is not in our current state, ignore
+            if (!current.some(m => m.id === msgId)) return prev;
+
+            return {
+              ...prev,
+              [selectedChannelId]: current.map(m => {
+                if (m.id !== msgId) return m;
+                const reactions = m.reactions || [];
+                if (eventType === 'INSERT') {
+                  const exists = reactions.some(r => r.id === newRec.id);
+                  if (exists) return m;
+
+                  // Remove optimistic reaction for same user and emoji
+                  const withoutTemp = reactions.filter(r => !(r.user_id === newRec.user_id && r.emoji === newRec.emoji));
+                  return { ...m, reactions: [...withoutTemp, newRec] };
+                } else if (eventType === 'DELETE') {
+                  return { ...m, reactions: reactions.filter(r => r.id !== oldRec.id) };
+                }
+                return m;
+              })
+            };
+          });
+        }
+      );
+
+    subscription.subscribe();
+    reactionSubscription.subscribe();
 
     return () => {
       supabase.removeChannel(subscription);
+      supabase.removeChannel(reactionSubscription);
     };
   }, [selectedChannelId, userId]);
 
@@ -400,7 +523,7 @@ export const Chat: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('chat_messages')
-        .select('*')
+        .select('*, chat_reactions(*)')
         .eq('channel_id', channelId)
         .order('created_at', { ascending: true });
 
@@ -416,7 +539,8 @@ export const Chat: React.FC = () => {
         attachment_url: msg.attachment_url,
         file_name: msg.file_name,
         file_type: msg.file_type,
-        reply_to_id: msg.reply_to_id
+        reply_to_id: msg.reply_to_id,
+        reactions: msg.chat_reactions || []
       }));
 
       setMessages(prev => ({
@@ -467,7 +591,7 @@ export const Chat: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, last_active_at')
         .neq('id', uid)
         .order('full_name');
 
@@ -527,12 +651,30 @@ export const Chat: React.FC = () => {
             .neq('sender_id', targetUid)
             .gt('created_at', lastRead);
 
+          // Buscar IDs das mensagens deste canal para checar reações
+          const { data: messagesIds } = await supabase
+            .from('chat_messages')
+            .select('id')
+            .eq('channel_id', c.id);
+
+          let reactionCount = 0;
+          if (messagesIds && messagesIds.length > 0) {
+            const mIds = messagesIds.map(m => m.id);
+            const { count: rCount } = await supabase
+              .from('chat_reactions')
+              .select('*', { count: 'exact', head: true })
+              .in('message_id', mIds)
+              .neq('user_id', targetUid)
+              .gt('created_at', lastRead);
+            reactionCount = rCount || 0;
+          }
+
           return {
             id: c.id,
             name: channelName,
             rawName: c.name,
             type: c.type,
-            unreadCount: countError ? 0 : (count || 0),
+            unreadCount: (countError ? 0 : (count || 0)) + reactionCount,
             lastMessage: isDirect ? 'Inicie uma conversa' : 'Grupo criado',
             lastMessageTime: new Date(c.created_at).toLocaleDateString('pt-BR')
           };
@@ -555,13 +697,95 @@ export const Chat: React.FC = () => {
         .eq('user_id', userId);
 
       // Zerar badge localmente
-      setChannels(prev =>
-        prev.map(ch =>
-          ch.id === channelId ? { ...ch, unreadCount: 0 } : ch
-        )
-      );
+      if (channelId === selectedChannelIdRef.current) {
+        setChannels(prev =>
+          prev.map(ch =>
+            ch.id === channelId ? { ...ch, unreadCount: 0 } : ch
+          )
+        );
+      }
     } catch (error) {
       console.error('Error marking channel as read:', error);
+    }
+  };
+
+  const markMessageAsUnread = async (messageId: string, channelId: string) => {
+    if (!userId) return;
+    try {
+      const { data: message } = await supabase
+        .from('chat_messages')
+        .select('created_at')
+        .eq('id', messageId)
+        .single();
+
+      let unreadTimestamp = new Date().toISOString();
+      if (message) {
+        const dt = new Date(message.created_at);
+        dt.setMilliseconds(dt.getMilliseconds() - 1);
+        unreadTimestamp = dt.toISOString();
+      }
+
+      await supabase
+        .from('chat_channel_members')
+        .update({ last_read_at: unreadTimestamp } as any)
+        .eq('channel_id', channelId)
+        .eq('user_id', userId);
+
+      setChannels(prev =>
+        prev.map(ch =>
+          ch.id === channelId ? { ...ch, unreadCount: Math.max(ch.unreadCount || 1, 1) } : ch
+        )
+      );
+
+      setSelectedChannelId(null);
+    } catch (error) {
+      console.error('Error marking message as unread:', error);
+    }
+  };
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    if (!userId) return;
+
+    setMessages(prev => {
+      const current = prev[selectedChannelId!] || [];
+      const msg = current.find(m => m.id === messageId);
+      if (!msg) return prev;
+
+      const reactions = msg.reactions || [];
+      const existingReaction = reactions.find(r => r.emoji === emoji && r.user_id === userId);
+
+      const newReactions = existingReaction
+        ? reactions.filter(r => r.id !== existingReaction.id)
+        : [...reactions, { id: 'temp-' + Date.now(), message_id: messageId, user_id: userId, emoji }];
+
+      return {
+        ...prev,
+        [selectedChannelId!]: current.map(m => m.id === messageId ? { ...m, reactions: newReactions } : m)
+      };
+    });
+
+    try {
+      const { data: existing } = await supabase
+        .from('chat_reactions')
+        .select('id')
+        .eq('message_id', messageId)
+        .eq('user_id', userId)
+        .eq('emoji', emoji)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from('chat_reactions').delete().eq('id', existing.id);
+      } else {
+        await supabase.from('chat_reactions').insert({
+          message_id: messageId,
+          user_id: userId,
+          emoji: emoji
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling reaction:', error);
+      // Re-fetch to fix optimistic ui failure
+      if (selectedChannelId) fetchMessages(selectedChannelId);
     }
   };
 
@@ -648,50 +872,8 @@ export const Chat: React.FC = () => {
         });
 
       // --- Sinalização de chamada via Broadcast ---
-      const { data: channelMembers } = await supabase
-        .from('chat_channel_members')
-        .select('user_id')
-        .eq('channel_id', selectedChannelId)
-        .neq('user_id', userId);
-
-      let callerName = 'Alguém';
-      const { data: callerProfile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', userId)
-        .maybeSingle();
-      if (callerProfile?.full_name) callerName = callerProfile.full_name;
-
-      let roomDisplayName = callerName;
-      const { data: channelInfo } = await supabase
-        .from('chat_channels')
-        .select('type, name')
-        .eq('id', selectedChannelId)
-        .maybeSingle();
-      if (channelInfo && channelInfo.type === 'group') {
-        roomDisplayName = channelInfo.name;
-      }
-
-      if (channelMembers) {
-        for (const member of channelMembers) {
-          const broadcastChannel = supabase.channel(`user-call-${member.user_id}`);
-          broadcastChannel.subscribe((status: string) => {
-            if (status === 'SUBSCRIBED') {
-              broadcastChannel.send({
-                type: 'broadcast',
-                event: 'incoming-call',
-                payload: {
-                  channelId: selectedChannelId,
-                  callerName: roomDisplayName,
-                  callerId: userId,
-                  isVideoEnabled
-                }
-              });
-              setTimeout(() => supabase.removeChannel(broadcastChannel), 1000);
-            }
-          });
-        }
-      }
+      // Agora o GlobalCallListener escuta via postgres_changes diretamente na tabela chat_messages.
+      // O broadcast manual não é mais necessário.
     } catch (e) {
       console.error('Failed to send call start message or create room', e);
       alert('Não foi possível iniciar a chamada devido a falha de conexão.');
@@ -959,7 +1141,19 @@ export const Chat: React.FC = () => {
                       profile.full_name?.substring(0, 2).toUpperCase() || 'UN'
                     )}
                   </div>
-                  <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-800 rounded-full ${STATUS_COLORS[profile.chat_status || 'disponível']}`} />
+                  {(() => {
+                    let isProfileOffline = true;
+                    if (profile.current_session_start) {
+                      const sessionStart = new Date(profile.current_session_start).getTime();
+                      const lastActive = profile.last_active_at ? new Date(profile.last_active_at).getTime() : sessionStart;
+                      if (Date.now() - lastActive < 30 * 60 * 1000) {
+                        isProfileOffline = false;
+                      }
+                    }
+                    return (
+                      <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-800 rounded-full ${STATUS_COLORS[isProfileOffline ? 'offline' : (profile.chat_status || 'disponível')]}`} />
+                    );
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline mb-0.5">
@@ -1115,13 +1309,27 @@ export const Chat: React.FC = () => {
                       )}
 
                       {/* Botões flutuantes Hover */}
-                      <div className={`absolute -top-3 ${msg.isMe ? '-left-6' : '-right-6'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-10`}>
+                      <div className={`absolute -top-3 ${msg.isMe ? '-left-8' : '-right-8'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20`}>
+                        <button
+                          onClick={() => setReactionMessageId(reactionMessageId === msg.id ? null : msg.id)}
+                          title="Reagir"
+                          className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                        >
+                          <Smile size={14} className="text-slate-400 hover:text-indigo-500" />
+                        </button>
                         <button
                           onClick={() => setReplyingTo(msg)}
                           title="Responder"
                           className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
                         >
                           <Reply size={14} className="text-slate-400 hover:text-indigo-500" />
+                        </button>
+                        <button
+                          onClick={() => markMessageAsUnread(msg.id, selectedChannelId!)}
+                          title="Marcar como não lido"
+                          className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                        >
+                          <EyeOff size={14} className="text-slate-400 hover:text-indigo-500" />
                         </button>
                         <button
                           onClick={() => toggleFavorite(msg.id)}
@@ -1131,6 +1339,24 @@ export const Chat: React.FC = () => {
                           <Star size={14} className={favoritedMessages.includes(msg.id) ? 'text-yellow-500' : 'text-slate-400 hover:text-yellow-500'} fill={favoritedMessages.includes(msg.id) ? 'currentColor' : 'none'} />
                         </button>
                       </div>
+
+                      {/* Emoji Picker Popover */}
+                      {reactionMessageId === msg.id && (
+                        <div className={`absolute z-50 ${msg.isMe ? 'right-0 -top-12' : 'left-0 -top-12'} shadow-xl rounded-xl custom-scrollbar overflow-hidden border border-slate-200 dark:border-slate-800 scale-75 origin-bottom`}>
+                          <EmojiPicker
+                            onEmojiClick={(emojiData) => {
+                              toggleReaction(msg.id, emojiData.emoji);
+                              setReactionMessageId(null);
+                            }}
+                            autoFocusSearch={false}
+                            theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
+                            searchDisabled
+                            skinTonesDisabled
+                            width={250}
+                            height={300}
+                          />
+                        </div>
+                      )}
 
                       {msg.attachment_url && (
                         <div className="mb-2">
@@ -1158,6 +1384,33 @@ export const Chat: React.FC = () => {
                           </span>
                         )}
                       </div>
+
+                      {/* Msg Reactions Render */}
+                      {msg.reactions && msg.reactions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1 -mb-1 z-10">
+                          {Object.entries(
+                            msg.reactions.reduce((acc, r) => {
+                              acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                              return acc;
+                            }, {} as Record<string, number>)
+                          ).map(([emoji, count]) => {
+                            const iReacted = msg.reactions!.some(r => r.emoji === emoji && r.user_id === userId);
+                            return (
+                              <button
+                                key={emoji}
+                                onClick={() => toggleReaction(msg.id, emoji)}
+                                className={`px-1.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 shadow-sm border ${iReacted
+                                  ? 'bg-indigo-100 dark:bg-indigo-900/50 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
+                                  : 'bg-white/90 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                  }`}
+                              >
+                                <span>{emoji}</span>
+                                <span className={iReacted ? 'opacity-90' : 'opacity-70'}>{count}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
