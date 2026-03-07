@@ -11,6 +11,7 @@ interface Props {
 
 export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     const [data, setData] = useState<any[]>([]);
+    const [totals, setTotals] = useState({ total: 0, pendente: 0, iniciada: 0, atrasada: 0, concluida: 0 });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -26,6 +27,12 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
                 if (result) {
                     const transformed: Record<string, any> = {};
+                    let totalAcumulado = 0;
+                    let pendenteAcumulado = 0;
+                    let iniciadaAcumulado = 0;
+                    let atrasadaAcumulado = 0;
+                    let concluidaAcumulado = 0;
+
                     result.forEach(row => {
                         if (!transformed[row.responsible]) {
                             transformed[row.responsible] = {
@@ -40,12 +47,25 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                         }
                         transformed[row.responsible][row.status] = row.count;
                         transformed[row.responsible].total += row.count;
+
+                        totalAcumulado += row.count;
+                        if (row.status === 'Pendente') pendenteAcumulado += row.count;
+                        if (row.status === 'Iniciada') iniciadaAcumulado += row.count;
+                        if (row.status === 'Atrasada') atrasadaAcumulado += row.count;
+                        if (row.status === 'Concluída') concluidaAcumulado += row.count;
                     });
 
                     const dataArray = Object.values(transformed);
                     dataArray.sort((a, b) => b.total - a.total);
 
                     setData(dataArray);
+                    setTotals({
+                        total: totalAcumulado,
+                        pendente: pendenteAcumulado,
+                        iniciada: iniciadaAcumulado,
+                        atrasada: atrasadaAcumulado,
+                        concluida: concluidaAcumulado
+                    });
                 }
             } catch (err) {
                 console.error('Error fetching status by user:', err);
@@ -103,49 +123,79 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     <span>Nenhum colaborador com tarefas</span>
                 </div>
             ) : (
-                <div className="flex-1 w-full h-full p-2 lg:p-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                            layout="vertical"
-                            data={data}
-                            margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
-                            barSize={32}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                <div className="flex-1 flex flex-col w-full h-full">
+                    <div className="flex-1 w-full p-2 lg:p-4 min-h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                layout="vertical"
+                                data={data}
+                                margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
+                                barSize={32}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" opacity={0.5} />
 
-                            <XAxis
-                                type="number"
-                                tick={{ fontSize: 12, fill: '#64748b' }}
-                                axisLine={false}
-                                tickLine={false}
-                            />
+                                <XAxis
+                                    type="number"
+                                    tick={{ fontSize: 12, fill: '#64748b' }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
 
-                            <YAxis
-                                type="category"
-                                dataKey="name"
-                                tick={{ fontSize: 12, fill: '#475569', fontWeight: 600 }}
-                                width={110}
-                                axisLine={false}
-                                tickLine={false}
-                            />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    tick={{ fontSize: 12, fill: '#475569', fontWeight: 600 }}
+                                    width={110}
+                                    axisLine={false}
+                                    tickLine={false}
+                                />
 
-                            <Tooltip
-                                content={<CustomTooltip />}
-                                cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }}
-                            />
+                                <Tooltip
+                                    content={<CustomTooltip />}
+                                    cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }}
+                                />
 
-                            <Legend
-                                wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
-                                iconType="circle"
-                            />
+                                <Legend
+                                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                                    iconType="circle"
+                                />
 
-                            <Bar dataKey="Pendente" stackId="a" fill="#f59e0b" name="Pendente" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="Iniciada" stackId="a" fill="#3b82f6" name="Iniciada" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="Atrasada" stackId="a" fill="#ef4444" name="Atrasada" radius={[0, 0, 0, 0]} />
-                            {/* The last bar in the stack gets rounded corners on the right */}
-                            <Bar dataKey="Concluída" stackId="a" fill="#10b981" name="Concluída" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                                <Bar dataKey="Pendente" stackId="a" fill="#f59e0b" name="Pendente" radius={[0, 0, 0, 0]} />
+                                <Bar dataKey="Iniciada" stackId="a" fill="#3b82f6" name="Iniciada" radius={[0, 0, 0, 0]} />
+                                <Bar dataKey="Atrasada" stackId="a" fill="#ef4444" name="Atrasada" radius={[0, 0, 0, 0]} />
+                                {/* The last bar in the stack gets rounded corners on the right */}
+                                <Bar dataKey="Concluída" stackId="a" fill="#10b981" name="Concluída" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    {/* Footer com totais */}
+                    <div className="mt-auto px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 rounded-b-2xl">
+                        <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <div className="flex flex-col">
+                                <span className="text-slate-500 font-medium">Total Geral</span>
+                                <span className="text-slate-800 dark:text-slate-200 font-bold text-base">{totals.total} tarefas</span>
+                            </div>
+                            <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto no-scrollbar mask-gradient-right pb-1">
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-amber-500" />
+                                    <span className="text-slate-600 dark:text-slate-400 font-medium">{totals.pendente}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                    <span className="text-slate-600 dark:text-slate-400 font-medium">{totals.iniciada}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-red-500" />
+                                    <span className="text-slate-600 dark:text-slate-400 font-medium">{totals.atrasada}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                    <span className="text-slate-600 dark:text-slate-400 font-medium">{totals.concluida}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </WidgetContainer>
