@@ -20,6 +20,7 @@ import { TaxRegimesWidget } from './widgets/TaxRegimesWidget';
 import { LoggedUsersWidget } from './widgets/LoggedUsersWidget';
 import { NotifiedExclusionWidget } from './widgets/NotifiedExclusionWidget';
 import { CollaboratorsByDeptWidget } from './widgets/CollaboratorsByDeptWidget';
+import { UncompletedTasksWidget } from './widgets/UncompletedTasksWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -89,13 +90,18 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'Colaboradores por Setor',
         component: CollaboratorsByDeptWidget,
         defaultLayout: { i: 'collaboratorsByDept', x: 4, y: 25, w: 4, h: 6, minW: 3, minH: 4 }
+    },
+    uncompletedTasks: {
+        name: 'Tarefas Pendentes (Mês)',
+        component: UncompletedTasksWidget,
+        defaultLayout: { i: 'uncompletedTasks', x: 8, y: 25, w: 4, h: 6, minW: 3, minH: 4 }
     }
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
     'monthlyVolume', 'topSegments', 'statusByUser',
     'monthlyEvolution', 'dailyProductivity',
-    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'clientStatus', 'taxRegimes', 'loggedUsers', 'notifiedExclusion', 'collaboratorsByDept'
+    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'clientStatus', 'taxRegimes', 'loggedUsers', 'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks'
 ];
 
 interface DashboardGridProps {

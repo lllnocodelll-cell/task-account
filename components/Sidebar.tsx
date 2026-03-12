@@ -239,8 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <button
         key={item.id}
         onClick={() => setActiveTab(item.id)}
-        title={isCollapsed ? item.label : undefined}
-        className={`w-full flex justify-between items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative ${activeTab === item.id
+        className={`group w-full flex justify-between items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative ${activeTab === item.id
           ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
           } ${isCollapsed ? 'justify-center' : ''}`}
@@ -263,6 +262,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className={`shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 py-0.5 px-2 rounded-full text-xs font-bold transition-all duration-300`}>
             {item.badge}
           </span>
+        )}
+
+        {/* Tooltip */}
+        {isCollapsed && (
+          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
+            {item.label}
+          </div>
         )}
       </button>
     );
@@ -298,13 +304,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           onClick={onLogout}
-          title={isCollapsed ? "Sair" : undefined}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 w-full transition-colors overflow-hidden whitespace-nowrap ${isCollapsed ? 'justify-center' : ''}`}
+          className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 w-full transition-colors overflow-hidden whitespace-nowrap relative ${isCollapsed ? 'justify-center' : ''}`}
         >
           <div className="shrink-0"><LogOut size={20} /></div>
           <span className={`transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
             Sair
           </span>
+
+          {/* Tooltip Logout */}
+          {isCollapsed && (
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
+              Sair
+            </div>
+          )}
         </button>
       </div>
     </div>
