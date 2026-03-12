@@ -1,22 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface CardProps {
   children: React.ReactNode;
   className?: string;
   title?: string;
   action?: React.ReactNode;
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className = '', title, action }) => {
+export const Card: React.FC<CardProps> = ({ children, className = '', title, action, collapsible = false, defaultCollapsed = false }) => {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+
   return (
     <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm transition-colors duration-300 ${className}`}>
-      {(title || action) && (
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-          {title && <h3 className="font-semibold text-slate-900 dark:text-slate-100">{title}</h3>}
-          {action && <div>{action}</div>}
+      {(title || action || collapsible) && (
+        <div 
+          className={`px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center ${collapsible ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors select-none group' : ''}`}
+          onClick={() => collapsible && setIsCollapsed(!isCollapsed)}
+        >
+          <div className="flex items-center gap-2">
+            {title && <h3 className="font-semibold text-slate-900 dark:text-slate-100">{title}</h3>}
+          </div>
+          <div className="flex items-center gap-3">
+            {action && <div onClick={(e) => collapsible && e.stopPropagation()}>{action}</div>}
+            {collapsible && (
+               <span className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 dark:group-hover:bg-indigo-500/20 dark:group-hover:text-indigo-400 transition-all">
+                 {isCollapsed ? <ChevronDown size={18} strokeWidth={2.5} /> : <ChevronUp size={18} strokeWidth={2.5} />}
+               </span>
+            )}
+          </div>
         </div>
       )}
-      <div className="p-6">{children}</div>
+      {!isCollapsed && (
+        <div className="p-6 animate-in fade-in slide-in-from-top-1 duration-200">{children}</div>
+      )}
     </div>
   );
 };

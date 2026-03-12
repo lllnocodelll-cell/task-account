@@ -406,7 +406,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             </div>
 
             {/* Section 1: Initial Data */}
-            <Card title="Dados Iniciais">
+            <Card title="Dados Iniciais" collapsible>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <Input
                         label="Código"
@@ -507,7 +507,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             </Card>
 
             {/* Section 2: Address */}
-            <Card title="Endereço">
+            <Card title="Endereço" collapsible>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                     <Input
                         label="CEP"
