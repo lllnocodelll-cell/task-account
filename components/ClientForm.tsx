@@ -16,7 +16,8 @@ import {
     FileText,
     Building2,
     Mail,
-    Phone
+    Phone,
+    Search
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -51,6 +52,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [personType, setPersonType] = useState(initialData?.person_type || 'juridica');
     const [activeTab, setActiveTab] = useState('inscricoes');
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [isSearchingCNPJ, setIsSearchingCNPJ] = useState(false);
 
     // Main Client Data State
     const [formData, setFormData] = useState({
@@ -154,6 +156,54 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         };
         loadInitialData();
     }, [isEditing, initialData]);
+
+    // --- External API Search ---
+    const handleSearchCNPJ = async () => {
+        if (personType !== 'juridica' || !formData.document) return;
+        
+        // Remove tudo que não for número
+        const cnpj = formData.document.replace(/\D/g, '');
+        if (cnpj.length !== 14) {
+            alert('Por favor, informe um CNPJ válido contendo 14 dígitos.');
+            return;
+        }
+
+        try {
+            setIsSearchingCNPJ(true);
+            const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('CNPJ não encontrado.');
+                }
+                throw new Error('Erro ao buscar CNPJ.');
+            }
+            
+            const data = await response.json();
+            
+            // Formatando o CEP se vier sem hífen
+            const returnedCep = data.cep ? data.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2') : formData.cep;
+            
+            setFormData(prev => ({
+                ...prev,
+                companyName: data.razao_social || prev.companyName,
+                tradeName: data.nome_fantasia || data.razao_social || prev.tradeName,
+                cep: returnedCep,
+                street: data.logradouro || prev.street,
+                number: data.numero || prev.number,
+                complement: data.complemento || prev.complement,
+                neighborhood: data.bairro || prev.neighborhood,
+                city: data.municipio || prev.city,
+                state: data.uf || prev.state,
+                constitution_date: data.data_inicio_atividade || prev.constitution_date
+            }));
+
+        } catch (error: any) {
+            console.error('Erro na busca de CNPJ:', error);
+            alert(error.message || 'Erro ao conectar-se à BrasilAPI.');
+        } finally {
+            setIsSearchingCNPJ(false);
+        }
+    };
 
     // --- Handlers ---
     const handleAddInscription = () => {
@@ -426,13 +476,28 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                         ]}
                         disabled={readOnly}
                     />
-                    <Input
-                        label={getDocumentLabel()}
-                        copyable
-                        value={formData.document}
-                        onChange={e => setFormData({ ...formData, document: e.target.value })}
-                        disabled={readOnly}
-                    />
+                    <div className="flex items-end gap-2">
+                        <Input
+                            label={getDocumentLabel()}
+                            copyable
+                            containerClassName="flex-1"
+                            value={formData.document}
+                            onChange={e => setFormData({ ...formData, document: e.target.value })}
+                            disabled={readOnly}
+                        />
+                        {!readOnly && personType === 'juridica' && (
+                            <Button 
+                                variant="secondary" 
+                                className="h-10 px-3" 
+                                onClick={handleSearchCNPJ}
+                                disabled={isSearchingCNPJ}
+                                icon={isSearchingCNPJ ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                                title="Buscar dados na Receita Federal"
+                            >
+                                Buscar
+                            </Button>
+                        )}
+                    </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Situação</label>
                         <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700 h-10">
