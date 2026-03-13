@@ -380,7 +380,8 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                     <select
                                        value={role}
                                        onChange={(e) => setRole(e.target.value)}
-                                       className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 dark:text-white appearance-none"
+                                       disabled={profile?.role === 'operacional'}
+                                       className={`w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 dark:text-white appearance-none ${profile?.role === 'operacional' ? 'opacity-60 cursor-not-allowed bg-slate-50 dark:bg-slate-900' : ''}`}
                                     >
                                        <option value="gestor">Gestor (Acesso Completo)</option>
                                        <option value="operacional">Operacional (Acesso Restrito)</option>
@@ -389,9 +390,15 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                        <Briefcase size={16} className="text-slate-400" />
                                     </div>
                                  </div>
-                                 <span className="text-xs text-slate-500">
-                                    Define o acesso a áreas sensíveis como Configurações.
-                                 </span>
+                                 {profile?.role === 'operacional' ? (
+                                    <span className="text-xs text-amber-600 dark:text-amber-500">
+                                       Usuários operacionais não podem alterar o próprio nível de acesso. Contate um gestor.
+                                    </span>
+                                 ) : (
+                                    <span className="text-xs text-slate-500">
+                                       Define o acesso a áreas sensíveis como Configurações.
+                                    </span>
+                                 )}
                               </div>
 
                               <Input

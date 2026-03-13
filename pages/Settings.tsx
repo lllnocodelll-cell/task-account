@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
+import { Modal } from '../components/ui/Modal';
 
 interface SettingsProps {
   userProfile: any;
@@ -76,7 +77,12 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [sectorId, setSectorId] = useState('');
+  const [role, setRole] = useState('operacional'); // New state for access role
   const [initialPassword, setInitialPassword] = useState(''); // Just for UI, logic pending
+
+  // Deletion Modal State
+  const [memberToDelete, setMemberToDelete] = useState<any>(null);
+  const [deleteModalState, setDeleteModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
 
   useEffect(() => {
     fetchData();
@@ -119,6 +125,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         last_name: lastName,
         email,
         sector_id: sectorId || null,
+        role: role // Add role here
       }).select();
 
       if (error) throw error;
@@ -129,6 +136,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setLastName('');
         setEmail('');
         setSectorId('');
+        setRole('operacional');
         setInitialPassword('');
         alert('Membro adicionado com sucesso!');
       }
@@ -162,14 +170,46 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover este membro?')) return;
+  const initDeleteMember = async (member: any) => {
+    setMemberToDelete(member);
+    setDeleteModalState('checking');
+
     try {
-      const { error } = await supabase.from('members').delete().eq('id', id);
-      if (error) throw error;
-      setMembers(members.filter(m => m.id !== id));
+      const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
+
+      const { data: tasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('responsible', fullName);
+
+      if (tasksError) throw tasksError;
+
+      if (tasks && tasks.length > 0) {
+        setDeleteModalState('cannot_delete');
+      } else {
+        setDeleteModalState('can_delete');
+      }
     } catch (error: any) {
-      alert('Erro ao remover: ' + error.message);
+      console.error('Erro ao buscar dependências do membro:', error);
+      alert('Erro ao verificar tarefas: ' + error.message);
+      setDeleteModalState('closed');
+      setMemberToDelete(null);
+    }
+  };
+
+  const confirmDeleteMember = async () => {
+    if (!memberToDelete) return;
+    setDeleteModalState('deleting');
+
+    try {
+      const { error } = await supabase.from('members').delete().eq('id', memberToDelete.id);
+      if (error) throw error;
+      setMembers(members.filter(m => m.id !== memberToDelete.id));
+    } catch (error: any) {
+      alert('Erro ao excluir membro: ' + error.message);
+    } finally {
+      setDeleteModalState('closed');
+      setMemberToDelete(null);
     }
   };
 
@@ -192,6 +232,15 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               ...sectors.map(s => ({ value: s.id, label: s.name }))
             ]}
           />
+          <Select
+             label="Nível de Permissão"
+             value={role}
+             onChange={e => setRole(e.target.value)}
+             options={[
+               { value: 'operacional', label: 'Operacional' },
+               { value: 'gestor', label: 'Gestor' }
+             ]}
+          />
           <Input label="Senha Inicial (Opcional)" value={initialPassword} onChange={e => setInitialPassword(e.target.value)} type="password" />
         </div>
         <div className="mt-4 flex justify-end">
@@ -205,7 +254,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         {members.map(member => (
           <div key={member.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 flex flex-col items-center text-center hover:border-indigo-500 dark:hover:border-indigo-500 transition-colors shadow-sm relative group">
             <button
-              onClick={() => handleDelete(member.id)}
+              onClick={() => initDeleteMember(member)}
               className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <Trash2 size={16} />
@@ -215,11 +264,19 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             </div>
             <h4 className="font-semibold text-slate-900 dark:text-white">{member.first_name} {member.last_name}</h4>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{member.email}</p>
-            {member.sectors?.name && (
-              <span className="text-xs px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full mb-2">
-                {member.sectors.name}
-              </span>
-            )}
+            
+            <div className="flex flex-wrap justify-center gap-2 mb-2">
+              {member.sectors?.name && (
+                <span className="text-xs px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full">
+                  {member.sectors.name}
+                </span>
+              )}
+              {member.role && (
+                <span className={`text-xs px-2 py-1 rounded-full ${member.role === 'gestor' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                  {member.role === 'gestor' ? 'Gestor' : 'Operacional'}
+                </span>
+              )}
+            </div>
 
             <div className="flex items-center gap-2 mb-4 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
               <Toggle
@@ -251,8 +308,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 icon={<Copy size={14} />}
                 onClick={() => {
                   const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
-                  const msg = `Olá ${member.first_name}, você foi convidado para o Task Account! Finalize seu cadastro em: ${inviteLink}`;
-                  navigator.clipboard.writeText(msg);
+                  navigator.clipboard.writeText(inviteLink);
                   alert('Link de convite copiado!');
                 }}
               >
@@ -265,6 +321,80 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           <div className="md:col-span-3 text-center py-8 text-slate-500">Nenhum membro cadastrado.</div>
         )}
       </div>
+
+      {/* Modal de Exclusão de Membro */}
+      <Modal
+          isOpen={deleteModalState !== 'closed'}
+          onClose={() => {
+              if (deleteModalState !== 'deleting') {
+                  setDeleteModalState('closed');
+              }
+          }}
+          title={deleteModalState === 'cannot_delete' ? "Exclusão Bloqueada" : "Confirmar Exclusão"}
+          size="md"
+          footer={
+              deleteModalState === 'can_delete' ? (
+                  <>
+                      <Button variant="secondary" onClick={() => setDeleteModalState('closed')}>
+                          Cancelar
+                      </Button>
+                      <Button
+                          variant="danger"
+                          onClick={confirmDeleteMember}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                          Excluir Membro
+                      </Button>
+                  </>
+              ) : deleteModalState === 'deleting' ? (
+                  <Button variant="secondary" disabled>
+                      <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                      Excluindo...
+                  </Button>
+              ) : (
+                  <Button variant="secondary" onClick={() => setDeleteModalState('closed')}>
+                      Entendi
+                  </Button>
+              )
+          }
+      >
+          {deleteModalState === 'checking' && (
+              <div className="flex flex-col items-center justify-center py-6 text-slate-500 dark:text-slate-400">
+                  <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-600" />
+                  <p>Verificando dependências do membro...</p>
+              </div>
+          )}
+
+          {deleteModalState === 'cannot_delete' && (
+              <div className="py-4 text-slate-700 dark:text-slate-300">
+                  <div className="flex items-center gap-3 mb-4 text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-500/10 p-4 rounded-lg">
+                      <ListFilter className="w-6 h-6 shrink-0" />
+                      <p className="font-medium">
+                          Não é possível excluir <strong>{memberToDelete?.first_name} {memberToDelete?.last_name}</strong>.
+                      </p>
+                  </div>
+                  <p>
+                      Este membro possui <strong>tarefas vinculadas</strong> no módulo de Tarefas.
+                      Para manter o histórico íntegro, a exclusão sistêmica foi bloqueada.
+                  </p>
+                  <p className="mt-4 text-sm text-slate-500">
+                      Caso ele não faça mais parte da equipe, recomendamos alterar a Situação dele para <strong>Inativo</strong> no switch do card.
+                  </p>
+              </div>
+          )}
+
+          {deleteModalState === 'can_delete' && (
+              <div className="py-4 text-slate-700 dark:text-slate-300">
+                  <p>
+                      Você tem certeza que deseja excluir permanentemente o membro <strong>{memberToDelete?.first_name} {memberToDelete?.last_name}</strong>?
+                  </p>
+                  <p className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded border border-red-100 dark:border-red-900/50">
+                      Esta ação é irreversível. O membro perderá o acesso e todos os dados serão apagados.
+                  </p>
+              </div>
+          )}
+      </Modal>
+
     </div>
   );
 };
@@ -705,6 +835,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [holidays, setHolidays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   // Form
   const [date, setDate] = useState('');
@@ -753,6 +884,55 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setHolidays(holidays.filter(h => h.id !== id));
   };
 
+  const handleImportHolidays = async () => {
+    setImporting(true);
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/feriados/v1/${year}`);
+      if (!response.ok) throw new Error('Falha ao buscar feriados da Brasil API');
+      
+      const apiHolidays = await response.json();
+      
+      // Filter out existing holidays for this year by date
+      const existingDates = new Set(
+        holidays
+          .filter(h => h.date && h.date.startsWith(String(year)))
+          .map(h => h.date)
+      );
+      
+      const newHolidays = apiHolidays.filter((apiH: any) => !existingDates.has(apiH.date));
+      
+      if (newHolidays.length === 0) {
+        alert(`Todos os feriados nacionais de ${year} já estão no calendário.`);
+        setImporting(false);
+        return;
+      }
+
+      // Prepare payload for Supabase
+      const payload = newHolidays.map((apiH: any) => ({
+        org_id: userProfile.org_id,
+        date: apiH.date,
+        name: apiH.name,
+        type: 'Nacional'
+      }));
+
+      const { data, error } = await supabase
+        .from('holidays')
+        .insert(payload)
+        .select();
+
+      if (error) throw error;
+      
+      if (data) {
+        setHolidays(prev => [...prev, ...data]);
+        alert(`${newHolidays.length} feriados nacionais importados com sucesso!`);
+      }
+    } catch (error: any) {
+      alert('Erro ao importar feriados: ' + error.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // Filter keys by year
   const filteredHolidays = holidays.filter(h => h.date && h.date.startsWith(String(year)));
   const sortedHolidays = [...filteredHolidays].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -767,6 +947,14 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Adicionar Feriado</h3>
             <p className="text-sm text-slate-500">Cadastre feriados nacionais, estaduais ou municipais.</p>
           </div>
+          <Button
+            variant="secondary"
+            icon={importing ? <Loader2 className="animate-spin" size={16} /> : <CloudDownload size={16} />}
+            onClick={handleImportHolidays}
+            disabled={importing}
+          >
+            {importing ? 'Importando...' : `Importar Nacionais ${year}`}
+          </Button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <Input label="Data" type="date" value={date} onChange={e => setDate(e.target.value)} />

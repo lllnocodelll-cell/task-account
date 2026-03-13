@@ -106,16 +106,30 @@ const DEFAULT_ACTIVE_WIDGETS = [
 
 interface DashboardGridProps {
     userId: string;
+    role: string;
+    orgId?: string;
 }
 
-export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
+export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgId }) => {
     const [layouts, setLayouts] = useState<{ [key: string]: any[] }>({ lg: [] });
     const [activeWidgets, setActiveWidgets] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const allWidgets = Object.keys(WIDGET_REGISTRY);
+    const OPERACIONAL_ALLOWED_WIDGETS = [
+        'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
+        'topTasks', 'uncompletedTasks', 'clientStatus', 
+        'notifiedExclusion', 'topSegments'
+    ];
+
+    const allWidgets = Object.keys(WIDGET_REGISTRY).filter(id => 
+        role === 'gestor' || OPERACIONAL_ALLOWED_WIDGETS.includes(id)
+    );
+
+    const defaultWidgetsForRole = role === 'gestor' 
+        ? DEFAULT_ACTIVE_WIDGETS 
+        : DEFAULT_ACTIVE_WIDGETS.filter(id => OPERACIONAL_ALLOWED_WIDGETS.includes(id));
 
     // Fechar menu ao clicar fora
     useEffect(() => {
@@ -141,13 +155,21 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
                 if (error) throw error;
 
                 if (data) {
-                    setLayouts({ lg: data.layout || [] });
-                    setActiveWidgets(data.widgets || DEFAULT_ACTIVE_WIDGETS);
+                    // Filter loaded widgets based on role
+                    const validWidgets = (data.widgets || defaultWidgetsForRole).filter((id: string) => 
+                        role === 'gestor' || OPERACIONAL_ALLOWED_WIDGETS.includes(id)
+                    );
+                    
+                    // Filter layout to only include valid widgets
+                    const validLayout = (data.layout || []).filter((l: any) => validWidgets.includes(l.i));
+                    
+                    setLayouts({ lg: validLayout });
+                    setActiveWidgets(validWidgets);
                 } else {
                     // Initialize with defaults if none exist
-                    const defaultLgLayout = DEFAULT_ACTIVE_WIDGETS.map(id => WIDGET_REGISTRY[id].defaultLayout);
+                    const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
                     setLayouts({ lg: defaultLgLayout });
-                    setActiveWidgets(DEFAULT_ACTIVE_WIDGETS);
+                    setActiveWidgets(defaultWidgetsForRole);
 
                     // Save default async
                     await supabase.from('user_dashboard_configs').insert({
@@ -312,7 +334,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId }) => {
                     const WidgetComponent = widgetConfig.component;
                     return (
                         <div key={widgetId}>
-                            <WidgetComponent onRemove={() => toggleWidget(widgetId)} orgId={userId} />
+                            <WidgetComponent onRemove={() => toggleWidget(widgetId)} orgId={orgId || userId} />
                         </div>
                     );
                 })}

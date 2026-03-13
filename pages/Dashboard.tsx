@@ -10,6 +10,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userRole }) => {
   const role = userProfile?.role || userRole || 'gestor';
   const userId = userProfile?.id;
+  const orgId = userProfile?.org_id;
 
   return (
     <div className="space-y-6">
@@ -26,7 +27,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userRole }) =
       </div>
 
       {userId ? (
-        <DashboardGrid userId={userId} />
+        <DashboardGrid userId={userId} role={role} orgId={orgId} />
       ) : (
         <div className="flex items-center justify-center h-64 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
           <p className="text-slate-500 dark:text-slate-400">Carregando painéis...</p>
