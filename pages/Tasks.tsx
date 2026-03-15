@@ -46,6 +46,7 @@ import { Input, Select, SearchableSelect, Toggle } from '../components/ui/Input'
 import { supabase } from '../utils/supabaseClient';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 import { ClientForm } from '../components/ClientForm';
+import { TutorialsModal } from '../components/tutorials/TutorialsModal';
 
 // --- CONFIGS ---
 
@@ -341,20 +342,57 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             >
               {task.taskName}
             </h4>
-            {task.observation && (
-              <div className="flex items-center gap-1 mb-2 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                <Info size={10} />
-                <span>Observação</span>
-              </div>
-            )}
-            {task.noMovement && (
-              <div className="flex items-center gap-1 mb-2 text-[10px] text-red-600 dark:text-red-400 font-bold tracking-tight">
-                <MinusCircle size={10} />
-                <span>Sem movimento</span>
-              </div>
-            )}
+            {/* Features / Flags */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-2 mt-2">
+              {task.observation && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-[9px] text-amber-600 dark:text-amber-400 font-medium border border-amber-200 dark:border-amber-500/20" title="Possui observação">
+                  <Info size={10} /> Obs
+                </span>
+              )}
+              {task.noMovement && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-bold border border-red-200 dark:border-red-500/20" title="Sem movimento">
+                  <MinusCircle size={10} /> S/ Mov
+                </span>
+              )}
+              {task.hasBranches && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-[9px] text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-500/20" title="Possui filiais">
+                  <GitMerge size={10} /> Filiais
+                </span>
+              )}
+              {task.registrationRegime && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px] text-slate-600 dark:text-slate-400 font-medium border border-slate-200 dark:border-slate-700" title="Regime de Registro">
+                  <Activity size={10} /> {task.registrationRegime}
+                </span>
+              )}
+              {task.taxRegime === 'simples' && (
+                <>
+                  {task.selectedAnnexes && task.selectedAnnexes.length > 0 && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 text-[9px] text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-200 dark:border-emerald-500/20" title="Anexos">
+                      <Layers size={10} /> {task.selectedAnnexes.map(a => a.replace('Anexo ', '')).join(', ')}
+                    </span>
+                  )}
+                  {task.factorR && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-[9px] text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-500/20" title="Fator R">
+                      <Zap size={10} fill="currentColor" /> Fator R
+                    </span>
+                  )}
+                  {task.exceededSublimit && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-[9px] text-amber-600 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-500/20" title="Excedeu Sublimite">
+                      <AlertTriangle size={10} /> Sublimite
+                    </span>
+                  )}
+                  {task.notifiedExclusion && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-500/10 text-[9px] text-rose-600 dark:text-rose-400 font-bold border border-rose-200 dark:border-rose-500/20" title="Exclusão Notificada">
+                      <AlertTriangle size={10} /> Exclusão
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Client Context Box */}
             <div
-              className="flex items-center gap-1.5 cursor-pointer hover:text-indigo-600 transition-colors"
+              className="flex flex-col gap-1.5 bg-slate-50 dark:bg-slate-900/40 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-800/50 transition-colors group/client"
               onClick={(e) => {
                 e.stopPropagation();
                 const clientData = clients.find(c => c.id === task.clientId);
@@ -363,29 +401,48 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 }
               }}
             >
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5 truncate flex-1">{task.clientName}</p>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-tight line-clamp-2 group-hover/client:text-indigo-600 dark:group-hover/client:text-indigo-400 transition-colors">
+                  {task.clientName}
+                </p>
+              </div>
+              
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                {(task.clientCity || task.clientState) ? (
+                  <div className="flex items-center gap-1 text-[9px] text-slate-400 font-medium">
+                    <MapPin size={9} className="text-slate-300 dark:text-slate-500 shrink-0" />
+                    <span className="truncate">{task.clientCity}{task.clientCity && task.clientState ? '-' : ''}{task.clientState}</span>
+                  </div>
+                ) : (
+                  <span className="text-[9px] text-transparent select-none">-</span>
+                )}
+                {task.selectedDfes && task.selectedDfes.length > 0 && (
+                  <div className="flex items-center gap-1 text-[9px] text-slate-500 font-semibold align-bottom" title={task.selectedDfes.map(d => d.toUpperCase()).join(', ')}>
+                    <FileStack size={9} className="text-slate-400 shrink-0" />
+                    <span className="truncate">{task.selectedDfes.length} DF-e</span>
+                  </div>
+                )}
+              </div>
             </div>
-            {(task.clientCity || task.clientState) && (
-              <div className="flex items-center gap-1 mb-1 text-[10px] text-slate-400">
-                <MapPin size={10} className="text-slate-300 dark:text-slate-500" />
-                <span className="truncate">{task.clientCity}{task.clientCity && task.clientState ? ', ' : ''}{task.clientState}</span>
-              </div>
-            )}
-            {task.hasBranches && (
-              <div className="flex items-center gap-1 mb-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold">
-                <GitMerge size={10} />
-                <span>Filiais</span>
-              </div>
-            )}
-            {task.selectedDfes && task.selectedDfes.length > 0 && (
-              <div className="flex items-center gap-1 mb-2 text-[10px] text-slate-400">
-                <FileStack size={10} className="text-slate-300 dark:text-slate-500" />
-                <span className="truncate">DF-e: {task.selectedDfes.map(dfe => dfe.toUpperCase()).join(', ')}</span>
-              </div>
-            )}
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
-              <span className="text-xs text-slate-400">{task.competence}</span>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{task.competence}</span>
+                  {task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence) && (
+                    <span className="inline-flex items-center gap-1 px-1.5 bg-slate-100 dark:bg-slate-800 rounded text-[9px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 truncate max-w-[80px]" title={`Recorrência: ${task.recurrence}`}>
+                      <Repeat size={8} className="shrink-0" />
+                      <span className="capitalize truncate">{task.recurrence}</span>
+                    </span>
+                  )}
+                </div>
+                {task.dueDate && (
+                  <div className="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-medium" title="Vencimento">
+                    <Calendar size={10} />
+                    <span>{task.dueDate.split('-').reverse().join('/')}</span>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {status !== TaskStatus.CONCLUIDA && (
                   <button
@@ -448,6 +505,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [clientViewModalOpen, setClientViewModalOpen] = useState(false);
   const [selectedClientForView, setSelectedClientForView] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
 
   // Filter Values State
   const [filters, setFilters] = useState(() => {
@@ -862,6 +920,14 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             disabled={Object.values(filters).every(v => v === '')}
           >
             Limpar
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setTutorialsModalOpen(true)}
+            icon={<FileText size={16} />}
+            className="text-xs"
+          >
+            Manuais / Tutoriais
           </Button>
           <Button onClick={handleCreate} icon={<Plus size={18} />}>Nova Tarefa</Button>
         </div>
@@ -1759,6 +1825,16 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           </div>
         </div>
       </Modal>
+      {/* Tutorials Modal */}
+      {tutorialsModalOpen && (
+        <TutorialsModal
+          isOpen={tutorialsModalOpen}
+          onClose={() => setTutorialsModalOpen(false)}
+          orgId={userProfile?.org_id}
+          userId={userProfile?.id}
+          clients={clients}
+        />
+      )}
     </div >
   );
 };

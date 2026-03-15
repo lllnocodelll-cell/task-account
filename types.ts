@@ -96,3 +96,19 @@ export interface TaskType {
   sector: string;
   federativeEntity: 'Municipal' | 'Estadual' | 'Federal' | 'Outro';
 }
+
+export interface Tutorial {
+  id: string;
+  org_id: string;
+  subject: string;
+  client_id?: string | null;
+  url?: string | null;
+  description?: string | null;
+  file_path?: string | null;
+  file_name?: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  clients?: { company_name?: string; trade_name?: string } | null;
+  profiles?: { full_name?: string; avatar_url?: string } | null;
+}
