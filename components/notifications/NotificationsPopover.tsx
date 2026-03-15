@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../utils/supabaseClient';
 import { Notification } from '../../types';
-import { Check, Clock, TrendingUp, AlertCircle, FileText, Bell, CheckCircle, CalendarClock, ShieldAlert } from 'lucide-react';
+import { Check, Clock, TrendingUp, AlertCircle, FileText, Bell, CheckCircle, CalendarClock, ShieldAlert, MailOpen, Mail } from 'lucide-react';
 
 interface NotificationsPopoverProps {
   userId: string;
@@ -101,6 +101,23 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
       );
     } catch (e) {
       console.error('Error marking as read:', e);
+    }
+  };
+
+  const handleMarkAsUnread = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: false })
+        .eq('id', id);
+      if (error) throw error;
+      
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: false } : n)
+      );
+    } catch (e2) {
+      console.error('Error marking as unread:', e2);
     }
   };
 
@@ -206,7 +223,16 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
                     <p className={`text-sm truncate ${notif.read ? 'text-slate-700 dark:text-slate-300 font-medium' : 'text-slate-900 dark:text-white font-bold'}`}>
                       {notif.title}
                     </p>
-                    {!notif.read && <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0 mt-1.5" />}
+                    {!notif.read 
+                      ? <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0 mt-1.5" />
+                      : <button
+                          onClick={(e) => handleMarkAsUnread(notif.id, e)}
+                          className="p-0.5 text-slate-400 hover:text-amber-500 rounded transition-colors shrink-0 mt-0.5"
+                          title="Marcar como não lida"
+                        >
+                          <Mail size={12} />
+                        </button>
+                    }
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-1.5 leading-snug">
                     {notif.message}

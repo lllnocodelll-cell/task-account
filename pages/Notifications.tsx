@@ -14,7 +14,9 @@ import {
   AlertCircle,
   FileText,
   CalendarClock,
-  ShieldAlert
+  ShieldAlert,
+  MailOpen,
+  Mail
 } from 'lucide-react';
 
 export const Notifications: React.FC = () => {
@@ -127,6 +129,20 @@ export const Notifications: React.FC = () => {
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     } catch (e) {
       console.error('Error marking as read:', e);
+    }
+  };
+
+  const markAsUnread = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: false })
+        .eq('id', id);
+      if (error) throw error;
+      
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: false } : n));
+    } catch (e) {
+      console.error('Error marking as unread:', e);
     }
   };
 
@@ -251,13 +267,21 @@ export const Notifications: React.FC = () => {
                     </p>
                  </div>
                  <div className="flex flex-col gap-2 shrink-0 ml-4 border-l pl-4 border-slate-100 dark:border-slate-800 justify-center">
-                    {!notification.read && (
+                    {!notification.read ? (
                       <button 
                         onClick={() => markAsRead(notification.id)}
                         className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors" 
                         title="Marcar como lida"
                       >
-                        <Check size={18} />
+                        <MailOpen size={18} />
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => markAsUnread(notification.id)}
+                        className="p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg transition-colors" 
+                        title="Marcar como não lida"
+                      >
+                        <Mail size={18} />
                       </button>
                     )}
                     <button 
