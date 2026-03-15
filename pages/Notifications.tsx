@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { supabase } from '../utils/supabaseClient';
+import { Notification } from '../types';
 import { 
   Bell, 
   CheckCircle, 
@@ -9,90 +11,158 @@ import {
   Clock, 
   Check, 
   Trash2, 
-  Mail,
-  FileText
+  AlertCircle,
+  FileText,
+  CalendarClock,
+  ShieldAlert
 } from 'lucide-react';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'alert';
-  time: string;
-  read: boolean;
-}
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    title: 'Nova Tarefa Atribuída',
-    message: 'Você foi definido como responsável pela tarefa "Fechamento Fiscal - Tech Solutions".',
-    type: 'info',
-    time: 'Há 15 minutos',
-    read: false,
-  },
-  {
-    id: '2',
-    title: 'Tarefa Concluída',
-    message: 'João Silva concluiu a tarefa "DAS - 01/2026" que você estava seguindo.',
-    type: 'success',
-    time: 'Há 1 hora',
-    read: false,
-  },
-  {
-    id: '3',
-    title: 'Prazo Próximo',
-    message: 'A tarefa "Folha de Pagamento - Mercado Silva" vence amanhã.',
-    type: 'warning',
-    time: 'Há 3 horas',
-    read: true,
-  },
-  {
-    id: '4',
-    title: 'Documento Recebido',
-    message: 'Novo comprovante anexado na tarefa "Impostos Federais".',
-    type: 'info',
-    time: 'Ontem',
-    read: true,
-  },
-   {
-    id: '5',
-    title: 'Alerta de Sistema',
-    message: 'O sistema passará por manutenção programada neste sábado às 22h.',
-    type: 'alert',
-    time: 'Ontem',
-    read: true,
-  }
-];
 
 export const Notifications: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        fetchNotifications(user.id);
+      } else {
+        setLoading(false);
+      }
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel('public:notifications_page')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
+      }, (payload) => {
+        setNotifications((prev) => [payload.new as Notification, ...prev]);
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
+      }, (payload) => {
+        setNotifications((prev) => 
+          prev.map(n => n.id === payload.new.id ? (payload.new as Notification) : n)
+        );
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
+      }, (payload) => {
+        setNotifications((prev) => prev.filter(n => n.id !== payload.old.id));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+  const fetchNotifications = async (uid: string) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      if (data) setNotifications(data);
+    } catch (e) {
+      console.error('Error fetching notifications:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredNotifications = notifications.filter(n => {
     if (filter === 'unread') return !n.read;
     return true;
   });
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    if (!userId) return;
+    try {
+      const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+      if (unreadIds.length === 0) return;
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .in('id', unreadIds);
+      
+      if (error) throw error;
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (e) {
+      console.error('Error marking all as read:', e);
+    }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  const markAsRead = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', id);
+      if (error) throw error;
+      
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (e) {
+      console.error('Error marking as read:', e);
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const deleteNotification = async (id: string) => {
+    try {
+      // Optimistic update
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      
+    } catch (e) {
+      console.error('Error deleting notification:', e);
+      if (userId) fetchNotifications(userId);
+    }
   };
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'success': return <CheckCircle size={20} className="text-emerald-500" />;
-      case 'warning': return <Clock size={20} className="text-amber-500" />;
-      case 'alert': return <AlertTriangle size={20} className="text-red-500" />;
-      default: return <Info size={20} className="text-blue-500" />;
+      case 'task_assigned': return <Clock size={20} className="text-blue-500" />;
+      case 'task_concluded': return <CheckCircle size={20} className="text-emerald-500" />;
+      case 'task_alert': return <AlertTriangle size={20} className="text-amber-500" />;
+      case 'task_alert_critical': return <AlertCircle size={20} className="text-red-500" />;
+      case 'new_tutorial': return <FileText size={20} className="text-indigo-500" />;
+      case 'task_due_soon': return <CalendarClock size={20} className="text-orange-500" />;
+      case 'license_expiring': return <ShieldAlert size={20} className="text-rose-500" />;
+      default: return <Info size={20} className="text-slate-500" />;
     }
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -102,22 +172,22 @@ export const Notifications: React.FC = () => {
            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
              <Bell className="text-indigo-600 dark:text-indigo-400" /> Notificações
            </h1>
-           <p className="text-slate-500 dark:text-slate-400">Acompanhe suas atualizações e alertas</p>
+           <p className="text-slate-500 dark:text-slate-400">Acompanhe suas atualizações e alertas gerais</p>
         </div>
         <div className="flex gap-2">
            <Button 
              variant="ghost" 
              onClick={markAllAsRead}
-             disabled={notifications.every(n => n.read)}
+             disabled={notifications.filter(n => !n.read).length === 0}
              icon={<Check size={16} />}
-             className="text-xs"
+             className="text-xs font-semibold"
            >
              Marcar todas como lidas
            </Button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm min-h-[500px] flex flex-col">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm flex flex-col">
         {/* Tabs */}
         <div className="flex border-b border-slate-200 dark:border-slate-800 px-2">
           <button
@@ -132,7 +202,7 @@ export const Notifications: React.FC = () => {
           </button>
           <button
             onClick={() => setFilter('unread')}
-            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
               filter === 'unread' 
                 ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' 
                 : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -140,7 +210,7 @@ export const Notifications: React.FC = () => {
           >
             Não lidas
             {notifications.filter(n => !n.read).length > 0 && (
-               <span className="ml-2 px-1.5 py-0.5 text-xs bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 rounded-full">
+               <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 font-bold rounded-full">
                  {notifications.filter(n => !n.read).length}
                </span>
             )}
@@ -148,9 +218,13 @@ export const Notifications: React.FC = () => {
         </div>
 
         {/* List */}
-        <div className="flex-1 divide-y divide-slate-100 dark:divide-slate-800">
-           {filteredNotifications.length === 0 ? (
-             <div className="flex flex-col items-center justify-center h-64 text-slate-400 dark:text-slate-500">
+        <div className="flex-1 divide-y divide-slate-100 dark:divide-slate-800 min-h-[400px]">
+           {loading ? (
+             <div className="flex justify-center items-center h-[400px]">
+               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+             </div>
+           ) : filteredNotifications.length === 0 ? (
+             <div className="flex flex-col items-center justify-center h-[400px] text-slate-400 dark:text-slate-500">
                <Bell size={48} strokeWidth={1.5} className="mb-4 opacity-50" />
                <p>Nenhuma notificação encontrada.</p>
              </div>
@@ -166,32 +240,32 @@ export const Notifications: React.FC = () => {
                     </div>
                  </div>
                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-1">
-                       <h4 className={`text-sm font-semibold truncate pr-4 ${!notification.read ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>
+                    <div className="flex justify-between items-start mb-1 gap-4">
+                       <h4 className={`text-sm font-semibold truncate ${!notification.read ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-300'}`}>
                          {notification.title}
                        </h4>
-                       <span className="text-xs text-slate-400 whitespace-nowrap">{notification.time}</span>
+                       <span className="text-xs text-slate-400 font-medium whitespace-nowrap shrink-0">{formatTime(notification.created_at)}</span>
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                       {notification.message}
                     </p>
                  </div>
-                 <div className="flex flex-col gap-2 shrink-0 ml-2">
+                 <div className="flex flex-col gap-2 shrink-0 ml-4 border-l pl-4 border-slate-100 dark:border-slate-800 justify-center">
                     {!notification.read && (
                       <button 
                         onClick={() => markAsRead(notification.id)}
                         className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors" 
                         title="Marcar como lida"
                       >
-                        <Check size={16} />
+                        <Check size={18} />
                       </button>
                     )}
                     <button 
                       onClick={() => deleteNotification(notification.id)}
                       className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" 
-                      title="Excluir"
+                      title="Excluir notificação"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={18} />
                     </button>
                  </div>
                </div>

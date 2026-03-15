@@ -127,7 +127,16 @@ function App() {
     };
 
     // Initial update forced to check session state
-    updateActivity(true);
+    const initSessionAsync = async () => {
+      await updateActivity(true);
+      // Trigger the daily expiration check (tasks due soon, licenses expiring)
+      try {
+        await supabase.rpc('check_daily_expirations');
+      } catch (err) {
+        console.error('Error checking daily expirations:', err);
+      }
+    };
+    initSessionAsync();
 
     // Listeners for window events
     window.addEventListener('mousemove', () => updateActivity(), { passive: true });
@@ -295,7 +304,7 @@ function App() {
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
           onProfileClick={() => setActiveTab('profile')}
-          onNotificationsClick={() => setActiveTab('notifications')}
+          onNavigateToTab={(tab) => setActiveTab(tab)}
           userRole={userRole}
           userProfile={userProfile}
         />

@@ -574,6 +574,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const fetchTasks = async () => {
     try {
       setLoading(true);
+      
+      // Fetch members and their sectors for accurate sector mapping
+      const { data: membersData, error: membersError } = await supabase
+        .from('members')
+        .select('first_name, last_name, sectors(name)')
+        .eq('org_id', userProfile.org_id);
+        
+      if (membersError) console.error('Error fetching members for sectors:', membersError);
+      
       const { data, error } = await supabase
         .from('tasks')
         .select(`
@@ -587,38 +596,47 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
       if (data) {
         // Map DB fields to component Task type if names differ
-        const mappedTasks: Task[] = data.map((t: any) => ({
-          id: t.id,
-          clientId: t.client_id,
-          clientName: t.client_name,
-          taskName: t.task_name,
-          competence: t.competence,
-          taxRegime: t.tax_regime,
-          priority: t.priority as Priority,
-          sector: t.sector,
-          responsible: t.responsible,
-          status: t.status as TaskStatus,
-          dueDate: t.due_date,
-          variableAdjustment: t.variable_adjustment,
-          recurrence: t.recurrence,
-          recurrenceMonths: t.recurrence_months,
-          registrationRegime: t.registration_regime,
-          observation: t.observation,
-          noMovement: t.no_movement,
-          exceededSublimit: t.exceeded_sublimit,
-          factorR: t.factor_r,
-          notifiedExclusion: t.notified_exclusion,
-          selectedAnnexes: t.selected_annexes,
-          selectedDfes: t.selected_dfes,
-          clientCity: t.clients?.city,
-          clientState: t.clients?.state,
-          hasBranches: t.clients?.has_branches,
-          attachments: t.attachments?.map((a: any) => ({
-            name: a.file_name,
-            size: a.file_size,
-            url: a.download_url
-          }))
-        }));
+        const mappedTasks: Task[] = data.map((t: any) => {
+          // Find the current sector of the responsible member
+          const member = membersData?.find(m => 
+            `${m.first_name || ''} ${m.last_name || ''}`.trim() === t.responsible || 
+            (m.first_name || '').trim() === t.responsible
+          );
+          const currentSector = member?.sectors?.name || t.sector;
+
+          return {
+            id: t.id,
+            clientId: t.client_id,
+            clientName: t.client_name,
+            taskName: t.task_name,
+            competence: t.competence,
+            taxRegime: t.tax_regime,
+            priority: t.priority as Priority,
+            sector: currentSector,
+            responsible: t.responsible,
+            status: t.status as TaskStatus,
+            dueDate: t.due_date,
+            variableAdjustment: t.variable_adjustment,
+            recurrence: t.recurrence,
+            recurrenceMonths: t.recurrence_months,
+            registrationRegime: t.registration_regime,
+            observation: t.observation,
+            noMovement: t.no_movement,
+            exceededSublimit: t.exceeded_sublimit,
+            factorR: t.factor_r,
+            notifiedExclusion: t.notified_exclusion,
+            selectedAnnexes: t.selected_annexes,
+            selectedDfes: t.selected_dfes,
+            clientCity: t.clients?.city,
+            clientState: t.clients?.state,
+            hasBranches: t.clients?.has_branches,
+            attachments: t.attachments?.map((a: any) => ({
+              name: a.file_name,
+              size: a.file_size,
+              url: a.download_url
+            }))
+          };
+        });
         setTasks(mappedTasks);
       }
     } catch (error) {

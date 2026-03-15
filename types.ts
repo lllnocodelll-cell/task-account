@@ -112,3 +112,15 @@ export interface Tutorial {
   clients?: { company_name?: string; trade_name?: string } | null;
   profiles?: { full_name?: string; avatar_url?: string } | null;
 }
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  link?: string | null;
+  related_entity_id?: string | null;
+  created_at: string;
+}
