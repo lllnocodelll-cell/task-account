@@ -62,7 +62,7 @@ const DF_MODELS = [
   { id: 'nff', label: 'NFF', desc: 'Nota Fiscal Fácil' },
   { id: 'dce', label: 'DC-e', desc: 'Declaração de Conteúdo Eletrônica' },
   { id: 'nfag', label: 'NFAG', desc: 'Nota Fiscal de Água e Esgoto' },
-  { id: 'nfabi', label: 'NFABI', desc: 'Nota Fiscal de Alienação de Bens Imóveis' },
+  { id: 'nfabi', label: 'NF-e ABI', desc: 'Nota Fiscal de Alienação de Bens Imóveis' },
   { id: 'nfgas', label: 'NFGAS', desc: 'Nota Fiscal de Gás Canalizado' },
 ];
 
@@ -354,9 +354,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   <MinusCircle size={10} /> S/ Mov
                 </span>
               )}
-              {task.hasBranches && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-[9px] text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-500/20" title="Possui filiais">
-                  <GitMerge size={10} /> Filiais
+              {task.establishmentType === 'filial' && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-[9px] text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-500/20" title="É uma filial">
+                  <GitMerge size={10} /> Filial
                 </span>
               )}
               {task.registrationRegime && (
@@ -587,7 +587,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         .from('tasks')
         .select(`
           *,
-          clients(city, state, has_branches),
+          clients(city, state, establishment_type),
           attachments:task_attachments(*)
         `)
         .order('created_at', { ascending: false });
@@ -629,7 +629,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             selectedDfes: t.selected_dfes,
             clientCity: t.clients?.city,
             clientState: t.clients?.state,
-            hasBranches: t.clients?.has_branches,
+            establishmentType: t.clients?.establishment_type,
             attachments: t.attachments?.map((a: any) => ({
               name: a.file_name,
               size: a.file_size,
@@ -678,7 +678,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           admin_partner_name: c.admin_partner_name,
           admin_partner_cpf: c.admin_partner_cpf,
           admin_partner_birthdate: c.admin_partner_birthdate,
-          has_branches: c.has_branches,
+          establishment_type: c.establishment_type,
           zip_code: c.zip_code,
           street: c.street,
           street_number: c.street_number,
@@ -1773,12 +1773,14 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         isOpen={clientViewModalOpen}
         onClose={() => setClientViewModalOpen(false)}
         size="7xl"
+        title="Visualizar Cliente"
       >
         {selectedClientForView && (
           <ClientForm
             onBack={() => setClientViewModalOpen(false)}
             initialData={selectedClientForView}
             isViewOnly={true}
+            userProfile={userProfile}
           />
         )}
       </Modal>
@@ -2415,18 +2417,14 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* COLUNA ESQUERDA: CONTEXTO DO CLIENTE */}
         <div className="lg:col-span-4 space-y-6">
-          <Card
-            title={
-              <div className="flex items-center justify-between w-full">
-                <span>Contexto do Cliente</span>
-                {activeClientId && (
-                  <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold rounded-full uppercase tracking-tighter animate-pulse">
-                    Editando: {activeClientId}
-                  </span>
-                )}
+          <Card title="Contexto do Cliente">
+            {activeClientId && (
+              <div className="flex justify-end mb-4">
+                <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold rounded-full uppercase tracking-tighter animate-pulse">
+                  Editando: {activeClientId}
+                </span>
               </div>
-            }
-          >
+            )}
             <div className="space-y-6">
               <div className="space-y-4">
                 <SearchableSelect

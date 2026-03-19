@@ -34,6 +34,7 @@ interface ClientAccess { id?: string; client_id?: string; access_name: string; u
 interface ClientCertificate { id?: string; client_id?: string; model: string; expires_at?: string; password?: string; signatory?: string; expiration_date?: string; }
 interface ClientLicense { id?: string; client_id?: string; license_name: string; license_number?: string; expiry_date?: string; access_url?: string; number?: string; expiration_date?: string; }
 interface ClientLegislation { id?: string; client_id?: string; description: string; status?: string; access_url?: string; }
+interface ClientDfeSeries { id?: string; client_id?: string; dfe_type: string; series: string; issuer?: string; username?: string; password?: string; login_url?: string; }
 
 type ClientTable =
     | 'client_inscriptions'
@@ -43,7 +44,8 @@ type ClientTable =
     | 'client_accesses'
     | 'client_certificates'
     | 'client_licenses'
-    | 'client_legislations';
+    | 'client_legislations'
+    | 'client_dfe_series';
 
 export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | null; isViewOnly?: boolean; userProfile: any }> = ({ onBack, initialData, isViewOnly = false, userProfile }) => {
     const isEditing = !!initialData;
@@ -68,7 +70,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         constitution_date: initialData?.constitution_date || '',
         entry_date: initialData?.entry_date || '',
         exit_date: initialData?.exit_date || '',
-        has_branches: initialData?.has_branches === true ? 's' : 'n',
+        establishment_type: (initialData as any)?.establishment_type || 'matriz',
         cep: initialData?.zip_code || '',
         street: initialData?.street || '',
         number: initialData?.street_number || '',
@@ -87,6 +89,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [certificates, setCertificates] = useState<ClientCertificate[]>([]);
     const [licenses, setLicenses] = useState<ClientLicense[]>([]);
     const [legislations, setLegislations] = useState<ClientLegislation[]>([]);
+    const [dfeSeries, setDfeSeries] = useState<ClientDfeSeries[]>([]);
 
     // --- Temporary Input State for Tabs ---
     const [tempInscription, setTempInscription] = useState<Partial<ClientInscription>>({ type: 'Municipal' });
@@ -97,6 +100,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [tempCertificate, setTempCertificate] = useState<Partial<ClientCertificate>>({ model: 'ecnpj_a1', signatory: 'propria' });
     const [tempLicense, setTempLicense] = useState<Partial<ClientLicense>>({});
     const [tempLegislation, setTempLegislation] = useState<Partial<ClientLegislation>>({ status: 'vigente' });
+    const [tempDfeSerie, setTempDfeSerie] = useState<Partial<ClientDfeSeries>>({ dfe_type: 'NF-e' });
 
     const [otherInscriptionType, setOtherInscriptionType] = useState(false);
 
@@ -131,6 +135,9 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
                     const { data: leg } = await supabase.from('client_legislations').select('*').eq('client_id', initialData.id);
                     if (leg) setLegislations(leg);
+
+                    const { data: dfe } = await supabase.from('client_dfe_series').select('*').eq('client_id', initialData.id);
+                    if (dfe) setDfeSeries(dfe);
                 };
                 fetchSubData();
             } else if (!isEditing) {
@@ -304,6 +311,20 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         setTempLegislation({ status: 'vigente', description: '', access_url: '' });
     };
 
+    const handleAddDfeSerie = () => {
+        if (!tempDfeSerie.dfe_type || !tempDfeSerie.series) return alert('Preencha o tipo e a série do DF-e');
+        if (dfeSeries.length >= 15 && editingIndex === null) return alert('Limite máximo de 15 registros de Séries DF-e atingido.');
+        if (editingIndex !== null) {
+            const newList = [...dfeSeries];
+            newList[editingIndex] = { ...newList[editingIndex], ...tempDfeSerie } as ClientDfeSeries;
+            setDfeSeries(newList);
+            setEditingIndex(null);
+        } else {
+            setDfeSeries([...dfeSeries, tempDfeSerie as ClientDfeSeries]);
+        }
+        setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' });
+    };
+
     const handleRemoveItem = async (listSetter: any, list: any[], index: number, table: ClientTable) => {
         const item = list[index];
         if (item.id) {
@@ -343,7 +364,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                 admin_partner_name: formData.admin_partner_name,
                 admin_partner_cpf: formData.admin_partner_cpf,
                 admin_partner_birthdate: formData.admin_partner_birthdate || null,
-                has_branches: formData.has_branches === 's',
+                establishment_type: formData.establishment_type,
                 zip_code: formData.cep,
                 street: formData.street,
                 street_number: formData.number,
@@ -366,7 +387,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
             if (!clientId) throw new Error('Falha ao obter ID do cliente');
 
-            const processItems = async (table: string, items: any[], prepareFn: (i: any) => any) => {
+            const processItems = async (table: ClientTable, items: any[], prepareFn: (i: any) => any) => {
                 const newItems = items.filter(i => !i.id).map(prepareFn);
                 const existingItems = items.filter(i => i.id).map(i => ({ id: i.id, ...prepareFn(i) }));
 
@@ -384,7 +405,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
             await processItems('client_inscriptions', inscriptions, i => ({ ...i, client_id: clientId }));
             await processItems('client_contacts', contacts, i => ({ ...i, client_id: clientId }));
-            await processItems('client_tax_regime_history', taxRegimes, i => ({ ...i, client_id: clientId }));
+            await processItems('client_tax_regime_history', taxRegimes, i => ({ 
+                ...i, 
+                client_id: clientId,
+                start_date: i.start_date || null,
+                end_date: i.end_date || null
+            }));
             await processItems('client_activities', activities, i => ({ ...i, client_id: clientId }));
             await processItems('client_accesses', accesses, i => ({ ...i, client_id: clientId }));
             await processItems('client_certificates', certificates, i => ({
@@ -402,6 +428,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                 access_url: i.access_url
             }));
             await processItems('client_legislations', legislations, i => ({ ...i, client_id: clientId }));
+            await processItems('client_dfe_series', dfeSeries, i => ({ ...i, client_id: clientId }));
 
             alert('Cliente salvo com sucesso!');
             onBack();
@@ -419,6 +446,34 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         return 'Estrangeiro';
     };
 
+    const formatDocument = (v: string, type: string) => {
+        if (!v) return '';
+        if (type === 'fisica') {
+            v = v.replace(/\D/g, "");
+            if (v.length > 11) v = v.substring(0, 11);
+            if (v.length <= 3) return v;
+            if (v.length <= 6) return `${v.substring(0, 3)}.${v.substring(3)}`;
+            if (v.length <= 9) return `${v.substring(0, 3)}.${v.substring(3, 6)}.${v.substring(6)}`;
+            return `${v.substring(0, 3)}.${v.substring(3, 6)}.${v.substring(6, 9)}-${v.substring(9)}`;
+        }
+        if (type === 'juridica') {
+            // Nova regra Receita Federal (CNPJ Alfanumérico): Permite Letras e Números (A-Z, 0-9)
+            v = v.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+            if (v.length > 14) v = v.substring(0, 14);
+            if (v.length <= 2) return v;
+            if (v.length <= 5) return `${v.substring(0, 2)}.${v.substring(2)}`;
+            if (v.length <= 8) return `${v.substring(0, 2)}.${v.substring(2, 5)}.${v.substring(5)}`;
+            if (v.length <= 12) return `${v.substring(0, 2)}.${v.substring(2, 5)}.${v.substring(5, 8)}/${v.substring(8)}`;
+            return `${v.substring(0, 2)}.${v.substring(2, 5)}.${v.substring(5, 8)}/${v.substring(8, 12)}-${v.substring(12)}`;
+        }
+        return v; // Estrangeiro
+    };
+
+    const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const formatted = formatDocument(e.target.value, personType);
+        setFormData({ ...formData, document: formatted });
+    };
+
     const tabs = [
         { id: 'inscricoes', label: 'Inscrições' },
         { id: 'contatos', label: 'Contatos' },
@@ -428,6 +483,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         { id: 'certificado', label: 'Certificado' },
         { id: 'licencas', label: 'Licenças' },
         { id: 'legislacao', label: 'Legislação' },
+        { id: 'dfe', label: 'Séries DF-e' },
     ];
 
     return (
@@ -457,48 +513,51 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
             {/* Section 1: Initial Data */}
             <Card title="Dados Iniciais" collapsible>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <Input
-                        label="Código"
-                        placeholder="000000"
-                        value={formData.code}
-                        onChange={e => setFormData({ ...formData, code: e.target.value })}
-                        disabled={readOnly}
-                    />
-                    <Select
-                        label="Tipo de Pessoa"
-                        value={personType}
-                        onChange={(e) => setPersonType(e.target.value)}
-                        options={[
-                            { value: 'juridica', label: 'Jurídica' },
-                            { value: 'fisica', label: 'Física' },
-                            { value: 'exterior', label: 'Exterior' },
-                        ]}
-                        disabled={readOnly}
-                    />
-                    <div className="flex items-end gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                    <div className="md:col-span-2">
+                        <Input
+                            label="Código"
+                            placeholder="000000"
+                            value={formData.code}
+                            onChange={e => setFormData({ ...formData, code: e.target.value })}
+                            disabled={readOnly}
+                        />
+                    </div>
+                    <div className="md:col-span-2">
+                        <Select
+                            label="Tipo de Pessoa"
+                            value={personType}
+                            onChange={(e) => setPersonType(e.target.value)}
+                            options={[
+                                { value: 'juridica', label: 'Jurídica' },
+                                { value: 'fisica', label: 'Física' },
+                                { value: 'exterior', label: 'Exterior' },
+                            ]}
+                            disabled={readOnly}
+                        />
+                    </div>
+                    <div className="flex items-end gap-2 md:col-span-4">
                         <Input
                             label={getDocumentLabel()}
                             copyable
                             containerClassName="flex-1"
                             value={formData.document}
-                            onChange={e => setFormData({ ...formData, document: e.target.value })}
+                            onChange={handleDocumentChange}
                             disabled={readOnly}
                         />
                         {!readOnly && personType === 'juridica' && (
-                            <Button 
-                                variant="secondary" 
-                                className="h-10 px-3" 
+                            <button 
+                                type="button"
                                 onClick={handleSearchCNPJ}
                                 disabled={isSearchingCNPJ}
-                                icon={isSearchingCNPJ ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                                 title="Buscar dados na Receita Federal"
+                                className="h-10 w-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 dark:hover:text-indigo-400 dark:hover:border-indigo-500 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                             >
-                                Buscar
-                            </Button>
+                                {isSearchingCNPJ ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+                            </button>
                         )}
                     </div>
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1.5 md:col-span-4">
                         <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Situação</label>
                         <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700 h-10">
                             <button
@@ -521,12 +580,6 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                    <Input type="date" label="Data Constituição" value={formData.constitution_date} onChange={e => setFormData({ ...formData, constitution_date: e.target.value })} disabled={readOnly} />
-                    <Input type="date" label="Data Entrada" value={formData.entry_date} onChange={e => setFormData({ ...formData, entry_date: e.target.value })} disabled={readOnly} />
-                    <Input type="date" label="Data Saída" value={formData.exit_date} onChange={e => setFormData({ ...formData, exit_date: e.target.value })} disabled={readOnly} />
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                     <Input
                         label="Razão Social"
@@ -542,23 +595,42 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                         onChange={e => setFormData({ ...formData, tradeName: e.target.value })}
                         disabled={readOnly}
                     />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
-                    <Select
-                        label="Possui Filiais?"
-                        value={formData.has_branches}
-                        onChange={e => setFormData({ ...formData, has_branches: e.target.value })}
-                        options={[{ value: 's', label: 'Sim' }, { value: 'n', label: 'Não' }]}
-                        disabled={readOnly}
-                    />
-                    <Select
-                        label="Segmento"
-                        value={formData.segment}
-                        onChange={e => setFormData({ ...formData, segment: e.target.value })}
-                        options={[{ value: 'tec', label: 'Tecnologia' }, { value: 'varejo', label: 'Varejo' }]}
-                        disabled={readOnly}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Estabelecimento</label>
+                            <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700 h-10">
+                                <button
+                                    type="button"
+                                    onClick={() => !readOnly && setFormData({ ...formData, establishment_type: 'matriz' })}
+                                    className={`flex-1 flex items-center justify-center gap-2 rounded text-xs font-medium transition-colors ${formData.establishment_type === 'matriz' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'} ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
+                                    disabled={readOnly}
+                                >
+                                    <Building2 size={14} /> Matriz
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => !readOnly && setFormData({ ...formData, establishment_type: 'filial' })}
+                                    className={`flex-1 flex items-center justify-center gap-2 rounded text-xs font-medium transition-colors ${formData.establishment_type === 'filial' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'} ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
+                                    disabled={readOnly}
+                                >
+                                    <GitMerge size={14} /> Filial
+                                </button>
+                            </div>
+                        </div>
+                        <Select
+                            label="Segmento"
+                            value={formData.segment}
+                            onChange={e => setFormData({ ...formData, segment: e.target.value })}
+                            options={[{ value: 'tec', label: 'Tecnologia' }, { value: 'varejo', label: 'Varejo' }]}
+                            disabled={readOnly}
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Input type="date" label="Data de Const." value={formData.constitution_date} onChange={e => setFormData({ ...formData, constitution_date: e.target.value })} disabled={readOnly} />
+                        <Input type="date" label="Data Entrada" value={formData.entry_date} onChange={e => setFormData({ ...formData, entry_date: e.target.value })} disabled={readOnly} />
+                        <Input type="date" label="Data Saída" value={formData.exit_date} onChange={e => setFormData({ ...formData, exit_date: e.target.value })} disabled={readOnly} />
+                    </div>
                 </div>
 
                 <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4">
@@ -577,6 +649,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     <Input
                         label="CEP"
                         placeholder="00000-000"
+                        copyable
                         containerClassName="md:col-span-2"
                         value={formData.cep}
                         onChange={e => setFormData({ ...formData, cep: e.target.value })}
@@ -584,6 +657,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     />
                     <Input
                         label="Logradouro"
+                        copyable
                         containerClassName="md:col-span-8"
                         value={formData.street}
                         onChange={e => setFormData({ ...formData, street: e.target.value })}
@@ -591,6 +665,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     />
                     <Input
                         label="Número"
+                        copyable
                         containerClassName="md:col-span-2"
                         value={formData.number}
                         onChange={e => setFormData({ ...formData, number: e.target.value })}
@@ -599,6 +674,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
                     <Input
                         label="Complemento"
+                        copyable
                         containerClassName="md:col-span-3"
                         value={formData.complement}
                         onChange={e => setFormData({ ...formData, complement: e.target.value })}
@@ -606,6 +682,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     />
                     <Input
                         label="Bairro"
+                        copyable
                         containerClassName="md:col-span-3"
                         value={formData.neighborhood}
                         onChange={e => setFormData({ ...formData, neighborhood: e.target.value })}
@@ -613,6 +690,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     />
                     <Input
                         label="Cidade"
+                        copyable
                         containerClassName="md:col-span-4"
                         value={formData.city}
                         onChange={e => setFormData({ ...formData, city: e.target.value })}
@@ -620,6 +698,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     />
                     <Input
                         label="UF"
+                        copyable
                         containerClassName="md:col-span-2"
                         maxLength={2}
                         value={formData.state}
@@ -1469,6 +1548,183 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             ) : (
                                 <div className="text-center text-slate-400 dark:text-slate-500 py-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
                                     Nenhuma legislação cadastrada.
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {/* 3.4.9 Tabbar 'Séries DF-e' */}
+                    {activeTab === 'dfe' && (
+                        <div className="space-y-6">
+                            {!readOnly && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <div className="lg:col-span-12 mb-1">
+                                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 block">Tipo de DF-e</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[
+                                                { id: 'NFS-e', title: 'Nota Fiscal de Serviço Eletrônica' },
+                                                { id: 'NF-e', title: 'Nota Fiscal Eletrônica - Mod: 55' },
+                                                { id: 'NFC-e', title: 'Nota Fiscal de Consumidor Eletrônica - Mod: 65' },
+                                                { id: 'BP-e', title: 'Bilhete de Passagem Eletrônico - Mod: 63' },
+                                                { id: 'CT-e', title: 'Conhecimento de Transporte Eletrônico - Mod: 57' },
+                                                { id: 'MDF-e', title: 'Manifesto Eletrônico de Documentos Fiscais - Mod: 58' },
+                                                { id: 'NF3-e', title: 'Nota Fiscal de Energia Elétrica Eletrônica - Mod: 66' },
+                                                { id: 'NFCom', title: 'Nota Fiscal de Serviço de Comunicação Eletrônica - Mod: 62' },
+                                                { id: 'NFF', title: 'Nota Fiscal Fácil' },
+                                                { id: 'DC-e', title: 'Declaração de Conteúdo Eletrônica' },
+                                                { id: 'NFAG', title: 'Nota Fiscal de Água e Saneamento Eletrônica - Mod: 75' },
+                                                { id: 'NF-e ABI', title: 'Nota Fiscal Eletrônica de Alienação de Bens Imóveis - Mod: 77' },
+                                                { id: 'NFGas', title: 'Nota Fiscal Eletrônica do Gás - Mod: 76' }
+                                            ].map((dfe) => (
+                                                <button
+                                                    key={dfe.id}
+                                                    type="button"
+                                                    onClick={() => setTempDfeSerie({ ...tempDfeSerie, dfe_type: dfe.id })}
+                                                    className={`group relative py-1.5 px-3 rounded text-[10px] font-bold transition-all border ${tempDfeSerie.dfe_type === dfe.id
+                                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 shadow-sm'
+                                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                                        }`}
+                                                >
+                                                    {dfe.id}
+                                                    
+                                                    {/* Tooltip CSS Customizado */}
+                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
+                                                        {dfe.title}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="lg:col-span-2">
+                                        <Input
+                                            label="Série"
+                                            placeholder="1"
+                                            value={tempDfeSerie.series}
+                                            onChange={e => setTempDfeSerie({ ...tempDfeSerie, series: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-3">
+                                        <Input
+                                            label="Emissor"
+                                            placeholder="Sebrae"
+                                            value={tempDfeSerie.issuer}
+                                            onChange={e => setTempDfeSerie({ ...tempDfeSerie, issuer: e.target.value })}
+                                            copyable
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-4">
+                                        <Input
+                                            label="Usuário"
+                                            placeholder="admin"
+                                            value={tempDfeSerie.username}
+                                            onChange={e => setTempDfeSerie({ ...tempDfeSerie, username: e.target.value })}
+                                            copyable
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-3">
+                                        <Input
+                                            label="Senha"
+                                            placeholder="****"
+                                            value={tempDfeSerie.password}
+                                            onChange={e => setTempDfeSerie({ ...tempDfeSerie, password: e.target.value })}
+                                            copyable
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-5">
+                                        <Input
+                                            label="URL Login"
+                                            placeholder="https://emissor.com"
+                                            value={tempDfeSerie.login_url}
+                                            onChange={e => setTempDfeSerie({ ...tempDfeSerie, login_url: e.target.value })}
+                                        />
+                                    </div>
+                                    
+                                    <div className="lg:col-span-7 flex justify-end gap-2 h-10">
+                                        {editingIndex !== null && (
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' }); }}>Cancelar</Button>
+                                        )}
+                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddDfeSerie}>
+                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar DF-e'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {dfeSeries.length > 0 ? (
+                                <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 font-medium border-b border-slate-200 dark:border-slate-800">
+                                            <tr>
+                                                <th className="px-4 py-3">Tipo</th>
+                                                <th className="px-4 py-3">Série</th>
+                                                <th className="px-4 py-3">Emissor</th>
+                                                <th className="px-4 py-3">Usuário</th>
+                                                <th className="px-4 py-3">Senha</th>
+                                                <th className="px-4 py-3">Link</th>
+                                                {!readOnly && <th className="px-4 py-3 text-right">Ações</th>}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                                            {dfeSeries.map((item, index) => (
+                                                <tr key={index}>
+                                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                                                        {item.dfe_type}
+                                                    </td>
+                                                    <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">
+                                                        {item.series}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.issuer || '-'}</span>
+                                                            {item.issuer && <CopyButton text={item.issuer} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.username || '-'}</span>
+                                                            {item.username && <CopyButton text={item.username} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">
+                                                        <div className="flex items-center gap-2 group/copy">
+                                                            <span>{item.password || '-'}</span>
+                                                            {item.password && <CopyButton text={item.password} className="opacity-0 group-hover/copy:opacity-100" />}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {item.login_url ? (
+                                                            <a href={item.login_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                                                                Link <ExternalLink size={12} />
+                                                            </a>
+                                                        ) : '-'}
+                                                    </td>
+                                                    {!readOnly && (
+                                                        <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
+                                                            <button onClick={() => { setTempDfeSerie(item); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
+                                                                <Pencil size={16} />
+                                                            </button>
+                                                            <button onClick={() => handleRemoveItem(setDfeSeries, dfeSeries, index, 'client_dfe_series')} className="text-slate-400 hover:text-red-500 transition-colors">
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        {dfeSeries.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 6 : 7} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {dfeSeries.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center text-slate-400 dark:text-slate-500 py-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                                    Nenhuma série de DF-e cadastrada.
                                 </div>
                             )}
                         </div>

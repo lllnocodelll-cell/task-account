@@ -41,6 +41,7 @@ export interface Task {
   selectedDfes?: string[];
   clientCity?: string;
   clientState?: string;
+  establishmentType?: string;
   hasBranches?: boolean;
   attachments?: { name: string; size: number; url?: string }[];
 }
@@ -65,7 +66,8 @@ export interface Client {
   admin_partner_name?: string;
   admin_partner_cpf?: string;
   admin_partner_birthdate?: string;
-  has_branches?: boolean;
+  establishment_type?: string;
+  has_branches?: boolean; // Mantendo para retrocompatibilidade no front
   zip_code?: string;
   street?: string;
   street_number?: string;

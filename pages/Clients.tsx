@@ -144,7 +144,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                             admin_partner_name: (data as any).admin_partner_name,
                             admin_partner_cpf: (data as any).admin_partner_cpf,
                             admin_partner_birthdate: (data as any).admin_partner_birthdate,
-                            has_branches: (data as any).has_branches,
+                            establishment_type: (data as any).establishment_type,
                             zip_code: (data as any).zip_code,
                             street: (data as any).street,
                             street_number: (data as any).street_number,
@@ -199,7 +199,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         admin_partner_name: c.admin_partner_name,
                         admin_partner_cpf: c.admin_partner_cpf,
                         admin_partner_birthdate: c.admin_partner_birthdate,
-                        has_branches: c.has_branches,
+                        establishment_type: c.establishment_type,
                         zip_code: c.zip_code,
                         street: c.street,
                         street_number: c.street_number,
@@ -556,10 +556,10 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">{client.document}</td>
+                                            <td className="px-6 py-4 text-[11px]">{client.document}</td>
                                             <td className="px-6 py-4">{client.contactName}</td>
-                                            <td className="px-6 py-4">{client.phoneFixed}</td>
-                                            <td className="px-6 py-4">{client.phoneMobile}</td>
+                                            <td className="px-6 py-4 text-[11px]">{client.phoneFixed}</td>
+                                            <td className="px-6 py-4 text-[11px]">{client.phoneMobile}</td>
                                             <td className="px-6 py-4">{client.email}</td>
                                             <td className="px-6 py-4 relative">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-semibold ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
