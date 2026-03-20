@@ -17,11 +17,17 @@ import {
     Building2,
     Mail,
     Phone,
-    Search
+    Search,
+    Landmark,
+    Key,
+    Shield,
+    FileCheck,
+    BookOpen,
+    Receipt
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Input, Select, CopyButton } from './ui/Input';
+import { Input, Select, CopyButton, Textarea } from './ui/Input';
 import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
 
@@ -742,6 +748,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.1 Tabbar ‘Inscrições’ */}
                     {activeTab === 'inscricoes' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <FileText className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Inscrições</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Centralize e gerencie as inscrições fiscais da empresa em todas as esferas (Municipal, Estadual, Federal, Conselho de Classe e outros).</p>
+                                </div>
+                            </div>
                             {!readOnly && (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="md:col-span-1">
@@ -850,6 +863,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.2 Tabbar ‘Contatos’ */}
                     {activeTab === 'contatos' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <Users className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Contatos</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie os principais contatos da empresa.</p>
+                                </div>
+                            </div>
                             {!readOnly && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
@@ -949,6 +969,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.3 Tabbar ‘Regime Tributário’ */}
                     {activeTab === 'regime' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <Landmark className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Regime Tributário</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Controle e monitore o histórico de enquadramentos tributários e garanta a conformidade fiscal ao longo dos anos.</p>
+                                </div>
+                            </div>
                             {!readOnly && (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
@@ -1052,6 +1079,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.4 Tabbar ‘Atividades’ */}
                     {activeTab === 'atividades' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <Activity className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Atividades</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Registre as atividades econômicas (CNAE principal e secundárias).</p>
+                                </div>
+                            </div>
                             {!readOnly && (
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="md:col-span-2">
@@ -1147,6 +1181,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.5 Tabbar ‘Acessos’ */}
                     {activeTab === 'acessos' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <Key className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Acessos</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Centralize os acessos dos principais portais, como: empregador web, sistemas de gestão, portais de serviços do contribuinte e muito mais.</p>
+                                </div>
+                            </div>
                             {!readOnly && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
@@ -1256,6 +1297,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.6 Tabbar ‘Certificado’ */}
                     {activeTab === 'certificado' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <Shield className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Certificado Digital</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie modelos, senhas e signatários com alertas automáticos de vencimento para evitar interrupções.</p>
+                                </div>
+                            </div>
                             {!readOnly && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Select
@@ -1356,6 +1404,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.7 Tabbar ‘Licenças’ */}
                     {activeTab === 'licencas' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <FileCheck className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Licenças</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Controle o ciclo de vida de alvarás de funcionamento, licenças ambientais (Cetesb) e sanitárias.</p>
+                                </div>
+                            </div>
                             {!readOnly && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
@@ -1461,33 +1516,43 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.8 Tabbar ‘Legislação’ */}
                     {activeTab === 'legislacao' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <BookOpen className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Base Legal</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Documente as leis, normas tributárias e convenções sindicais que regem a operação do cliente.</p>
+                                </div>
+                            </div>
                             {!readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                                    <div className="md:col-span-2">
-                                        <Input
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <div className="md:col-span-1 lg:col-span-3">
+                                        <Textarea
                                             label="Descrição da Legislação"
                                             placeholder="Ex: Lei 12.345..."
                                             value={tempLegislation.description}
                                             onChange={e => setTempLegislation({ ...tempLegislation, description: e.target.value })}
+                                            rows={4}
                                         />
                                     </div>
-                                    <Select
-                                        label="Status"
-                                        value={tempLegislation.status}
-                                        onChange={e => setTempLegislation({ ...tempLegislation, status: e.target.value })}
-                                        options={[
-                                            { value: 'vigente', label: 'Vigente' },
-                                            { value: 'revogada', label: 'Revogada' },
-                                            { value: 'suspensa', label: 'Suspensa' },
-                                        ]}
-                                    />
-                                    <Input
-                                        label="Link de Referência"
-                                        placeholder="https://"
-                                        value={tempLegislation.access_url}
-                                        onChange={e => setTempLegislation({ ...tempLegislation, access_url: e.target.value })}
-                                    />
-                                    <div className="lg:col-span-4 flex justify-end gap-2">
+                                    <div className="md:col-span-1 lg:col-span-1 flex flex-col gap-4">
+                                        <Select
+                                            label="Status"
+                                            value={tempLegislation.status}
+                                            onChange={e => setTempLegislation({ ...tempLegislation, status: e.target.value })}
+                                            options={[
+                                                { value: 'vigente', label: 'Vigente' },
+                                                { value: 'revogada', label: 'Revogada' },
+                                                { value: 'suspensa', label: 'Suspensa' },
+                                            ]}
+                                        />
+                                        <Input
+                                            label="Link de Referência"
+                                            placeholder="https://"
+                                            value={tempLegislation.access_url}
+                                            onChange={e => setTempLegislation({ ...tempLegislation, access_url: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
                                         {editingIndex !== null && (
                                             <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLegislation({ status: 'vigente', description: '', access_url: '' }); }}>Cancelar</Button>
                                         )}
@@ -1555,6 +1620,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.9 Tabbar 'Séries DF-e' */}
                     {activeTab === 'dfe' && (
                         <div className="space-y-6">
+                            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                                <Receipt className="w-5 h-5 text-indigo-500 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-white">Séries DF-e</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Organize os modelos e séries de Documentos Fiscais Eletrônicos vinculados aos seus respectivos emissores.</p>
+                                </div>
+                            </div>
                             {!readOnly && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="lg:col-span-12 mb-1">

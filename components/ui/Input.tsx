@@ -117,6 +117,42 @@ export const Input: React.FC<InputProps> = ({
   );
 };
 
+interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string;
+  error?: string;
+  containerClassName?: string;
+}
+
+export const Textarea: React.FC<TextareaProps> = ({
+  label,
+  error,
+  className = '',
+  containerClassName = '',
+  ...props
+}) => {
+  return (
+    <div className={`flex flex-col gap-1.5 ${containerClassName}`}>
+      {label && <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>}
+      {props.disabled ? (
+        <div className="relative group flex items-start min-h-[80px] px-3 py-2 bg-slate-50/50 dark:bg-slate-800/30 rounded-lg border border-slate-100 dark:border-slate-800/50">
+          <span className="text-sm font-medium text-slate-900 dark:text-slate-100 break-words whitespace-pre-wrap">
+            {props.value || '-'}
+          </span>
+        </div>
+      ) : (
+        <textarea
+          className={`w-full min-h-[80px] rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-y
+            ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}
+            ${className}
+          `}
+          {...props}
+        />
+      )}
+      {error && <span className="text-xs text-red-500">{error}</span>}
+    </div>
+  );
+};
+
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   tooltip?: string;
