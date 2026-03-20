@@ -36,7 +36,8 @@ import {
   AlertTriangle,
   MinusCircle,
   ChevronRight,
-  Repeat
+  Repeat,
+  Copy
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -500,6 +501,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [selectedClientForView, setSelectedClientForView] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [activeObservationId, setActiveObservationId] = useState<string | null>(null);
+  const [activeDfeId, setActiveDfeId] = useState<string | null>(null);
   const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
 
   // Filter Values State
@@ -582,7 +584,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         .from('tasks')
         .select(`
           *,
-          clients(city, state, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series)),
+          clients(city, state, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password)),
           attachments:task_attachments(*)
         `)
         .order('created_at', { ascending: false });
@@ -1165,31 +1167,116 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                   {task.clientDfes && task.clientDfes.length > 0 && (
                                     <div className="mt-1 flex flex-wrap gap-1">
                                       {task.clientDfes.map((dfe: any) => (
-                                        <button
-                                          key={dfe.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (dfe.login_url) {
-                                              let url = dfe.login_url;
-                                              if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                                                url = 'https://' + url;
-                                              }
-                                              window.open(url, '_blank', 'noopener,noreferrer');
-                                            } else {
-                                              alert('Nenhuma URL de acesso cadastrada para este DF-e.');
-                                            }
-                                          }}
-                                          className={`group/dfe relative inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded transition-colors ${
-                                            dfe.login_url 
-                                              ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 cursor-pointer'
-                                              : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 cursor-default border border-slate-200 dark:border-slate-700 shadow-sm'
-                                          }`}
-                                        >
-                                          {dfe.dfe_type.toUpperCase()}
-                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-medium rounded shadow-lg opacity-0 invisible group-hover/dfe:opacity-100 group-hover/dfe:visible transition-all duration-200 z-[60] pointer-events-none whitespace-nowrap border border-slate-700 tracking-normal normal-case">
-                                              {dfe.issuer || 'Sem Emissor'} - Série {dfe.series || 'N/A'}
-                                          </div>
-                                        </button>
+                                        <div key={dfe.id} className="relative">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setActiveDfeId(activeDfeId === dfe.id ? null : dfe.id);
+                                            }}
+                                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded transition-colors ${
+                                              activeDfeId === dfe.id
+                                                ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white ring-2 ring-indigo-300 dark:ring-indigo-400/50'
+                                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 cursor-pointer'
+                                            }`}
+                                          >
+                                            {dfe.dfe_type.toUpperCase()}
+                                          </button>
+
+                                          {activeDfeId === dfe.id && (
+                                            <div
+                                              className="absolute z-[60] top-full left-0 mt-1.5 w-64 p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-indigo-100 dark:border-indigo-900/30">
+                                                <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                                                  <FileBadge size={12} strokeWidth={2.5} />
+                                                  {dfe.dfe_type.toUpperCase()} · Série {dfe.series || 'N/A'}
+                                                </h4>
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); setActiveDfeId(null); }}
+                                                  className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-0.5 rounded transition-colors"
+                                                >
+                                                  <X size={14} strokeWidth={2.5} />
+                                                </button>
+                                              </div>
+
+                                              <div className="space-y-2.5">
+                                                {/* Emissor */}
+                                                <div className="flex flex-col gap-0.5">
+                                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Emissor</span>
+                                                  {dfe.login_url ? (
+                                                    <a
+                                                      href={dfe.login_url.startsWith('http') ? dfe.login_url : `https://${dfe.login_url}`}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline transition-colors flex items-center gap-1"
+                                                      onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                      {dfe.issuer || 'Sem nome'}
+                                                      <ExternalLink size={10} className="shrink-0 opacity-60" />
+                                                    </a>
+                                                  ) : (
+                                                    <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                                                      {dfe.issuer || 'Não informado'}
+                                                    </span>
+                                                  )}
+                                                </div>
+
+                                                {/* Usuário */}
+                                                <div className="flex flex-col gap-0.5">
+                                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Usuário</span>
+                                                  <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 select-all truncate">
+                                                      {dfe.username || '—'}
+                                                    </span>
+                                                    {dfe.username && (
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          navigator.clipboard.writeText(dfe.username).then(() => {
+                                                            const btn = e.currentTarget;
+                                                            btn.classList.add('!text-emerald-500');
+                                                            setTimeout(() => btn.classList.remove('!text-emerald-500'), 1500);
+                                                          });
+                                                        }}
+                                                        className="shrink-0 p-1 rounded text-slate-300 dark:text-slate-600 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all active:scale-90"
+                                                        title="Copiar usuário"
+                                                      >
+                                                        <Copy size={11} />
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                </div>
+
+                                                {/* Senha */}
+                                                <div className="flex flex-col gap-0.5">
+                                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Senha</span>
+                                                  <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 select-all font-mono tracking-wide truncate">
+                                                      {dfe.password || '—'}
+                                                    </span>
+                                                    {dfe.password && (
+                                                      <button
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          navigator.clipboard.writeText(dfe.password).then(() => {
+                                                            const btn = e.currentTarget;
+                                                            btn.classList.add('!text-emerald-500');
+                                                            setTimeout(() => btn.classList.remove('!text-emerald-500'), 1500);
+                                                          });
+                                                        }}
+                                                        className="shrink-0 p-1 rounded text-slate-300 dark:text-slate-600 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all active:scale-90"
+                                                        title="Copiar senha"
+                                                      >
+                                                        <Copy size={11} />
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
                                       ))}
                                     </div>
                                   )}
@@ -1223,7 +1310,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                   e.stopPropagation();
                                   setActiveObservationId(activeObservationId === task.id ? null : task.id);
                                 }}
-                                className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-500/10 px-1.5 py-0.5 rounded transition-colors"
+                                className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 px-1.5 py-0.5 rounded transition-colors"
                               >
                                 <Info size={10} />
                                 <span>Observação</span>
