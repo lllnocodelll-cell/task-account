@@ -416,12 +416,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 ) : (
                   <span className="text-[9px] text-transparent select-none">-</span>
                 )}
-                {task.selectedDfes && task.selectedDfes.length > 0 && (
-                  <div className="flex items-center gap-1 text-[9px] text-slate-500 font-semibold align-bottom" title={task.selectedDfes.map(d => d.toUpperCase()).join(', ')}>
-                    <FileStack size={9} className="text-slate-400 shrink-0" />
-                    <span className="truncate">{task.selectedDfes.length} DF-e</span>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -505,6 +499,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [clientViewModalOpen, setClientViewModalOpen] = useState(false);
   const [selectedClientForView, setSelectedClientForView] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [activeObservationId, setActiveObservationId] = useState<string | null>(null);
   const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
 
   // Filter Values State
@@ -587,7 +582,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         .from('tasks')
         .select(`
           *,
-          clients(city, state, establishment_type),
+          clients(city, state, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series)),
           attachments:task_attachments(*)
         `)
         .order('created_at', { ascending: false });
@@ -626,10 +621,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             factorR: t.factor_r,
             notifiedExclusion: t.notified_exclusion,
             selectedAnnexes: t.selected_annexes,
-            selectedDfes: t.selected_dfes,
             clientCity: t.clients?.city,
             clientState: t.clients?.state,
             establishmentType: t.clients?.establishment_type,
+            clientDfes: t.clients?.client_dfe_series || [],
             attachments: t.attachments?.map((a: any) => ({
               name: a.file_name,
               size: a.file_size,
@@ -1136,30 +1131,79 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             </div>
                             {(() => {
                               const clientData = clients.find(c => c.id === task.clientId);
-                              return clientData?.status === 'Inativo' ? (
-                                <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded">
-                                  <AlertCircle size={9} /> Inativo
-                                </span>
-                              ) : null;
+                              return (
+                                <>
+                                  {clientData?.document && (
+                                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 tracking-wide">
+                                      {clientData.document}
+                                    </div>
+                                  )}
+                                  {(task.clientCity || task.clientState) && (
+                                    <div className="flex items-center gap-1 mt-0.5 text-[10px] text-slate-400 font-medium">
+                                      <MapPin size={10} className="text-slate-300 shrink-0" />
+                                      <span className="truncate">{task.clientCity}{task.clientCity && task.clientState ? ' - ' : ''}{task.clientState}</span>
+                                    </div>
+                                  )}
+                                  {(task.establishmentType || clientData?.status === 'Inativo') && (
+                                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                      {task.establishmentType && (
+                                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded ${
+                                          task.establishmentType === 'matriz' 
+                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                        }`}>
+                                          {task.establishmentType === 'matriz' ? 'Matriz' : 'Filial'}
+                                        </span>
+                                      )}
+                                      {clientData?.status === 'Inativo' && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded">
+                                          <AlertCircle size={9} /> Inativo
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {task.clientDfes && task.clientDfes.length > 0 && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {task.clientDfes.map((dfe: any) => (
+                                        <button
+                                          key={dfe.id}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (dfe.login_url) {
+                                              let url = dfe.login_url;
+                                              if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                                                url = 'https://' + url;
+                                              }
+                                              window.open(url, '_blank', 'noopener,noreferrer');
+                                            } else {
+                                              alert('Nenhuma URL de acesso cadastrada para este DF-e.');
+                                            }
+                                          }}
+                                          className={`group/dfe relative inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded transition-colors ${
+                                            dfe.login_url 
+                                              ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 cursor-pointer'
+                                              : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 cursor-default border border-slate-200 dark:border-slate-700 shadow-sm'
+                                          }`}
+                                        >
+                                          {dfe.dfe_type.toUpperCase()}
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-medium rounded shadow-lg opacity-0 invisible group-hover/dfe:opacity-100 group-hover/dfe:visible transition-all duration-200 z-[60] pointer-events-none whitespace-nowrap border border-slate-700 tracking-normal normal-case">
+                                              {dfe.issuer || 'Sem Emissor'} - Série {dfe.series || 'N/A'}
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              );
                             })()}
-                            {(task.clientCity || task.clientState) && (
-                              <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium">
-                                <MapPin size={10} className="text-slate-300" />
-                                <span>{task.clientCity}{task.clientCity && task.clientState ? ', ' : ''}{task.clientState}</span>
-                              </div>
-                            )}
+
                             {task.hasBranches && (
                               <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold">
                                 <GitMerge size={10} />
                                 <span>Filiais</span>
                               </div>
                             )}
-                            {task.selectedDfes && task.selectedDfes.length > 0 && (
-                              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-400 font-medium">
-                                <FileStack size={10} className="text-slate-300" />
-                                <span>DF-e: {task.selectedDfes.map(dfe => dfe.toUpperCase()).join(', ')}</span>
-                              </div>
-                            )}
+
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -1173,9 +1217,39 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             {task.taskName}
                           </button>
                           {task.observation && (
-                            <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                              <Info size={10} />
-                              <span>Observação</span>
+                            <div className="relative mt-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveObservationId(activeObservationId === task.id ? null : task.id);
+                                }}
+                                className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-50 dark:hover:bg-amber-500/10 px-1.5 py-0.5 rounded transition-colors"
+                              >
+                                <Info size={10} />
+                                <span>Observação</span>
+                              </button>
+
+                              {activeObservationId === task.id && (
+                                <div 
+                                  className="absolute z-[60] top-full left-0 mt-1 w-64 p-3 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="flex justify-between items-center mb-2 pb-2 border-b border-amber-100 dark:border-amber-900/30">
+                                    <h4 className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                                      <Info size={12} strokeWidth={2.5} /> Detalhe da Observação
+                                    </h4>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); setActiveObservationId(null); }}
+                                      className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-0.5 rounded transition-colors"
+                                    >
+                                      <X size={14} strokeWidth={2.5} />
+                                    </button>
+                                  </div>
+                                  <p className="text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed font-medium">
+                                    {task.observation}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           )}
                           {task.noMovement && (
@@ -1639,20 +1713,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                     </div>
                   )}
 
-                  {(selectedTaskForView.selectedDfes?.length || 0) > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Modelos DF-e</label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedTaskForView.selectedDfes.map(dfe => (
-                          <span key={dfe} className="px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-100 dark:border-indigo-500/20">
-                            {dfe.toUpperCase()}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {!selectedTaskForView.selectedAnnexes?.length && !selectedTaskForView.selectedDfes?.length && (
+                  {!selectedTaskForView.selectedAnnexes?.length && (
                     <div className="h-full flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                       <Layers size={24} className="text-slate-300 mb-2" />
                       <span className="text-[11px] text-slate-400 font-bold uppercase text-center">Nenhuma obrigação especial</span>
@@ -1865,7 +1926,6 @@ interface ClientConfig {
   taxRegime: string;
   regimeRegistro: string;
   semMovimento: boolean;
-  selectedDfe: string[];
   selectedAnnexes: string[];
   excedeuSublimite: boolean;
   fatorR: boolean;
@@ -1891,7 +1951,6 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     taxRegime: data?.taxRegime || 'simples',
     regimeRegistro: data?.registrationRegime || 'competencia',
     semMovimento: data?.noMovement || false,
-    selectedDfe: data?.selectedDfes || [],
     selectedAnnexes: data?.selectedAnnexes || [],
     excedeuSublimite: data?.exceededSublimit || false,
     fatorR: data?.factorR || false,
@@ -1992,16 +2051,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     }
   };
 
-  const toggleDfe = (id: string) => {
-    if (!activeClientId) return;
-    setClientConfigs(prev => {
-      const config = prev[activeClientId];
-      const newDfe = config.selectedDfe.includes(id)
-        ? config.selectedDfe.filter(x => x !== id)
-        : [...config.selectedDfe, id];
-      return { ...prev, [activeClientId]: { ...config, selectedDfe: newDfe } };
-    });
-  };
+
 
   const toggleAnnex = (annex: string) => {
     if (!activeClientId) return;
@@ -2168,7 +2218,6 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
               factor_r: config.fatorR,
               notified_exclusion: config.notifiedExclusion,
               selected_annexes: config.selectedAnnexes,
-              selected_dfes: config.selectedDfe,
               observation: config.observation,
               org_id: user.id
             });
@@ -2215,7 +2264,6 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                 factor_r: config.fatorR,
                 notified_exclusion: config.notifiedExclusion,
                 selected_annexes: config.selectedAnnexes,
-                selected_dfes: config.selectedDfe,
                 observation: config.observation,
                 org_id: user.id
               };
@@ -2390,7 +2438,6 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     { id: 'recorrencia', label: 'Recorrência' },
     { id: 'simples', label: 'Simples Nacional' },
     { id: 'observacao', label: 'Observação' },
-    { id: 'dfe', label: 'Modelos DF-e' },
     { id: 'arquivos', label: 'Arquivos' },
   ];
 
@@ -2628,23 +2675,6 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                   className="w-full h-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Observações gerais para este cliente..."
                 />
-              )}
-
-              {activeTab === 'dfe' && activeClientId && (
-                <div className="grid grid-cols-3 gap-2">
-                  {DF_MODELS.map((model) => (
-                    <button
-                      key={model.id}
-                      onClick={() => toggleDfe(model.id)}
-                      className={`p-2 rounded border text-[10px] font-bold transition-all ${clientConfigs[activeClientId].selectedDfe.includes(model.id)
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-600 hover:border-indigo-300'
-                        }`}
-                    >
-                      {model.label}
-                    </button>
-                  ))}
-                </div>
               )}
 
               {activeTab === 'arquivos' && activeClientId && (

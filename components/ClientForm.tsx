@@ -23,7 +23,8 @@ import {
     Shield,
     FileCheck,
     BookOpen,
-    Receipt
+    Receipt,
+    Star
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -33,7 +34,7 @@ import { supabase } from '../utils/supabaseClient';
 
 // --- Interfaces for Sub-Tables ---
 interface ClientInscription { id?: string; client_id?: string; type: string; custom_name?: string; number: string; observation?: string; }
-interface ClientContact { id?: string; client_id?: string; name: string; email?: string; phone_fixed?: string; phone_mobile?: string; }
+interface ClientContact { id?: string; client_id?: string; name: string; email?: string; phone_fixed?: string; phone_mobile?: string; is_main?: boolean; }
 interface ClientTaxRegime { id?: string; client_id?: string; start_date?: string; end_date?: string; regime: string; observation?: string; }
 interface ClientActivity { id?: string; client_id?: string; order_type: string; cnae_code: string; cnae_description?: string; }
 interface ClientAccess { id?: string; client_id?: string; access_name: string; username?: string; password?: string; access_url?: string; }
@@ -234,15 +235,30 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     };
     const handleAddContact = () => {
         if (!tempContact.name) return alert('Preencha o nome do contato');
+        let newContact = { ...tempContact } as ClientContact;
+
+        if (contacts.length === 0 && editingIndex === null) {
+            newContact.is_main = true;
+        }
+
         if (editingIndex !== null) {
             const newList = [...contacts];
-            newList[editingIndex] = { ...newList[editingIndex], ...tempContact } as ClientContact;
+            newList[editingIndex] = { ...newList[editingIndex], ...newContact } as ClientContact;
             setContacts(newList);
             setEditingIndex(null);
         } else {
-            setContacts([...contacts, tempContact as ClientContact]);
+            setContacts([...contacts, newContact]);
         }
         setTempContact({});
+    };
+
+    const handleToggleMainContact = (index: number) => {
+        if (readOnly) return;
+        const newList = contacts.map((c, i) => ({
+            ...c,
+            is_main: i === index
+        }));
+        setContacts(newList);
     };
     const handleAddRegime = () => {
         if (!tempRegime.regime) return alert('Selecione um regime');
@@ -850,6 +866,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {inscriptions.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 3 : 4} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {inscriptions.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
                                     </table>
                                 </div>
                             ) : (
@@ -913,6 +938,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 <th className="px-4 py-3">Email</th>
                                                 <th className="px-4 py-3">Fixo</th>
                                                 <th className="px-4 py-3">Celular</th>
+                                                <th className="px-4 py-3 text-center">Principal</th>
                                                 {!readOnly && <th className="px-4 py-3 text-right">Ações</th>}
                                             </tr>
                                         </thead>
@@ -943,6 +969,17 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                             {item.phone_mobile && <CopyButton text={item.phone_mobile} className="opacity-0 group-hover/copy:opacity-100" />}
                                                         </div>
                                                     </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <button 
+                                                            type="button" 
+                                                            disabled={readOnly}
+                                                            onClick={() => handleToggleMainContact(index)}
+                                                            className={`p-1.5 rounded-full transition-colors ${item.is_main ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10' : 'text-slate-300 dark:text-slate-600 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                                                            title={item.is_main ? "Contato Principal" : "Definir como Principal"}
+                                                        >
+                                                            <Star size={18} fill={item.is_main ? "currentColor" : "none"} />
+                                                        </button>
+                                                    </td>
                                                     {!readOnly && (
                                                         <td className="px-4 py-3 text-right flex justify-end items-center gap-2">
                                                             <button onClick={() => { setTempContact(item); setEditingIndex(index); }} className="text-slate-400 hover:text-indigo-500 transition-colors">
@@ -956,6 +993,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {contacts.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 5 : 6} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {contacts.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
                                     </table>
                                 </div>
                             ) : (
@@ -1066,6 +1112,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {taxRegimes.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 4 : 5} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {taxRegimes.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
                                     </table>
                                 </div>
                             ) : (
@@ -1168,6 +1223,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {activities.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 3 : 4} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {activities.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
                                     </table>
                                 </div>
                             ) : (
@@ -1284,6 +1348,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {accesses.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 4 : 5} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {accesses.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
                                     </table>
                                 </div>
                             ) : (
@@ -1391,6 +1464,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {certificates.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 4 : 5} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {certificates.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
                                     </table>
                                 </div>
                             ) : (
@@ -1503,6 +1585,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {licenses.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 4 : 5} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {licenses.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
                                     </table>
                                 </div>
                             ) : (
@@ -1608,6 +1699,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 </tr>
                                             ))}
                                         </tbody>
+                                        {legislations.length > 0 && (
+                                            <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
+                                                <tr>
+                                                    <td colSpan={readOnly ? 3 : 4} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                        {legislations.length}/15 cadastradas
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        )}
                                     </table>
                                 </div>
                             ) : (

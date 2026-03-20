@@ -38,11 +38,11 @@ export interface Task {
   factorR?: boolean;
   notifiedExclusion?: boolean;
   selectedAnnexes?: string[];
-  selectedDfes?: string[];
   clientCity?: string;
   clientState?: string;
   establishmentType?: string;
   hasBranches?: boolean;
+  clientDfes?: { id: string; dfe_type: string; login_url?: string; issuer?: string; series?: string; }[];
   attachments?: { name: string; size: number; url?: string }[];
 }
 
