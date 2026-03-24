@@ -31,6 +31,7 @@ import { Button } from './ui/Button';
 import { Input, Select, CopyButton, Textarea } from './ui/Input';
 import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { toTitleCase } from '../utils/stringUtils';
 
 // --- Interfaces for Sub-Tables ---
 interface ClientInscription { id?: string; client_id?: string; type: string; custom_name?: string; number: string; observation?: string; }
@@ -199,14 +200,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             
             setFormData(prev => ({
                 ...prev,
-                companyName: data.razao_social || prev.companyName,
-                tradeName: data.nome_fantasia || data.razao_social || prev.tradeName,
+                companyName: toTitleCase(data.razao_social) || prev.companyName,
+                tradeName: toTitleCase(data.nome_fantasia || data.razao_social) || prev.tradeName,
                 cep: returnedCep,
-                street: data.logradouro || prev.street,
+                street: toTitleCase(data.logradouro) || prev.street,
                 number: data.numero || prev.number,
-                complement: data.complemento || prev.complement,
-                neighborhood: data.bairro || prev.neighborhood,
-                city: data.municipio || prev.city,
+                complement: toTitleCase(data.complemento) || prev.complement,
+                neighborhood: toTitleCase(data.bairro) || prev.neighborhood,
+                city: toTitleCase(data.municipio) || prev.city,
                 state: data.uf || prev.state,
                 constitution_date: data.data_inicio_atividade || prev.constitution_date
             }));

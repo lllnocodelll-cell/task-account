@@ -111,6 +111,7 @@ export interface Tutorial {
   created_by: string;
   created_at: string;
   updated_at: string;
+  is_favorite?: boolean;
   clients?: { company_name?: string; trade_name?: string } | null;
   profiles?: { full_name?: string; avatar_url?: string } | null;
 }

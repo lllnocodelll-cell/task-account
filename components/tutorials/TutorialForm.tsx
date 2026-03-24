@@ -30,6 +30,7 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
     description: tutorial?.description || '',
   });
   const [file, setFile] = useState<File | null>(null);
+  const [removedExistingFile, setRemovedExistingFile] = useState(false);
 
   const clientOptions = clients.map(c => ({
     value: c.id,
@@ -47,6 +48,14 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
     try {
       let filePath = tutorial?.file_path || null;
       let fileName = tutorial?.file_name || null;
+
+      if (removedExistingFile && !file) {
+        if (tutorial?.file_path) {
+          await supabase.storage.from('tutorials').remove([tutorial.file_path]);
+        }
+        filePath = null;
+        fileName = null;
+      }
 
       // Se houver um novo arquivo, fazemos o upload
       if (file) {
@@ -125,7 +134,8 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
         />
 
         <Input
-          label="Link / URL de Vídeo (Opcional)"
+          label="Link / URL de Vídeo"
+          tooltip="Utilize este campo para disponibilizar link de acesso a conteúdos externos de terceiros ou conteúdos de autoria do escritório que estejam salvos no drive ou em outros canais."
           value={formData.url}
           onChange={(e) => setFormData({ ...formData, url: e.target.value })}
           placeholder="Ex: https://youtube.com/..."
@@ -180,13 +190,33 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
             Clique para Anexar Arquivo
           </p>
           <p className="text-xs text-slate-500">PDF, Word, Excel, Imagens ou TXT (Máx 10MB)</p>
+          <p className="text-[11px] text-red-500 dark:text-red-400 mt-1 max-w-[280px]">
+            Não é permitido anexar arquivos de vídeo, caso o conteúdo seja de vídeo utilize o campo de link/URL
+          </p>
           
-          {(file || tutorial?.file_name) && (
+          {(file || (!removedExistingFile && tutorial?.file_name)) && (
             <div className="mt-4 flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1.5 rounded-full">
               <FileText size={16} />
               <span className="truncate max-w-[200px]">
                 {file ? file.name : tutorial?.file_name}
               </span>
+              <button
+                type="button"
+                className="ml-1 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors flex items-center justify-center shrink-0"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (file) {
+                    setFile(null);
+                    const fileInput = document.getElementById('tutorial-file-upload') as HTMLInputElement;
+                    if (fileInput) fileInput.value = '';
+                  } else {
+                    setRemovedExistingFile(true);
+                  }
+                }}
+              >
+                <X size={14} className="text-slate-500 hover:text-red-500" />
+              </button>
             </div>
           )}
         </label>

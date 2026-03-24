@@ -44,9 +44,10 @@ interface Profile {
   avatar_url: string;
   role: string;
   status?: string;
-  chat_status?: 'disponível' | 'ocupado' | 'ausente' | 'almoço' | 'férias';
+  chat_status?: string;
   current_session_start?: string | null;
   last_active_at?: string | null;
+  sector?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -589,14 +590,50 @@ export const Chat: React.FC = () => {
 
   const fetchProfiles = async (uid: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*, last_active_at')
         .neq('id', uid)
         .order('full_name');
 
-      if (error) throw error;
-      setProfiles(data || []);
+      if (profilesError) throw profilesError;
+
+      // Buscar membros e setores para mapear o setor pelo nome (padrão da app)
+      const { data: membersData } = await supabase
+        .from('members')
+        .select(`
+          first_name, 
+          last_name, 
+          sectors (
+            name
+          )
+        `);
+
+      const enrichedProfiles = (profilesData || []).map(profile => {
+        const profileName = (profile.full_name || '').trim().toLowerCase();
+        
+        const member = (membersData as any[] || []).find(m => {
+          const mName = `${m.first_name || ''} ${m.last_name || ''}`.trim().toLowerCase();
+          return mName === profileName || mName.startsWith(profileName) || profileName.startsWith(mName);
+        });
+
+        // Lidar com o fato de que Supabase pode retornar sectors como objeto ou array
+        let sectorName = 'Sem Setor';
+        if (member?.sectors) {
+          if (Array.isArray(member.sectors)) {
+            sectorName = member.sectors[0]?.name || 'Sem Setor';
+          } else {
+            sectorName = (member.sectors as any).name || 'Sem Setor';
+          }
+        }
+
+        return {
+          ...profile,
+          sector: sectorName
+        };
+      });
+
+      setProfiles(enrichedProfiles);
     } catch (error) {
       console.error('Error fetching profiles:', error);
     }
@@ -669,14 +706,36 @@ export const Chat: React.FC = () => {
             reactionCount = rCount || 0;
           }
 
+          // Buscar a última mensagem real deste canal
+          const { data: lastMsgData } = await supabase
+            .from('chat_messages')
+            .select('text, created_at, attachment_url')
+            .eq('channel_id', c.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          let lastMessage = '';
+          if (lastMsgData) {
+            if (lastMsgData.text) {
+              lastMessage = lastMsgData.text;
+            } else if (lastMsgData.attachment_url) {
+              lastMessage = '📎 Anexo';
+            }
+          } else {
+            lastMessage = isDirect ? '' : 'Grupo criado';
+          }
+
+          const lastTime = lastMsgData ? new Date(lastMsgData.created_at) : new Date(c.created_at);
+
           return {
             id: c.id,
             name: channelName,
             rawName: c.name,
             type: c.type,
             unreadCount: (countError ? 0 : (count || 0)) + reactionCount,
-            lastMessage: isDirect ? 'Inicie uma conversa' : 'Grupo criado',
-            lastMessageTime: new Date(c.created_at).toLocaleDateString('pt-BR')
+            lastMessage: lastMessage,
+            lastMessageTime: lastTime.toLocaleDateString('pt-BR')
           };
         })
       );
@@ -997,7 +1056,7 @@ export const Chat: React.FC = () => {
 
   const filteredProfiles = profiles.filter(profile =>
     profile.full_name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
-    profile.role?.toLowerCase().includes(contactSearchTerm.toLowerCase())
+    profile.sector?.toLowerCase().includes(contactSearchTerm.toLowerCase())
   );
 
   return (
@@ -1162,7 +1221,7 @@ export const Chat: React.FC = () => {
                     </h3>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {profile.role || 'Membro da Equipe'}
+                    {profile.sector || 'Sem Setor'}
                   </p>
                 </div>
               </button>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, SearchableSelect } from '../ui/Input';
-import { Plus, Search, FileText, Link as LinkIcon, Download, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, FileText, Link as LinkIcon, Download, Trash2, Edit, Star } from 'lucide-react';
 import { Tutorial, Client } from '../../types';
 import { supabase } from '../../utils/supabaseClient';
 import { TutorialForm } from './TutorialForm';
@@ -28,26 +28,62 @@ export const TutorialsModal: React.FC<TutorialsModalProps> = ({
   const [search, setSearch] = useState('');
   const [clientFilter, setClientFilter] = useState('');
   const [selectedTutorial, setSelectedTutorial] = useState<Tutorial | null>(null);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
   const fetchTutorials = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('tutorials')
         .select(`
           *,
           clients (company_name, trade_name),
-          profiles (full_name, avatar_url)
-        `)
+          profiles (full_name, avatar_url),
+          tutorial_favorites (user_id)
+        `) as any)
         .eq('org_id', orgId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTutorials(data as Tutorial[]);
+      
+      const mappedTutorials = (data as any[]).map(t => ({
+        ...t,
+        is_favorite: (t.tutorial_favorites as any[] || []).some(f => f.user_id === userId)
+      }));
+
+      setTutorials(mappedTutorials);
     } catch (error) {
       console.error('Erro ao buscar tutoriais:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleFavorite = async (tutorial: Tutorial) => {
+    try {
+      if (tutorial.is_favorite) {
+        const { error } = await (supabase as any)
+          .from('tutorial_favorites')
+          .delete()
+          .eq('tutorial_id', tutorial.id)
+          .eq('user_id', userId);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any)
+          .from('tutorial_favorites')
+          .insert({
+            tutorial_id: tutorial.id,
+            user_id: userId
+          });
+        if (error) throw error;
+      }
+      
+      // Update local state for immediate feedback
+      setTutorials(prev => prev.map(t => 
+        t.id === tutorial.id ? { ...t, is_favorite: !t.is_favorite } : t
+      ));
+    } catch (error) {
+      console.error('Erro ao favoritar/desfavoritar:', error);
     }
   };
 
@@ -97,7 +133,8 @@ export const TutorialsModal: React.FC<TutorialsModalProps> = ({
     const matchesSearch = t.subject.toLowerCase().includes(search.toLowerCase()) || 
                           (t.description?.toLowerCase() || '').includes(search.toLowerCase());
     const matchesClient = clientFilter ? t.client_id === clientFilter : true;
-    return matchesSearch && matchesClient;
+    const matchesFavorite = showOnlyFavorites ? t.is_favorite : true;
+    return matchesSearch && matchesClient && matchesFavorite;
   });
 
   const clientOptions = [
@@ -137,6 +174,18 @@ export const TutorialsModal: React.FC<TutorialsModalProps> = ({
                   placeholder="Filtrar por Cliente"
                 />
               </div>
+              <button
+                onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                  showOnlyFavorites 
+                  ? 'bg-amber-50 border-amber-200 text-amber-600' 
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50'
+                }`}
+                title="Filtrar Favoritos"
+              >
+                <Star size={18} fill={showOnlyFavorites ? 'currentColor' : 'none'} />
+                <span className="hidden lg:inline font-medium">Favoritos</span>
+              </button>
             </div>
             <Button
               variant="primary"
@@ -169,6 +218,17 @@ export const TutorialsModal: React.FC<TutorialsModalProps> = ({
                       {tutorial.subject}
                     </h3>
                     <div className="absolute top-4 right-4 flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                      <button
+                        onClick={() => toggleFavorite(tutorial)}
+                        className={`p-1.5 transition-colors rounded shadow-sm border ${
+                          tutorial.is_favorite 
+                          ? 'text-amber-500 border-amber-200 bg-amber-50' 
+                          : 'text-slate-400 hover:text-amber-500 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600'
+                        }`}
+                        title={tutorial.is_favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                      >
+                        <Star size={14} fill={tutorial.is_favorite ? 'currentColor' : 'none'} />
+                      </button>
                       <button
                         onClick={() => {
                           setSelectedTutorial(tutorial);

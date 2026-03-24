@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import {
   LayoutDashboard,
-  CheckSquare,
   Users,
   Settings,
   HelpCircle,
@@ -10,7 +9,8 @@ import {
   Hexagon,
   ChevronLeft,
   ChevronRight,
-  MessageSquare,
+  MessageSquareMore,
+  ListTodo,
   StickyNote
 } from 'lucide-react';
 import { UserRole } from '../types';
@@ -209,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const mainMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { id: 'tasks', label: 'Tarefas', icon: <CheckSquare size={20} /> },
+    { id: 'tasks', label: 'Tarefas', icon: <ListTodo size={20} /> },
     { id: 'clients', label: 'Cadastros', icon: <Users size={20} /> },
     {
       id: 'notes',
@@ -220,7 +220,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'chat',
       label: 'Chat Equipe',
-      icon: <MessageSquare size={20} />,
+      icon: <MessageSquareMore size={20} />,
       badge: chatsCount > 0 ? chatsCount : undefined
     },
   ];

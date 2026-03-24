@@ -936,14 +936,18 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           >
             Limpar
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setTutorialsModalOpen(true)}
-            icon={<FileText size={16} />}
-            className="text-xs"
-          >
-            Manuais / Tutoriais
-          </Button>
+          <div className="relative group flex">
+            <button
+              onClick={() => setTutorialsModalOpen(true)}
+              className="flex items-center justify-center h-10 w-10 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+            >
+              <FileText size={18} />
+            </button>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2.5 py-1.5 bg-slate-900 text-white text-[11px] font-medium rounded-md shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
+              Manuais / Tutoriais
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
+            </div>
+          </div>
           <Button onClick={handleCreate} icon={<Plus size={18} />}>Nova Tarefa</Button>
         </div>
       </div>
