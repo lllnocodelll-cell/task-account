@@ -4,6 +4,7 @@ import {
     UserCheck,
     Calendar,
     Pencil,
+    AlertCircle,
     Plus,
     Trash2,
     ExternalLink,
@@ -29,16 +30,18 @@ import {
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input, Select, CopyButton, Textarea } from './ui/Input';
-import { Client } from '../types';
+import { Modal } from './ui/Modal';
+import { Client, Sector } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { toTitleCase } from '../utils/stringUtils';
+import { readA1Certificate, ExtractedCertificateData } from '../utils/certificateUtils';
 
 // --- Interfaces for Sub-Tables ---
 interface ClientInscription { id?: string; client_id?: string; type: string; custom_name?: string; number: string; observation?: string; }
 interface ClientContact { id?: string; client_id?: string; name: string; email?: string; phone_fixed?: string; phone_mobile?: string; is_main?: boolean; }
 interface ClientTaxRegime { id?: string; client_id?: string; start_date?: string; end_date?: string; regime: string; observation?: string; }
 interface ClientActivity { id?: string; client_id?: string; order_type: string; cnae_code: string; cnae_description?: string; }
-interface ClientAccess { id?: string; client_id?: string; access_name: string; username?: string; password?: string; access_url?: string; }
+interface ClientAccess { id?: string; client_id?: string; access_name: string; username?: string; password?: string; access_url?: string; sector?: string; }
 interface ClientCertificate { id?: string; client_id?: string; model: string; expires_at?: string; password?: string; signatory?: string; expiration_date?: string; }
 interface ClientLicense { id?: string; client_id?: string; license_name: string; license_number?: string; expiry_date?: string; access_url?: string; number?: string; expiration_date?: string; }
 interface ClientLegislation { id?: string; client_id?: string; description: string; status?: string; access_url?: string; }
@@ -63,6 +66,11 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [activeTab, setActiveTab] = useState('inscricoes');
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [isSearchingCNPJ, setIsSearchingCNPJ] = useState(false);
+    const [certFile, setCertFile] = useState<File | null>(null);
+    const [extractingCert, setExtractingCert] = useState(false);
+    const [extractedCertData, setExtractedCertData] = useState<ExtractedCertificateData | null>(null);
+    const [isCertModalOpen, setIsCertModalOpen] = useState(false);
+    const [certError, setCertError] = useState<string | null>(null);
 
     // Main Client Data State
     const [formData, setFormData] = useState({
@@ -98,13 +106,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [licenses, setLicenses] = useState<ClientLicense[]>([]);
     const [legislations, setLegislations] = useState<ClientLegislation[]>([]);
     const [dfeSeries, setDfeSeries] = useState<ClientDfeSeries[]>([]);
+    const [sectorsList, setSectorsList] = useState<Sector[]>([]);
 
     // --- Temporary Input State for Tabs ---
     const [tempInscription, setTempInscription] = useState<Partial<ClientInscription>>({ type: 'Municipal' });
     const [tempContact, setTempContact] = useState<Partial<ClientContact>>({});
     const [tempRegime, setTempRegime] = useState<Partial<ClientTaxRegime>>({ regime: 'simples' });
     const [tempActivity, setTempActivity] = useState<Partial<ClientActivity>>({ order_type: 'principal' });
-    const [tempAccess, setTempAccess] = useState<Partial<ClientAccess>>({});
+    const [tempAccess, setTempAccess] = useState<Partial<ClientAccess>>({ sector: '' });
     const [tempCertificate, setTempCertificate] = useState<Partial<ClientCertificate>>({ model: 'ecnpj_a1', signatory: 'propria' });
     const [tempLicense, setTempLicense] = useState<Partial<ClientLicense>>({});
     const [tempLegislation, setTempLegislation] = useState<Partial<ClientLegislation>>({ status: 'vigente' });
@@ -114,6 +123,16 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
     // --- Load Sub-Data on Edit or Fetch Next Code on Create ---
     useEffect(() => {
+        const fetchSectors = async () => {
+            if (!userProfile?.org_id) return;
+            const { data } = await supabase.from('sectors').select('*').eq('org_id', userProfile.org_id).order('name');
+            if (data) {
+                const formatted = data.map((s: any) => ({ ...s, costCenter: s.cost_center }));
+                setSectorsList(formatted as Sector[]);
+            }
+        };
+        fetchSectors();
+
         const loadInitialData = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
@@ -295,7 +314,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         } else {
             setAccesses([...accesses, tempAccess as ClientAccess]);
         }
-        setTempAccess({});
+        setTempAccess({ sector: '' });
     };
     const handleAddCertificate = () => {
         if (!tempCertificate.model) return alert('Selecione o modelo');
@@ -309,6 +328,37 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         }
         setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' });
     };
+
+    const handleExtractCertificate = async () => {
+        if (!certFile) return setCertError("Selecione um arquivo de certificado (.pfx ou .p12).");
+        if (!tempCertificate.password) return setCertError("Informe a senha do certificado para extrair os dados.");
+
+        try {
+            setExtractingCert(true);
+            const data = await readA1Certificate(certFile, tempCertificate.password);
+            
+            const validToDate = new Date(data.validTo).toISOString().split('T')[0];
+
+            setTempCertificate(prev => ({
+                ...prev,
+                model: 'ecnpj_a1',
+                expiration_date: validToDate
+            }));
+
+            setExtractedCertData(data);
+            setIsCertModalOpen(true);
+            
+            setCertFile(null); 
+            const fileInput = document.getElementById('certFileInput') as HTMLInputElement;
+            if (fileInput) fileInput.value = '';
+
+        } catch (error: any) {
+            setCertError(error.message);
+        } finally {
+            setExtractingCert(false);
+        }
+    };
+
     const handleAddLicense = () => {
         if (!tempLicense.license_name) return alert('Preencha o nome da licença');
         if (editingIndex !== null) {
@@ -745,7 +795,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     setTempContact({});
                                     setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
                                     setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' });
-                                    setTempAccess({});
+                                    setTempAccess({ sector: '' });
                                     setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' });
                                     setTempLicense({});
                                     setTempLegislation({ status: 'vigente', description: '', access_url: '' });
@@ -1254,12 +1304,22 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 </div>
                             </div>
                             {!readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome do Acesso"
                                         placeholder="Simples, NFS-e..."
+                                        containerClassName="lg:col-span-1"
                                         value={tempAccess.access_name}
                                         onChange={e => setTempAccess({ ...tempAccess, access_name: e.target.value })}
+                                    />
+                                    <Select
+                                        label="Setor do Acesso"
+                                        value={tempAccess.sector || ''}
+                                        onChange={e => setTempAccess({ ...tempAccess, sector: e.target.value })}
+                                        options={[
+                                            { value: '', label: 'Sem Setor' },
+                                            ...sectorsList.map(s => ({ value: s.name, label: s.name }))
+                                        ]}
                                     />
                                     <Input
                                         label="Usuário"
@@ -1285,9 +1345,9 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="lg:col-span-4 flex justify-end gap-2">
+                                    <div className="lg:col-span-5 flex justify-end gap-2 mt-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempAccess({}); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempAccess({ sector: '' }); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddAccess}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Acesso'}
@@ -1297,11 +1357,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             )}
 
                             {accesses.length > 0 ? (
-                                <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                                <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden mt-4">
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 font-medium border-b border-slate-200 dark:border-slate-800">
                                             <tr>
                                                 <th className="px-4 py-3">Acesso</th>
+                                                <th className="px-4 py-3">Setor</th>
                                                 <th className="px-4 py-3">Usuário</th>
                                                 <th className="px-4 py-3">Senha</th>
                                                 <th className="px-4 py-3">Link</th>
@@ -1316,6 +1377,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                             <span>{item.access_name}</span>
                                                             <CopyButton text={item.access_name || ''} className="opacity-0 group-hover/copy:opacity-100" />
                                                         </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {item.sector ? (
+                                                            <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded text-xs font-medium">
+                                                                {item.sector}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-slate-400 italic text-xs">N/A</span>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex items-center gap-2 group/copy">
@@ -1352,7 +1422,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         {accesses.length > 0 && (
                                             <tfoot className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800">
                                                 <tr>
-                                                    <td colSpan={readOnly ? 4 : 5} className="px-4 py-2 text-xs text-slate-500 text-right">
+                                                    <td colSpan={readOnly ? 5 : 6} className="px-4 py-2 text-xs text-slate-500 text-right">
                                                         {accesses.length}/15 cadastradas
                                                     </td>
                                                 </tr>
@@ -1379,47 +1449,82 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 </div>
                             </div>
                             {!readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                                    <Select
-                                        label="Modelo"
-                                        value={tempCertificate.model}
-                                        onChange={e => setTempCertificate({ ...tempCertificate, model: e.target.value })}
-                                        options={[
-                                            { value: 'ecnpj_a1', label: 'eCNPJ - A1' },
-                                            { value: 'ecnpj_a3', label: 'eCNPJ - A3' },
-                                            { value: 'ecpf_a1', label: 'eCPF - A1' },
-                                            { value: 'ecpf_a3', label: 'eCPF - A3' },
-                                        ]}
-                                    />
-                                    <Input
-                                        label="Expira em"
-                                        type="date"
-                                        value={tempCertificate.expiration_date}
-                                        onChange={e => setTempCertificate({ ...tempCertificate, expiration_date: e.target.value })}
-                                    />
-                                    <Input
-                                        label="Senha (Visível)"
-                                        type="text"
-                                        value={tempCertificate.password}
-                                        onChange={e => setTempCertificate({ ...tempCertificate, password: e.target.value })}
-                                    />
-                                    <Select
-                                        label="Signatário"
-                                        value={tempCertificate.signatory}
-                                        onChange={e => setTempCertificate({ ...tempCertificate, signatory: e.target.value })}
-                                        options={[
-                                            { value: 'propria', label: 'Própria Empresa' },
-                                            { value: 'socio', label: 'Sócio Administrador' },
-                                            { value: 'procurador', label: 'Procurador' },
-                                        ]}
-                                    />
-                                    <div className="lg:col-span-4 flex justify-end gap-2">
-                                        {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' }); }}>Cancelar</Button>
-                                        )}
-                                        <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddCertificate}>
-                                            {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Certificado'}
-                                        </Button>
+                                <div className="space-y-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <div className="flex flex-col md:flex-row items-end gap-4 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-lg">
+                                        <div className="flex-1 w-full">
+                                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Autopreenchimento A1 (.pfx/.p12)</label>
+                                            <input 
+                                                id="certFileInput"
+                                                type="file" 
+                                                accept=".pfx,.p12" 
+                                                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-r-none file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200 dark:file:bg-indigo-900/30 dark:file:text-indigo-400 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg h-10 overflow-hidden"
+                                                onChange={(e) => setCertFile(e.target.files?.[0] || null)}
+                                            />
+                                        </div>
+                                        <div className="flex-1 w-full">
+                                            <Input
+                                                label="Senha do Certificado"
+                                                type="text"
+                                                placeholder="Necessária para leitura"
+                                                value={tempCertificate.password || ''}
+                                                onChange={e => setTempCertificate({ ...tempCertificate, password: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="w-full md:w-auto">
+                                            <Button 
+                                                variant="secondary" 
+                                                onClick={handleExtractCertificate} 
+                                                disabled={!certFile || !tempCertificate.password || extractingCert}
+                                                icon={extractingCert ? <Loader2 size={16} className="animate-spin"/> : <Shield size={16}/>}
+                                                className="w-full md:w-auto h-10 whitespace-nowrap"
+                                            >
+                                                {extractingCert ? 'Lendo...' : 'Extrair Dados A1'}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end pt-2 border-t border-slate-200 dark:border-slate-800">
+                                        <Select
+                                            label="Modelo"
+                                            value={tempCertificate.model}
+                                            onChange={e => setTempCertificate({ ...tempCertificate, model: e.target.value })}
+                                            options={[
+                                                { value: 'ecnpj_a1', label: 'eCNPJ - A1' },
+                                                { value: 'ecnpj_a3', label: 'eCNPJ - A3' },
+                                                { value: 'ecpf_a1', label: 'eCPF - A1' },
+                                                { value: 'ecpf_a3', label: 'eCPF - A3' },
+                                            ]}
+                                        />
+                                        <Input
+                                            label="Expira em"
+                                            type="date"
+                                            value={tempCertificate.expiration_date || tempCertificate.expires_at || ''}
+                                            onChange={e => setTempCertificate({ ...tempCertificate, expiration_date: e.target.value, expires_at: e.target.value })}
+                                        />
+                                        <Input
+                                            label="Senha (Visível)"
+                                            type="text"
+                                            value={tempCertificate.password || ''}
+                                            onChange={e => setTempCertificate({ ...tempCertificate, password: e.target.value })}
+                                        />
+                                        <Select
+                                            label="Signatário"
+                                            value={tempCertificate.signatory}
+                                            onChange={e => setTempCertificate({ ...tempCertificate, signatory: e.target.value })}
+                                            options={[
+                                                { value: 'propria', label: 'Própria Empresa' },
+                                                { value: 'socio', label: 'Sócio Administrador' },
+                                                { value: 'procurador', label: 'Procurador' },
+                                            ]}
+                                        />
+                                        <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
+                                            {editingIndex !== null && (
+                                                <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expiration_date: '', expires_at: '', password: '' }); setCertFile(null); }}>Cancelar</Button>
+                                            )}
+                                            <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddCertificate}>
+                                                {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Certificado'}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1904,6 +2009,65 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     )}
                 </div>
             </div>
+            {/* Modal de Sucesso - Leitura de Certificado */}
+            <Modal
+                isOpen={isCertModalOpen}
+                onClose={() => setIsCertModalOpen(false)}
+                title="Certificado Lido com Sucesso!"
+                size="md"
+            >
+                {extractedCertData && (
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-lg mb-6">
+                            <Shield className="w-6 h-6 shrink-0" />
+                            <p className="text-sm font-medium">Os dados do arquivo selecionado foram extraídos e preenchidos no formulário automaticamente.</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                            <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex flex-col">
+                                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Empresa</span>
+                                <span className="text-sm text-slate-900 dark:text-white font-semibold">{extractedCertData.companyName}</span>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex flex-col">
+                                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Documento Selecionado</span>
+                                <span className="text-sm tracking-wide text-slate-900 dark:text-white font-semibold">{extractedCertData.document || 'Não localizado no certificado'}</span>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex flex-col">
+                                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Órgão Emissor</span>
+                                <span className="text-sm text-slate-900 dark:text-white font-semibold">{extractedCertData.issuer}</span>
+                            </div>
+
+                            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 flex flex-col">
+                                <span className="text-xs text-indigo-500 font-medium uppercase tracking-wider mb-1">Data de Emissão e Vencimento</span>
+                                <span className="text-base text-indigo-700 dark:text-indigo-400 font-bold tracking-tight">Válido de {new Date(extractedCertData.validFrom).toLocaleDateString()} até {new Date(extractedCertData.validTo).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end">
+                            <Button onClick={() => setIsCertModalOpen(false)}>Concluir</Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            {/* Modal de Erro - Leitura de Certificado */}
+            <Modal
+                isOpen={!!certError}
+                onClose={() => setCertError(null)}
+                title="Não foi possível ler o certificado"
+                size="md"
+            >
+                <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-800 rounded-lg">
+                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <p className="text-sm font-medium">{certError}</p>
+                    </div>
+                    <div className="mt-6 flex justify-end">
+                        <Button variant="secondary" onClick={() => setCertError(null)}>Entendi</Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };
