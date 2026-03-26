@@ -43,6 +43,7 @@ export interface Task {
   establishmentType?: string;
   hasBranches?: boolean;
   clientDfes?: { id: string; dfe_type: string; login_url?: string; issuer?: string; series?: string; username?: string; password?: string; }[];
+  clientAccesses?: { id: string; access_name: string; username?: string; password?: string; access_url?: string; sector?: string; }[];
   attachments?: { name: string; size: number; url?: string }[];
 }
 

@@ -330,6 +330,25 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
         );
     });
 
+    // Derived metrics for cards
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const totalCurrent = clients.length;
+    const totalLastMonth = clients.filter(c => {
+        if (!c.created_at) return true;
+        return new Date(c.created_at) < thisMonthStart;
+    }).length;
+
+    const clientsTrendValue = totalLastMonth > 0 
+        ? ((totalCurrent - totalLastMonth) / totalLastMonth * 100)
+        : (totalCurrent > 0 ? 100 : 0);
+
+    const clientsTrendLabel = totalLastMonth === 0 && totalCurrent > 0
+        ? "Novo este mês"
+        : `${clientsTrendValue >= 0 ? '+' : ''}${clientsTrendValue.toFixed(0)}% vs mês ant.`;
+
+    const getClientPercent = (count: number) => totalCurrent > 0 ? (count / totalCurrent * 100) : 0;
+
     const headerInputClass = "mt-2 w-full h-8 text-xs px-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-sm animate-in fade-in slide-in-from-top-1 duration-200";
 
     if (viewState === 'create' || viewState === 'edit') {
@@ -366,26 +385,58 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricCard title="Total de Cadastros" value={clients.length.toString()} icon={<Users size={20} />} color="indigo" />
-                <MetricCard title="Ativos" value={clients.filter(c => c.status === 'Ativo').length.toString()} icon={<UserCheck size={20} />} color="emerald" />
-                <MetricCard title="Inativos" value={clients.filter(c => c.status === 'Inativo').length.toString()} icon={<UserX size={20} />} color="rose" />
-                <MetricCard title="Novos no Mês" value={clients.filter(c => {
-                    if (!c.created_at) return false;
-                    const createdAt = new Date(c.created_at);
-                    const now = new Date();
-                    return createdAt.getMonth() === now.getMonth() &&
-                        createdAt.getFullYear() === now.getFullYear();
-                }).length.toString()} icon={<Calendar size={20} />} color="amber" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <MetricCard 
+                    title="Total de Cadastros" 
+                    value={clients.length} 
+                    icon={<Users size={20} />} 
+                    color="indigo" 
+                    trend={clientsTrendLabel}
+                    variant="horizontal"
+                />
+                <MetricCard 
+                    title="Ativos" 
+                    value={clients.filter(c => c.status === 'Ativo').length} 
+                    icon={<UserCheck size={20} />} 
+                    color="emerald" 
+                    progress={getClientPercent(clients.filter(c => c.status === 'Ativo').length)}
+                    variant="horizontal"
+                />
+                <MetricCard 
+                    title="Inativos" 
+                    value={clients.filter(c => c.status === 'Inativo').length} 
+                    icon={<UserX size={20} />} 
+                    color="rose" 
+                    progress={getClientPercent(clients.filter(c => c.status === 'Inativo').length)}
+                    variant="horizontal"
+                />
+                <MetricCard 
+                    title="Novos no Mês" 
+                    value={clients.filter(c => {
+                        if (!c.created_at) return false;
+                        const createdAt = new Date(c.created_at);
+                        return createdAt.getMonth() === now.getMonth() &&
+                            createdAt.getFullYear() === now.getFullYear();
+                    }).length} 
+                    icon={<Calendar size={20} />} 
+                    color="amber" 
+                    progress={getClientPercent(clients.filter(c => {
+                        if (!c.created_at) return false;
+                        const createdAt = new Date(c.created_at);
+                        return createdAt.getMonth() === now.getMonth() &&
+                            createdAt.getFullYear() === now.getFullYear();
+                    }).length)}
+                    variant="horizontal"
+                />
             </div>
 
-            <Card className="overflow-visible">
+            <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
                 {loading ? (
                     <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-600" /></div>
                 ) : (
-                    <div className="overflow-x-auto min-h-[300px]">
-                        <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400">
-                            <thead className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-10 [&_th:first-child]:rounded-tl-lg [&_th:last-child]:rounded-tr-lg">
+                    <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+                        <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-0">
+                            <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
                                 <tr>
                                     <HeaderCell
                                         label="Código"

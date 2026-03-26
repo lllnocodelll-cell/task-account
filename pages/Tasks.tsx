@@ -37,7 +37,11 @@ import {
   MinusCircle,
   ChevronRight,
   Repeat,
-  Copy
+  Copy,
+  ListChecks,
+  Key,
+  Shield,
+  SquareArrowOutUpRight
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -502,6 +506,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [clients, setClients] = useState<Client[]>([]);
   const [activeObservationId, setActiveObservationId] = useState<string | null>(null);
   const [activeDfeId, setActiveDfeId] = useState<string | null>(null);
+  const [activeAccessPopoverTaskId, setActiveAccessPopoverTaskId] = useState<string | null>(null);
   const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
 
   // Filter Values State
@@ -532,8 +537,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     }));
   };
 
-  // Derived filtered tasks
-  const filteredTasks = tasks.filter((task) => {
+  // Tasks filtradas para os cards (ignora filtro de status da tabela)
+  const cardsTasks = tasks.filter((task) => {
     return (
       task.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) &&
       task.taskName.toLowerCase().includes(filters.taskName.toLowerCase()) &&
@@ -541,10 +546,21 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       (filters.taxRegime === '' || task.taxRegime === filters.taxRegime) &&
       (filters.priority === '' || task.priority === filters.priority) &&
       (filters.sector === '' || task.sector === filters.sector) &&
-      task.responsible.toLowerCase().includes(filters.responsible.toLowerCase()) &&
-      (filters.status === '' || task.status === filters.status)
+      task.responsible.toLowerCase().includes(filters.responsible.toLowerCase())
     );
   });
+
+  // Derived filtered tasks
+  const filteredTasks = cardsTasks.filter((task) => {
+    return (filters.status === '' || task.status === filters.status);
+  });
+
+  const totalTasks = cardsTasks.length;
+  const pendingCount = cardsTasks.filter(t => t.status === TaskStatus.PENDENTE).length;
+  const inProgressCount = cardsTasks.filter(t => t.status === TaskStatus.INICIADA).length;
+  const delayedCount = cardsTasks.filter(t => t.status === TaskStatus.ATRASADA).length;
+  const completedCount = cardsTasks.filter(t => t.status === TaskStatus.CONCLUIDA).length;
+  const getPercent = (count: number) => totalTasks > 0 ? ((count / totalTasks) * 100).toFixed(0) : '0';
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
@@ -568,6 +584,24 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     setVisibleFilters({});
   };
 
+  const getPrevMonthCompetence = (curr: string) => {
+    if (!curr) return '';
+    const [year, month] = curr.split('-').map(Number);
+    const date = new Date(year, month - 2, 1);
+    return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  };
+
+  const prevCompetence = getPrevMonthCompetence(filters.competence);
+  const totalTasksPrevMonth = tasks.filter(t => t.competence === prevCompetence).length;
+  
+  const trendValue = totalTasksPrevMonth > 0 
+    ? (((totalTasks - totalTasksPrevMonth) / totalTasksPrevMonth) * 100)
+    : (totalTasks > 0 ? 100 : 0);
+    
+  const trendLabel = totalTasksPrevMonth === 0 && totalTasks > 0 
+    ? "Novo este mês" 
+    : `${trendValue >= 0 ? '+' : ''}${trendValue.toFixed(0)}% vs mês ant.`;
+
   const fetchTasks = async () => {
     try {
       setLoading(true);
@@ -584,7 +618,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         .from('tasks')
         .select(`
           *,
-          clients(city, state, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password)),
+          clients(city, state, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector)),
           attachments:task_attachments(*)
         `)
         .order('created_at', { ascending: false });
@@ -627,6 +661,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             clientState: t.clients?.state,
             establishmentType: t.clients?.establishment_type,
             clientDfes: t.clients?.client_dfe_series || [],
+            clientAccesses: t.clients?.client_accesses || [],
             attachments: t.attachments?.map((a: any) => ({
               name: a.file_name,
               size: a.file_size,
@@ -952,11 +987,47 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
-        <MetricCard title="Pendentes" value={tasks.filter(t => t.status === TaskStatus.PENDENTE).length} icon={<Clock size={20} />} color="indigo" />
-        <MetricCard title="Em Andamento" value={tasks.filter(t => t.status === TaskStatus.INICIADA).length} icon={<Play size={20} />} color="amber" />
-        <MetricCard title="Atrasadas" value={tasks.filter(t => t.status === TaskStatus.ATRASADA).length} icon={<XCircle size={20} />} color="rose" />
-        <MetricCard title="Concluídas" value={tasks.filter(t => t.status === TaskStatus.CONCLUIDA).length} icon={<CheckCircle size={20} />} color="emerald" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 shrink-0 px-1">
+        <MetricCard 
+          title="Total de Tarefas" 
+          value={totalTasks} 
+          icon={<ListChecks size={20} />} 
+          color="slate" 
+          trend={trendLabel}
+          variant="horizontal"
+        />
+        <MetricCard 
+          title="Pendentes" 
+          value={pendingCount} 
+          icon={<Clock size={20} />} 
+          color="indigo" 
+          progress={Number(getPercent(pendingCount))}
+          variant="horizontal"
+        />
+        <MetricCard 
+          title="Iniciadas" 
+          value={inProgressCount} 
+          icon={<Play size={20} />} 
+          color="amber" 
+          progress={Number(getPercent(inProgressCount))}
+          variant="horizontal"
+        />
+        <MetricCard 
+          title="Atrasadas" 
+          value={delayedCount} 
+          icon={<XCircle size={20} />} 
+          color="rose" 
+          progress={Number(getPercent(delayedCount))}
+          variant="horizontal"
+        />
+        <MetricCard 
+          title="Concluídas" 
+          value={completedCount} 
+          icon={<CheckCircle size={20} />} 
+          color="emerald" 
+          progress={Number(getPercent(completedCount))}
+          variant="horizontal"
+        />
       </div>
 
       {
@@ -969,9 +1040,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           </div>
         ) : layoutMode === 'list' ? (
           <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="overflow-auto custom-scrollbar flex-1">
-              <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400">
-                <thead className="bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-10 shadow-sm">
+            <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+              <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-0">
+                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
                   <tr>
                     <HeaderCell
                       label="Cliente"
@@ -1282,6 +1353,139 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                           )}
                                         </div>
                                       ))}
+
+                                      {task.clientAccesses && task.clientAccesses.length > 0 && (
+                                        <div className="relative group/access-tooltip">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setActiveAccessPopoverTaskId(activeAccessPopoverTaskId === task.id ? null : task.id);
+                                            }}
+                                            className={`inline-flex items-center justify-center p-1 rounded transition-colors ${
+                                              activeAccessPopoverTaskId === task.id
+                                                ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-white ring-2 ring-amber-300 dark:ring-amber-400/50'
+                                                : 'text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-500/10 cursor-pointer'
+                                            }`}
+                                          >
+                                            <SquareArrowOutUpRight size={14} strokeWidth={2.5} />
+                                          </button>
+
+                                          {/* Tooltip CSS */}
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold rounded shadow-xl opacity-0 invisible group-hover/access-tooltip:opacity-100 group-hover/access-tooltip:visible transition-all duration-200 z-[70] pointer-events-none whitespace-nowrap border border-slate-700/50 uppercase tracking-tighter">
+                                            Acessos
+                                            {/* Arrow */}
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
+                                          </div>
+
+                                          {activeAccessPopoverTaskId === task.id && (
+                                            <div
+                                              className="absolute z-[60] top-full left-0 mt-1.5 w-max min-w-[320px] max-w-2xl p-4 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <div className="flex justify-between items-center mb-3 pb-2 border-b border-amber-100 dark:border-amber-900/30">
+                                                <h4 className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                                                  <Shield size={12} strokeWidth={2.5} />
+                                                  Credenciais de Acesso ({task.clientAccesses.length})
+                                                </h4>
+                                                <button
+                                                  onClick={(e) => { e.stopPropagation(); setActiveAccessPopoverTaskId(null); }}
+                                                  className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-0.5 rounded transition-colors"
+                                                >
+                                                  <X size={14} strokeWidth={2.5} />
+                                                </button>
+                                              </div>
+
+                                              <div className="overflow-auto max-h-60 scrollbar-hide">
+                                                <table className="w-full text-left border-collapse">
+                                                  <thead>
+                                                    <tr className="border-b border-slate-100 dark:border-slate-800">
+                                                      <th className="py-2 px-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest w-8">Link</th>
+                                                      <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest min-w-[80px]">Nome</th>
+                                                      <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest min-w-[100px]">Usuário</th>
+                                                      <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest min-w-[80px]">Senha</th>
+                                                      <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Setor</th>
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                                                    {task.clientAccesses.map((acc) => (
+                                                      <tr key={acc.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                                                        <td className="py-2 px-1">
+                                                          {acc.access_url ? (
+                                                            <a
+                                                              href={acc.access_url.startsWith('http') ? acc.access_url : `https://${acc.access_url}`}
+                                                              target="_blank"
+                                                              rel="noopener noreferrer"
+                                                              className="text-amber-600 dark:text-amber-400 hover:scale-110 transition-transform inline-block"
+                                                            >
+                                                              <ExternalLink size={12} />
+                                                            </a>
+                                                          ) : (
+                                                            <span className="text-slate-300"><ExternalLink size={12} className="opacity-30" /></span>
+                                                          )}
+                                                        </td>
+                                                        <td className="py-2 px-2">
+                                                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate block max-w-[100px]" title={acc.access_name}>
+                                                            {acc.access_name}
+                                                          </span>
+                                                        </td>
+                                                        <td className="py-2 px-2">
+                                                          <div className="flex items-center gap-1.5 justify-between group/cell">
+                                                            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 truncate max-w-[120px]">
+                                                              {acc.username || '—'}
+                                                            </span>
+                                                            {acc.username && (
+                                                              <button
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  navigator.clipboard.writeText(acc.username!).then(() => {
+                                                                    const btn = e.currentTarget;
+                                                                    btn.classList.add('text-emerald-500');
+                                                                    setTimeout(() => btn.classList.remove('text-emerald-500'), 1000);
+                                                                  });
+                                                                }}
+                                                                className="opacity-0 group-hover/cell:opacity-100 p-1 text-slate-300 hover:text-amber-500 transition-all"
+                                                              >
+                                                                <Copy size={10} />
+                                                              </button>
+                                                            )}
+                                                          </div>
+                                                        </td>
+                                                        <td className="py-2 px-2">
+                                                          <div className="flex items-center gap-1.5 justify-between group/cell">
+                                                            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 font-mono tracking-tight truncate max-w-[100px]">
+                                                              {acc.password || '—'}
+                                                            </span>
+                                                            {acc.password && (
+                                                              <button
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  navigator.clipboard.writeText(acc.password!).then(() => {
+                                                                    const btn = e.currentTarget;
+                                                                    btn.classList.add('text-emerald-500');
+                                                                    setTimeout(() => btn.classList.remove('text-emerald-500'), 1000);
+                                                                  });
+                                                                }}
+                                                                className="opacity-0 group-hover/cell:opacity-100 p-1 text-slate-300 hover:text-amber-500 transition-all"
+                                                              >
+                                                                <Copy size={10} />
+                                                              </button>
+                                                            )}
+                                                          </div>
+                                                        </td>
+                                                        <td className="py-2 px-2">
+                                                          <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate block max-w-[80px]">
+                                                            {acc.sector || '—'}
+                                                          </span>
+                                                        </td>
+                                                      </tr>
+                                                    ))}
+                                                  </tbody>
+                                                </table>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </>
@@ -1490,7 +1694,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               </div>
               <div className="flex-1 min-w-[250px]">
                 <KanbanColumn
-                  title="Em Andamento"
+                  title="Iniciadas"
                   status={TaskStatus.INICIADA}
                   tasks={filteredTasks.filter(t => t.status === TaskStatus.INICIADA)}
                   onEdit={handleEdit}
