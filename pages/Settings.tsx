@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -7,6 +6,7 @@ import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, Chev
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
+import { useToast } from '../contexts/ToastContext';
 
 interface SettingsProps {
   userProfile: any;
@@ -67,6 +67,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
 // ------------------- TEAM SETTINGS -------------------
 
 const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
+  const { addToast } = useToast();
   const [members, setMembers] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +80,14 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [sectorId, setSectorId] = useState('');
   const [role, setRole] = useState('operacional'); // New state for access role
   const [initialPassword, setInitialPassword] = useState(''); // Just for UI, logic pending
+
+  // Edit Form
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editSectorId, setEditSectorId] = useState('');
+  const [editRole, setEditRole] = useState('operacional');
 
   // Deletion Modal State
   const [memberToDelete, setMemberToDelete] = useState<any>(null);
@@ -111,7 +120,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
   const handleAddMember = async () => {
     if (!firstName || !email) {
-      alert('Nome e Email são obrigatórios');
+      addToast('error', 'Erro', 'Nome e Email são obrigatórios');
       return;
     }
     setAdding(true);
@@ -138,10 +147,10 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setSectorId('');
         setRole('operacional');
         setInitialPassword('');
-        alert('Membro adicionado com sucesso!');
+        addToast('success', 'Sucesso', 'Membro adicionado com sucesso!');
       }
     } catch (error: any) {
-      alert('Erro ao adicionar membro: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao adicionar membro: ' + error.message);
     } finally {
       setAdding(false);
     }
@@ -166,7 +175,62 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       console.error('Erro ao atualizar status:', error);
       // Reverte se der erro
       setMembers(prev => prev.map(m => m.id === id ? { ...m, status: currentStatus } : m));
-      alert('Erro ao atualizar situação: ' + (error.message || 'Erro desconhecido'));
+      addToast('error', 'Erro', 'Erro ao atualizar situação: ' + (error.message || 'Erro desconhecido'));
+    }
+  };
+
+  const startEditingMember = (member: any) => {
+    setEditingMemberId(member.id);
+    setEditFirstName(member.first_name || '');
+    setEditLastName(member.last_name || '');
+    setEditEmail(member.email || '');
+    setEditSectorId(member.sector_id || '');
+    setEditRole(member.role || 'operacional');
+  };
+
+  const cancelEditingMember = () => {
+    setEditingMemberId(null);
+    setEditFirstName('');
+    setEditLastName('');
+    setEditEmail('');
+    setEditSectorId('');
+    setEditRole('operacional');
+  };
+
+  const handleUpdateMember = async (id: string) => {
+    if (!editFirstName || !editEmail) return addToast('error', 'Erro', 'Nome e e-mail são obrigatórios');
+
+    // Otimista parcial
+    const originalMembers = [...members];
+    const sectorName = sectors.find(s => s.id === editSectorId)?.name || '';
+
+    setMembers(prev => prev.map(m => m.id === id ? {
+      ...m,
+      first_name: editFirstName,
+      last_name: editLastName,
+      email: editEmail,
+      sector_id: editSectorId || null,
+      role: editRole,
+      sectors: sectorName ? { name: sectorName } : null
+    } : m));
+
+    try {
+      const { error } = await supabase
+        .from('members')
+        .update({
+          first_name: editFirstName,
+          last_name: editLastName,
+          email: editEmail,
+          sector_id: editSectorId || null,
+          role: editRole
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      setEditingMemberId(null);
+    } catch (error: any) {
+      setMembers(originalMembers); // rollback
+      addToast('error', 'Erro', 'Erro ao atualizar membro: ' + error.message);
     }
   };
 
@@ -191,7 +255,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       }
     } catch (error: any) {
       console.error('Erro ao buscar dependências do membro:', error);
-      alert('Erro ao verificar tarefas: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao verificar tarefas: ' + error.message);
       setDeleteModalState('closed');
       setMemberToDelete(null);
     }
@@ -206,7 +270,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       if (error) throw error;
       setMembers(members.filter(m => m.id !== memberToDelete.id));
     } catch (error: any) {
-      alert('Erro ao excluir membro: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao excluir membro: ' + error.message);
     } finally {
       setDeleteModalState('closed');
       setMemberToDelete(null);
@@ -222,7 +286,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <Input label="Nome" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="João" />
           <Input label="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Silva" />
-          <Input label="E-mail" value={email} onChange={e => setEmail(e.target.value)} placeholder="joao@empresa.com" type="email" />
+          <Input label="E-mail" value={email} onChange={e => setEmail(e.target.value)} placeholder="joao@empresa.com" type="email" autoComplete="new-password" />
           <Select
             label="Setor"
             value={sectorId} // Control the select
@@ -241,7 +305,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                { value: 'gestor', label: 'Gestor' }
              ]}
           />
-          <Input label="Senha Inicial (Opcional)" value={initialPassword} onChange={e => setInitialPassword(e.target.value)} type="password" />
+          <Input label="Senha Inicial (Opcional)" value={initialPassword} onChange={e => setInitialPassword(e.target.value)} type="password" autoComplete="new-password" />
         </div>
         <div className="mt-4 flex justify-end">
           <Button onClick={handleAddMember} disabled={adding}>
@@ -253,68 +317,108 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {members.map(member => (
           <div key={member.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 flex flex-col items-center text-center hover:border-indigo-500 dark:hover:border-indigo-500 transition-colors shadow-sm relative group">
-            <button
-              onClick={() => initDeleteMember(member)}
-              className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Trash2 size={16} />
-            </button>
-            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-3 flex items-center justify-center text-xl font-bold text-slate-900 dark:text-white uppercase">
-              {member.first_name ? member.first_name.substring(0, 2) : 'U'}
-            </div>
-            <h4 className="font-semibold text-slate-900 dark:text-white">{member.first_name} {member.last_name}</h4>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{member.email}</p>
-            
-            <div className="flex flex-wrap justify-center gap-2 mb-2">
-              {member.sectors?.name && (
-                <span className="text-xs px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full">
-                  {member.sectors.name}
-                </span>
-              )}
-              {member.role && (
-                <span className={`text-xs px-2 py-1 rounded-full ${member.role === 'gestor' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
-                  {member.role === 'gestor' ? 'Gestor' : 'Operacional'}
-                </span>
-              )}
-            </div>
+            {editingMemberId === member.id ? (
+              <div className="space-y-3 w-full text-left">
+                <Input label="Nome" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} />
+                <Input label="Sobrenome" value={editLastName} onChange={e => setEditLastName(e.target.value)} />
+                <Input label="E-mail" value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email" autoComplete="new-password" />
+                <Select
+                  label="Setor"
+                  value={editSectorId}
+                  onChange={e => setEditSectorId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Sem setor' },
+                    ...sectors.map(s => ({ value: s.id, label: s.name }))
+                  ]}
+                />
+                <Select
+                   label="Nível de Permissão"
+                   value={editRole}
+                   onChange={e => setEditRole(e.target.value)}
+                   options={[
+                     { value: 'operacional', label: 'Operacional' },
+                     { value: 'gestor', label: 'Gestor' }
+                   ]}
+                />
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="secondary" size="sm" onClick={cancelEditingMember}>Cancelar</Button>
+                  <Button variant="primary" size="sm" onClick={() => handleUpdateMember(member.id)}>Salvar</Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => startEditingMember(member)}
+                  className="absolute top-2 right-8 p-1.5 text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Editar Membro"
+                >
+                  <SettingsIcon size={16} />
+                </button>
+                <button
+                  onClick={() => initDeleteMember(member)}
+                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Excluir Membro"
+                >
+                  <Trash2 size={16} />
+                </button>
+                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-3 flex items-center justify-center text-xl font-bold text-slate-900 dark:text-white uppercase">
+                  {member.first_name ? member.first_name.substring(0, 2) : 'U'}
+                </div>
+                <h4 className="font-semibold text-slate-900 dark:text-white">{member.first_name} {member.last_name}</h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{member.email}</p>
+                
+                <div className="flex flex-wrap justify-center gap-2 mb-2">
+                  {member.sectors?.name && (
+                    <span className="text-xs px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full">
+                      {member.sectors.name}
+                    </span>
+                  )}
+                  {member.role && (
+                    <span className={`text-xs px-2 py-1 rounded-full ${member.role === 'gestor' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                      {member.role === 'gestor' ? 'Gestor' : 'Operacional'}
+                    </span>
+                  )}
+                </div>
 
-            <div className="flex items-center gap-2 mb-4 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
-              <Toggle
-                checked={member.status !== 'Inativo'}
-                onChange={() => handleToggleStatus(member.id, member.status || 'Ativo')}
-              />
-              <span className={`text-xs font-semibold ${member.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                {member.status === 'Inativo' ? 'Inativo' : 'Ativo'}
-              </span>
-            </div>
+                <div className="flex items-center gap-2 mb-4 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <Toggle
+                    checked={member.status !== 'Inativo'}
+                    onChange={() => handleToggleStatus(member.id, member.status || 'Ativo')}
+                  />
+                  <span className={`text-xs font-semibold ${member.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {member.status === 'Inativo' ? 'Inativo' : 'Ativo'}
+                  </span>
+                </div>
 
-            <div className="flex flex-col gap-2 w-full">
-              <Button
-                size="sm"
-                variant="primary"
-                icon={<Send size={14} />}
-                onClick={() => {
-                  const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
-                  const subject = encodeURIComponent('Convite para acessar o Task Account');
-                  const body = encodeURIComponent(`Olá ${member.first_name},\n\nVocê foi convidado para participar da organização no Task Account!\n\nPara finalizar seu cadastro, acesse o link abaixo usando este e-mail (${member.email}):\n\n${inviteLink}\n\nSeja bem-vindo!`);
-                  window.location.href = `mailto:${member.email}?subject=${subject}&body=${body}`;
-                }}
-              >
-                Enviar por E-mail
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                icon={<Copy size={14} />}
-                onClick={() => {
-                  const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
-                  navigator.clipboard.writeText(inviteLink);
-                  alert('Link de convite copiado!');
-                }}
-              >
-                Copiar Link
-              </Button>
-            </div>
+                <div className="flex flex-col gap-2 w-full">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    icon={<Send size={14} />}
+                    onClick={() => {
+                      const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
+                      const subject = encodeURIComponent('Convite para acessar o Task Account');
+                      const body = encodeURIComponent(`Olá ${member.first_name},\n\nVocê foi convidado para participar da organização no Task Account!\n\nPara finalizar seu cadastro, acesse o link abaixo usando este e-mail (${member.email}):\n\n${inviteLink}\n\nSeja bem-vindo!`);
+                      window.location.href = `mailto:${member.email}?subject=${subject}&body=${body}`;
+                    }}
+                  >
+                    Enviar por E-mail
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon={<Copy size={14} />}
+                    onClick={() => {
+                      const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
+                      navigator.clipboard.writeText(inviteLink);
+                      addToast('success', 'Sucesso', 'Link de convite copiado!');
+                    }}
+                  >
+                    Copiar Link
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         ))}
         {members.length === 0 && (
@@ -402,9 +506,11 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 // ------------------- SECTOR SETTINGS -------------------
 
 const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
+  const { addToast } = useToast();
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   // Form
   const [name, setName] = useState('');
@@ -416,6 +522,10 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [editName, setEditName] = useState('');
   const [editLeader, setEditLeader] = useState('');
   const [editCostCenter, setEditCostCenter] = useState('');
+
+  // Deletion Modal State
+  const [sectorToDelete, setSectorToDelete] = useState<any>(null);
+  const [deleteSectorModalState, setDeleteSectorModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
 
   useEffect(() => {
     fetchSectors();
@@ -435,7 +545,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleAddSector = async () => {
-    if (!name) return alert('Nome é obrigatório');
+    if (!name) return addToast('error', 'Erro', 'Nome é obrigatório');
     setAdding(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -456,9 +566,49 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setCostCenter('');
       }
     } catch (error: any) {
-      alert('Erro: ' + error.message);
+      addToast('error', 'Erro', 'Erro: ' + error.message);
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleImportDefaultSectors = async () => {
+    setImporting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const defaultNames = [
+        'Contábil', 'Fiscal', 'Folha', 'Societário', 'Comercial',
+        'Financeiro', 'Consultoria', 'Qualidade', 'Auditoria', 'Tecnologia', 'Administrativo'
+      ];
+
+      // Pegar nomes existentes para comparar
+      const existingNames = sectors.map(s => s.name.toLowerCase().trim());
+      const toAdd = defaultNames.filter(name => !existingNames.includes(name.toLowerCase().trim()));
+
+      if (toAdd.length === 0) {
+        addToast('info', 'Setores padrão', 'Todos os setores padrão já estão cadastrados.');
+        return;
+      }
+
+      const newSectors = toAdd.map(name => ({
+        org_id: userProfile.org_id,
+        name,
+        status: 'Ativo'
+      }));
+
+      const { data, error } = await supabase.from('sectors').insert(newSectors).select();
+
+      if (error) throw error;
+      if (data) {
+        setSectors([...sectors, ...data]);
+        addToast('success', 'Sucesso', `${toAdd.length} setores padrão cadastrados com sucesso!`);
+      }
+    } catch (error: any) {
+      addToast('error', 'Erro', 'Erro ao importar setores: ' + error.message);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -522,12 +672,68 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
   };
 
+  const initDeleteSector = async (sector: any) => {
+    setSectorToDelete(sector);
+    setDeleteSectorModalState('checking');
+
+    try {
+      const [membersRes, typesRes] = await Promise.all([
+        supabase.from('members').select('id', { count: 'exact', head: true }).eq('sector_id', sector.id),
+        supabase.from('task_types').select('id', { count: 'exact', head: true }).eq('sector_id', sector.id)
+      ]);
+
+      if (membersRes.error) throw membersRes.error;
+      if (typesRes.error) throw typesRes.error;
+
+      const hasMembers = (membersRes.count ?? 0) > 0;
+      const hasTypes = (typesRes.count ?? 0) > 0;
+
+      if (hasMembers || hasTypes) {
+        setDeleteSectorModalState('cannot_delete');
+      } else {
+        setDeleteSectorModalState('can_delete');
+      }
+    } catch (error: any) {
+      console.error('Erro ao verificar dependências do setor:', error);
+      alert('Erro ao verificar dependências: ' + error.message);
+      setDeleteSectorModalState('closed');
+      setSectorToDelete(null);
+    }
+  };
+
+  const confirmDeleteSector = async () => {
+    if (!sectorToDelete) return;
+    setDeleteSectorModalState('deleting');
+
+    try {
+      const { error } = await supabase.from('sectors').delete().eq('id', sectorToDelete.id);
+      if (error) throw error;
+      setSectors(sectors.filter(s => s.id !== sectorToDelete.id));
+    } catch (error: any) {
+      alert('Erro ao excluir setor: ' + error.message);
+    } finally {
+      setDeleteSectorModalState('closed');
+      setSectorToDelete(null);
+    }
+  };
+
   if (loading) return <Loader2 className="animate-spin" />;
 
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Novo Setor</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Novo Setor</h3>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<CloudDownload size={16} />}
+            onClick={handleImportDefaultSectors}
+            disabled={importing || adding}
+          >
+            {importing ? 'Cadastrando...' : 'Sugerir Setores Padrão'}
+          </Button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <Input label="Nome do Setor" value={name} onChange={e => setName(e.target.value)} />
           <Input label="Líder" value={leader} onChange={e => setLeader(e.target.value)} />
@@ -556,10 +762,17 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               <>
                 <button
                   onClick={() => startEditing(sector)}
-                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-8 p-1.5 text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Editar Setor"
                 >
                   <SettingsIcon size={16} />
+                </button>
+                <button
+                  onClick={() => initDeleteSector(sector)}
+                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Excluir Setor"
+                >
+                  <Trash2 size={16} />
                 </button>
                 <div>
                   <div className="flex justify-between items-start mb-2 pr-6">
@@ -583,6 +796,80 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           </div>
         ))}
       </div>
+
+      {/* Modal de Exclusão de Setor */}
+      <Modal
+          isOpen={deleteSectorModalState !== 'closed'}
+          onClose={() => {
+              if (deleteSectorModalState !== 'deleting') {
+                  setDeleteSectorModalState('closed');
+              }
+          }}
+          title={deleteSectorModalState === 'cannot_delete' ? "Exclusão Bloqueada" : "Confirmar Exclusão"}
+          size="md"
+          footer={
+              deleteSectorModalState === 'can_delete' ? (
+                  <>
+                      <Button variant="secondary" onClick={() => setDeleteSectorModalState('closed')}>
+                          Cancelar
+                      </Button>
+                      <Button
+                          variant="danger"
+                          onClick={confirmDeleteSector}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                          Excluir Setor
+                      </Button>
+                  </>
+              ) : deleteSectorModalState === 'deleting' ? (
+                  <Button variant="secondary" disabled>
+                      <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                      Excluindo...
+                  </Button>
+              ) : (
+                  <Button variant="secondary" onClick={() => setDeleteSectorModalState('closed')}>
+                      Entendi
+                  </Button>
+              )
+          }
+      >
+          {deleteSectorModalState === 'checking' && (
+              <div className="flex flex-col items-center justify-center py-6 text-slate-500 dark:text-slate-400">
+                  <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-600" />
+                  <p>Verificando dependências do setor...</p>
+              </div>
+          )}
+
+          {deleteSectorModalState === 'cannot_delete' && (
+              <div className="py-4 text-slate-700 dark:text-slate-300">
+                  <div className="flex items-center gap-3 mb-4 text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-500/10 p-4 rounded-lg">
+                      <ListFilter className="w-6 h-6 shrink-0" />
+                      <p className="font-medium">
+                          Não é possível excluir o setor <strong>{sectorToDelete?.name}</strong>.
+                      </p>
+                  </div>
+                  <p>
+                      Este setor possui <strong>membros da equipe</strong> vinculados ou <strong>tipos de tarefa</strong> associados.
+                      Para manter o histórico íntegro, a exclusão sistêmica foi bloqueada.
+                  </p>
+                  <p className="mt-4 text-sm text-slate-500">
+                      Caso o setor não esteja mais em uso, recomendamos alterar a Situação para <strong>Inativo</strong> no switch do card.
+                  </p>
+              </div>
+          )}
+
+          {deleteSectorModalState === 'can_delete' && (
+              <div className="py-4 text-slate-700 dark:text-slate-300">
+                  <p>
+                      Você tem certeza que deseja excluir permanentemente o setor <strong>{sectorToDelete?.name}</strong>?
+                  </p>
+                  <p className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded border border-red-100 dark:border-red-900/50">
+                      Esta ação é irreversível. Todas as configurações deste setor serão apagadas do sistema.
+                  </p>
+              </div>
+          )}
+      </Modal>
+
     </div>
   );
 };
@@ -590,6 +877,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 // ------------------- TASK TYPE SETTINGS -------------------
 
 const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
+  const { addToast } = useToast();
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -599,12 +887,16 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [name, setName] = useState('');
   const [sectorId, setSectorId] = useState('');
   const [entity, setEntity] = useState('');
+  const [dueDay, setDueDay] = useState('');
+  const [nonWorkingAction, setNonWorkingAction] = useState('antecipar');
 
   // Edit Form
   const [editingTaskTypeId, setEditingTaskTypeId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editSectorId, setEditSectorId] = useState('');
   const [editEntity, setEditEntity] = useState('');
+  const [editDueDay, setEditDueDay] = useState('');
+  const [editNonWorkingAction, setEditNonWorkingAction] = useState('antecipar');
 
   useEffect(() => {
     fetchData();
@@ -625,7 +917,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleAddToken = async () => {
-    if (!name) return alert('Nome obrigatório');
+    if (!name) return addToast('error', 'Erro', 'Nome obrigatório');
     setAdding(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -634,7 +926,9 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         org_id: userProfile.org_id,
         name,
         sector_id: sectorId || null,
-        federative_entity: entity
+        federative_entity: entity,
+        due_day: dueDay ? parseInt(dueDay) : null,
+        non_working_day_action: nonWorkingAction
       }).select('*, sectors(name)'); // Join to get sector name back immediately
 
       if (error) throw error;
@@ -651,9 +945,9 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           if (s) inserted.sectors = { name: s.name };
         }
         setTaskTypes([...taskTypes, inserted]);
-        setName(''); setSectorId(''); setEntity('');
+        setName(''); setSectorId(''); setEntity(''); setDueDay(''); setNonWorkingAction('antecipar');
       }
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { addToast('error', 'Erro', e.message); }
     finally { setAdding(false); }
   };
 
@@ -674,7 +968,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       console.error('Erro ao atualizar status:', error);
       // Reverte se der erro
       setTaskTypes(prev => prev.map(t => t.id === id ? { ...t, status: currentStatus } : t));
-      alert('Erro ao atualizar situação: ' + (error.message || 'Erro desconhecido'));
+      addToast('error', 'Erro', 'Erro ao atualizar situação: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
@@ -683,6 +977,8 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditName(task.name);
     setEditSectorId(task.sector_id || '');
     setEditEntity(task.federative_entity || 'Outro');
+    setEditDueDay(task.due_day?.toString() || '');
+    setEditNonWorkingAction(task.non_working_day_action || 'antecipar');
   };
 
   const cancelEditing = () => {
@@ -690,10 +986,12 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditName('');
     setEditSectorId('');
     setEditEntity('');
+    setEditDueDay('');
+    setEditNonWorkingAction('antecipar');
   };
 
   const handleUpdateTaskType = async (id: string) => {
-    if (!editName) return alert('Nome é obrigatório');
+    if (!editName) return addToast('error', 'Erro', 'Nome é obrigatório');
 
     // Otimista parcial (vamos manter backup do estado)
     const originalTaskTypes = [...taskTypes];
@@ -706,6 +1004,8 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       name: editName,
       sector_id: editSectorId,
       federative_entity: editEntity,
+      due_day: editDueDay ? parseInt(editDueDay) : null,
+      non_working_day_action: editNonWorkingAction,
       sectors: sectorName ? { name: sectorName } : null
     } : t));
 
@@ -715,7 +1015,9 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         .update({
           name: editName,
           sector_id: editSectorId || null,
-          federative_entity: editEntity
+          federative_entity: editEntity,
+          due_day: editDueDay ? parseInt(editDueDay) : null,
+          non_working_day_action: editNonWorkingAction
         })
         .eq('id', id);
 
@@ -723,7 +1025,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       setEditingTaskTypeId(null);
     } catch (error: any) {
       setTaskTypes(originalTaskTypes); // rollback
-      alert('Erro ao atualizar tarefa: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao atualizar tarefa: ' + error.message);
     }
   };
 
@@ -753,6 +1055,17 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               { value: 'Estadual', label: 'Estadual' },
               { value: 'Federal', label: 'Federal' },
               { value: 'Outro', label: 'Outro' },
+            ]}
+          />
+          <Input label="Vencimento (dia)" value={dueDay} onChange={e => setDueDay(e.target.value)} type="number" min="1" max="31" placeholder="Ex: 20" />
+          <Select
+            label="Dia não útil"
+            value={nonWorkingAction}
+            onChange={e => setNonWorkingAction(e.target.value)}
+            options={[
+              { value: 'antecipar', label: 'Antecipar' },
+              { value: 'prorrogar', label: 'Prorrogar' },
+              { value: 'nao_se_aplica', label: 'Não se aplica' }
             ]}
           />
         </div>
@@ -787,6 +1100,19 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     { value: 'Outro', label: 'Outro' },
                   ]}
                 />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Venc. (dia)" value={editDueDay} onChange={e => setEditDueDay(e.target.value)} type="number" min="1" max="31" placeholder="Ex: 20" />
+                  <Select
+                    label="Dia não útil"
+                    value={editNonWorkingAction}
+                    onChange={e => setEditNonWorkingAction(e.target.value)}
+                    options={[
+                      { value: 'antecipar', label: 'Antecipar' },
+                      { value: 'prorrogar', label: 'Prorrogar' },
+                      { value: 'nao_se_aplica', label: 'Não se aplica' }
+                    ]}
+                  />
+                </div>
 
                 <div className="flex justify-end gap-2 mt-4">
                   <Button variant="secondary" size="sm" onClick={cancelEditing}>Cancelar</Button>
@@ -807,6 +1133,11 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   <div className="space-y-1 mb-4">
                     {task.sectors?.name && <p className="text-xs text-slate-500 dark:text-slate-400">Setor: <span className="text-indigo-600 dark:text-indigo-400">{task.sectors?.name}</span></p>}
                     {task.federative_entity && <p className="text-xs text-slate-500 dark:text-slate-400">Ente: <span className="text-emerald-600 dark:text-emerald-400">{task.federative_entity}</span></p>}
+                    {task.due_day && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Vencimento: dia <span className="font-semibold text-slate-700 dark:text-slate-300">{task.due_day}</span> <span className="text-slate-400">({task.non_working_day_action === 'antecipar' ? 'Antecipar' : task.non_working_day_action === 'prorrogar' ? 'Prorrogar' : 'Não se aplica'})</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -831,11 +1162,14 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 // ------------------- CALENDAR SETTINGS -------------------
 
 const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
+  const { addToast } = useToast();
   const [year, setYear] = useState(new Date().getFullYear());
   const [holidays, setHolidays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [holidayToDelete, setHolidayToDelete] = useState<any | null>(null);
 
   // Form
   const [date, setDate] = useState('');
@@ -857,7 +1191,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleAddHoliday = async () => {
-    if (!date || !name) return alert('Data e Nome obrigatórios');
+    if (!date || !name) return addToast('error', 'Erro', 'Data e Nome obrigatórios');
     setAdding(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -874,14 +1208,28 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setHolidays([...holidays, ...data]);
         setName(''); setDate('');
       }
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { addToast('error', 'Erro', e.message); }
     finally { setAdding(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Remover?")) return;
-    await supabase.from('holidays').delete().eq('id', id);
-    setHolidays(holidays.filter(h => h.id !== id));
+  const handleDelete = (holiday: any) => {
+    setHolidayToDelete(holiday);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!holidayToDelete) return;
+    try {
+      const { error } = await supabase.from('holidays').delete().eq('id', holidayToDelete.id);
+      if (error) throw error;
+      setHolidays(holidays.filter(h => h.id !== holidayToDelete.id));
+      addToast('success', 'Sucesso', 'Feriado removido com sucesso!');
+    } catch (e: any) {
+      addToast('error', 'Erro', 'Erro ao remover feriado: ' + e.message);
+    } finally {
+      setIsDeleteModalOpen(false);
+      setHolidayToDelete(null);
+    }
   };
 
   const handleImportHolidays = async () => {
@@ -902,7 +1250,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       const newHolidays = apiHolidays.filter((apiH: any) => !existingDates.has(apiH.date));
       
       if (newHolidays.length === 0) {
-        alert(`Todos os feriados nacionais de ${year} já estão no calendário.`);
+        addToast('info', 'Feriados', `Todos os feriados nacionais de ${year} já estão no calendário.`);
         setImporting(false);
         return;
       }
@@ -924,10 +1272,10 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       
       if (data) {
         setHolidays(prev => [...prev, ...data]);
-        alert(`${newHolidays.length} feriados nacionais importados com sucesso!`);
+        addToast('success', 'Sucesso', `${newHolidays.length} feriados nacionais importados com sucesso!`);
       }
     } catch (error: any) {
-      alert('Erro ao importar feriados: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao importar feriados: ' + error.message);
     } finally {
       setImporting(false);
     }
@@ -1030,7 +1378,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleDelete(h.id)}
+                    onClick={() => handleDelete(h)}
                     className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                     title="Remover feriado"
                   >
@@ -1042,6 +1390,25 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           )}
         </div>
       </div>
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Remover Feriado"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={confirmDelete}>Remover</Button>
+          </>
+        }
+      >
+        <div className="py-2">
+          <p className="text-slate-600 dark:text-slate-400">
+            Tem certeza que deseja remover o feriado <span className="font-bold text-slate-900 dark:text-white">"{holidayToDelete?.name}"</span>?
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

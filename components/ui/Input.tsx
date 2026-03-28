@@ -107,14 +107,23 @@ export const Input: React.FC<InputProps> = ({
             </div>
           )}
           <input
-            className={`w-full h-10 rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all
+            className={`w-full h-10 rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all
               ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}
               ${icon ? 'pl-10' : ''}
               ${copyable ? 'pr-10' : ''}
+              ${props.type === 'month' ? 'text-transparent cursor-pointer' : 'text-slate-900 dark:text-slate-100'}
+              ${props.type === 'month' || props.type === 'date' || props.type === 'time' ? 'dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity' : ''}
               ${className}
             `}
             {...props}
           />
+          {props.type === 'month' && (
+            <div className={`absolute left-[1px] top-[1px] bottom-[1px] right-10 bg-white dark:bg-slate-900 flex items-center pointer-events-none rounded-l-lg ${icon ? 'pl-10' : 'pl-3'}`}>
+              <span className="text-[12px] font-medium text-slate-900 dark:text-slate-100">
+                {props.value ? `${String(props.value).split('-')[1]}/${String(props.value).split('-')[0]}` : ''}
+              </span>
+            </div>
+          )}
           {copyable && props.value && (
             <button
               type="button"

@@ -269,6 +269,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   userProfile
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [activeDfePopoverId, setActiveDfePopoverId] = useState<string | null>(null);
+  const [activeAccessPopoverId, setActiveAccessPopoverId] = useState<string | null>(null);
+  const [activeObsPopoverId, setActiveObsPopoverId] = useState<string | null>(null);
+  const [accessPopoverData, setAccessPopoverData] = useState<{ task: Task; rect: DOMRect } | null>(null);
+  const [dfePopoverData, setDfePopoverData] = useState<{ task: Task; dfe: any; rect: DOMRect } | null>(null);
+  const [obsPopoverData, setObsPopoverData] = useState<{ task: Task; rect: DOMRect } | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -313,162 +319,270 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 min-h-[100px]">
-        {tasks.map(task => (
-          <div
-            key={task.id}
-            draggable
-            onDragStart={(e) => onDragStart(e, task.id)}
-            className={`bg-white dark:bg-slate-800 p-4 rounded-xl shadow border border-slate-200 dark:border-slate-700 border-t-4 ${color.replace('border-', 'border-t-')} hover:-translate-y-1 hover:shadow-lg transition-all duration-200 active:cursor-grabbing group select-none ${task.status === TaskStatus.CONCLUIDA ? 'cursor-default' : 'cursor-pointer'}`}
-            onClick={() => {
-              if (task.status !== TaskStatus.CONCLUIDA) {
-                onViewTask(task);
-              }
-            }}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                task.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                  'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                }`}>
-                {task.priority}
-              </span>
-              <div className="flex items-center gap-1">
-                <GripVertical size={14} className="text-slate-300 dark:text-slate-600" />
-                <span className="text-xs text-slate-400">{task.responsible.split(' ')[0]}</span>
-              </div>
-            </div>
+        {tasks.map(task => {
+          const clientData = clients.find(c => c.id === task.clientId);
+          const hasSimplesBadges = task.taxRegime === 'simples' && (
+            (task.selectedAnnexes && task.selectedAnnexes.length > 0) || task.factorR || task.exceededSublimit || task.notifiedExclusion
+          );
 
-            <h4
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewTask(task);
-              }}
-              className="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1 line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors"
-            >
-              {task.taskName}
-            </h4>
-            {/* Features / Flags */}
-            <div className="flex flex-wrap items-center gap-1.5 mb-2 mt-2">
-              {task.observation && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-[9px] text-amber-600 dark:text-amber-400 font-medium border border-amber-200 dark:border-amber-500/20" title="Possui observação">
-                  <Info size={10} /> Obs
-                </span>
-              )}
-              {task.noMovement && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-bold border border-red-200 dark:border-red-500/20" title="Sem movimento">
-                  <MinusCircle size={10} /> S/ Mov
-                </span>
-              )}
-              {task.establishmentType === 'filial' && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-[9px] text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-500/20" title="É uma filial">
-                  <GitMerge size={10} /> Filial
-                </span>
-              )}
-              {task.registrationRegime && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px] text-slate-600 dark:text-slate-400 font-medium border border-slate-200 dark:border-slate-700" title="Regime de Registro">
-                  <Activity size={10} /> {task.registrationRegime}
-                </span>
-              )}
-              {task.taxRegime === 'simples' && (
-                <>
-                  {task.selectedAnnexes && task.selectedAnnexes.length > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 text-[9px] text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-200 dark:border-emerald-500/20" title="Anexos">
-                      <Layers size={10} /> {task.selectedAnnexes.map(a => a.replace('Anexo ', '')).join(', ')}
-                    </span>
-                  )}
-                  {task.factorR && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/10 text-[9px] text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-500/20" title="Fator R">
-                      <Zap size={10} fill="currentColor" /> Fator R
-                    </span>
-                  )}
-                  {task.exceededSublimit && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-[9px] text-amber-600 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-500/20" title="Excedeu Sublimite">
-                      <AlertTriangle size={10} /> Sublimite
-                    </span>
-                  )}
-                  {task.notifiedExclusion && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-500/10 text-[9px] text-rose-600 dark:text-rose-400 font-bold border border-rose-200 dark:border-rose-500/20" title="Exclusão Notificada">
-                      <AlertTriangle size={10} /> Exclusão
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Client Context Box */}
+          return (
             <div
-              className="flex flex-col gap-1.5 bg-slate-50 dark:bg-slate-900/40 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-800/50 transition-colors group/client"
-              onClick={(e) => {
-                e.stopPropagation();
-                const clientData = clients.find(c => c.id === task.clientId);
-                if (clientData) {
-                  onViewClient(clientData);
+              key={task.id}
+              draggable
+              onDragStart={(e) => onDragStart(e, task.id)}
+              className={`bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 border-t-4 ${color.replace('border-', 'border-t-')} hover:-translate-y-1 hover:shadow-xl transition-all duration-200 active:cursor-grabbing group select-none relative ${task.status === TaskStatus.CONCLUIDA ? 'cursor-default' : 'cursor-pointer'}`}
+              onClick={() => {
+                if (task.status !== TaskStatus.CONCLUIDA) {
+                  onViewTask(task);
                 }
               }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-tight line-clamp-2 group-hover/client:text-indigo-600 dark:group-hover/client:text-indigo-400 transition-colors">
-                  {task.clientName}
-                </p>
-              </div>
-              
-              <div className="flex items-center justify-between gap-2 mt-0.5">
-                {(task.clientCity || task.clientState) ? (
-                  <div className="flex items-center gap-1 text-[9px] text-slate-400 font-medium">
-                    <MapPin size={9} className="text-slate-300 dark:text-slate-500 shrink-0" />
-                    <span className="truncate">{task.clientCity}{task.clientCity && task.clientState ? '-' : ''}{task.clientState}</span>
+              {/* ── SEÇÃO 1: Cabeçalho — Prioridade + Responsável/Setor ── */}
+              <div className="flex justify-between items-center px-3 pt-3 pb-2">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide ${
+                  task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                  task.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                  'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                }`}>
+                  {task.priority}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <GripVertical size={13} className="text-slate-300 dark:text-slate-600" />
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                      {task.responsible.split(' ').slice(0, 2).join(' ')}
+                    </span>
+                    {task.sector && (
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 leading-tight">{task.sector}</span>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-[9px] text-transparent select-none">-</span>
+                </div>
+              </div>
+
+              {/* ── SEÇÃO 2: Nome da Tarefa + Alertas Operacionais ── */}
+              <div className="px-3 pb-2">
+                <h4
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewTask(task);
+                  }}
+                  className="font-bold text-slate-800 dark:text-slate-100 text-sm line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors leading-snug mb-1.5"
+                >
+                  {task.taskName}
+                </h4>
+                {(task.observation || task.noMovement) && (
+                  <div className="flex flex-wrap gap-1">
+                    {task.observation && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (activeObsPopoverId === task.id) {
+                            setActiveObsPopoverId(null);
+                            setObsPopoverData(null);
+                          } else {
+                            setActiveObsPopoverId(task.id);
+                            setObsPopoverData({ task, rect: e.currentTarget.getBoundingClientRect() });
+                            setActiveDfePopoverId(null);
+                            setActiveAccessPopoverId(null);
+                            setDfePopoverData(null);
+                            setAccessPopoverData(null);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-500/10 text-[9px] text-amber-600 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+                      >
+                        <Info size={9} /> Observação
+                      </button>
+                    )}
+                    {task.noMovement && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-bold border border-red-200 dark:border-red-500/20">
+                        <MinusCircle size={9} /> Sem Movimento
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{task.competence}</span>
-                  {task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence) && (
-                    <span className="inline-flex items-center gap-1 px-1.5 bg-slate-100 dark:bg-slate-800 rounded text-[9px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1 truncate max-w-[80px]" title={`Recorrência: ${task.recurrence}`}>
-                      <Repeat size={8} className="shrink-0" />
-                      <span className="capitalize truncate">{task.recurrence}</span>
+              {/* ── SEÇÃO 3: Regime Fiscal ── */}
+              {task.taxRegime && (
+                <div className="mx-3 mb-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50">
+                  <span className="text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Regime Fiscal</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">
+                      {TAX_REGIME_LABELS[task.taxRegime] || task.taxRegime}
                     </span>
+                    {task.registrationRegime && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-[8.5px] text-slate-600 dark:text-slate-400 font-bold shrink-0">
+                        <Activity size={8} />
+                        {REGISTRATION_REGIME_LABELS[task.registrationRegime] || task.registrationRegime}
+                      </span>
+                    )}
+                  </div>
+                  {hasSimplesBadges && (
+                    <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-700/50">
+                      {task.selectedAnnexes && task.selectedAnnexes.length > 0 && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-[9px] text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-500/20">
+                          <Layers size={8} /> {task.selectedAnnexes.map(a => a.replace('Anexo ', 'Anx.')).join(' ')}
+                        </span>
+                      )}
+                      {task.factorR && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-500/10 text-[9px] text-indigo-700 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-500/20">
+                          <Zap size={8} fill="currentColor" /> Fator R
+                        </span>
+                      )}
+                      {task.exceededSublimit && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-500/10 text-[9px] text-amber-700 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-500/20">
+                          <AlertTriangle size={8} /> Sublimite
+                        </span>
+                      )}
+                      {task.notifiedExclusion && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-500/10 text-[9px] text-rose-700 dark:text-rose-400 font-bold border border-rose-200 dark:border-rose-500/20">
+                          <AlertTriangle size={8} /> Exclusão
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-                {task.dueDate && (
-                  <div className="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-medium" title="Vencimento">
-                    <Calendar size={10} />
-                    <span>{task.dueDate.split('-').reverse().join('/')}</span>
+              )}
+
+              {/* ── SEÇÃO 4: Bloco do Cliente ── */}
+              <div
+                className="mx-3 mb-2 px-2.5 py-2 rounded-lg bg-indigo-50/40 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all group/client"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (clientData) {
+                    onViewClient(clientData);
+                  }
+                }}
+              >
+                <div className="flex items-start justify-between gap-1 mb-0.5">
+                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight line-clamp-2 group-hover/client:text-indigo-600 dark:group-hover/client:text-indigo-400 transition-colors">
+                    {task.clientName}
+                  </p>
+                  <ExternalLink size={9} className="text-indigo-300 dark:text-indigo-600 shrink-0 mt-0.5 group-hover/client:text-indigo-500 transition-colors" />
+                </div>
+                {clientData?.document && (
+                  <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono tracking-wide mb-1">
+                    {clientData.document}
+                  </div>
+                )}
+                {(task.clientCity || task.clientState) && (
+                  <div className="flex items-center gap-1 text-[9px] text-slate-400 dark:text-slate-500 font-medium mb-1.5">
+                    <MapPin size={8} className="text-slate-300 dark:text-slate-600 shrink-0" />
+                    <span className="truncate">{task.clientCity}{task.clientCity && task.clientState ? ' - ' : ''}{task.clientState}</span>
+                  </div>
+                )}
+                {(task.establishmentType || (task.clientDfes && task.clientDfes.length > 0) || (task.clientAccesses && task.clientAccesses.length > 0)) && (
+                  <div className="flex flex-wrap gap-1">
+                    {task.establishmentType && (
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide rounded-md ${
+                        task.establishmentType === 'matriz'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      }`}>
+                        <GitMerge size={8} />
+                        {task.establishmentType === 'matriz' ? 'Matriz' : 'Filial'}
+                      </span>
+                    )}
+                    {/* Badges DFe – clicáveis com popover */}
+                    {task.clientDfes && task.clientDfes.slice(0, 4).map((dfe: any) => (
+                      <button
+                        key={dfe.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const popoverId = `${task.id}-dfe-${dfe.id}`;
+                          if (activeDfePopoverId === popoverId) {
+                            setActiveDfePopoverId(null);
+                            setDfePopoverData(null);
+                          } else {
+                            setActiveDfePopoverId(popoverId);
+                            setDfePopoverData({ task, dfe, rect: e.currentTarget.getBoundingClientRect() });
+                            setActiveAccessPopoverId(null);
+                            setActiveObsPopoverId(null);
+                            setAccessPopoverData(null);
+                            setObsPopoverData(null);
+                          }
+                        }}
+                        className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 hover:bg-indigo-200 dark:hover:bg-indigo-500/30 transition-colors"
+                      >
+                        {dfe.dfe_type?.toUpperCase()}
+                      </button>
+                    ))}
+                    {task.clientDfes && task.clientDfes.length > 4 && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                        +{task.clientDfes.length - 4}
+                      </span>
+                    )}
+                    {/* Badge de Acessos – clicável com popover fixo */}
+                    {task.clientAccesses && task.clientAccesses.length > 0 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (activeAccessPopoverId === task.id) {
+                            setActiveAccessPopoverId(null);
+                            setAccessPopoverData(null);
+                          } else {
+                            setActiveAccessPopoverId(task.id);
+                            setAccessPopoverData({ task, rect: e.currentTarget.getBoundingClientRect() });
+                            setActiveDfePopoverId(null);
+                            setActiveObsPopoverId(null);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 hover:bg-amber-200 dark:hover:bg-amber-500/25 transition-colors"
+                      >
+                        <Key size={8} /> {task.clientAccesses.length} acesso{task.clientAccesses.length > 1 ? 's' : ''}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {status !== TaskStatus.CONCLUIDA && (
+
+              {/* ── SEÇÃO 5: Período + Vencimento + Ações ── */}
+              <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">{task.competence}</span>
+                    {task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence) && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700/50 rounded-md text-[9px] text-slate-500 dark:text-slate-400 font-medium capitalize">
+                        <Repeat size={8} className="shrink-0" />
+                        {task.recurrence}
+                      </span>
+                    )}
+                  </div>
+                  {task.dueDate && (
+                    <div className="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold" title="Vencimento">
+                      <Calendar size={9} />
+                      <span>{task.dueDate.split('-').reverse().join('/')}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {status !== TaskStatus.CONCLUIDA && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onConclude(task.id);
+                      }}
+                      className="text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
+                      title="Concluir Rápido"
+                    >
+                      <CheckCircle size={15} />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onConclude(task.id);
+                      onDelete(task);
                     }}
-                    className="text-emerald-500 hover:text-emerald-600 p-1"
-                    title="Concluir Rápido"
+                    className="text-red-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                    title="Excluir"
                   >
-                    <CheckCircle size={16} />
+                    <Trash2 size={13} />
                   </button>
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(task);
-                  }}
-                  className="text-red-400 hover:text-red-500 p-1"
-                  title="Excluir"
-                >
-                  <Trash2 size={14} />
-                </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {tasks.length === 0 && !isDragOver && (
           <div className="h-24 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-center text-slate-400 text-xs text-center p-4">
             Arraste tarefas para cá
@@ -480,6 +594,210 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
           </div>
         )}
       </div>
+
+      {/* Popover de DFe – position:fixed para escapar do overflow-y-auto */}
+      {activeDfePopoverId && dfePopoverData && (() => {
+        const POPOVER_W = 240;
+        const buttonRight = dfePopoverData.rect.right;
+        const left = Math.min(
+          Math.max(10, buttonRight - POPOVER_W),
+          window.innerWidth - POPOVER_W - 10
+        );
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: `${window.innerHeight - dfePopoverData.rect.top + 6}px`,
+              left: `${left}px`,
+              width: `${POPOVER_W}px`,
+            }}
+            className="z-[9999] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+                <FileText size={10} /> {dfePopoverData.dfe.dfe_type?.toUpperCase()} · Série {dfePopoverData.dfe.series}
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveDfePopoverId(null); setDfePopoverData(null); }}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </div>
+            {dfePopoverData.dfe.issuer && (
+              <div className="mb-2">
+                <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block mb-0.5">Emissor</span>
+                <a
+                  href={dfePopoverData.dfe.issuer_link || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[11px] text-indigo-400 font-semibold hover:text-indigo-300 underline truncate block"
+                >
+                  {dfePopoverData.dfe.issuer}
+                </a>
+              </div>
+            )}
+            {dfePopoverData.dfe.username && (
+              <div className="mb-2">
+                <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block mb-0.5">Usuário</span>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] text-slate-200 font-mono truncate">{dfePopoverData.dfe.username}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(dfePopoverData.dfe.username); }}
+                    className="text-slate-500 hover:text-slate-300 shrink-0 transition-colors"
+                    title="Copiar usuário"
+                  >
+                    <Copy size={10} />
+                  </button>
+                </div>
+              </div>
+            )}
+            {dfePopoverData.dfe.password && (
+              <div>
+                <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block mb-0.5">Senha</span>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-[11px] text-slate-200 font-mono truncate">{dfePopoverData.dfe.password}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(dfePopoverData.dfe.password); }}
+                    className="text-slate-500 hover:text-slate-300 shrink-0 transition-colors"
+                    title="Copiar senha"
+                  >
+                    <Copy size={10} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Popover de Observação – position:fixed para escapar do overflow-y-auto */}
+      {activeObsPopoverId && obsPopoverData && (() => {
+        const POPOVER_W = 256;
+        const buttonLeft = obsPopoverData.rect.left;
+        const left = Math.min(
+          Math.max(10, buttonLeft),
+          window.innerWidth - POPOVER_W - 10
+        );
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: `${window.innerHeight - obsPopoverData.rect.top + 6}px`,
+              left: `${left}px`,
+              width: `${POPOVER_W}px`,
+            }}
+            className="z-[9999] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                <Info size={10} /> Detalhe da Observação
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveObsPopoverId(null); setObsPopoverData(null); }}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">{obsPopoverData.task.observation}</p>
+          </div>
+        );
+      })()}
+
+      {/* Popover de Acessos – position:fixed para escapar do overflow-y-auto */}
+      {activeAccessPopoverId && accessPopoverData && (
+        <div
+          style={(() => {
+            const POPOVER_W = 288;
+            const buttonRight = accessPopoverData.rect.right;
+            // Âncora pela borda direita do botão, limitando entre as bordas da tela
+            const left = Math.min(
+              Math.max(10, buttonRight - POPOVER_W),
+              window.innerWidth - POPOVER_W - 10
+            );
+            return {
+              position: 'fixed' as const,
+              bottom: `${window.innerHeight - accessPopoverData.rect.top + 6}px`,
+              left: `${left}px`,
+              width: `${POPOVER_W}px`,
+            };
+          })()}
+          className="z-[9999] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-1">
+              <Key size={10} /> Credenciais de Acesso ({accessPopoverData.task.clientAccesses?.length})
+            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setActiveAccessPopoverId(null); setAccessPopoverData(null); }}
+              className="text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <X size={12} />
+            </button>
+          </div>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {accessPopoverData.task.clientAccesses?.map((acc: any) => (
+              <div key={acc.id} className="border border-slate-700 rounded-lg p-2 space-y-1.5">
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {acc.access_url ? (
+                      <a
+                        href={acc.access_url.startsWith('http') ? acc.access_url : `https://${acc.access_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-amber-400 hover:text-amber-300 transition-colors shrink-0"
+                        title={acc.access_url}
+                      >
+                        <ExternalLink size={11} />
+                      </a>
+                    ) : (
+                      <ExternalLink size={11} className="text-slate-600 opacity-40 shrink-0" />
+                    )}
+                    <span className="text-[11px] font-bold text-slate-200 truncate">{acc.access_name || '—'}</span>
+                  </div>
+                  {acc.sector && (
+                    <span className="text-[8.5px] text-slate-500 font-medium shrink-0">{acc.sector}</span>
+                  )}
+                </div>
+                {acc.username && (
+                  <div className="flex items-center justify-between gap-1">
+                    <div>
+                      <span className="text-[8px] text-slate-500 uppercase tracking-wide block">Usuário</span>
+                      <span className="text-[10px] text-slate-300 font-mono">{acc.username}</span>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(acc.username); }}
+                      className="text-slate-500 hover:text-slate-300 transition-colors shrink-0"
+                    >
+                      <Copy size={9} />
+                    </button>
+                  </div>
+                )}
+                {acc.password && (
+                  <div className="flex items-center justify-between gap-1">
+                    <div>
+                      <span className="text-[8px] text-slate-500 uppercase tracking-wide block">Senha</span>
+                      <span className="text-[10px] text-slate-300 font-mono">{acc.password}</span>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(acc.password); }}
+                      className="text-slate-500 hover:text-slate-300 transition-colors shrink-0"
+                    >
+                      <Copy size={9} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div >
   );
 };
@@ -942,19 +1260,26 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             </button>
           </div>
 
-          <div className={`flex items-center bg-white dark:bg-slate-900 rounded-lg px-3 border ${filters.competence ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'} h-10 group focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all`}>
+          <div className={`flex items-center bg-white dark:bg-slate-900 rounded-lg pl-3 pr-1 border ${filters.competence ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'} h-10 group focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all`}>
             <Calendar size={16} className="text-indigo-500 dark:text-indigo-400 mr-2 group-focus-within:text-indigo-600 dark:group-focus-within:text-indigo-300" />
-            <input
-              type="month"
-              className="bg-transparent border-none text-xs font-semibold text-slate-700 dark:text-slate-200 focus:ring-0 p-0 w-36 uppercase"
-              value={filters.competence}
-              onChange={(e) => handleFilterChange('competence', e.target.value)}
-              title="Filtrar por Competência"
-            />
+            <div className="relative w-32 h-full flex items-center">
+              <input
+                type="month"
+                className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
+                value={filters.competence}
+                onChange={(e) => handleFilterChange('competence', e.target.value)}
+                title="Filtrar por Competência"
+              />
+              <div className="absolute left-0 right-8 top-1/2 -translate-y-1/2 flex items-center pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%]">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">
+                  {filters.competence ? `${filters.competence.split('-')[1]}/${filters.competence.split('-')[0]}` : 'COMPETÊNCIA'}
+                </span>
+              </div>
+            </div>
             {filters.competence && (
               <button
                 onClick={() => handleFilterChange('competence', '')}
-                className="ml-1 p-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
+                className="p-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors z-10 ml-1"
                 title="Limpar filtro de período"
               >
                 <X size={14} strokeWidth={2.5} />
@@ -1088,13 +1413,20 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       onToggle={toggleFilterVisibility}
                       widthClass="min-w-[110px]"
                     >
-                      <input
-                        type="month"
-                        className={headerInputClass}
-                        value={filters.competence}
-                        onChange={(e) => handleFilterChange('competence', e.target.value)}
-                        autoFocus
-                      />
+                      <div className="relative w-full">
+                        <input
+                          type="month"
+                          className={`${headerInputClass} text-transparent cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity`}
+                          value={filters.competence}
+                          onChange={(e) => handleFilterChange('competence', e.target.value)}
+                          autoFocus
+                        />
+                        <div className="absolute left-[1px] right-6 top-1/2 -translate-y-1/2 flex items-center pl-2 pointer-events-none bg-white dark:bg-slate-900 h-[calc(100%-2px)] rounded-l">
+                          <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                            {filters.competence ? `${filters.competence.split('-')[1]}/${filters.competence.split('-')[0]}` : ''}
+                          </span>
+                        </div>
+                      </div>
                     </HeaderCell>
 
                     <HeaderCell
@@ -1246,10 +1578,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              setActiveDfeId(activeDfeId === dfe.id ? null : dfe.id);
+                                              setActiveDfeId(activeDfeId === `${task.id}-${dfe.id}` ? null : `${task.id}-${dfe.id}`);
                                             }}
                                             className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded transition-colors ${
-                                              activeDfeId === dfe.id
+                                              activeDfeId === `${task.id}-${dfe.id}`
                                                 ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white ring-2 ring-indigo-300 dark:ring-indigo-400/50'
                                                 : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 cursor-pointer'
                                             }`}
@@ -1257,7 +1589,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                             {dfe.dfe_type.toUpperCase()}
                                           </button>
 
-                                          {activeDfeId === dfe.id && (
+                                          {activeDfeId === `${task.id}-${dfe.id}` && (
                                             <div
                                               className="absolute z-[60] top-full left-0 mt-1.5 w-64 p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
                                               onClick={(e) => e.stopPropagation()}
@@ -2451,6 +2783,26 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     });
   };
 
+  const getAutoFilledDueDate = (taskTypeName: string, comp: string, overrideVariable?: string) => {
+    const type = taskTypes.find(t => t.name === taskTypeName);
+    if (!type || !type.due_day || !comp) return null;
+    
+    const [y, m] = comp.split('-');
+    if (!y || !m) return null;
+    let year = parseInt(y);
+    let month = parseInt(m) + 1;
+    if (month > 12) { month = 1; year += 1; }
+    
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const day = Math.min(type.due_day, daysInMonth);
+    
+    const rawDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    const variable = overrideVariable !== undefined ? overrideVariable : (type.non_working_day_action || 'nao_se_aplica');
+    
+    const finalDate = calculateAdjustedDate(rawDate, variable, holidayDates);
+    return { vencimento: finalDate, vencimentoVariavel: variable };
+  };
+
   const removePendingTask = (id: string) => {
     setPendingTasks(pendingTasks.filter(t => t.id !== id));
   };
@@ -2523,11 +2875,12 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
             let baseDay = 10;
 
             if (t.vencimento) {
+              const typeDef = taskTypes.find(tt => tt.name === t.taskName);
               const dDate = new Date(t.vencimento + 'T12:00:00');
               const dYear = dDate.getFullYear();
               const dMonth = dDate.getMonth() + 1;
               monthOffset = (dYear - startYear) * 12 + (dMonth - startMonth);
-              baseDay = dDate.getDate();
+              baseDay = typeDef?.due_day || dDate.getDate();
             }
 
             const createIterationPayload = (month: number, year: number) => {
@@ -2632,8 +2985,10 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
               if (futureTasks && futureTasks.length > 0) {
                 // Calculate the month offset between the edited task's competence and its due date
+                const typeDef = taskTypes.find(tt => tt.name === payload.task_name);
                 const newDueDate = new Date(payload.due_date + 'T12:00:00');
-                const newDay = newDueDate.getDate();
+                const baseDay = typeDef?.due_day || newDueDate.getDate();
+                
                 const [editCompYear, editCompMonth] = payload.competence.split('-').map(Number);
                 const dueDateYear = newDueDate.getFullYear();
                 const dueDateMonth = newDueDate.getMonth() + 1;
@@ -2651,7 +3006,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
                   // Handle months with fewer days (e.g., day 31 in a month with 30 days)
                   const lastDayOfMonth = new Date(targetYear, targetMonth, 0).getDate();
-                  const safeDay = Math.min(newDay, lastDayOfMonth);
+                  const safeDay = Math.min(baseDay, lastDayOfMonth);
 
                   const rawDueStr = `${targetYear}-${targetMonth.toString().padStart(2, '0')}-${safeDay.toString().padStart(2, '0')}`;
                   const finalDate = calculateAdjustedDate(rawDueStr, payload.variable_adjustment, holidayDates);
@@ -2671,8 +3026,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                       no_movement: payload.no_movement,
                       exceeded_sublimit: payload.exceeded_sublimit,
                       factor_r: payload.factor_r,
-                      selected_annexes: payload.selected_annexes,
-                      selected_dfes: payload.selected_dfes
+                      selected_annexes: payload.selected_annexes
                     })
                     .eq('id', ft.id);
 
@@ -3060,10 +3414,21 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                       onChange={(e) => {
                         const val = e.target.value;
                         const type = taskTypes.find(t => t.name === val);
+                        
+                        let newVencimento = tempTask.vencimento;
+                        let newVariavel = tempTask.vencimentoVariavel;
+                        const autoFill = getAutoFilledDueDate(val, tempTask.competence);
+                        if (autoFill) {
+                          newVencimento = autoFill.vencimento;
+                          newVariavel = autoFill.vencimentoVariavel;
+                        }
+
                         setTempTask(prev => ({
                           ...prev,
                           taskName: val,
-                          sector: type?.sector_id ? sectors.find(s => s.id === type.sector_id)?.name || prev.sector : prev.sector
+                          sector: type?.sector_id ? sectors.find(s => s.id === type.sector_id)?.name || prev.sector : prev.sector,
+                          vencimento: newVencimento,
+                          vencimentoVariavel: newVariavel
                         }));
                       }}
                     />
@@ -3092,7 +3457,17 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                       label="Período Inicial"
                       className="text-[11px]"
                       value={tempTask.competence}
-                      onChange={(e) => setTempTask(prev => ({ ...prev, competence: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let newVencimento = tempTask.vencimento;
+                        let newVariavel = tempTask.vencimentoVariavel;
+                        const autoFill = getAutoFilledDueDate(tempTask.taskName, val);
+                        if (autoFill) {
+                          newVencimento = autoFill.vencimento;
+                          newVariavel = autoFill.vencimentoVariavel;
+                        }
+                        setTempTask(prev => ({ ...prev, competence: val, vencimento: newVencimento, vencimentoVariavel: newVariavel }));
+                      }}
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -3115,7 +3490,15 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                         { value: 'prorrogar', label: 'Prorrogar' },
                       ]}
                       value={tempTask.vencimentoVariavel}
-                      onChange={(e) => setTempTask(prev => ({ ...prev, vencimentoVariavel: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        let newVencimento = tempTask.vencimento;
+                        const autoFill = getAutoFilledDueDate(tempTask.taskName, tempTask.competence, val);
+                        if (autoFill) {
+                          newVencimento = autoFill.vencimento;
+                        }
+                        setTempTask(prev => ({ ...prev, vencimentoVariavel: val, vencimento: newVencimento }));
+                      }}
                     />
                   </div>
 

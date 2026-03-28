@@ -15,6 +15,8 @@ import { UserRole } from './types';
 import { supabase } from './utils/supabaseClient';
 import { Loader2 } from 'lucide-react';
 import { GlobalCallListener } from './components/chat/GlobalCallListener';
+import { ToastProvider } from './contexts/ToastContext';
+import { ToastContainer } from './components/ui/Toast';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -289,7 +291,8 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-300">
+    <ToastProvider>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-300">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -322,7 +325,9 @@ function App() {
           userName={userProfile?.full_name || 'Usuário Local'}
         />
       )}
-    </div>
+      <ToastContainer />
+      </div>
+    </ToastProvider>
   );
 }
 
