@@ -9,6 +9,7 @@ import { Settings } from './pages/Settings';
 import { Auth } from './pages/Auth';
 import { Profile } from './pages/Profile';
 import { Notifications } from './pages/Notifications';
+import { ClientPortal } from './pages/ClientPortal';
 import { Chat } from './pages/Chat';
 import { Notes } from './pages/Notes';
 import { UserRole } from './types';
@@ -200,6 +201,11 @@ function App() {
 
         setUserRole(data.role as UserRole);
         setUserProfile(finalProfile);
+        
+        // Redirecionar cliente para a área do cliente se ele logar
+        if (data.role === 'cliente') {
+          setActiveTab('client-portal');
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -258,6 +264,8 @@ function App() {
         return <Profile userProfile={userProfile} onProfileUpdate={refreshUserProfile} />;
       case 'notifications':
         return <Notifications />;
+      case 'client-portal':
+        return <ClientPortal userProfile={userProfile} />;
       case 'support':
         return (
           <div className="flex flex-col items-center justify-center h-[60vh] text-center">

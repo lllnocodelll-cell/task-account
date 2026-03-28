@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -93,6 +93,10 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [memberToDelete, setMemberToDelete] = useState<any>(null);
   const [deleteModalState, setDeleteModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
 
+  const [clients, setClients] = useState<any[]>([]);
+  const [clientId, setClientId] = useState('');
+  const [editClientId, setEditClientId] = useState('');
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -103,16 +107,18 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [membersRes, sectorsRes] = await Promise.all([
-        supabase.from('members').select('*, sectors(name)').eq('org_id', userProfile.org_id),
-        supabase.from('sectors').select('*').eq('org_id', userProfile.org_id)
+      const [membersRes, sectorsRes, clientsRes] = await Promise.all([
+        supabase.from('members').select('*, sectors(name), clients(company_name)').eq('org_id', userProfile.org_id),
+        supabase.from('sectors').select('*').eq('org_id', userProfile.org_id),
+        supabase.from('clients').select('id, company_name').eq('status', 'Ativo')
       ]);
 
       if (membersRes.data) setMembers(membersRes.data);
       if (sectorsRes.data) setSectors(sectorsRes.data);
+      if (clientsRes.data) setClients(clientsRes.data);
 
     } catch (error) {
-      console.error('Error fetching team:', error);
+      console.error('Error fetching team data:', error);
     } finally {
       setLoading(false);
     }
@@ -125,17 +131,21 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
     setAdding(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user');
+      if (role === 'cliente' && !clientId) {
+        addToast('error', 'Erro', 'Selecione uma empresa para vincular o cliente');
+        setAdding(false);
+        return;
+      }
 
       const { data, error } = await supabase.from('members').insert({
         org_id: userProfile.org_id,
         first_name: firstName,
         last_name: lastName,
         email,
-        sector_id: sectorId || null,
-        role: role // Add role here
-      }).select();
+        sector_id: role !== 'cliente' ? (sectorId || null) : null,
+        client_id: role === 'cliente' ? clientId : null,
+        role: role
+      }).select('*, sectors(name), clients(company_name)');
 
       if (error) throw error;
 
@@ -145,12 +155,12 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setLastName('');
         setEmail('');
         setSectorId('');
+        setClientId('');
         setRole('operacional');
-        setInitialPassword('');
-        addToast('success', 'Sucesso', 'Membro adicionado com sucesso!');
+        addToast('success', 'Sucesso', 'Membro cadastrado com sucesso!');
       }
     } catch (error: any) {
-      addToast('error', 'Erro', 'Erro ao adicionar membro: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao adicionar: ' + error.message);
     } finally {
       setAdding(false);
     }
@@ -186,6 +196,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditEmail(member.email || '');
     setEditSectorId(member.sector_id || '');
     setEditRole(member.role || 'operacional');
+    setEditClientId(member.client_id || '');
   };
 
   const cancelEditingMember = () => {
@@ -195,6 +206,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditEmail('');
     setEditSectorId('');
     setEditRole('operacional');
+    setEditClientId('');
   };
 
   const handleUpdateMember = async (id: string) => {
@@ -203,15 +215,18 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     // Otimista parcial
     const originalMembers = [...members];
     const sectorName = sectors.find(s => s.id === editSectorId)?.name || '';
+    const clientName = clients.find(c => c.id === editClientId)?.company_name || '';
 
     setMembers(prev => prev.map(m => m.id === id ? {
       ...m,
       first_name: editFirstName,
       last_name: editLastName,
       email: editEmail,
-      sector_id: editSectorId || null,
+      sector_id: editRole !== 'cliente' ? (editSectorId || null) : null,
+      client_id: editRole === 'cliente' ? (editClientId || null) : null,
       role: editRole,
-      sectors: sectorName ? { name: sectorName } : null
+      sectors: sectorName ? { name: sectorName } : null,
+      clients: clientName ? { company_name: clientName } : null
     } : m));
 
     try {
@@ -221,16 +236,18 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           first_name: editFirstName,
           last_name: editLastName,
           email: editEmail,
-          sector_id: editSectorId || null,
+          sector_id: editRole !== 'cliente' ? (editSectorId || null) : null,
+          client_id: editRole === 'cliente' ? (editClientId || null) : null,
           role: editRole
         })
         .eq('id', id);
 
       if (error) throw error;
       setEditingMemberId(null);
+      addToast('success', 'Sucesso', 'Alterações salvas!');
     } catch (error: any) {
       setMembers(originalMembers); // rollback
-      addToast('error', 'Erro', 'Erro ao atualizar membro: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao atualizar: ' + error.message);
     }
   };
 
@@ -282,148 +299,133 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Adicionar Membro</h3>
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Adicionar Acesso</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <Input label="Nome" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="João" />
           <Input label="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Silva" />
           <Input label="E-mail" value={email} onChange={e => setEmail(e.target.value)} placeholder="joao@empresa.com" type="email" autoComplete="new-password" />
           <Select
-            label="Setor"
-            value={sectorId} // Control the select
-            onChange={e => setSectorId(e.target.value)}
+            label="Nível de Permissão"
+            value={role}
+            onChange={e => setRole(e.target.value)}
             options={[
-              { value: '', label: 'Selecione um setor' },
-              ...sectors.map(s => ({ value: s.id, label: s.name }))
+              { value: 'operacional', label: 'Operacional' },
+              { value: 'gestor', label: 'Gestor' },
+              { value: 'cliente', label: 'Cliente (Portal)' }
             ]}
           />
-          <Select
-             label="Nível de Permissão"
-             value={role}
-             onChange={e => setRole(e.target.value)}
-             options={[
-               { value: 'operacional', label: 'Operacional' },
-               { value: 'gestor', label: 'Gestor' }
-             ]}
-          />
-          <Input label="Senha Inicial (Opcional)" value={initialPassword} onChange={e => setInitialPassword(e.target.value)} type="password" autoComplete="new-password" />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button onClick={handleAddMember} disabled={adding}>
-            {adding ? 'Salvando...' : 'Cadastrar Membro'}
-          </Button>
+          {role === 'cliente' ? (
+            <Select
+              label="Empresa Vinculada"
+              value={clientId}
+              onChange={e => setClientId(e.target.value)}
+              options={[
+                { value: '', label: 'Selecione a empresa' },
+                ...clients.map(c => ({ value: c.id, label: c.company_name }))
+              ]}
+            />
+          ) : (
+            <Select
+              label="Setor"
+              value={sectorId} // Control the select
+              onChange={e => setSectorId(e.target.value)}
+              options={[
+                { value: '', label: 'Selecione um setor' },
+                ...sectors.map(s => ({ value: s.id, label: s.name }))
+              ]}
+            />
+          )}
+          <div className="md:col-span-1">
+            <Button onClick={handleAddMember} disabled={adding} className="w-full">
+              {adding ? <Loader2 size={18} className="animate-spin" /> : 'Confirmar'}
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {members.map(member => (
-          <div key={member.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 flex flex-col items-center text-center hover:border-indigo-500 dark:hover:border-indigo-500 transition-colors shadow-sm relative group">
-            {editingMemberId === member.id ? (
-              <div className="space-y-3 w-full text-left">
-                <Input label="Nome" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} />
-                <Input label="Sobrenome" value={editLastName} onChange={e => setEditLastName(e.target.value)} />
-                <Input label="E-mail" value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email" autoComplete="new-password" />
-                <Select
-                  label="Setor"
-                  value={editSectorId}
-                  onChange={e => setEditSectorId(e.target.value)}
-                  options={[
-                    { value: '', label: 'Sem setor' },
-                    ...sectors.map(s => ({ value: s.id, label: s.name }))
-                  ]}
-                />
-                <Select
-                   label="Nível de Permissão"
-                   value={editRole}
-                   onChange={e => setEditRole(e.target.value)}
-                   options={[
-                     { value: 'operacional', label: 'Operacional' },
-                     { value: 'gestor', label: 'Gestor' }
-                   ]}
-                />
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="secondary" size="sm" onClick={cancelEditingMember}>Cancelar</Button>
-                  <Button variant="primary" size="sm" onClick={() => handleUpdateMember(member.id)}>Salvar</Button>
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Coluna 1: Membros Internos */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+             <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+               <Users size={20} className="text-indigo-600" />
+               Colaboradores Internos
+             </h3>
+             <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
+               {members.filter(m => m.role !== 'cliente').length}
+             </span>
+          </div>
+          
+          <div className="space-y-3">
+            {members.filter(m => m.role !== 'cliente').map(member => (
+              <MemberCard 
+                key={member.id} 
+                member={member} 
+                isEditing={editingMemberId === member.id}
+                onEdit={() => startEditingMember(member)}
+                onCancel={cancelEditingMember}
+                onUpdate={handleUpdateMember}
+                onToggleStatus={handleToggleStatus}
+                onDelete={initDeleteMember}
+                editStates={{
+                  editFirstName, setEditFirstName,
+                  editLastName, setEditLastName,
+                  editEmail, setEditEmail,
+                  editRole, setEditRole,
+                  editSectorId, setEditSectorId,
+                  editClientId, setEditClientId
+                }}
+                sectors={sectors}
+                clients={clients}
+                addToast={addToast}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Coluna 2: Clientes com Acesso */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+             <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+               <UserCircle size={20} className="text-emerald-600" />
+               Clientes com Acesso
+             </h3>
+             <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
+               {members.filter(m => m.role === 'cliente').length}
+             </span>
+          </div>
+
+          <div className="space-y-3">
+            {members.filter(m => m.role === 'cliente').map(member => (
+              <MemberCard 
+                key={member.id} 
+                member={member} 
+                isEditing={editingMemberId === member.id}
+                onEdit={() => startEditingMember(member)}
+                onCancel={cancelEditingMember}
+                onUpdate={handleUpdateMember}
+                onToggleStatus={handleToggleStatus}
+                onDelete={initDeleteMember}
+                editStates={{
+                  editFirstName, setEditFirstName,
+                  editLastName, setEditLastName,
+                  editEmail, setEditEmail,
+                  editRole, setEditRole,
+                  editSectorId, setEditSectorId,
+                  editClientId, setEditClientId
+                }}
+                sectors={sectors}
+                clients={clients}
+                addToast={addToast}
+              />
+            ))}
+            {members.filter(m => m.role === 'cliente').length === 0 && (
+              <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                <p className="text-sm text-slate-500">Nenhum cliente com acesso liberado.</p>
               </div>
-            ) : (
-              <>
-                <button
-                  onClick={() => startEditingMember(member)}
-                  className="absolute top-2 right-8 p-1.5 text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Editar Membro"
-                >
-                  <SettingsIcon size={16} />
-                </button>
-                <button
-                  onClick={() => initDeleteMember(member)}
-                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Excluir Membro"
-                >
-                  <Trash2 size={16} />
-                </button>
-                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-3 flex items-center justify-center text-xl font-bold text-slate-900 dark:text-white uppercase">
-                  {member.first_name ? member.first_name.substring(0, 2) : 'U'}
-                </div>
-                <h4 className="font-semibold text-slate-900 dark:text-white">{member.first_name} {member.last_name}</h4>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">{member.email}</p>
-                
-                <div className="flex flex-wrap justify-center gap-2 mb-2">
-                  {member.sectors?.name && (
-                    <span className="text-xs px-2 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-full">
-                      {member.sectors.name}
-                    </span>
-                  )}
-                  {member.role && (
-                    <span className={`text-xs px-2 py-1 rounded-full ${member.role === 'gestor' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
-                      {member.role === 'gestor' ? 'Gestor' : 'Operacional'}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 mb-4 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                  <Toggle
-                    checked={member.status !== 'Inativo'}
-                    onChange={() => handleToggleStatus(member.id, member.status || 'Ativo')}
-                  />
-                  <span className={`text-xs font-semibold ${member.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {member.status === 'Inativo' ? 'Inativo' : 'Ativo'}
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-2 w-full">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    icon={<Send size={14} />}
-                    onClick={() => {
-                      const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
-                      const subject = encodeURIComponent('Convite para acessar o Task Account');
-                      const body = encodeURIComponent(`Olá ${member.first_name},\n\nVocê foi convidado para participar da organização no Task Account!\n\nPara finalizar seu cadastro, acesse o link abaixo usando este e-mail (${member.email}):\n\n${inviteLink}\n\nSeja bem-vindo!`);
-                      window.location.href = `mailto:${member.email}?subject=${subject}&body=${body}`;
-                    }}
-                  >
-                    Enviar por E-mail
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    icon={<Copy size={14} />}
-                    onClick={() => {
-                      const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
-                      navigator.clipboard.writeText(inviteLink);
-                      addToast('success', 'Sucesso', 'Link de convite copiado!');
-                    }}
-                  >
-                    Copiar Link
-                  </Button>
-                </div>
-              </>
             )}
           </div>
-        ))}
-        {members.length === 0 && (
-          <div className="md:col-span-3 text-center py-8 text-slate-500">Nenhum membro cadastrado.</div>
-        )}
+        </div>
       </div>
 
       {/* Modal de Exclusão de Membro */}
@@ -499,6 +501,154 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           )}
       </Modal>
 
+    </div>
+  );
+};
+
+// Componente Auxiliar para o Card de Membro
+const MemberCard: React.FC<any> = ({ 
+  member, 
+  isEditing, 
+  onEdit, 
+  onCancel, 
+  onUpdate, 
+  onToggleStatus, 
+  onDelete,
+  editStates,
+  sectors,
+  clients,
+  addToast
+}) => {
+  const {
+    editFirstName, setEditFirstName,
+    editLastName, setEditLastName,
+    editEmail, setEditEmail,
+    editRole, setEditRole,
+    editSectorId, setEditSectorId,
+    editClientId, setEditClientId
+  } = editStates;
+
+  if (isEditing) {
+    return (
+      <div className="bg-white dark:bg-slate-900 border border-indigo-500 p-4 rounded-xl shadow-lg space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Nome" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} />
+          <Input label="Sobrenome" value={editLastName} onChange={e => setEditLastName(e.target.value)} />
+        </div>
+        <Input label="E-mail" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+        <Select
+          label="Permissão"
+          value={editRole}
+          onChange={e => setEditRole(e.target.value)}
+          options={[
+            { value: 'operacional', label: 'Operacional' },
+            { value: 'gestor', label: 'Gestor' },
+            { value: 'cliente', label: 'Cliente' }
+          ]}
+        />
+        {editRole === 'cliente' ? (
+          <Select
+            label="Empresa"
+            value={editClientId}
+            onChange={e => setEditClientId(e.target.value)}
+            options={[
+              { value: '', label: 'Selecione' },
+              ...clients.map((c: any) => ({ value: c.id, label: c.company_name }))
+            ]}
+          />
+        ) : (
+          <Select
+            label="Setor"
+            value={editSectorId}
+            onChange={e => setEditSectorId(e.target.value)}
+            options={[
+              { value: '', label: 'Sem setor' },
+              ...sectors.map((s: any) => ({ value: s.id, label: s.name }))
+            ]}
+          />
+        )}
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => onUpdate(member.id)} icon={<Check size={16} />} className="flex-1">Salvar</Button>
+          <Button size="sm" variant="secondary" onClick={onCancel} icon={<X size={16} />}>Sair</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold uppercase shrink-0 ${member.role === 'cliente' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600'}`}>
+            {member.first_name?.[0]}{member.last_name?.[0]}
+          </div>
+          <div className="min-w-0">
+            <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate">
+              {member.first_name} {member.last_name}
+              <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter ${
+                member.role === 'gestor' ? 'bg-amber-100 text-amber-600' : 
+                member.role === 'cliente' ? 'bg-emerald-100 text-emerald-600' : 
+                'bg-slate-100 text-slate-500'
+              }`}>
+                {member.role}
+              </span>
+            </h4>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate"><Mail size={12} /> {member.email}</span>
+              {member.role === 'cliente' ? (
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                  🏢 {member.clients?.company_name || 'Nenhuma empresa vinculada'}
+                </span>
+              ) : member.sectors?.name && (
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
+                  📁 {member.sectors.name}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => onToggleStatus(member.id, member.status || 'Ativo')}
+            className={`p-1.5 rounded-lg transition-colors ${member.status === 'Inativo' ? 'text-red-400 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+            title={member.status === 'Inativo' ? "Ativar" : "Inativar"}
+          >
+            {member.status === 'Inativo' ? <UserPlus size={16} /> : <UserMinus size={16} />}
+          </button>
+          <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+            <Edit2 size={16} />
+          </button>
+          <button onClick={() => onDelete(member)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+      
+      {/* Botões de convite rápidos */}
+      <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 flex gap-2">
+         <button 
+           onClick={() => {
+             const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
+             navigator.clipboard.writeText(inviteLink);
+             addToast('success', 'Sucesso', 'Link de convite copiado!');
+           }}
+           className="flex-1 py-1 text-[9px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded flex items-center justify-center gap-1 border border-transparent hover:border-indigo-200 transition-all uppercase"
+         >
+           <Copy size={10} /> Copiar Link
+         </button>
+         <button 
+           onClick={() => {
+             const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
+             const subject = encodeURIComponent('Convite para acessar o Task Account');
+             const body = encodeURIComponent(`Olá ${member.first_name},\n\nSua organização convidou você para o Task Account!\n\nAcesse: ${inviteLink}`);
+             window.location.href = `mailto:${member.email}?subject=${subject}&body=${body}`;
+           }}
+           className="flex-1 py-1 text-[9px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded flex items-center justify-center gap-1 border border-transparent hover:border-indigo-200 transition-all uppercase"
+         >
+           <Send size={10} /> Convidar
+         </button>
+      </div>
     </div>
   );
 };

@@ -14,7 +14,7 @@ export enum Priority {
   ALTA = 'Alta',
 }
 
-export type UserRole = 'gestor' | 'operacional';
+export type UserRole = 'gestor' | 'operacional' | 'cliente';
 
 export interface Task {
   id: string;

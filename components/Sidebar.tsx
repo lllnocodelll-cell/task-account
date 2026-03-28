@@ -11,7 +11,8 @@ import {
   ChevronRight,
   MessageSquareMore,
   ListTodo,
-  StickyNote
+  StickyNote,
+  UserCircle
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -207,23 +208,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const mainMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { id: 'tasks', label: 'Tarefas', icon: <ListTodo size={20} /> },
-    { id: 'clients', label: 'Cadastros', icon: <Users size={20} /> },
-    {
-      id: 'notes',
-      label: 'Anotações',
-      icon: <StickyNote size={20} />,
-      badge: notesCount > 0 ? notesCount : undefined
-    },
-    {
-      id: 'chat',
-      label: 'Chat Equipe',
-      icon: <MessageSquareMore size={20} />,
-      badge: chatsCount > 0 ? chatsCount : undefined
-    },
-  ];
+  const mainMenuItems = userRole === 'cliente' 
+    ? [
+        { id: 'client-portal', label: 'Área do Cliente', icon: <UserCircle size={20} /> },
+        {
+          id: 'chat',
+          label: 'Atendimento',
+          icon: <MessageSquareMore size={20} />,
+          badge: chatsCount > 0 ? chatsCount : undefined
+        },
+      ]
+    : [
+        { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { id: 'tasks', label: 'Tarefas', icon: <ListTodo size={20} /> },
+        { id: 'clients', label: 'Cadastros', icon: <Users size={20} /> },
+        {
+          id: 'notes',
+          label: 'Anotações',
+          icon: <StickyNote size={20} />,
+          badge: notesCount > 0 ? notesCount : undefined
+        },
+        {
+          id: 'chat',
+          label: 'Chat Equipe',
+          icon: <MessageSquareMore size={20} />,
+          badge: chatsCount > 0 ? chatsCount : undefined
+        },
+      ];
 
   const bottomMenuItems = [
     { id: 'settings', label: 'Configurações', icon: <Settings size={20} />, restrictedTo: ['gestor'] },
