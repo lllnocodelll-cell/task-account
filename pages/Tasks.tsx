@@ -811,10 +811,16 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [concludeModalOpen, setConcludeModalOpen] = useState(false);
+  const [reopenModalOpen, setReopenModalOpen] = useState(false);
+  const [reopenModalTask, setReopenModalTask] = useState<Task | null>(null);
+  const [reopenModalNewStatus, setReopenModalNewStatus] = useState<TaskStatus | null>(null);
+  const [reopenModalDocsStatus, setReopenModalDocsStatus] = useState<any[]>([]);
   const [selectedTaskForConclude, setSelectedTaskForConclude] = useState<string | null>(null);
   const [concludeFiles, setConcludeFiles] = useState<File[]>([]);
   const [showDeleteRecurrenceModal, setShowDeleteRecurrenceModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteModalDocsStatus, setDeleteModalDocsStatus] = useState<any[]>([]);
   const concludeFileInputRef = useRef<HTMLInputElement>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -981,9 +987,11 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             clientDfes: t.clients?.client_dfe_series || [],
             clientAccesses: t.clients?.client_accesses || [],
             attachments: t.attachments?.map((a: any) => ({
+              id: a.id,
               name: a.file_name,
               size: a.file_size,
-              url: a.download_url
+              url: a.download_url,
+              storage_path: a.storage_path
             }))
           };
         });
@@ -1067,36 +1075,162 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       // Find current status to check for reopen confirmation
       const currentTask = tasks.find(t => t.id === id);
       if (currentTask?.status === TaskStatus.CONCLUIDA && newStatus !== TaskStatus.CONCLUIDA) {
-        if (!confirm('Deseja realmente reabrir esta tarefa?')) {
-          return;
+        if (currentTask.attachments && currentTask.attachments.length > 0) {
+          try {
+            const { data } = await supabase.from('client_documents' as any).select('name, status').eq('task_id', currentTask.id);
+            if (data) setReopenModalDocsStatus(data);
+          } catch (e) {
+            console.error('Erro ao buscar status dos documentos para reabertura: ', e);
+          }
         }
+        setReopenModalTask(currentTask);
+        setReopenModalNewStatus(newStatus);
+        setReopenModalOpen(true);
+        return;
       }
 
-      const { error } = await (supabase
-        .from('tasks') as any)
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+      await executeTaskStatusUpdate(id, newStatus);
     } catch (error) {
       console.error('Error updating status:', error);
       alert('Erro ao atualizar status da tarefa');
     }
   };
 
+  const executeTaskStatusUpdate = async (id: string, newStatus: TaskStatus) => {
+    setLoading(true);
+    try {
+      const { error } = await (supabase
+        .from('tasks') as any)
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    } catch (error) {
+      console.error('Error in executeTaskStatusUpdate:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReopenTask = async (deleteAttachments: boolean) => {
+    if (!reopenModalTask || !reopenModalNewStatus) return;
+    
+    setLoading(true);
+    try {
+      if (deleteAttachments && reopenModalTask.attachments && reopenModalTask.attachments.length > 0) {
+        for (const attachment of reopenModalTask.attachments) {
+          // Atualiza o status no client portal
+          await supabase.from('client_documents' as any)
+            .update({ status: 'Excluído' })
+            .eq('task_id', reopenModalTask.id)
+            .eq('name', attachment.name);
+            
+          // Remove o arquivo fisicamente do bucket client-documents
+          if (attachment.storage_path) {
+            await supabase.storage.from('client-documents').remove([attachment.storage_path]);
+          }
+          
+          // Remove da tabela task_attachments
+          if (attachment.id) {
+            await supabase.from('task_attachments' as any)
+              .delete()
+              .eq('id', attachment.id);
+          }
+        }
+      }
+      
+      // Atualiza o status da tarefa principal
+      const { error } = await (supabase.from('tasks') as any)
+        .update({ status: reopenModalNewStatus })
+        .eq('id', reopenModalTask.id);
+        
+      if (error) throw error;
+      
+      // Atualiza a listagem local
+      setTasks(prev => prev.map(t => {
+        if (t.id === reopenModalTask.id) {
+          return { 
+            ...t, 
+            status: reopenModalNewStatus,
+            attachments: deleteAttachments ? [] : t.attachments
+          };
+        }
+        return t;
+      }));
+      
+    } catch (error: any) {
+      console.error('Erro ao reabrir tarefa:', error);
+      alert('Erro ao reabrir tarefa: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setLoading(false);
+      setReopenModalOpen(false);
+      setReopenModalTask(null);
+      setReopenModalNewStatus(null);
+    }
+  };
+
   const handleDeleteTask = async (task: Task) => {
-    // Check if recurring
+    setTaskToDelete(task);
+    
+    // Check for documents
+    let hasDocs = false;
+    if (task.attachments && task.attachments.length > 0) {
+      try {
+        const { data } = await supabase.from('client_documents' as any).select('name, status').eq('task_id', task.id);
+        if (data && data.length > 0) {
+          setDeleteModalDocsStatus(data);
+          hasDocs = true;
+        } else {
+          setDeleteModalDocsStatus([]);
+        }
+      } catch (e) {
+        console.error('Erro ao buscar status dos documentos para exclusão: ', e);
+      }
+    } else {
+      setDeleteModalDocsStatus([]);
+    }
+
     const isRecurring = task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence);
 
-    if (isRecurring) {
-      setTaskToDelete(task);
+    if (isRecurring && !hasDocs) {
       setShowDeleteRecurrenceModal(true);
     } else {
-      if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
-        await executeDelete(task.id);
+      setDeleteModalOpen(true);
+    }
+  };
+
+  const executeDeleteWithChoice = async (deleteDocs: boolean) => {
+    if (!taskToDelete) return;
+    setLoading(true);
+
+    try {
+      if (!deleteDocs) {
+        // Unlink so CASCADE doesn't blow them away
+        await supabase.from('client_documents' as any).update({ task_id: null }).eq('task_id', taskToDelete.id);
+      } else {
+        // Physical deletion from storage
+        const { data: clientDocs } = await supabase.from('client_documents' as any).select('storage_path').eq('task_id', taskToDelete.id);
+        if (clientDocs && clientDocs.length > 0) {
+           const paths = (clientDocs as any[]).map(d => d.storage_path).filter(Boolean);
+           if (paths.length > 0) await supabase.storage.from('client-documents').remove(paths);
+        }
+        
+        const { data: taskAtts } = await supabase.from('task_attachments' as any).select('storage_path').eq('task_id', taskToDelete.id);
+        if (taskAtts && taskAtts.length > 0) {
+           const paths = (taskAtts as any[]).map(d => d.storage_path).filter(Boolean);
+           if (paths.length > 0) await supabase.storage.from('task-attachments').remove(paths);
+        }
       }
+
+      await executeDelete(taskToDelete.id);
+    } catch (error: any) {
+       console.error('Erro ao processar a exclusão: ', error);
+    } finally {
+      setDeleteModalOpen(false);
+      setTaskToDelete(null);
+      setLoading(false);
     }
   };
 
@@ -1190,12 +1324,21 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             .single();
 
           for (const file of concludeFiles) {
-            const storagePath = `tasks/${selectedTaskForConclude}/conclude/${file.name}`;
+            // Remove caracteres especiais, espaços e pontos duplos que o Supabase bloqueia como "vulnerabilidade de pasta (..)"
+            const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
+            const storagePath = `tasks/${selectedTaskForConclude}/conclude/${Date.now()}_${safeName}`;
             
-            // a. Real storage upload should happen here, but assuming it's handled or we're just recording the path
-            // For now, let's assume the path is enough for the record.
+            // Upload Físico do arquivo para o bucket
+            const { error: uploadError } = await supabase.storage
+              .from('client-documents')
+              .upload(storagePath, file);
+              
+            if (uploadError) {
+              console.error('Falha no upload', uploadError);
+              throw new Error(`Erro ao subir arquivo ${file.name}: ` + uploadError.message);
+            }
             
-            await (supabase.from('task_attachments') as any).insert({
+            await supabase.from('task_attachments' as any).insert({
               task_id: selectedTaskForConclude,
               file_name: file.name,
               file_size: file.size,
@@ -1208,7 +1351,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             const compParts = taskToConclude.competence.split('-');
             const competenceMonth = compParts.length === 2 ? `${compParts[1]}/${compParts[0]}` : taskToConclude.competence;
 
-            await (supabase.from('client_documents') as any).insert({
+            await supabase.from('client_documents' as any).insert({
               org_id: userProfile.org_id,
               client_id: taskToConclude.clientId,
               task_id: taskToConclude.id,
@@ -2136,7 +2279,152 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         )
       }
 
-      {/* Confirmation Modal */}
+      {/* Reopen Task Modal */}
+      <Modal
+        isOpen={reopenModalOpen}
+        onClose={() => {
+          setReopenModalOpen(false);
+          setReopenModalTask(null);
+          setReopenModalNewStatus(null);
+        }}
+        title="Reabrir Tarefa"
+        size="md"
+        footer={
+          reopenModalTask?.attachments && reopenModalTask.attachments.length > 0 ? (
+            <div className="flex justify-between w-full gap-2">
+              <Button variant="ghost" onClick={() => setReopenModalOpen(false)}>Cancelar</Button>
+              <div className="flex gap-2">
+                <Button onClick={() => handleReopenTask(false)} className="bg-slate-700 hover:bg-slate-800 text-white whitespace-normal h-auto py-2">Reabrir e Manter</Button>
+                <Button variant="danger" onClick={() => handleReopenTask(true)} className="whitespace-normal h-auto py-2">Reabrir e Excluir</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end w-full gap-2">
+              <Button variant="ghost" onClick={() => setReopenModalOpen(false)}>Cancelar</Button>
+              <Button onClick={() => handleReopenTask(false)} className="bg-indigo-600 hover:bg-indigo-700 text-white">Confirmar Reabertura</Button>
+            </div>
+          )
+        }
+      >
+        <div className="space-y-4">
+          {reopenModalTask?.attachments && reopenModalTask.attachments.length > 0 ? (
+            <>
+               <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl">
+                 <div className="flex gap-3">
+                   <AlertTriangle className="text-amber-500 shrink-0" size={24} />
+                   <div>
+                      <h4 className="font-bold text-amber-800 dark:text-amber-400 mb-1">Atenção: Documentos Vinculados</h4>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                        Esta tarefa possui documentos enviados ao portal do cliente. O que você deseja fazer com eles ao reabrir a tarefa?
+                      </p>
+                      
+                      <div className="bg-white/60 dark:bg-black/20 rounded-lg p-2 flex flex-col gap-2">
+                        {reopenModalTask.attachments.map((file, idx) => {
+                          const docStatus = reopenModalDocsStatus.find(d => d.name === file.name)?.status || 'Pendente';
+                          return (
+                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2 rounded border border-amber-100 dark:border-amber-800/50 shadow-sm">
+                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate pr-2" title={file.name}>{file.name}</span>
+                              {docStatus === 'Lido' ? (
+                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white uppercase tracking-tighter">LIDO</span>
+                              ) : (
+                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-amber-500 text-white uppercase tracking-tighter">NÃO LIDO</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                   </div>
+                 </div>
+               </div>
+               
+               <div className="text-sm text-slate-600 dark:text-slate-300 ml-1">
+                 <ul className="list-disc pl-5 space-y-3">
+                   <li><strong>Reabrir e Manter:</strong> A tarefa volta para Pendente, mas o arquivo continuará acessível para o cliente.</li>
+                   <li><strong>Reabrir e Excluir:</strong> A tarefa volta para Pendente, e o arquivo será bloqueado e marcado como Excluído no portal do cliente e removido do provedor de armazenamento.</li>
+                 </ul>
+               </div>
+            </>
+          ) : (
+            <p className="text-slate-600 dark:text-slate-300 text-sm">
+              Tem certeza que deseja reabrir esta tarefa? Ela voltará para o status Pendente.
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* Delete Task Modal */}
+      <Modal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setTaskToDelete(null);
+        }}
+        title="Excluir Tarefa"
+        size="md"
+        footer={
+          taskToDelete?.attachments && taskToDelete.attachments.length > 0 ? (
+            <div className="flex justify-between w-full gap-2">
+              <Button variant="ghost" onClick={() => setDeleteModalOpen(false)}>Cancelar</Button>
+              <div className="flex gap-2">
+                <Button onClick={() => executeDeleteWithChoice(false)} className="bg-slate-700 hover:bg-slate-800 text-white whitespace-normal h-auto py-2">Excluir Tarefa e Manter Documento</Button>
+                <Button variant="danger" onClick={() => executeDeleteWithChoice(true)} className="whitespace-normal h-auto py-2">Excluir Tarefa e Documentos</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end w-full gap-2">
+              <Button variant="ghost" onClick={() => setDeleteModalOpen(false)}>Cancelar</Button>
+              <Button variant="danger" onClick={() => executeDeleteWithChoice(true)}>Confirmar Exclusão</Button>
+            </div>
+          )
+        }
+      >
+        <div className="space-y-4">
+          {taskToDelete?.attachments && taskToDelete.attachments.length > 0 ? (
+            <>
+               <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl">
+                 <div className="flex gap-3">
+                   <AlertTriangle className="text-red-500 shrink-0" size={24} />
+                   <div>
+                      <h4 className="font-bold text-red-800 dark:text-red-400 mb-1">Atenção: Documentos Vinculados</h4>
+                      <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                        Aviso: Esta tarefa possui documentos enviados ao portal do cliente. Deseja limpá-los do portal também?
+                      </p>
+                      
+                      <div className="bg-white/60 dark:bg-black/20 rounded-lg p-2 flex flex-col gap-2">
+                        {taskToDelete.attachments.map((file, idx) => {
+                          const docStatus = deleteModalDocsStatus.find(d => d.name === file.name)?.status || 'Pendente';
+                          return (
+                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2 rounded border border-red-100 dark:border-red-800/50 shadow-sm">
+                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate pr-2" title={file.name}>{file.name}</span>
+                              {docStatus === 'Lido' ? (
+                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white uppercase tracking-tighter">LIDO</span>
+                              ) : (
+                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-amber-500 text-white uppercase tracking-tighter">NÃO LIDO</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                   </div>
+                 </div>
+               </div>
+               
+               <div className="text-sm text-slate-600 dark:text-slate-300 ml-1">
+                 <ul className="list-disc pl-5 space-y-3">
+                   <li><strong>Excluir Tarefa e Manter Documento:</strong> A tarefa some, mas o documento continuará perfeitamente acessível ao cliente no Portal.</li>
+                   <li><strong>Excluir Tarefa e Documentos:</strong> A tarefa some, e o arquivo será apagado fisicamente do Portal.</li>
+                 </ul>
+               </div>
+            </>
+          ) : (
+            <p className="text-slate-600 dark:text-slate-300 text-sm">
+              Tem certeza que deseja excluir permanentemente esta tarefa?
+            </p>
+          )}
+        </div>
+      </Modal>
+
+      {/* Conclude Task Modal */}
       <Modal
         isOpen={concludeModalOpen}
         onClose={() => setConcludeModalOpen(false)}
@@ -2748,6 +3036,48 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
         uploadedFiles: prev[activeClientId].uploadedFiles.filter((_, i) => i !== index)
       }
     }));
+  };
+
+  const handleDeleteExistingAttachment = async (attachment: any, index: number) => {
+    if (!initialData || !activeClientId) return;
+    
+    if (!confirm('Deseja realmente excluir este arquivo? Ele será marcado como excluído no portal do cliente.')) return;
+    
+    setLoadingData(true);
+    try {
+      // Atualiza o status no client portal
+      await supabase.from('client_documents' as any)
+        .update({ status: 'Excluído' })
+        .eq('task_id', initialData.id)
+        .eq('name', attachment.name);
+        
+      // Remove fisicamente do bucket
+      if (attachment.storage_path) {
+        await supabase.storage.from('client-documents').remove([attachment.storage_path]);
+      }
+      
+      // Remove da tabela task_attachments
+      if (attachment.id) {
+        await supabase.from('task_attachments' as any)
+          .delete()
+          .eq('id', attachment.id);
+      }
+      
+      // Atualiza estado local
+      setClientConfigs(prev => ({
+        ...prev,
+        [activeClientId]: {
+          ...prev[activeClientId],
+          existingAttachments: prev[activeClientId].existingAttachments.filter((_, i) => i !== index)
+        }
+      }));
+      
+    } catch (error: any) {
+      console.error('Erro ao excluir anexo:', error);
+      alert('Erro ao excluir anexo: ' + (error.message || 'Erro desconhecido'));
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   const handleAddPendingTask = () => {
@@ -3404,7 +3734,17 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                               </a>
                               <span className="text-[10px] text-slate-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
                             </div>
-                            <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-200 rounded">Existente</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-800 text-indigo-700 dark:text-indigo-200 rounded">Existente</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteExistingAttachment(file, idx)}
+                                className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                                title="Excluir arquivo do portal"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                         ))}
 

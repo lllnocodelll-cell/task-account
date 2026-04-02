@@ -265,7 +265,7 @@ function App() {
       case 'notifications':
         return <Notifications />;
       case 'client-portal':
-        return <ClientPortal userProfile={userProfile} />;
+        return <ClientPortal userProfile={userProfile} onNavigateToChat={() => setActiveTab('chat')} />;
       case 'support':
         return (
           <div className="flex flex-col items-center justify-center h-[60vh] text-center">

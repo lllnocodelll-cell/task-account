@@ -1545,7 +1545,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         title="Remover Feriado"
-        size="sm"
+        size="md"
         footer={
           <>
             <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</Button>
