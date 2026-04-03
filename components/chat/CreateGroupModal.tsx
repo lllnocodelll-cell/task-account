@@ -44,6 +44,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
                 .from('profiles')
                 .select('*')
                 .neq('id', user.id)
+                .neq('role', 'cliente')
                 .order('full_name');
 
             if (error) throw error;

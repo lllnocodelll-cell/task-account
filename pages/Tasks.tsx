@@ -1422,58 +1422,85 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         </div>
         <div className="flex gap-3">
           <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
-            <button
-              onClick={() => setLayoutMode('list')}
-              className={`p-2 rounded transition-colors ${layoutMode === 'list' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}
-              title="Visualização em Lista"
-            >
-              <LayoutList size={18} />
-            </button>
-            <button
-              onClick={() => setLayoutMode('kanban')}
-              className={`p-2 rounded transition-colors ${layoutMode === 'kanban' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}
-              title="Visualização Kanban"
-            >
-              <LayoutGrid size={18} />
-            </button>
-          </div>
-
-          <div className={`flex items-center bg-white dark:bg-slate-900 rounded-lg pl-3 pr-1 border ${filters.competence ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'} h-10 group focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all`}>
-            <Calendar size={16} className="text-indigo-500 dark:text-indigo-400 mr-2 group-focus-within:text-indigo-600 dark:group-focus-within:text-indigo-300" />
-            <div className="relative w-32 h-full flex items-center">
-              <input
-                type="month"
-                className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
-                value={filters.competence}
-                onChange={(e) => handleFilterChange('competence', e.target.value)}
-                title="Filtrar por Competência"
-              />
-              <div className="absolute left-0 right-8 top-1/2 -translate-y-1/2 flex items-center pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%]">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">
-                  {filters.competence ? `${filters.competence.split('-')[1]}/${filters.competence.split('-')[0]}` : 'COMPETÊNCIA'}
-                </span>
+            <div className="relative group flex">
+              <button
+                onClick={() => setLayoutMode('list')}
+                className={`p-2 rounded transition-colors ${layoutMode === 'list' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <LayoutList size={18} />
+              </button>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
+                Tabela
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
               </div>
             </div>
-            {filters.competence && (
+            <div className="relative group flex">
               <button
-                onClick={() => handleFilterChange('competence', '')}
-                className="p-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors z-10 ml-1"
-                title="Limpar filtro de período"
+                onClick={() => setLayoutMode('kanban')}
+                className={`p-2 rounded transition-colors ${layoutMode === 'kanban' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <X size={14} strokeWidth={2.5} />
+                <LayoutGrid size={18} />
               </button>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
+                Kanban
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
+              </div>
+            </div>
+          </div>
+
+          <div className={`flex items-center bg-white dark:bg-slate-900 rounded-lg border ${filters.competence ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'} h-10 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all`}>
+            <div className="relative group flex items-center pl-3 h-full">
+              <Calendar size={16} className="text-indigo-500 dark:text-indigo-400 mr-2 group-focus-within:text-indigo-600 dark:group-focus-within:text-indigo-300" />
+              <div className="relative w-32 h-full flex items-center">
+                <input
+                  type="month"
+                  className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
+                  value={filters.competence}
+                  onChange={(e) => handleFilterChange('competence', e.target.value)}
+                />
+                <div className="absolute left-0 right-8 top-1/2 -translate-y-1/2 flex items-center pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%]">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">
+                    {filters.competence ? `${filters.competence.split('-')[1]}/${filters.competence.split('-')[0]}` : 'COMPETÊNCIA'}
+                  </span>
+                </div>
+              </div>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
+                Selecionar Competência
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
+              </div>
+            </div>
+
+            {filters.competence && (
+              <div className="relative group/x flex pr-1">
+                <button
+                  onClick={() => handleFilterChange('competence', '')}
+                  className="p-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors z-10 mr-1"
+                >
+                  <X size={14} strokeWidth={2.5} />
+                </button>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/x:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
+                  Limpar Filtro de Período
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
+                </div>
+              </div>
             )}
           </div>
 
-          <Button
-            variant="secondary"
-            onClick={clearFilters}
-            icon={<X size={16} />}
-            className="text-xs hidden md:flex"
-            disabled={Object.values(filters).every(v => v === '')}
-          >
-            Limpar
-          </Button>
+          <div className="relative group flex">
+            <Button
+              variant="secondary"
+              onClick={clearFilters}
+              icon={<X size={16} />}
+              className="text-xs hidden md:flex"
+              disabled={Object.values(filters).every(v => v === '')}
+            >
+              Limpar
+            </Button>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
+              Limpar Todos os Filtros
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
+            </div>
+          </div>
           <div className="relative group flex">
             <button
               onClick={() => setTutorialsModalOpen(true)}

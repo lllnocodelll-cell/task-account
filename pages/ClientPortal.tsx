@@ -285,7 +285,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
   };
 
   return (
-    <div className="space-y-6 pb-20 md:pb-6">
+    <div className="space-y-6 pb-20 md:pb-6 overflow-x-hidden">
       <header className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Olá, {userProfile?.full_name?.split(' ')[0]}!</h1>
@@ -303,7 +303,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
         </div>
       </header>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1 -mx-4 md:mx-0">
+      <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide px-4 -mx-4 w-[calc(100%+32px)]">
         <button 
           onClick={() => setSelectedCompetence('')}
           className={`flex-shrink-0 px-5 py-2.5 rounded-full text-xs font-black tracking-widest transition-all duration-300 ${
@@ -329,7 +329,33 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
         ))}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Mobile-Only Minimalist Dashboard */}
+      <div className="flex md:hidden flex-col gap-4 px-1">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-4 bg-indigo-600 rounded-2xl flex flex-col justify-between shadow-lg shadow-indigo-500/20">
+            <span className="text-2xl font-black text-white leading-none tracking-tighter mb-1">{documents.length}</span>
+            <p className="text-[10px] text-indigo-100 font-bold uppercase tracking-wider">Total Guias</p>
+          </div>
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col justify-between shadow-sm">
+            <span className="text-2xl font-black text-slate-900 dark:text-white leading-none tracking-tighter mb-1">{documents.filter(d => d.status === 'Pendente').length}</span>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Pendentes</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between px-1 text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-1.5">
+             <CheckCircle2 size={12} className="text-emerald-500" />
+             <span>Protocolados: <span className="text-slate-900 dark:text-white">{documents.filter(d => d.status === 'Lido').length}</span></span>
+          </div>
+          <div className="flex items-center gap-1.5">
+             <Calendar size={12} className="text-slate-400" />
+             <span>Período: <span className="text-slate-900 dark:text-white">{selectedCompetence || 'TUDO'}</span></span>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Dashboard (Hidden on Mobile) */}
+      <div className="hidden md:grid md:grid-cols-4 gap-3">
         <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-indigo-500/30 transition-colors shadow-sm">
           <div className="flex justify-between items-start mb-2">
              <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl shrink-0"><FileText size={18} /></div>
@@ -407,7 +433,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
               return (
               <div key={doc.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-all group flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1 min-w-0">
-                    <div className={`relative p-4 rounded-2xl shrink-0 transition-all group-hover:scale-110 ${doc.status === 'Pendente' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 shadow-inner' : doc.status === 'Excluído' ? 'bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400 shadow-inner' : 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-inner'}`}>
+                    <div className={`hidden md:block relative p-4 rounded-2xl shrink-0 transition-all group-hover:scale-110 ${doc.status === 'Pendente' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 shadow-inner' : doc.status === 'Excluído' ? 'bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400 shadow-inner' : 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-inner'}`}>
                       {doc.status === 'Pendente' ? (
                         <FileText size={28} />
                       ) : doc.status === 'Excluído' ? (
@@ -438,42 +464,45 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
                           <span className="inline-flex items-center px-2 py-0.5 rounded md:rounded-md text-[10px] font-black bg-emerald-500 text-white uppercase tracking-tighter shadow-sm shadow-emerald-500/30">PAGO</span>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-slate-500 dark:text-slate-400">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded font-black uppercase text-[9px] tracking-wider border ${sectorStyle.colors}`}>
-                          {sectorStyle.icon}{doc.sectors?.name || 'Geral'}
-                        </span>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-slate-500 dark:text-slate-400">
                         <div className="flex items-center gap-1">
                           <Clock size={12} className="shrink-0" />
                           <span>Comp: <span className="text-slate-700 dark:text-slate-200 font-bold">{doc.competence_month}</span></span>
                         </div>
                         {doc.due_date && (
                           <div className="flex items-center gap-1">
-                            <AlertCircle size={12} className={`shrink-0 ${new Date(doc.due_date) < new Date() ? 'text-red-500' : 'text-slate-400'}`} />
-                            <span>Vencimento: <span className={`font-bold ${new Date(doc.due_date) < new Date() ? 'text-red-500' : 'text-slate-700 dark:text-slate-200'}`}>{new Date(doc.due_date).toLocaleDateString()}</span></span>
+                            {/* Comparação robusta: data do banco (final do dia) vs agora */}
+                            <AlertCircle size={12} className={`shrink-0 ${new Date(doc.due_date + 'T23:59:59') < new Date() ? 'text-red-500' : 'text-slate-400'}`} />
+                            <span>Vencimento: <span className={`font-bold ${new Date(doc.due_date + 'T23:59:59') < new Date() ? 'text-red-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                              {doc.due_date.split('-').reverse().join('/')}
+                            </span></span>
                           </div>
                         )}
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider border shadow-sm ${sectorStyle.colors}`}>
+                          {sectorStyle.icon}{doc.sectors?.name || 'Geral'}
+                        </span>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-wrap md:flex-nowrap items-center justify-end gap-2 mt-4 md:mt-0 w-full md:w-auto">
                     <button 
                       onClick={() => handlePaymentToggle(doc)}
-                      className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 ${doc.is_paid ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20' : 'bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}
+                      className={`flex-1 md:flex-none flex items-center justify-center px-3 md:px-4 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-tight md:tracking-widest transition-all shadow-lg active:scale-95 ${doc.is_paid ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'}`}
                     >
-                      <DollarSign size={16} /> {doc.is_paid ? 'Pago' : 'Marcar Pago'}
+                      {doc.is_paid ? 'Pago' : 'Marcar Pago'}
                     </button>
                     {doc.status === 'Lido' && (
                       <button 
                         onClick={() => handleViewProtocol(doc.id)}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-500/30 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                        className="flex-1 md:flex-none flex items-center justify-center px-3 md:px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-[10px] md:text-xs font-black uppercase tracking-tight md:tracking-widest transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
                       >
-                        <Receipt size={16} /> Protocolo
+                        Protocolo
                       </button>
                     )}
                     <button 
                       onClick={() => handleDownload(doc)}
                       disabled={doc.status === 'Excluído'}
-                      className={`w-full md:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all uppercase ${doc.status === 'Excluído' ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 active:scale-95'}`}
+                      className={`w-full md:w-auto flex items-center justify-center gap-2 px-4 md:px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-tight md:tracking-widest transition-all ${doc.status === 'Excluído' ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 active:scale-95'}`}
                     >
                       <Download size={16} /> Abrir
                     </button>

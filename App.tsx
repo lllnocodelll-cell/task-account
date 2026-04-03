@@ -41,6 +41,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [initialClientsTabClientId, setInitialClientsTabClientId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   const handleNavigateToClient = (clientId: string) => {
@@ -202,9 +203,10 @@ function App() {
         setUserRole(data.role as UserRole);
         setUserProfile(finalProfile);
         
-        // Redirecionar cliente para a área do cliente se ele logar
+        // Redirecionar cliente para a área do cliente apenas se estiver na aba inicial (dashboard)
+        // Isso evita que o Alt+Tab ou retorno de foco da janela resete a aba atual do cliente (ex: Chat)
         if (data.role === 'cliente') {
-          setActiveTab('client-portal');
+          setActiveTab(prev => prev === 'dashboard' ? 'client-portal' : prev);
         }
       }
     } catch (error) {
@@ -303,25 +305,31 @@ function App() {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-300">
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          setIsMobileMenuOpen(false); // Close menu on navigation
+        }}
         isCollapsed={isSidebarCollapsed}
         toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
         onLogout={handleLogout}
         userRole={userRole}
       />
 
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         <Header
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
           onProfileClick={() => setActiveTab('profile')}
           onNavigateToTab={(tab) => setActiveTab(tab)}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           userRole={userRole}
           userProfile={userProfile}
         />
 
-        <main className="flex-1 p-8 overflow-y-auto">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto w-full">
             {renderContent()}
           </div>
         </main>

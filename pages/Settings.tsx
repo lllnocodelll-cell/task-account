@@ -626,27 +626,16 @@ const MemberCard: React.FC<any> = ({
       </div>
       
       {/* Botões de convite rápidos */}
-      <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 flex gap-2">
+      <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 flex">
          <button 
            onClick={() => {
              const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
              navigator.clipboard.writeText(inviteLink);
              addToast('success', 'Sucesso', 'Link de convite copiado!');
            }}
-           className="flex-1 py-1 text-[9px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded flex items-center justify-center gap-1 border border-transparent hover:border-indigo-200 transition-all uppercase"
+           className="flex-1 py-2 text-[9px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-center gap-1.5 border border-transparent hover:border-indigo-200 hover:bg-white dark:hover:bg-slate-700 transition-all uppercase"
          >
-           <Copy size={10} /> Copiar Link
-         </button>
-         <button 
-           onClick={() => {
-             const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
-             const subject = encodeURIComponent('Convite para acessar o Task Account');
-             const body = encodeURIComponent(`Olá ${member.first_name},\n\nSua organização convidou você para o Task Account!\n\nAcesse: ${inviteLink}`);
-             window.location.href = `mailto:${member.email}?subject=${subject}&body=${body}`;
-           }}
-           className="flex-1 py-1 text-[9px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded flex items-center justify-center gap-1 border border-transparent hover:border-indigo-200 transition-all uppercase"
-         >
-           <Send size={10} /> Convidar
+           <Copy size={11} /> Copiar Link de Acesso
          </button>
       </div>
     </div>

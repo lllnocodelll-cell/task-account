@@ -17,8 +17,14 @@ import {
   X,
   PhoneCall,
   PhoneOff,
-  EyeOff
+  EyeOff,
+  ArrowLeft,
+  PanelLeft,
+  Shuffle,
+  Loader2
 } from 'lucide-react';
+import { Modal } from '../components/ui/Modal';
+import { Button } from '../components/ui/Button';
 import { supabase } from '../utils/supabaseClient';
 import { CreateGroupModal } from '../components/chat/CreateGroupModal';
 import { GroupSettingsModal } from '../components/chat/GroupSettingsModal';
@@ -31,11 +37,13 @@ interface Channel {
   name: string;
   rawName: string;
   type: string;
+  status?: string;
   lastMessage?: string;
   lastMessageTime?: string;
   unreadCount: number;
   avatar_url?: string;
   fallbackAvatar?: string;
+  sector_id?: string;
 }
 
 interface Profile {
@@ -91,8 +99,10 @@ export const Chat: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
-  const [activeTab, setActiveTab] = useState<'chats' | 'contacts' | 'support'>('chats');
+  const [activeTab, setActiveTab] = useState<'chats' | 'contacts' | 'support' | 'closed'>('chats');
   const [creatingDirect, setCreatingDirect] = useState(false);
+  const [showSidebarOnMobile, setShowSidebarOnMobile] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   
   // Atendimentos (Support)
@@ -133,6 +143,12 @@ export const Chat: React.FC = () => {
     isVideoEnabled: true,
     roomUrl: ''
   });
+
+  // Transferência de Atendimento
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [transferSectorId, setTransferSectorId] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [selectedSectorFilterId, setSelectedSectorFilterId] = useState<string>('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -179,6 +195,48 @@ export const Chat: React.FC = () => {
         contactStatus: isOffline ? 'offline' : (theirProfile?.chat_status || 'disponível')
       };
     }
+
+    if (channel.type === 'support') {
+      let simplifiedName = channel.name;
+      let avatarUrl = undefined;
+
+      let clientProfile;
+      if (currentUser?.role === 'cliente') {
+        const match = channel.name.match(/\(([^)]+)\)$/);
+        simplifiedName = match ? match[1] : 'Suporte';
+      } else {
+        const match = channel.name.match(/^Atendimento - (.+?)(?:\s*\(|$)/);
+        simplifiedName = match ? match[1] : channel.name;
+
+        // Tentar encontrar o perfil do cliente para a foto
+        clientProfile = profiles.find(p => p.full_name === simplifiedName);
+        if (clientProfile) {
+          avatarUrl = clientProfile.avatar_url;
+        }
+      }
+
+        let contactStatus = undefined;
+        if (clientProfile) {
+          let isOffline = true;
+          if (clientProfile.current_session_start) {
+            const sessionStart = new Date(clientProfile.current_session_start).getTime();
+            const lastActive = clientProfile.last_active_at ? new Date(clientProfile.last_active_at).getTime() : sessionStart;
+            if (Date.now() - lastActive < 30 * 60 * 1000) {
+              isOffline = false;
+            }
+          }
+          contactStatus = isOffline ? 'offline' : (clientProfile.chat_status || 'disponível');
+        }
+
+        return {
+          ...channel,
+          name: simplifiedName,
+          avatar_url: avatarUrl,
+          fallbackAvatar: simplifiedName.substring(0, 2).toUpperCase(),
+          contactStatus: contactStatus
+        };
+    }
+
     return {
       ...channel,
       fallbackAvatar: channel.name.substring(0, 2).toUpperCase()
@@ -770,9 +828,11 @@ export const Chat: React.FC = () => {
             name: channelName,
             rawName: c.name,
             type: c.type,
+            status: c.status,
             unreadCount: (countError ? 0 : (count || 0)) + reactionCount,
             lastMessage: lastMessage,
-            lastMessageTime: lastTime.toLocaleDateString('pt-BR')
+            lastMessageTime: lastTime.toISOString(),
+            sector_id: c.sector_id
           };
         })
       );
@@ -1081,20 +1141,72 @@ export const Chat: React.FC = () => {
     if (!selectedChannelId || !userId) return;
     if (!window.confirm('Deseja realmente finalizar este atendimento? A conversa será marcada como encerrada.')) return;
 
+    const finishedChannelId = selectedChannelId;
     try {
-      await supabase.from('chat_channels').update({ status: 'closed' } as any).eq('id', selectedChannelId);
+      await supabase.from('chat_channels').update({ status: 'closed' } as any).eq('id', finishedChannelId);
       
       await supabase.from('chat_messages').insert({
-        channel_id: selectedChannelId,
+        channel_id: finishedChannelId,
         sender_id: userId,
         text: '✅ Atendimento finalizado.',
         status: 'sent',
         is_me: true
       });
 
+      // Desseleciona o canal e redireciona para a aba Encerrados
+      setSelectedChannelId(null);
+      setActiveTab('closed');
+      setShowSidebarOnMobile(true);
+
       await fetchChannels(userId);
     } catch (error) {
       console.error('Error closing support ticket:', error);
+    }
+  };
+
+  const handleTransferSupportTicket = async () => {
+    if (!selectedChannelId || !userId || !transferSectorId) return;
+
+    setIsTransferring(true);
+    try {
+      const channel = channels.find(c => c.id === selectedChannelId);
+      const newSector = sectors.find(s => s.id === transferSectorId);
+      if (!channel || !newSector) throw new Error('Canais ou setor não encontrados');
+
+      const oldName = channel.name || '';
+      let newName = oldName;
+      
+      // Se o nome seguir o padrão "Atendimento - Cliente (Setor)", atualiza o final
+      if (oldName.includes('(') && oldName.endsWith(')')) {
+        newName = `${oldName.split('(')[0].trim()} (${newSector.name})`;
+      }
+
+      const { error: updateError } = await supabase
+        .from('chat_channels')
+        .update({ 
+          sector_id: transferSectorId,
+          name: newName
+        } as any)
+        .eq('id', selectedChannelId);
+
+      if (updateError) throw updateError;
+
+      await supabase.from('chat_messages').insert({
+        channel_id: selectedChannelId,
+        sender_id: userId,
+        text: `📢 Atendimento transferido para o setor: ${newSector.name}`,
+        status: 'sent',
+        is_me: true
+      });
+
+      setIsTransferModalOpen(false);
+      setTransferSectorId('');
+      await fetchChannels(userId);
+    } catch (error) {
+      console.error('Error transferring ticket:', error);
+      alert('Erro ao transferir atendimento.');
+    } finally {
+      setIsTransferring(false);
     }
   };
 
@@ -1157,6 +1269,10 @@ export const Chat: React.FC = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!messageInput.trim() && !selectedFile) || !selectedChannelId || !userId) return;
+
+    // Não permite enviar se o atendimento estiver encerrado
+    const selectedChannel = enrichedChannels.find(c => c.id === selectedChannelId);
+    if (selectedChannel?.status === 'closed') return;
 
     const textToSend = messageInput.trim();
     const tempId = `temp-${Date.now()}`;
@@ -1241,105 +1357,210 @@ export const Chat: React.FC = () => {
       alert('Falha ao enviar mensagem');
     }
   };
+  const teamItems = React.useMemo(() => {
+    if (currentUser?.role === 'cliente') return [];
+    
+    // 1. Canais de grupo ativos
+    const groupChannels = enrichedChannels.filter(c => c.type === 'group' && c.status !== 'closed');
+    
+    // 2. Perfis da equipe (não-clientes)
+    const staffProfiles = profiles.filter(p => (p.role === 'gestor' || p.role === 'operacional') && p.id !== userId);
+    
+    // 3. Mapear perfis para itens de chat (associando canais diretos se existirem)
+    const staffItems = staffProfiles.map(profile => {
+      const channel = enrichedChannels.find(c => 
+        c.type === 'direct' && (c.rawName.startsWith(profile.id) || c.rawName.endsWith(profile.id))
+      );
+      
+      if (channel) {
+        return { ...channel, isProfile: false, profileId: profile.id };
+      } else {
+        return {
+          id: `profile-${profile.id}`,
+          name: profile.full_name || 'Usuário',
+          rawName: `${userId}-${profile.id}`,
+          type: 'direct',
+          unreadCount: 0,
+          lastMessage: profile.sector || 'Sem Setor',
+          lastMessageTime: '',
+          avatar_url: profile.avatar_url,
+          fallbackAvatar: profile.full_name?.substring(0, 2).toUpperCase() || 'DM',
+          contactStatus: 'offline', // simplistic for now
+          isProfile: true,
+          profileId: profile.id
+        };
+      }
+    });
+
+    const combined = [...groupChannels, ...staffItems].filter(item => {
+      const searchTerm = contactSearchTerm.toLowerCase();
+      return item.name.toLowerCase().includes(searchTerm) || 
+             (item.lastMessage || '').toLowerCase().includes(searchTerm);
+    });
+
+    return combined.sort((a, b) => {
+      if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
+      if (a.lastMessageTime && b.lastMessageTime) {
+        return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
+      }
+      if (a.lastMessageTime) return -1;
+      if (b.lastMessageTime) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [enrichedChannels, profiles, contactSearchTerm, currentUser, userId]);
 
   const filteredChannels = enrichedChannels.filter(channel => {
     if (!channel.name?.toLowerCase().includes(contactSearchTerm.toLowerCase())) return false;
+
+    // Filtro por Setor (Suporte/Finalizado)
+    if ((activeTab === 'support' || activeTab === 'closed') && selectedSectorFilterId && channel.sector_id !== selectedSectorFilterId) {
+      return false;
+    }
     
     if (currentUser?.role === 'cliente') {
-      return channel.type === 'support';
+      if (activeTab === 'closed') return channel.type === 'support' && channel.status === 'closed';
+      return channel.type === 'support' && channel.status !== 'closed';
     } else {
-      if (activeTab === 'chats') return channel.type === 'direct' || channel.type === 'group';
-      if (activeTab === 'support') return channel.type === 'support';
+      // Para o escritório, a aba 'chats' (Equipe) agora é handled pelo teamItems
+      if (activeTab === 'chats') return false; 
+      if (activeTab === 'support') return channel.type === 'support' && channel.status !== 'closed';
+      if (activeTab === 'closed') return channel.type === 'support' && channel.status === 'closed';
       return false;
     }
   });
 
-  const filteredProfiles = profiles.filter(profile =>
-    profile.full_name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
-    profile.sector?.toLowerCase().includes(contactSearchTerm.toLowerCase())
-  );
+  const filteredProfiles = profiles.filter(profile => {
+    const matchesSearch = profile.full_name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
+      profile.sector?.toLowerCase().includes(contactSearchTerm.toLowerCase());
+    
+    // Na aba de contatos, mostrar apenas equipe/colaboradores (não clientes)
+    // Clientes devem ser atendidos pela aba 'Suporte' (Clientes)
+    const isStaff = profile.role !== 'cliente';
+    
+    return matchesSearch && isStaff;
+  });
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+    <div className="flex h-[calc(100vh-6.5rem)] md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-x border-b md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative -mx-4 -mb-4 md:mx-0 md:mb-0">
 
       {/* Sidebar - Contact List */}
-      <div className="w-80 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-950/30">
+      <div className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800 flex-col bg-slate-50/50 dark:bg-slate-950/30 absolute md:relative z-10 h-full ${showSidebarOnMobile ? 'flex' : 'hidden'} ${isSidebarCollapsed ? 'md:hidden' : 'md:flex'}`}>
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Mensagens</h2>
-            <div className="flex gap-2">
-              <div className="relative">
-                <button
-                  onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className="flex items-center gap-2 p-1.5 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  title="Alterar Status"
+            <div className="flex items-center gap-2">
+              <div className="tooltip-container tooltip-bottom">
+                <button 
+                  className="hidden md:flex p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
+                  onClick={() => setIsSidebarCollapsed(true)}
                 >
-                  <div className={`w-2.5 h-2.5 rounded-full ${STATUS_COLORS[currentUser?.chat_status || 'disponível']}`} />
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 capitalize hidden sm:inline-block">
-                    {currentUser?.chat_status || 'Disponível'}
-                  </span>
+                  <PanelLeft size={18} />
                 </button>
+                <span className="tooltip-content">Encolher</span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Chat</h2>
+            </div>
+            <div className="flex gap-2">
+              <div className="tooltip-container tooltip-bottom">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowStatusMenu(!showStatusMenu)}
+                    className="flex items-center gap-2 h-[38px] px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <div className={`w-2.5 h-2.5 rounded-full ${STATUS_COLORS[currentUser?.chat_status || 'disponível']}`} />
+                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300 capitalize hidden sm:inline-block">
+                      {currentUser?.chat_status || 'Disponível'}
+                    </span>
+                  </button>
 
-                {showStatusMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-36 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50">
-                    {(['disponível', 'ocupado', 'ausente', 'almoço', 'férias'] as const).map(status => (
-                      <button
-                        key={status}
-                        onClick={() => updateChatStatus(status)}
-                        className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
-                      >
-                        <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[status]}`} />
-                        <span className="capitalize">{status}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  {showStatusMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-36 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50">
+                      {(['disponível', 'ocupado', 'ausente', 'almoço', 'férias'] as const).map(status => (
+                        <button
+                          key={status}
+                          onClick={() => updateChatStatus(status)}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
+                        >
+                          <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[status]}`} />
+                          <span className="capitalize">{status}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span className="tooltip-content">Alterar Status</span>
               </div>
               {currentUser?.role !== 'cliente' ? (
                 <>
                   {activeTab === 'support' ? (
-                    <button
-                      onClick={() => { fetchClients(); setIsStaffSupportModalOpen(true); }}
-                      className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
-                      title="Novo Atendimento para Cliente"
-                    >
-                      <Plus size={18} />
-                    </button>
+                    <div className="tooltip-container tooltip-bottom">
+                      <button
+                        onClick={() => { fetchClients(); setIsStaffSupportModalOpen(true); }}
+                        className="w-[38px] h-[38px] flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                      >
+                        <Plus size={18} />
+                      </button>
+                      <span className="tooltip-content">Novo Atendimento para Cliente</span>
+                    </div>
                   ) : (
-                    <button
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                      title="Novo Grupo"
-                    >
-                      <Plus size={18} />
-                    </button>
+                    <div className="tooltip-container tooltip-bottom">
+                      <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="w-[38px] h-[38px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                      >
+                        <Plus size={18} />
+                      </button>
+                      <span className="tooltip-content">Novo Grupo</span>
+                    </div>
                   )}
                 </>
               ) : (
-                <button
-                  onClick={() => setIsSupportCreateModalOpen(true)}
-                  className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                  title="Novo Atendimento"
-                >
-                  <Plus size={18} />
-                </button>
+                <div className="tooltip-container tooltip-bottom">
+                  <button
+                    onClick={() => setIsSupportCreateModalOpen(true)}
+                    className="w-[38px] h-[38px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                  >
+                    <Plus size={18} />
+                  </button>
+                  <span className="tooltip-content">Novo Atendimento</span>
+                </div>
               )}
             </div>
           </div>
+          
+          <div className="p-4 space-y-3">
+          {(activeTab === 'support' || activeTab === 'closed') && currentUser?.role !== 'cliente' && (
+            <div className="flex flex-col gap-1.5 px-1 animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
+                Filtrar por Setor
+              </label>
+              <select
+                value={selectedSectorFilterId}
+                onChange={(e) => setSelectedSectorFilterId(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
+                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0\' stroke=\'%2364748b\' stroke-width=\'2\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M19 9l-7 7-7-7\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '0.75rem' }}
+              >
+                <option value="">Todos os Setores</option>
+                {sectors.map(sector => (
+                  <option key={sector.id} value={sector.id}>{sector.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="relative">
             <input
               type="text"
-              placeholder="Buscar equipe..."
+              placeholder={activeTab === 'contacts' ? "Buscar equipe..." : "Buscar conversas..."}
               value={contactSearchTerm}
               onChange={(e) => setContactSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
             />
             <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
           </div>
+          </div>
 
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-slate-200 dark:border-slate-800 shrink-0">
           <button
             onClick={() => setActiveTab('chats')}
@@ -1348,41 +1569,96 @@ export const Chat: React.FC = () => {
               : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
           >
-            {currentUser?.role === 'cliente' ? 'Atendimentos' : 'Conversas'}
+            {currentUser?.role === 'cliente' ? 'Em Andamento' : 'Equipe'}
           </button>
           
           {currentUser?.role !== 'cliente' && (
-            <>
-              <button
-                onClick={() => setActiveTab('support')}
-                className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'support'
-                  ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                  }`}
-              >
-                Suporte
-              </button>
-              <button
-                onClick={() => setActiveTab('contacts')}
-                className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'contacts'
-                  ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                  }`}
-              >
-                Contatos
-              </button>
-            </>
+            <button
+              onClick={() => setActiveTab('support')}
+              className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'support'
+                ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+            >
+              Clientes
+            </button>
           )}
+
+          <button
+            onClick={() => setActiveTab('closed')}
+            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors truncate px-1 ${activeTab === 'closed'
+              ? 'border-rose-600 text-rose-600 dark:border-rose-400 dark:text-rose-400'
+              : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+          >
+            Finalizado
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          {activeTab === 'chats' || activeTab === 'support' ? (
+          {activeTab === 'chats' ? (
+            teamItems.length === 0 ? (
+              <div className="p-4 text-center text-sm text-slate-500">Nenhum membro ou grupo encontrado.</div>
+            ) : teamItems.map(item => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  if ((item as any).isProfile) {
+                    handleStartDirectChat((item as any).profileId);
+                  } else {
+                    setSelectedChannelId(item.id);
+                  }
+                  setShowSidebarOnMobile(false);
+                }}
+                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${selectedChannelId === item.id
+                  ? 'bg-indigo-50 dark:bg-indigo-500/10'
+                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+              >
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
+                    {item.avatar_url ? (
+                      <img src={item.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      item.fallbackAvatar
+                    )}
+                  </div>
+                  {item.type === 'direct' && (
+                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-800 rounded-full ${(item as any).contactStatus ? STATUS_COLORS[(item as any).contactStatus] : STATUS_COLORS['disponível']}`} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="flex justify-between items-baseline mb-0.5">
+                    <h3 className={`text-sm font-semibold truncate ${selectedChannelId === item.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
+                      {item.name}
+                    </h3>
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      {item.lastMessageTime ? new Date(item.lastMessageTime).toLocaleDateString('pt-BR') : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-1">
+                    <p className={`text-xs truncate ${item.unreadCount > 0 ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-500'}`}>
+                      {item.lastMessage}
+                    </p>
+                    {item.unreadCount > 0 && (
+                      <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                        {item.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            ))
+          ) : activeTab === 'support' || activeTab === 'closed' ? (
             filteredChannels.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">Nenhuma conversa encontrada.</div>
             ) : filteredChannels.map(channel => (
               <button
                 key={channel.id}
-                onClick={() => setSelectedChannelId(channel.id)}
+                onClick={() => {
+                  setSelectedChannelId(channel.id);
+                  setShowSidebarOnMobile(false);
+                }}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${selectedChannelId === channel.id
                   ? 'bg-indigo-50 dark:bg-indigo-500/10'
                   : 'hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -1396,29 +1672,18 @@ export const Chat: React.FC = () => {
                       channel.fallbackAvatar
                     )}
                   </div>
-                  {channel.type === 'direct' && (
-                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-800 rounded-full ${(channel as any).contactStatus ? STATUS_COLORS[(channel as any).contactStatus] : STATUS_COLORS['disponível']}`} />
+                  {(channel.type === 'direct' || channel.type === 'support') && (channel as any).contactStatus && (
+                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-800 rounded-full ${STATUS_COLORS[(channel as any).contactStatus]}`} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex justify-between items-baseline mb-0.5">
                     <h3 className={`text-sm font-semibold truncate ${selectedChannelId === channel.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
-                      {channel.type === 'support'
-                        ? currentUser?.role === 'cliente'
-                          // Cliente vê setor ou criador do lado do escritório
-                          ? (() => {
-                              const match = channel.name.match(/\(([^)]+)\)$/);
-                              return match ? `Suporte - ${match[1]}` : 'Suporte';
-                            })()
-                          // Equipe vê o nome do cliente (entre "- " e " (" ou fim)
-                          : (() => {
-                              const match = channel.name.match(/^Atendimento - (.+?)(?:\s*\(|$)/);
-                              return match ? match[1] : channel.name;
-                            })()
-                        : channel.name
-                      }
+                      {channel.name}
                     </h3>
-                    <span className="text-[10px] text-slate-400">{channel.lastMessageTime}</span>
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      {channel.lastMessageTime ? new Date(channel.lastMessageTime).toLocaleDateString('pt-BR') : ''}
+                    </span>
                   </div>
                   <p className={`text-xs truncate ${selectedChannelId === channel.id ? 'text-indigo-700/70 dark:text-indigo-300/70' : 'text-slate-500 dark:text-slate-400'}`}>
                     {channel.lastMessage}
@@ -1437,7 +1702,10 @@ export const Chat: React.FC = () => {
             ) : filteredProfiles.map(profile => (
               <button
                 key={profile.id}
-                onClick={() => handleStartDirectChat(profile.id)}
+                onClick={() => {
+                  handleStartDirectChat(profile.id);
+                  setShowSidebarOnMobile(false);
+                }}
                 disabled={creatingDirect}
                 className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 text-left"
               >
@@ -1481,30 +1749,30 @@ export const Chat: React.FC = () => {
 
       {/* Main Chat Area */}
       {selectedChannel ? (
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className={`flex-1 flex-col min-w-0 h-full ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'}`}>
 
           {/* Header */}
-          <div className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 bg-white dark:bg-slate-900 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
-                  {selectedChannel.avatar_url ? (
-                    <img src={selectedChannel.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    selectedChannel.fallbackAvatar
-                  )}
+          <div className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 bg-white dark:bg-slate-900 shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button 
+                className="md:hidden p-1.5 mr-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                onClick={() => setShowSidebarOnMobile(true)}
+              >
+                <ArrowLeft size={20} />
+              </button>
+              {isSidebarCollapsed && (
+                <div className="tooltip-container tooltip-bottom">
+                  <button 
+                    className="hidden md:flex p-1.5 mr-1 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
+                    onClick={() => setIsSidebarCollapsed(false)}
+                  >
+                    <PanelLeft size={20} />
+                  </button>
+                  <span className="tooltip-content">Expandir</span>
                 </div>
-                {selectedChannel.type === 'direct' && (
-                  <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-900 rounded-full ${(selectedChannel as any).contactStatus ? STATUS_COLORS[(selectedChannel as any).contactStatus] : STATUS_COLORS['disponível']}`} />
-                )}
-              </div>
+              )}
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">{selectedChannel.name}</h3>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {selectedChannel.type === 'group' ? 'Grupo' : ((selectedChannel as any).contactStatus ? (selectedChannel as any).contactStatus.charAt(0).toUpperCase() + (selectedChannel as any).contactStatus.slice(1) : 'Disponível')} &bull; {selectedChannel.type === 'group' ? 'Conversa em grupo' : 'Mensagem Direta'}
-                  </span>
-                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1521,47 +1789,73 @@ export const Chat: React.FC = () => {
                   className="pl-9 pr-4 py-2 w-40 lg:w-48 bg-slate-50 dark:bg-slate-950/50 border border-transparent focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg text-sm text-slate-900 dark:text-white transition-all outline-none placeholder:text-slate-400"
                 />
               </div>
-              <button
-                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                className={`p-2 rounded-lg transition-colors ${showFavoritesOnly ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' : 'text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                title="Mostrar Apenas Favoritos"
-              >
-                <Star size={20} fill={showFavoritesOnly ? 'currentColor' : 'none'} />
-              </button>
+              <div className="tooltip-container tooltip-bottom">
+                <button
+                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                  className={`p-2 rounded-lg transition-colors ${showFavoritesOnly ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' : 'text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <Star size={20} fill={showFavoritesOnly ? 'currentColor' : 'none'} />
+                </button>
+                <span className="tooltip-content">Mostrar Apenas Favoritos</span>
+              </div>
 
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
-              <button
-                onClick={() => startCall(false)}
-                className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                title="Chamada de Áudio"
-              >
-                <Phone size={20} />
-              </button>
-              <button
-                onClick={() => startCall(true)}
-                className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                title="Chamada de Vídeo"
-              >
-                <Video size={20} />
-              </button>
-              {selectedChannel.type === 'group' && (
+              <div className="tooltip-container tooltip-bottom">
                 <button
-                  onClick={() => setIsGroupSettingsOpen(true)}
+                  onClick={() => startCall(false)}
                   className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  title="Configurações do Grupo"
                 >
-                  <MoreVertical size={20} />
+                  <Phone size={20} />
                 </button>
+                <span className="tooltip-content">Chamada de Áudio</span>
+              </div>
+              <div className="tooltip-container tooltip-bottom">
+                <button
+                  onClick={() => startCall(true)}
+                  className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <Video size={20} />
+                </button>
+                <span className="tooltip-content">Chamada de Vídeo</span>
+              </div>
+              {selectedChannel.type === 'group' && (
+                <div className="tooltip-container tooltip-bottom">
+                  <button
+                    onClick={() => setIsGroupSettingsOpen(true)}
+                    className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <MoreVertical size={20} />
+                  </button>
+                  <span className="tooltip-content">Configurações do Grupo</span>
+                </div>
               )}
               {selectedChannel.type === 'support' && (
-                <button
-                  onClick={handleFinishSupportTicket}
-                  className="p-2 text-rose-500 hover:text-white rounded-lg hover:bg-rose-500 transition-colors"
-                  title="Finalizar Atendimento"
-                >
-                  <CheckCheck size={20} />
-                </button>
+                <>
+                  {currentUser?.role !== 'cliente' && (
+                    <div className="tooltip-container tooltip-bottom">
+                      <button
+                        onClick={() => {
+                          setTransferSectorId(selectedChannel.sector_id || '');
+                          setIsTransferModalOpen(true);
+                        }}
+                        className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        <Shuffle size={20} />
+                      </button>
+                      <span className="tooltip-content">Transferir Atendimento</span>
+                    </div>
+                  )}
+                  <div className="tooltip-container tooltip-bottom">
+                    <button
+                      onClick={handleFinishSupportTicket}
+                      className="p-2 text-rose-500 hover:text-white rounded-lg hover:bg-rose-500 transition-colors"
+                    >
+                      <CheckCheck size={20} />
+                    </button>
+                    <span className="tooltip-content">Finalizar Atendimento</span>
+                  </div>
+                </>
               )}
               {selectedChannel.type !== 'group' && selectedChannel.type !== 'support' && (
                 <button className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -1580,15 +1874,15 @@ export const Chat: React.FC = () => {
             ) : (
               displayedMessages.map((msg) => {
                 const senderProfile = !msg.isMe ? profiles.find(p => p.id === msg.sender_id) : null;
-                const senderName = senderProfile?.full_name || (selectedChannel.type === 'group' ? 'Membro' : selectedChannel.name);
-                const senderInitials = msg.isMe ? 'EU' : senderName.substring(0, 2).toUpperCase();
+                const senderName = msg.isMe ? (currentUser?.full_name || 'Eu') : (senderProfile?.full_name || (selectedChannel.type === 'group' ? 'Membro' : selectedChannel.name));
+                const senderInitials = senderName.substring(0, 2).toUpperCase();
 
                 return (
                   <div
                     key={msg.id}
                     className={`flex gap-3 max-w-[80%] ${msg.isMe ? 'ml-auto flex-row-reverse' : ''}`}
                   >
-                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${msg.isMe
+                    <div className={`hidden md:flex shrink-0 w-8 h-8 rounded-full items-center justify-center text-[10px] font-bold ${msg.isMe
                       ? 'bg-indigo-600 text-white'
                       : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300'
                       }`}>
@@ -1600,8 +1894,8 @@ export const Chat: React.FC = () => {
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-tl-none'
                       }`}>
 
-                      {selectedChannel.type === 'group' && !msg.isMe && (
-                        <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">
+                      {(selectedChannel.type === 'group' || selectedChannel.type === 'support') && (
+                        <span className={`text-[10px] font-bold mb-1 ${msg.isMe ? 'text-indigo-100/90' : 'text-indigo-600 dark:text-indigo-400'}`}>
                           {senderName}
                         </span>
                       )}
@@ -1738,6 +2032,15 @@ export const Chat: React.FC = () => {
 
           {/* Input Area */}
           <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 relative">
+            {(selectedChannel as any).status === 'closed' ? (
+              <div className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                <CheckCheck size={16} className="text-rose-500 shrink-0" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Este atendimento foi <span className="font-semibold text-rose-500">finalizado</span>. Não é possível enviar novas mensagens.
+                </p>
+              </div>
+            ) : (
+              <>
 
             {showEmojiPicker && (
               <div className="absolute bottom-[calc(100%+0.5rem)] right-4 z-50 shadow-xl rounded-xl custom-scrollbar overflow-hidden border border-slate-200 dark:border-slate-800">
@@ -1866,10 +2169,29 @@ export const Chat: React.FC = () => {
                 <p className="text-[10px] text-slate-400">Pressione Enter para enviar</p>
               </div>
             </form>
+            </>
+            )}
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 text-slate-400">
+        <div className={`flex-1 flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 text-slate-400 ${!showSidebarOnMobile ? 'flex' : 'hidden'} md:flex relative`}>
+          <button 
+            className="md:hidden absolute top-4 left-4 p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            onClick={() => setShowSidebarOnMobile(true)}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          {isSidebarCollapsed && (
+            <div className="tooltip-container tooltip-bottom">
+              <button 
+                className="hidden md:flex absolute top-4 left-4 p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
+                onClick={() => setIsSidebarCollapsed(false)}
+              >
+                <PanelLeft size={20} />
+              </button>
+              <span className="tooltip-content">Expandir</span>
+            </div>
+          )}
           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
             <MoreVertical size={32} />
           </div>
@@ -1880,22 +2202,73 @@ export const Chat: React.FC = () => {
       <CreateGroupModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => fetchChannels()}
+        onSuccess={() => {
+          if (userId) fetchChannels(userId);
+        }}
       />
 
-      {selectedChannel && selectedChannel.type === 'group' && (
-        <GroupSettingsModal
-          isOpen={isGroupSettingsOpen}
-          onClose={() => setIsGroupSettingsOpen(false)}
-          onSuccess={() => {
-            fetchChannels();
-            setSelectedChannelId(null);
-          }}
-          channelId={selectedChannel.id}
-          channelName={selectedChannel.name}
-          channelType={selectedChannel.type}
-        />
-      )}
+      <GroupSettingsModal
+        isOpen={isGroupSettingsOpen}
+        onClose={() => setIsGroupSettingsOpen(false)}
+        channelId={selectedChannelId || ''}
+        channelName={selectedChannel?.name || ''}
+        channelType={selectedChannel?.type || ''}
+        onSuccess={() => {
+          setIsGroupSettingsOpen(false);
+          if (userId) fetchChannels(userId);
+        }}
+      />
+
+      {/* Modal de Transferência de Setor */}
+      <Modal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
+        title="Transferir Atendimento"
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setIsTransferModalOpen(false)} disabled={isTransferring}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleTransferSupportTicket} 
+              disabled={isTransferring || !transferSectorId}
+              icon={isTransferring ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
+            >
+              {isTransferring ? 'Transferindo...' : 'Transferir'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Selecione o setor para o qual deseja transferir este atendimento.
+          </p>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Setores Disponíveis
+            </label>
+            <div className="grid grid-cols-1 gap-2">
+              {sectors.map((sector) => (
+                <button
+                  key={sector.id}
+                  onClick={() => setTransferSectorId(sector.id)}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-all text-left ${
+                    transferSectorId === sector.id
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span className="font-medium">{sector.name}</span>
+                  {transferSectorId === sector.id && (
+                    <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {selectedChannel && (
         <VideoCallModal
