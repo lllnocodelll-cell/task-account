@@ -269,11 +269,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   userProfile
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [activeDfePopoverId, setActiveDfePopoverId] = useState<string | null>(null);
+  const [activeDfePopoverTaskId, setActiveDfePopoverTaskId] = useState<string | null>(null);
   const [activeAccessPopoverId, setActiveAccessPopoverId] = useState<string | null>(null);
   const [activeObsPopoverId, setActiveObsPopoverId] = useState<string | null>(null);
   const [accessPopoverData, setAccessPopoverData] = useState<{ task: Task; rect: DOMRect } | null>(null);
-  const [dfePopoverData, setDfePopoverData] = useState<{ task: Task; dfe: any; rect: DOMRect } | null>(null);
+  const [dfePopoverData, setDfePopoverData] = useState<{ task: Task; rect: DOMRect } | null>(null);
   const [obsPopoverData, setObsPopoverData] = useState<{ task: Task; rect: DOMRect } | null>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -382,7 +382,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           } else {
                             setActiveObsPopoverId(task.id);
                             setObsPopoverData({ task, rect: e.currentTarget.getBoundingClientRect() });
-                            setActiveDfePopoverId(null);
+                            setActiveDfePopoverTaskId(null);
                             setActiveAccessPopoverId(null);
                             setDfePopoverData(null);
                             setAccessPopoverData(null);
@@ -484,53 +484,64 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       </span>
                     )}
                     {/* Badges DFe – clicáveis com popover */}
-                    {task.clientDfes && task.clientDfes.slice(0, 4).map((dfe: any) => (
-                      <button
-                        key={dfe.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const popoverId = `${task.id}-dfe-${dfe.id}`;
-                          if (activeDfePopoverId === popoverId) {
-                            setActiveDfePopoverId(null);
-                            setDfePopoverData(null);
-                          } else {
-                            setActiveDfePopoverId(popoverId);
-                            setDfePopoverData({ task, dfe, rect: e.currentTarget.getBoundingClientRect() });
-                            setActiveAccessPopoverId(null);
-                            setActiveObsPopoverId(null);
-                            setAccessPopoverData(null);
-                            setObsPopoverData(null);
-                          }
-                        }}
-                        className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 hover:bg-indigo-200 dark:hover:bg-indigo-500/30 transition-colors"
-                      >
-                        {dfe.dfe_type?.toUpperCase()}
-                      </button>
-                    ))}
-                    {task.clientDfes && task.clientDfes.length > 4 && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-                        +{task.clientDfes.length - 4}
-                      </span>
+                    {task.clientDfes && task.clientDfes.length > 0 && (
+                      <div className="relative group/dfe-tooltip">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (activeDfePopoverTaskId === task.id) {
+                              setActiveDfePopoverTaskId(null);
+                              setDfePopoverData(null);
+                            } else {
+                              setActiveDfePopoverTaskId(task.id);
+                              setDfePopoverData({ task, rect: e.currentTarget.getBoundingClientRect() });
+                              setActiveAccessPopoverId(null);
+                              setActiveObsPopoverId(null);
+                              setAccessPopoverData(null);
+                              setObsPopoverData(null);
+                            }
+                          }}
+                          className={`inline-flex items-center px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide rounded-md transition-colors ${
+                            activeDfePopoverTaskId === task.id
+                              ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white ring-2 ring-indigo-300 dark:ring-indigo-400/50'
+                              : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 hover:bg-indigo-200 dark:hover:bg-indigo-500/30'
+                          }`}
+                        >
+                          DF-e
+                        </button>
+                        
+                        <div className="absolute bottom-full left-0 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold rounded shadow-xl opacity-0 invisible group-hover/dfe-tooltip:opacity-100 group-hover/dfe-tooltip:visible transition-all duration-200 z-[100] pointer-events-none whitespace-nowrap border border-slate-700/50 uppercase tracking-tighter">
+                          Documentos Fiscais Eletrônicos
+                          <div className="absolute top-full left-4 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
+                        </div>
+                      </div>
                     )}
                     {/* Badge de Acessos – clicável com popover fixo */}
                     {task.clientAccesses && task.clientAccesses.length > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (activeAccessPopoverId === task.id) {
-                            setActiveAccessPopoverId(null);
-                            setAccessPopoverData(null);
-                          } else {
-                            setActiveAccessPopoverId(task.id);
-                            setAccessPopoverData({ task, rect: e.currentTarget.getBoundingClientRect() });
-                            setActiveDfePopoverId(null);
-                            setActiveObsPopoverId(null);
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 hover:bg-amber-200 dark:hover:bg-amber-500/25 transition-colors"
-                      >
-                        <Key size={8} /> {task.clientAccesses.length} acesso{task.clientAccesses.length > 1 ? 's' : ''}
-                      </button>
+                      <div className="relative group/access-tooltip">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (activeAccessPopoverId === task.id) {
+                              setActiveAccessPopoverId(null);
+                              setAccessPopoverData(null);
+                            } else {
+                              setActiveAccessPopoverId(task.id);
+                              setAccessPopoverData({ task, rect: e.currentTarget.getBoundingClientRect() });
+                              setActiveDfePopoverTaskId(null);
+                              setActiveObsPopoverId(null);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 hover:bg-amber-200 dark:hover:bg-amber-500/25 transition-colors"
+                        >
+                          <Key size={8} /> {task.clientAccesses.length} acesso{task.clientAccesses.length > 1 ? 's' : ''}
+                        </button>
+
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold rounded shadow-xl opacity-0 invisible group-hover/access-tooltip:opacity-100 group-hover/access-tooltip:visible transition-all duration-200 z-[100] pointer-events-none whitespace-nowrap border border-slate-700/50 uppercase tracking-tighter">
+                          Acessos
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -596,8 +607,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       </div>
 
       {/* Popover de DFe – position:fixed para escapar do overflow-y-auto */}
-      {activeDfePopoverId && dfePopoverData && (() => {
-        const POPOVER_W = 240;
+      {activeDfePopoverTaskId && dfePopoverData && (() => {
+        const POPOVER_W = 400;
         const buttonRight = dfePopoverData.rect.right;
         const left = Math.min(
           Math.max(10, buttonRight - POPOVER_W),
@@ -615,60 +626,79 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1">
-                <FileText size={10} /> {dfePopoverData.dfe.dfe_type?.toUpperCase()} · Série {dfePopoverData.dfe.series}
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                <FileBadge size={12} strokeWidth={2.5} />
+                Documentos Fiscais Eletrônicos ({dfePopoverData.task.clientDfes?.length})
               </span>
               <button
-                onClick={(e) => { e.stopPropagation(); setActiveDfePopoverId(null); setDfePopoverData(null); }}
+                onClick={(e) => { e.stopPropagation(); setActiveDfePopoverTaskId(null); setDfePopoverData(null); }}
                 className="text-slate-500 hover:text-slate-300 transition-colors"
               >
                 <X size={12} />
               </button>
             </div>
-            {dfePopoverData.dfe.issuer && (
-              <div className="mb-2">
-                <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block mb-0.5">Emissor</span>
-                <a
-                  href={dfePopoverData.dfe.issuer_link || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[11px] text-indigo-400 font-semibold hover:text-indigo-300 underline truncate block"
-                >
-                  {dfePopoverData.dfe.issuer}
-                </a>
-              </div>
-            )}
-            {dfePopoverData.dfe.username && (
-              <div className="mb-2">
-                <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block mb-0.5">Usuário</span>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[11px] text-slate-200 font-mono truncate">{dfePopoverData.dfe.username}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(dfePopoverData.dfe.username); }}
-                    className="text-slate-500 hover:text-slate-300 shrink-0 transition-colors"
-                    title="Copiar usuário"
-                  >
-                    <Copy size={10} />
-                  </button>
-                </div>
-              </div>
-            )}
-            {dfePopoverData.dfe.password && (
-              <div>
-                <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-wider block mb-0.5">Senha</span>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[11px] text-slate-200 font-mono truncate">{dfePopoverData.dfe.password}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(dfePopoverData.dfe.password); }}
-                    className="text-slate-500 hover:text-slate-300 shrink-0 transition-colors"
-                    title="Copiar senha"
-                  >
-                    <Copy size={10} />
-                  </button>
-                </div>
-              </div>
-            )}
+            
+            <div className="max-h-64 overflow-y-auto custom-scrollbar pr-1">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    <th className="py-2 px-1 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Modelo</th>
+                    <th className="py-2 px-1 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Série</th>
+                    <th className="py-2 px-1 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Usuário</th>
+                    <th className="py-2 px-1 text-[8.5px] font-black text-slate-500 uppercase tracking-wider">Senha</th>
+                    <th className="py-2 px-1 text-[8.5px] font-black text-slate-500 uppercase tracking-wider w-8">Link</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/50">
+                  {dfePopoverData.task.clientDfes?.map((dfe: any) => (
+                    <tr key={dfe.id} className="group/row">
+                      <td className="py-2 px-1 text-[10px] font-bold text-indigo-400 uppercase">{dfe.dfe_type}</td>
+                      <td className="py-2 px-1 text-[10px] text-slate-400">{dfe.series || '—'}</td>
+                      <td className="py-2 px-1">
+                        <div className="flex items-center justify-between gap-1 group/item">
+                          <span className="text-[10px] text-slate-200 font-mono truncate max-w-[80px]">{dfe.username || '—'}</span>
+                          {dfe.username && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(dfe.username); }}
+                              className="text-slate-600 hover:text-indigo-400 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                            >
+                              <Copy size={9} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2 px-1">
+                        <div className="flex items-center justify-between gap-1 group/item">
+                          <span className="text-[10px] text-slate-200 font-mono truncate max-w-[80px]">{dfe.password || '—'}</span>
+                          {dfe.password && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(dfe.password); }}
+                              className="text-slate-600 hover:text-indigo-400 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                            >
+                              <Copy size={9} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2 px-1 text-center">
+                        {dfe.login_url ? (
+                          <a
+                            href={dfe.login_url.startsWith('http') ? dfe.login_url : `https://${dfe.login_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-400 hover:text-indigo-300 transition-colors inline-block"
+                          >
+                            <ExternalLink size={11} />
+                          </a>
+                        ) : (
+                          <ExternalLink size={11} className="text-slate-700 opacity-30" />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         );
       })()}
@@ -829,7 +859,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [selectedClientForView, setSelectedClientForView] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [activeObservationId, setActiveObservationId] = useState<string | null>(null);
-  const [activeDfeId, setActiveDfeId] = useState<string | null>(null);
+  const [activeDfePopoverTaskId, setActiveDfePopoverTaskId] = useState<string | null>(null);
   const [activeAccessPopoverTaskId, setActiveAccessPopoverTaskId] = useState<string | null>(null);
   const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
 
@@ -1776,120 +1806,144 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                       )}
                                     </div>
                                   )}
-                                  {task.clientDfes && task.clientDfes.length > 0 && (
-                                    <div className="mt-1 flex flex-wrap gap-1">
-                                      {task.clientDfes.map((dfe: any) => (
-                                        <div key={dfe.id} className="relative">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setActiveDfeId(activeDfeId === `${task.id}-${dfe.id}` ? null : `${task.id}-${dfe.id}`);
-                                            }}
-                                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider rounded transition-colors ${
-                                              activeDfeId === `${task.id}-${dfe.id}`
-                                                ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white ring-2 ring-indigo-300 dark:ring-indigo-400/50'
-                                                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 cursor-pointer'
-                                            }`}
-                                          >
-                                            {dfe.dfe_type.toUpperCase()}
-                                          </button>
+                                   {((task.clientDfes && task.clientDfes.length > 0) || (task.clientAccesses && task.clientAccesses.length > 0)) && (
+                                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                       {task.clientDfes && task.clientDfes.length > 0 && (
+                                         <div className="relative group/dfe-tooltip">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveDfePopoverTaskId(activeDfePopoverTaskId === task.id ? null : task.id);
+                                        }}
+                                        className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-black uppercase transition-colors ${
+                                          activeDfePopoverTaskId === task.id
+                                            ? 'bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white ring-2 ring-indigo-300 dark:ring-indigo-400/50'
+                                            : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30'
+                                        }`}
+                                      >
+                                        DF-e
+                                      </button>
 
-                                          {activeDfeId === `${task.id}-${dfe.id}` && (
-                                            <div
-                                              className="absolute z-[60] top-full left-0 mt-1.5 w-64 p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
-                                              onClick={(e) => e.stopPropagation()}
+                                      <div className="absolute bottom-full left-0 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold rounded shadow-xl opacity-0 invisible group-hover/dfe-tooltip:opacity-100 group-hover/dfe-tooltip:visible transition-all duration-200 z-[100] pointer-events-none whitespace-nowrap border border-slate-700/50 uppercase tracking-tighter">
+                                        Documentos Fiscais Eletrônicos
+                                        <div className="absolute top-full left-4 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
+                                      </div>
+
+                                      {activeDfePopoverTaskId === task.id && (
+                                        <div
+                                          className="absolute z-[60] top-full left-0 mt-1.5 w-max min-w-[400px] max-w-3xl p-4 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <div className="flex justify-between items-center mb-3 pb-2 border-b border-indigo-100 dark:border-indigo-900/30">
+                                            <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                                              <FileBadge size={12} strokeWidth={2.5} />
+                                              Documentos Fiscais Eletrônicos ({task.clientDfes.length})
+                                            </h4>
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); setActiveDfePopoverTaskId(null); }}
+                                              className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-0.5 rounded transition-colors"
                                             >
-                                              <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-indigo-100 dark:border-indigo-900/30">
-                                                <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
-                                                  <FileBadge size={12} strokeWidth={2.5} />
-                                                  {dfe.dfe_type.toUpperCase()} · Série {dfe.series || 'N/A'}
-                                                </h4>
-                                                <button
-                                                  onClick={(e) => { e.stopPropagation(); setActiveDfeId(null); }}
-                                                  className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-0.5 rounded transition-colors"
-                                                >
-                                                  <X size={14} strokeWidth={2.5} />
-                                                </button>
-                                              </div>
+                                              <X size={14} strokeWidth={2.5} />
+                                            </button>
+                                          </div>
 
-                                              <div className="space-y-2.5">
-                                                {/* Emissor */}
-                                                <div className="flex flex-col gap-0.5">
-                                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Emissor</span>
-                                                  {dfe.login_url ? (
-                                                    <a
-                                                      href={dfe.login_url.startsWith('http') ? dfe.login_url : `https://${dfe.login_url}`}
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                      className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:underline transition-colors flex items-center gap-1"
-                                                      onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                      {dfe.issuer || 'Sem nome'}
-                                                      <ExternalLink size={10} className="shrink-0 opacity-60" />
-                                                    </a>
-                                                  ) : (
-                                                    <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                                                      {dfe.issuer || 'Não informado'}
-                                                    </span>
-                                                  )}
-                                                </div>
-
-                                                {/* Usuário */}
-                                                <div className="flex flex-col gap-0.5">
-                                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Usuário</span>
-                                                  <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 select-all truncate">
-                                                      {dfe.username || '—'}
-                                                    </span>
-                                                    {dfe.username && (
-                                                      <button
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          navigator.clipboard.writeText(dfe.username).then(() => {
-                                                            const btn = e.currentTarget;
-                                                            btn.classList.add('!text-emerald-500');
-                                                            setTimeout(() => btn.classList.remove('!text-emerald-500'), 1500);
-                                                          });
-                                                        }}
-                                                        className="shrink-0 p-1 rounded text-slate-300 dark:text-slate-600 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all active:scale-90"
-                                                        title="Copiar usuário"
-                                                      >
-                                                        <Copy size={11} />
-                                                      </button>
-                                                    )}
-                                                  </div>
-                                                </div>
-
-                                                {/* Senha */}
-                                                <div className="flex flex-col gap-0.5">
-                                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Senha</span>
-                                                  <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 select-all font-mono tracking-wide truncate">
-                                                      {dfe.password || '—'}
-                                                    </span>
-                                                    {dfe.password && (
-                                                      <button
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          navigator.clipboard.writeText(dfe.password).then(() => {
-                                                            const btn = e.currentTarget;
-                                                            btn.classList.add('!text-emerald-500');
-                                                            setTimeout(() => btn.classList.remove('!text-emerald-500'), 1500);
-                                                          });
-                                                        }}
-                                                        className="shrink-0 p-1 rounded text-slate-300 dark:text-slate-600 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all active:scale-90"
-                                                        title="Copiar senha"
-                                                      >
-                                                        <Copy size={11} />
-                                                      </button>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          )}
+                                          <div className="overflow-auto max-h-60 scrollbar-hide">
+                                            <table className="w-full text-left border-collapse">
+                                              <thead>
+                                                <tr className="border-b border-slate-100 dark:border-slate-800">
+                                                  <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">Modelo</th>
+                                                  <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest w-12">Série</th>
+                                                  <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest min-w-[100px]">Emissor</th>
+                                                  <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest min-w-[120px]">Usuário</th>
+                                                  <th className="py-2 px-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest min-w-[100px]">Senha</th>
+                                                  <th className="py-2 px-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest w-8">Link</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                                                {task.clientDfes.map((dfe: any) => (
+                                                  <tr key={dfe.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                                                    <td className="py-2 px-2">
+                                                      <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">
+                                                        {dfe.dfe_type}
+                                                      </span>
+                                                    </td>
+                                                    <td className="py-2 px-2">
+                                                      <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                                                        {dfe.series || '—'}
+                                                      </span>
+                                                    </td>
+                                                    <td className="py-2 px-2">
+                                                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate block max-w-[150px]" title={dfe.issuer}>
+                                                        {dfe.issuer || '—'}
+                                                      </span>
+                                                    </td>
+                                                    <td className="py-2 px-2">
+                                                      <div className="flex items-center gap-1.5 justify-between group/cell">
+                                                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 truncate max-w-[120px]">
+                                                          {dfe.username || '—'}
+                                                        </span>
+                                                        {dfe.username && (
+                                                          <button
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              navigator.clipboard.writeText(dfe.username!).then(() => {
+                                                                const btn = e.currentTarget;
+                                                                btn.classList.add('text-emerald-500');
+                                                                setTimeout(() => btn.classList.remove('text-emerald-500'), 1000);
+                                                              });
+                                                            }}
+                                                            className="opacity-0 group-hover/cell:opacity-100 p-1 text-slate-300 hover:text-indigo-500 transition-all"
+                                                          >
+                                                            <Copy size={10} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </td>
+                                                    <td className="py-2 px-2">
+                                                      <div className="flex items-center gap-1.5 justify-between group/cell">
+                                                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 font-mono tracking-tight truncate max-w-[100px]">
+                                                          {dfe.password || '—'}
+                                                        </span>
+                                                        {dfe.password && (
+                                                          <button
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              navigator.clipboard.writeText(dfe.password!).then(() => {
+                                                                const btn = e.currentTarget;
+                                                                btn.classList.add('text-emerald-500');
+                                                                setTimeout(() => btn.classList.remove('text-emerald-500'), 1000);
+                                                              });
+                                                            }}
+                                                            className="opacity-0 group-hover/cell:opacity-100 p-1 text-slate-300 hover:text-indigo-500 transition-all"
+                                                          >
+                                                            <Copy size={10} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </td>
+                                                    <td className="py-2 px-1 text-center">
+                                                      {dfe.login_url ? (
+                                                        <a
+                                                          href={dfe.login_url.startsWith('http') ? dfe.login_url : `https://${dfe.login_url}`}
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                          className="text-indigo-600 dark:text-indigo-400 hover:scale-110 transition-transform inline-block"
+                                                        >
+                                                          <ExternalLink size={12} />
+                                                        </a>
+                                                      ) : (
+                                                        <span className="text-slate-300"><ExternalLink size={12} className="opacity-30" /></span>
+                                                      )}
+                                                    </td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
                                         </div>
-                                      ))}
+                                      )}
+                                    </div>
+                                  )}
 
                                       {task.clientAccesses && task.clientAccesses.length > 0 && (
                                         <div className="relative group/access-tooltip">
@@ -1908,7 +1962,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                           </button>
 
                                           {/* Tooltip CSS */}
-                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold rounded shadow-xl opacity-0 invisible group-hover/access-tooltip:opacity-100 group-hover/access-tooltip:visible transition-all duration-200 z-[70] pointer-events-none whitespace-nowrap border border-slate-700/50 uppercase tracking-tighter">
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-bold rounded shadow-xl opacity-0 invisible group-hover/access-tooltip:opacity-100 group-hover/access-tooltip:visible transition-all duration-200 z-[100] pointer-events-none whitespace-nowrap border border-slate-700/50 uppercase tracking-tighter">
                                             Acessos
                                             {/* Arrow */}
                                             <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
@@ -2024,10 +2078,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                         </div>
                                       )}
                                     </div>
-                                  )}
-                                </>
-                              );
-                            })()}
+                                   )}
+                                 </>
+                                  );
+                                })()}
 
                             {task.hasBranches && (
                               <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold">
