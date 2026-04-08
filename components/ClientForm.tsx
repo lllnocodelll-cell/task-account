@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Users,
     UserCheck,
@@ -25,7 +26,8 @@ import {
     FileCheck,
     BookOpen,
     Receipt,
-    Star
+    Star,
+    ChevronDown
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -35,6 +37,9 @@ import { Client, Sector } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { toTitleCase } from '../utils/stringUtils';
 import { readA1Certificate, ExtractedCertificateData } from '../utils/certificateUtils';
+
+// --- Interface for Segments ---
+interface ClientSegment { id: string; name: string; description?: string; category?: string; }
 
 // --- Interfaces for Sub-Tables ---
 interface ClientInscription { id?: string; client_id?: string; type: string; custom_name?: string; number: string; observation?: string; }
@@ -79,7 +84,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         tradeName: initialData?.tradeName || '',
         document: initialData?.document || '',
         status: (initialData?.status as 'Ativo' | 'Inativo') || 'Ativo',
-        segment: initialData?.segment || 'Tecnologia',
+        segment: initialData?.segment || '',
         admin_partner_name: initialData?.admin_partner_name || '',
         admin_partner_cpf: initialData?.admin_partner_cpf || '',
         admin_partner_birthdate: initialData?.admin_partner_birthdate || '',
@@ -107,6 +112,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [legislations, setLegislations] = useState<ClientLegislation[]>([]);
     const [dfeSeries, setDfeSeries] = useState<ClientDfeSeries[]>([]);
     const [sectorsList, setSectorsList] = useState<Sector[]>([]);
+    const [segments, setSegments] = useState<ClientSegment[]>([]);
+    const [segmentOpen, setSegmentOpen] = useState(false);
+    const [segmentSearch, setSegmentSearch] = useState('');
+    const segmentDropdownRef = useRef<HTMLDivElement>(null);
+    const segmentButtonRef = useRef<HTMLButtonElement>(null);
+    const [segmentPos, setSegmentPos] = useState({ top: 0, left: 0, width: 0 });
 
     // --- Temporary Input State for Tabs ---
     const [tempInscription, setTempInscription] = useState<Partial<ClientInscription>>({ type: 'Municipal' });
@@ -132,6 +143,16 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             }
         };
         fetchSectors();
+
+        const fetchSegments = async () => {
+            const { data } = await supabase
+                .from('client_segments')
+                .select('id, name, description, category')
+                .eq('is_active', true)
+                .order('sort_order', { ascending: true });
+            if (data) setSegments(data as ClientSegment[]);
+        };
+        fetchSegments();
 
         const loadInitialData = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -190,6 +211,31 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         };
         loadInitialData();
     }, [isEditing, initialData]);
+
+    // --- Click-outside e scroll para fechar dropdown de segmento ---
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (
+                segmentDropdownRef.current && !segmentDropdownRef.current.contains(e.target as Node) &&
+                segmentButtonRef.current && !segmentButtonRef.current.contains(e.target as Node)
+            ) {
+                setSegmentOpen(false);
+                setSegmentSearch('');
+            }
+        };
+        const onScroll = (e: Event) => {
+            // Ignora scroll que ocorre dentro do próprio painel do dropdown
+            if (segmentDropdownRef.current && segmentDropdownRef.current.contains(e.target as Node)) return;
+            setSegmentOpen(false);
+            setSegmentSearch('');
+        };
+        document.addEventListener('mousedown', handler);
+        window.addEventListener('scroll', onScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            window.removeEventListener('scroll', onScroll, true);
+        };
+    }, []);
 
     // --- External API Search ---
     const handleSearchCNPJ = async () => {
@@ -559,6 +605,26 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         { id: 'dfe', label: 'Séries DF-e' },
     ];
 
+    // Agrupa segmentos por categoria preservando a ordem dos sort_order
+    const groupedSegments = segments.reduce((acc, seg) => {
+        const cat = seg.category || 'Outros';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(seg);
+        return acc;
+    }, {} as Record<string, ClientSegment[]>);
+
+    // Filtra segmentos com base na busca
+    const filteredGroupedSegments = segmentSearch.trim()
+        ? Object.entries(groupedSegments).reduce((acc, [cat, segs]) => {
+            const q = segmentSearch.toLowerCase();
+            const matching = segs.filter(s =>
+                s.name.toLowerCase().includes(q) || cat.toLowerCase().includes(q)
+            );
+            if (matching.length > 0) acc[cat] = matching;
+            return acc;
+          }, {} as Record<string, ClientSegment[]>)
+        : groupedSegments;
+
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12">
             <div className="flex items-center justify-between">
@@ -668,7 +734,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                         onChange={e => setFormData({ ...formData, tradeName: e.target.value })}
                         disabled={readOnly}
                     />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Estabelecimento</label>
                             <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700 h-10">
@@ -690,13 +756,92 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 </button>
                             </div>
                         </div>
-                        <Select
-                            label="Segmento"
-                            value={formData.segment}
-                            onChange={e => setFormData({ ...formData, segment: e.target.value })}
-                            options={[{ value: 'tec', label: 'Tecnologia' }, { value: 'varejo', label: 'Varejo' }]}
-                            disabled={readOnly}
-                        />
+                        <div className="flex flex-col gap-1.5" ref={segmentDropdownRef}>
+                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Segmento</label>
+                            {/* Trigger button */}
+                            <button
+                                ref={segmentButtonRef}
+                                type="button"
+                                disabled={readOnly}
+                                onClick={() => {
+                                    if (readOnly) return;
+                                    if (!segmentOpen && segmentButtonRef.current) {
+                                        const r = segmentButtonRef.current.getBoundingClientRect();
+                                        setSegmentPos({ top: r.bottom + 6, left: r.left, width: r.width });
+                                    }
+                                    setSegmentOpen(prev => !prev);
+                                }}
+                                className={`h-10 w-full flex items-center justify-between gap-2 rounded-lg border px-3 text-sm transition-colors text-left ${
+                                    segmentOpen
+                                        ? 'border-indigo-500 ring-2 ring-indigo-500/20'
+                                        : 'border-slate-200 dark:border-slate-700'
+                                } bg-white dark:bg-slate-900 disabled:opacity-60 disabled:cursor-not-allowed`}
+                            >
+                                <span className={formData.segment ? 'text-slate-900 dark:text-white truncate' : 'text-slate-400 dark:text-slate-500'}>
+                                    {formData.segment || 'Selecione o segmento...'}
+                                </span>
+                                <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform duration-200 ${segmentOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {/* Dropdown panel — via Portal para escapar do overflow:hidden do Card */}
+                            {segmentOpen && createPortal(
+                                <div
+                                    ref={segmentDropdownRef}
+                                    style={{ position: 'fixed', top: segmentPos.top, left: segmentPos.left, width: segmentPos.width, zIndex: 9999 }}
+                                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden"
+                                >
+                                    {/* Search input */}
+                                    <div className="p-2 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                                        <div className="relative">
+                                            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                placeholder="Buscar segmento ou categoria..."
+                                                value={segmentSearch}
+                                                onChange={e => setSegmentSearch(e.target.value)}
+                                                className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    {/* Options list */}
+                                    <div className="max-h-64 overflow-y-auto">
+                                        {Object.keys(filteredGroupedSegments).length === 0 ? (
+                                            <div className="px-4 py-6 text-center text-sm text-slate-400 dark:text-slate-500">
+                                                Nenhum segmento encontrado para &quot;{segmentSearch}&quot;
+                                            </div>
+                                        ) : (
+                                            Object.entries(filteredGroupedSegments).map(([cat, segs]) => (
+                                                <div key={cat}>
+                                                    <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-200 dark:bg-slate-800 sticky top-0">
+                                                        {cat}
+                                                    </div>
+                                                    {segs.map(s => (
+                                                        <button
+                                                            key={s.id}
+                                                            type="button"
+                                                            onMouseDown={e => {
+                                                                e.preventDefault();
+                                                                setFormData(prev => ({ ...prev, segment: s.name }));
+                                                                setSegmentOpen(false);
+                                                                setSegmentSearch('');
+                                                            }}
+                                                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                                                formData.segment === s.name
+                                                                    ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium'
+                                                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                                            }`}
+                                                        >
+                                                            {s.name}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>,
+                                document.body
+                            )}
+                        </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
