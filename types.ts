@@ -1,5 +1,62 @@
 
 // Global types
+export const TAX_REGIME_GROUPS = [
+  {
+    category: 'Simples Nacional',
+    options: [
+      { value: 'simples', label: 'Simples' },
+      { value: 'simples_iva', label: 'Simples IVA Dual' }
+    ]
+  },
+  {
+    category: 'Lucro Presumido',
+    options: [
+      { value: 'presumido', label: 'Presumido' },
+      { value: 'presumido_imune', label: 'Presumido Imune-Isento' }
+    ]
+  },
+  {
+    category: 'Lucro Real',
+    options: [
+      { value: 'real_trimestral', label: 'Real Trimestral' },
+      { value: 'real_anual', label: 'Real Anual' },
+      { value: 'real_imune', label: 'Real Imune-Isento' }
+    ]
+  },
+  {
+    category: 'Lucro Arbitrado',
+    options: [
+      { value: 'arbitrado', label: 'Arbitrado' }
+    ]
+  },
+  {
+    category: 'Outros Regimes',
+    options: [
+      { value: 'mei', label: 'Microempreendedor' },
+      { value: 'nanoempreendedor', label: 'Nanoempreendedor' },
+      { value: 'irpf', label: 'IRPF Progressivo' }
+    ]
+  }
+];
+
+export const TAX_REGIME_LABELS: Record<string, string> = {
+  // Configured mappings
+  'simples': 'Simples',
+  'simples_iva': 'Simples IVA Dual',
+  'presumido': 'Presumido',
+  'presumido_imune': 'Presumido Imune-Isento',
+  'real_trimestral': 'Real Trimestral',
+  'real_anual': 'Real Anual',
+  'real_imune': 'Real Imune-Isento',
+  'arbitrado': 'Arbitrado',
+  'mei': 'Microempreendedor',
+  'nanoempreendedor': 'Nanoempreendedor',
+  'irpf': 'IRPF Progressivo',
+  
+  // Legacy mappings for retro-compatibility
+  'lp': 'Lucro Presumido (Legado)',
+  'lr': 'Lucro Real (Legado)'
+};
 
 export enum TaskStatus {
   PENDENTE = 'Pendente',

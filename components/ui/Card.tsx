@@ -20,13 +20,14 @@ export const Card: React.FC<CardProps> = ({ children, className = '', title, act
           className={`px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center ${collapsible ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors select-none group' : ''}`}
           onClick={() => collapsible && setIsCollapsed(!isCollapsed)}
         >
-          <div className="flex items-center gap-2">
-            {title && <h3 className="font-semibold text-slate-900 dark:text-slate-100">{title}</h3>}
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-5 bg-indigo-500 rounded-full" />
+            {title && <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>}
           </div>
           <div className="flex items-center gap-3">
             {action && <div onClick={(e) => collapsible && e.stopPropagation()}>{action}</div>}
             {collapsible && (
-               <span className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 dark:group-hover:bg-indigo-500/20 dark:group-hover:text-indigo-400 transition-all">
+               <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 shadow-sm transition-all duration-300">
                  {isCollapsed ? <ChevronDown size={18} strokeWidth={2.5} /> : <ChevronUp size={18} strokeWidth={2.5} />}
                </span>
             )}

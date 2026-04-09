@@ -46,13 +46,15 @@ import {
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Task, TaskStatus, Priority, Client } from '../types';
+import { Task, TaskStatus, Priority, Client, TAX_REGIME_GROUPS, TAX_REGIME_LABELS } from '../types';
 import { Modal } from '../components/ui/Modal';
-import { Input, Select, SearchableSelect, Toggle } from '../components/ui/Input';
+import { Input, Select, SearchableSelect, Toggle, GroupedSelect } from '../components/ui/Input';
 import { supabase } from '../utils/supabaseClient';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 import { ClientForm } from '../components/ClientForm';
 import { TutorialsModal } from '../components/tutorials/TutorialsModal';
+import { Tooltip } from '../components/ui/Tooltip';
+import { Notification, NotificationType } from '../components/ui/Notification';
 
 // --- CONFIGS ---
 
@@ -73,13 +75,6 @@ const DF_MODELS = [
 ];
 
 const SIMPLES_ANNEXES = ['Anexo I', 'Anexo II', 'Anexo III', 'Anexo IV', 'Anexo V'];
-
-const TAX_REGIME_LABELS: Record<string, string> = {
-  'simples': 'Simples Nacional',
-  'lp': 'Lucro Presumido',
-  'lr': 'Lucro Real',
-  'mei': 'MEI'
-};
 
 const REGISTRATION_REGIME_LABELS: Record<string, string> = {
   'competencia': 'Competência',
@@ -111,16 +106,17 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
     <div className="flex flex-col">
       <div className="flex items-center justify-between gap-2 h-6">
         <span className="truncate">{label}</span>
-        <button
-          onClick={() => onToggle(fieldKey)}
-          className={`p-1 rounded-md transition-colors ${filterValue || isVisible
-            ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
-            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          title={`Filtrar por ${label}`}
-        >
-          <ListFilter size={14} strokeWidth={filterValue ? 2.5 : 2} />
-        </button>
+        <Tooltip content={`Filtrar por ${label}`} position="bottom">
+          <button
+            onClick={() => onToggle(fieldKey)}
+            className={`p-1 rounded-md transition-colors ${filterValue || isVisible
+              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
+              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+          >
+            <ListFilter size={14} strokeWidth={filterValue ? 2.5 : 2} />
+          </button>
+        </Tooltip>
       </div>
       {isVisible && children}
     </div>
@@ -151,16 +147,17 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
 
   return (
     <div className="relative flex justify-end" ref={menuRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`p-2 rounded-lg transition-colors ${isOpen
-          ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'
-          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        title="Ações"
-      >
-        <MoreHorizontal size={18} />
-      </button>
+      <Tooltip content="Ações" position="left">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`p-2 rounded-lg transition-colors ${isOpen
+            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'
+            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+        >
+          <MoreHorizontal size={18} />
+        </button>
+      </Tooltip>
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
@@ -1680,8 +1677,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         autoFocus
                       >
                         <option value="">Todos</option>
-                        {Object.entries(TAX_REGIME_LABELS).map(([key, label]) => (
-                          <option key={key} value={key}>{label}</option>
+                        {TAX_REGIME_GROUPS.map((group) => (
+                          <optgroup key={group.category} label={group.category}>
+                            {group.options.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </optgroup>
                         ))}
                       </select>
                     </HeaderCell>
@@ -3005,6 +3006,12 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
   const [members, setMembers] = useState<any[]>([]);
   const [holidayDates, setHolidayDates] = useState<string[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [notification, setNotification] = useState<{ show: boolean; message: string; type: NotificationType }>({ show: false, message: '', type: 'info' });
+
+  const showNotify = (message: string, type: NotificationType = 'info') => {
+    setNotification({ show: true, message, type });
+  };
 
   // Recurrence Update Flow State
   const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
@@ -3252,8 +3259,8 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
   };
 
   const handleSaveAll = async () => {
-    if (selectedClientIds.length === 0) return alert('Selecione pelo menos uma empresa');
-    if (pendingTasks.length === 0 && !tempTask.taskName) return alert('Adicione pelo menos uma tarefa');
+    if (selectedClientIds.length === 0) return showNotify('Selecione pelo menos uma empresa.', 'warning');
+    if (pendingTasks.length === 0 && !tempTask.taskName) return showNotify('Adicione pelo menos uma tarefa.', 'warning');
 
     // Recurrence Check for Editing
     // We consider it recurring if it has a recurrence value other than common non-recurring terms
@@ -3265,9 +3272,10 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     }
 
     try {
+      setIsSaving(true);
       setLoadingData(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return alert('Usuário não autenticado');
+      if (!user) return showNotify('Usuário não autenticado.', 'error');
 
       let tasksToSave = [...pendingTasks];
       if (tasksToSave.length === 0 && tempTask.taskName) {
@@ -3516,13 +3524,16 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
         }
       }
 
-      alert(`${selectedClientIds.length} empresa(s) processada(s) com sucesso!`);
-      setUpdateFutureTasks(null); // Reset state
+      showNotify(`${selectedClientIds.length} empresa(s) processada(s) com sucesso!`, 'success');
+      setUpdateFutureTasks(null);
+      // Aguarda 1.5s para o usuário ver a notificação antes de voltar
+      await new Promise(resolve => setTimeout(resolve, 1500));
       onBack();
     } catch (error: any) {
       console.error('Error saving tasks:', error);
-      alert('Erro ao salvar tarefas: ' + (error.message || 'Erro desconhecido'));
+      showNotify('Erro ao salvar tarefas: ' + (error.message || 'Erro desconhecido'), 'error');
     } finally {
+      setIsSaving(false);
       setLoadingData(false);
     }
   };
@@ -3536,6 +3547,32 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <Notification
+          show={notification.show}
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(prev => ({ ...prev, show: false }))}
+        />
+      )}
+
+      {/* Saving Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6 p-10 rounded-2xl bg-slate-900/90 border border-indigo-500/30 shadow-2xl">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+              <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-transparent border-b-violet-500/60 animate-spin [animation-duration:1.5s] [animation-direction:reverse]" />
+            </div>
+            <div className="text-center">
+              <p className="text-white font-semibold text-lg">Salvando tarefa{pendingTasks.length > 1 ? 's' : ''}...</p>
+              <p className="text-slate-400 text-sm mt-1">Aguarde, estamos processando {selectedClientIds.length} empresa(s).</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -3547,9 +3584,13 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={onBack}>Cancelar</Button>
-          <Button icon={<Save size={18} />} onClick={handleSaveAll}>
-            {isEditing ? 'Salvar Alterações' : `Criar ${pendingTasks.length || (tempTask.taskName ? 1 : 0)} Tarefa(s)`}
+          <Button variant="secondary" onClick={onBack} disabled={isSaving}>Cancelar</Button>
+          <Button
+            icon={isSaving ? <div className="w-[18px] h-[18px] rounded-full border-2 border-white/30 border-t-white animate-spin" /> : <Save size={18} />}
+            onClick={handleSaveAll}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : `Criar ${pendingTasks.length || (tempTask.taskName ? 1 : 0)} Tarefa(s)`)}
           </Button>
         </div>
       </div>
@@ -3629,21 +3670,16 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Select
+                <GroupedSelect
                   label="Regime Tributário"
                   disabled={!activeClientId}
-                  options={[
-                    { value: 'simples', label: 'Simples Nacional' },
-                    { value: 'lp', label: 'Lucro Presumido' },
-                    { value: 'lr', label: 'Lucro Real' },
-                    { value: 'mei', label: 'MEI' },
-                  ]}
+                  groups={TAX_REGIME_GROUPS}
                   value={activeClientId ? clientConfigs[activeClientId].taxRegime : ''}
-                  onChange={(e) => {
+                  onChange={(value) => {
                     if (activeClientId) {
                       setClientConfigs(prev => ({
                         ...prev,
-                        [activeClientId]: { ...prev[activeClientId], taxRegime: e.target.value }
+                        [activeClientId]: { ...prev[activeClientId], taxRegime: value }
                       }));
                     }
                   }}

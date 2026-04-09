@@ -32,6 +32,8 @@ import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { ClientForm } from '../components/ClientForm';
 import { Modal } from '../components/ui/Modal';
+import { Tooltip } from '../components/ui/Tooltip';
+import { Notification, NotificationType } from '../components/ui/Notification';
 
 
 
@@ -39,6 +41,7 @@ import { Modal } from '../components/ui/Modal';
 
 
 // --- Clients List Components ---
+const NotificationPlaceholder = () => null; // Placeholder for state insertion
 
 interface HeaderCellProps {
     label: string;
@@ -63,16 +66,17 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
         <div className="flex flex-col">
             <div className="flex items-center justify-between gap-2 h-6">
                 <span className="truncate">{label}</span>
-                <button
-                    onClick={() => onToggle(fieldKey)}
-                    className={`p-1 rounded-md transition-colors ${filterValue || isVisible
-                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
-                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                    title={`Filtrar por ${label}`}
-                >
-                    <ListFilter size={14} strokeWidth={filterValue ? 2.5 : 2} />
-                </button>
+                <Tooltip content={`Filtrar por ${label.toLowerCase()}`} position="bottom">
+                    <button
+                        onClick={() => onToggle(fieldKey)}
+                        className={`p-1 rounded-md transition-colors ${filterValue || isVisible
+                            ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
+                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                    >
+                        <ListFilter size={14} strokeWidth={filterValue ? 2.5 : 2} />
+                    </button>
+                </Tooltip>
             </div>
             {isVisible && children}
         </div>
@@ -83,6 +87,15 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
     const [clients, setClients] = useState<Client[]>([]); // Use DB data
     const [loading, setLoading] = useState(true);
+    const [notification, setNotification] = useState<{ show: boolean; message: string; type: NotificationType }>({
+        show: false,
+        message: '',
+        type: 'info'
+    });
+
+    const showNotify = (message: string, type: NotificationType = 'info') => {
+        setNotification({ show: true, message, type });
+    };
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
     // Deletion Modal State
@@ -269,7 +282,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
             if (error) {
                 console.error("Erro ao verificar tarefas:", error);
                 setDeleteModalState('closed');
-                alert("Erro ao verificar dependências do cliente.");
+                showNotify("Erro ao verificar dependências do cliente.", "error");
                 return;
             }
 
@@ -307,9 +320,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
             // Remove o cliente da lista local
             setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
 
-        } catch (error) {
-            console.error("Erro ao excluir cliente:", error);
-            alert("Ocorreu um erro ao excluir o cliente. Verifique o console.");
+        } catch (err: any) {
+            console.error("Erro ao excluir cliente:", err);
+            showNotify("Ocorreu um erro ao excluir o cliente. Verifique o console.", "error");
         } finally {
             setDeleteModalState('closed');
             setClientToDelete(null);
@@ -619,22 +632,24 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
                                                 {/* Hover Actions Overlay */}
                                                 <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 bg-white dark:bg-slate-900 shadow-lg px-1 py-1 rounded-lg border border-slate-200 dark:border-slate-700 z-10 animate-in fade-in duration-200">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        icon={<Pencil size={16} />}
-                                                        title="Editar"
-                                                        className="h-8 w-8 p-0 text-indigo-600 dark:text-indigo-400"
-                                                        onClick={() => handleEdit(client)}
-                                                    />
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        icon={<Trash2 size={16} />}
-                                                        title="Excluir"
-                                                        className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
-                                                        onClick={() => initDeleteClient(client)}
-                                                    />
+                                                    <Tooltip content="Editar" position="top">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            icon={<Pencil size={16} />}
+                                                            className="h-8 w-8 p-0 text-indigo-600 dark:text-indigo-400"
+                                                            onClick={() => handleEdit(client)}
+                                                        />
+                                                    </Tooltip>
+                                                    <Tooltip content="Excluir" position="top">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            icon={<Trash2 size={16} />}
+                                                            className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                                            onClick={() => initDeleteClient(client)}
+                                                        />
+                                                    </Tooltip>
                                                 </div>
                                             </td>
                                         </tr>
@@ -718,6 +733,12 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                     </div>
                 )}
             </Modal>
+            <Notification
+                show={notification.show}
+                message={notification.message}
+                type={notification.type}
+                onClose={() => setNotification({ ...notification, show: false })}
+            />
         </div>
     );
 };
