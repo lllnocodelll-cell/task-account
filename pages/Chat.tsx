@@ -127,6 +127,8 @@ export const Chat: React.FC = () => {
 
   // Status Menu
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
+  const [isFinishingSupport, setIsFinishingSupport] = useState(false);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [reactionMessageId, setReactionMessageId] = useState<string | null>(null);
@@ -1137,10 +1139,10 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const handleFinishSupportTicket = async () => {
+  const executeFinishSupportTicket = async () => {
     if (!selectedChannelId || !userId) return;
-    if (!window.confirm('Deseja realmente finalizar este atendimento? A conversa será marcada como encerrada.')) return;
-
+    
+    setIsFinishingSupport(true);
     const finishedChannelId = selectedChannelId;
     try {
       await supabase.from('chat_channels').update({ status: 'closed' } as any).eq('id', finishedChannelId);
@@ -1161,6 +1163,9 @@ export const Chat: React.FC = () => {
       await fetchChannels(userId);
     } catch (error) {
       console.error('Error closing support ticket:', error);
+    } finally {
+      setIsFinishingSupport(false);
+      setIsFinishModalOpen(false);
     }
   };
 
@@ -1848,7 +1853,7 @@ export const Chat: React.FC = () => {
                   )}
                   <div className="tooltip-container tooltip-bottom">
                     <button
-                      onClick={handleFinishSupportTicket}
+                      onClick={() => setIsFinishModalOpen(true)}
                       className="p-2 text-rose-500 hover:text-white rounded-lg hover:bg-rose-500 transition-colors"
                     >
                       <CheckCheck size={20} />
@@ -2406,6 +2411,35 @@ export const Chat: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Confirmar Finalização */}
+      <Modal
+        isOpen={isFinishModalOpen}
+        onClose={() => !isFinishingSupport && setIsFinishModalOpen(false)}
+        title="Finalizar Atendimento"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-600 dark:text-slate-300">
+            Deseja realmente finalizar este atendimento? A conversa será marcada como encerrada.
+          </p>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <Button
+              variant="secondary"
+              onClick={() => setIsFinishModalOpen(false)}
+              disabled={isFinishingSupport}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={executeFinishSupportTicket}
+              disabled={isFinishingSupport}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isFinishingSupport ? 'Finalizando...' : 'Finalizar Atendimento'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

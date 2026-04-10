@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Pin, Calendar, Save, Loader2 } from 'lucide-react';
+import { Plus, Search, Trash2, Pin, Calendar, Save, Loader2, StickyNote } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
@@ -227,8 +227,19 @@ export const Notes: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Anotações</h1>
-          <p className="text-slate-500 dark:text-slate-400">Lembretes rápidos e informações importantes</p>
+          <div className="flex items-center gap-4 mb-2">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
+              <StickyNote size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 tracking-tight">
+                Anotações
+              </h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 flex flex-wrap items-center gap-2">
+                Lembretes rápidos e informações importantes
+              </p>
+            </div>
+          </div>
 
           <div className="flex items-center gap-1 mt-4 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg inline-flex">
             <button
@@ -294,13 +305,15 @@ export const Notes: React.FC = () => {
               >
                 <div className="flex justify-between items-start mb-3 gap-2">
                   <h3 className="font-bold text-slate-800 dark:text-slate-100 line-clamp-2">{note.title}</h3>
-                  <button
-                    onClick={(e) => togglePin(note.id, note.is_pinned, e)}
-                    className={`shrink-0 p-1.5 rounded-full transition-colors ${note.is_pinned ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10 opacity-0 group-hover:opacity-100'}`}
-                    title={note.is_pinned ? "Desafixar" : "Fixar"}
-                  >
-                    <Pin size={14} className={note.is_pinned ? 'fill-current' : ''} />
-                  </button>
+                  <div className="tooltip-container tooltip-top">
+                    <button
+                      onClick={(e) => togglePin(note.id, note.is_pinned, e)}
+                      className={`shrink-0 p-1.5 rounded-full transition-colors ${note.is_pinned ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10 opacity-0 group-hover:opacity-100'}`}
+                    >
+                      <Pin size={14} className={note.is_pinned ? 'fill-current' : ''} />
+                    </button>
+                    <span className="tooltip-content">{note.is_pinned ? "Desafixar" : "Fixar"}</span>
+                  </div>
                 </div>
 
                 <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-line line-clamp-6 flex-1 mb-4">
@@ -312,20 +325,24 @@ export const Notes: React.FC = () => {
                     <Calendar size={12} /> {new Date(note.created_at).toLocaleDateString('pt-BR')}
                   </span>
                   <div className="flex gap-2">
-                    <button
-                      onClick={(e) => toggleArchive(note.id, note.is_archived, e)}
-                      className="text-slate-400 hover:text-indigo-500 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      title={note.is_archived ? "Desarquivar" : "Arquivar"}
-                    >
-                      {note.is_archived ? <Plus size={16} className="rotate-45" /> : <Save size={16} />}
-                    </button>
-                    <button
-                      onClick={(e) => handleDelete(note.id, e)}
-                      className="text-slate-400 hover:text-red-500 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Excluir"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="tooltip-container tooltip-top">
+                      <button
+                        onClick={(e) => toggleArchive(note.id, note.is_archived, e)}
+                        className="text-slate-400 hover:text-indigo-500 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        {note.is_archived ? <Plus size={16} className="rotate-45" /> : <Save size={16} />}
+                      </button>
+                      <span className="tooltip-content">{note.is_archived ? "Desarquivar" : "Arquivar"}</span>
+                    </div>
+                    <div className="tooltip-container tooltip-top">
+                      <button
+                        onClick={(e) => handleDelete(note.id, e)}
+                        className="text-slate-400 hover:text-red-500 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <span className="tooltip-content">Excluir</span>
+                    </div>
                   </div>
                 </div>
               </div>

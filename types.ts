@@ -185,3 +185,13 @@ export interface Notification {
   related_entity_id?: string | null;
   created_at: string;
 }
+
+export interface UsefulLink {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  sector_id?: string;
+  icon_name?: string;
+  created_at?: string;
+}

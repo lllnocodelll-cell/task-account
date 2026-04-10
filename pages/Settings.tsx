@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2 } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../contexts/ToastContext';
+import { Tooltip } from '../components/ui/Tooltip';
 
 interface SettingsProps {
   userProfile: any;
@@ -19,7 +20,19 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Configurações</h1>
+      <div className="flex items-center gap-4 mb-2 md:mb-0">
+        <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
+          <SettingsIcon size={24} className="text-white" />
+        </div>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 tracking-tight">
+            Configurações
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 flex flex-wrap items-center gap-2">
+            Ajustes e gestão do sistema
+          </p>
+        </div>
+      </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
         <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
@@ -609,19 +622,24 @@ const MemberCard: React.FC<any> = ({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={() => onToggleStatus(member.id, member.status || 'Ativo')}
-            className={`p-1.5 rounded-lg transition-colors ${member.status === 'Inativo' ? 'text-red-400 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
-            title={member.status === 'Inativo' ? "Ativar" : "Inativar"}
-          >
-            {member.status === 'Inativo' ? <UserPlus size={16} /> : <UserMinus size={16} />}
-          </button>
-          <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
-            <Edit2 size={16} />
-          </button>
-          <button onClick={() => onDelete(member)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
-            <Trash2 size={16} />
-          </button>
+          <Tooltip content={member.status === 'Inativo' ? "Ativar" : "Inativar"}>
+            <button
+              onClick={() => onToggleStatus(member.id, member.status || 'Ativo')}
+              className={`p-1.5 rounded-lg transition-colors ${member.status === 'Inativo' ? 'text-red-400 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+            >
+              {member.status === 'Inativo' ? <UserPlus size={16} /> : <UserMinus size={16} />}
+            </button>
+          </Tooltip>
+          <Tooltip content="Editar">
+            <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+              <Edit2 size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Excluir">
+            <button onClick={() => onDelete(member)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+              <Trash2 size={16} />
+            </button>
+          </Tooltip>
         </div>
       </div>
       
@@ -899,20 +917,26 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               </div>
             ) : (
               <>
-                <button
-                  onClick={() => startEditing(sector)}
-                  className="absolute top-2 right-8 p-1.5 text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Editar Setor"
-                >
-                  <SettingsIcon size={16} />
-                </button>
-                <button
-                  onClick={() => initDeleteSector(sector)}
-                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Excluir Setor"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="absolute top-2 right-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Tooltip content="Editar Setor">
+                    <button
+                      onClick={() => startEditing(sector)}
+                      className="p-1.5 text-slate-300 hover:text-indigo-500"
+                    >
+                      <SettingsIcon size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Tooltip content="Excluir Setor">
+                    <button
+                      onClick={() => initDeleteSector(sector)}
+                      className="p-1.5 text-slate-300 hover:text-red-500"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
                 <div>
                   <div className="flex justify-between items-start mb-2 pr-6">
                     <h4 className="font-semibold text-slate-900 dark:text-white text-lg">{sector.name}</h4>
@@ -1260,13 +1284,16 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               </div>
             ) : (
               <>
-                <button
-                  onClick={() => startEditing(task)}
-                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Editar Tipo de Tarefa"
-                >
-                  <SettingsIcon size={16} />
-                </button>
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Tooltip content="Editar Tipo de Tarefa">
+                    <button
+                      onClick={() => startEditing(task)}
+                      className="p-1.5 text-slate-300 hover:text-indigo-500"
+                    >
+                      <SettingsIcon size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
                 <div>
                   <h4 className="font-semibold text-slate-900 dark:text-white mb-2 pr-6">{task.name}</h4>
                   <div className="space-y-1 mb-4">

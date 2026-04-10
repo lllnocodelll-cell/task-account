@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { Bell, Sun, Moon, Menu } from 'lucide-react';
+import { Bell, Sun, Moon, Menu, Link2 } from 'lucide-react';
 import { UserRole } from '../types';
 import { NotificationsPopover } from './notifications/NotificationsPopover';
+import { UsefulLinksDrawer } from './UsefulLinksDrawer';
 
 interface UserProfile {
   id: string;
@@ -37,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLinksOpen, setIsLinksOpen] = useState(false);
 
   return (
     <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 transition-colors duration-300">
@@ -50,7 +52,18 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4">
+      <div className="flex items-center justify-end flex-wrap gap-2 md:gap-4 ml-auto">
+        <div className="tooltip-container tooltip-bottom">
+          <button
+            onClick={() => setIsLinksOpen(true)}
+            className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors"
+          >
+            <Link2 size={20} />
+          </button>
+          <span className="tooltip-content">Links Úteis</span>
+        </div>
+        <UsefulLinksDrawer isOpen={isLinksOpen} onClose={() => setIsLinksOpen(false)} />
+
         <div className="tooltip-container tooltip-bottom">
           <button
             onClick={toggleTheme}

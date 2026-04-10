@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Play,
   XCircle,
@@ -612,7 +613,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
           Math.max(10, buttonRight - POPOVER_W),
           window.innerWidth - POPOVER_W - 10
         );
-        return (
+        return createPortal(
           <div
             style={{
               position: 'fixed',
@@ -697,7 +698,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </tbody>
               </table>
             </div>
-          </div>
+          </div>,
+          document.body
         );
       })()}
 
@@ -709,7 +711,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
           Math.max(10, buttonLeft),
           window.innerWidth - POPOVER_W - 10
         );
-        return (
+        return createPortal(
           <div
             style={{
               position: 'fixed',
@@ -732,12 +734,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </button>
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed">{obsPopoverData.task.observation}</p>
-          </div>
+          </div>,
+          document.body
         );
       })()}
 
       {/* Popover de Acessos – position:fixed para escapar do overflow-y-auto */}
-      {activeAccessPopoverId && accessPopoverData && (
+      {activeAccessPopoverId && accessPopoverData && createPortal(
         <div
           style={(() => {
             const POPOVER_W = 288;
@@ -824,7 +827,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </div>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div >
   );
@@ -859,6 +863,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [activeObservationId, setActiveObservationId] = useState<string | null>(null);
   const [activeDfePopoverTaskId, setActiveDfePopoverTaskId] = useState<string | null>(null);
   const [activeAccessPopoverTaskId, setActiveAccessPopoverTaskId] = useState<string | null>(null);
+  const [tableDfeRect, setTableDfeRect] = useState<DOMRect | null>(null);
+  const [tableAccessRect, setTableAccessRect] = useState<DOMRect | null>(null);
+  const [tableObsRect, setTableObsRect] = useState<DOMRect | null>(null);
   const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
 
   // Filter Values State
@@ -1444,9 +1451,18 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestão de Tarefas</h1>
-          <p className="text-slate-500 dark:text-slate-400">Controle operacional e acompanhamento de prazos</p>
+        <div className="flex items-center gap-4 mb-2 md:mb-0">
+          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
+            <ListChecks size={24} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 tracking-tight">
+              Gestão de Tarefas
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 flex flex-wrap items-center gap-2">
+              Controle operacional e acompanhamento de prazos
+            </p>
+          </div>
         </div>
         <div className="flex gap-3">
           <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
@@ -1812,7 +1828,13 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setActiveDfePopoverTaskId(activeDfePopoverTaskId === task.id ? null : task.id);
+                                          if (activeDfePopoverTaskId === task.id) {
+                                            setActiveDfePopoverTaskId(null);
+                                            setTableDfeRect(null);
+                                          } else {
+                                            setActiveDfePopoverTaskId(task.id);
+                                            setTableDfeRect(e.currentTarget.getBoundingClientRect());
+                                          }
                                         }}
                                         className={`inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-black uppercase transition-colors ${
                                           activeDfePopoverTaskId === task.id
@@ -1828,9 +1850,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                         <div className="absolute top-full left-4 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
                                       </div>
 
-                                      {activeDfePopoverTaskId === task.id && (
+                                      {activeDfePopoverTaskId === task.id && tableDfeRect && createPortal(
                                         <div
-                                          className="absolute z-[60] top-full left-0 mt-1.5 w-max min-w-[400px] max-w-3xl p-4 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
+                                          style={{
+                                            position: 'fixed',
+                                            top: `${tableDfeRect.bottom + 6}px`,
+                                            left: `${Math.min(Math.max(10, tableDfeRect.left), window.innerWidth - 420)}px`,
+                                            maxWidth: '90vw'
+                                          }}
+                                          className="z-[9999] w-max min-w-[400px] max-w-3xl p-4 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <div className="flex justify-between items-center mb-3 pb-2 border-b border-indigo-100 dark:border-indigo-900/30">
@@ -1939,7 +1967,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                               </tbody>
                                             </table>
                                           </div>
-                                        </div>
+                                        </div>,
+                                        document.body
                                       )}
                                     </div>
                                   )}
@@ -1949,7 +1978,13 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              setActiveAccessPopoverTaskId(activeAccessPopoverTaskId === task.id ? null : task.id);
+                                              if (activeAccessPopoverTaskId === task.id) {
+                                                setActiveAccessPopoverTaskId(null);
+                                                setTableAccessRect(null);
+                                              } else {
+                                                setActiveAccessPopoverTaskId(task.id);
+                                                setTableAccessRect(e.currentTarget.getBoundingClientRect());
+                                              }
                                             }}
                                             className={`inline-flex items-center justify-center p-1 rounded transition-colors ${
                                               activeAccessPopoverTaskId === task.id
@@ -1967,9 +2002,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                             <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900 dark:border-t-slate-800"></div>
                                           </div>
 
-                                          {activeAccessPopoverTaskId === task.id && (
+                                          {activeAccessPopoverTaskId === task.id && tableAccessRect && createPortal(
                                             <div
-                                              className="absolute z-[60] top-full left-0 mt-1.5 w-max min-w-[320px] max-w-2xl p-4 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
+                                              style={{
+                                                position: 'fixed',
+                                                top: `${tableAccessRect.bottom + 6}px`,
+                                                left: `${Math.min(Math.max(10, tableAccessRect.left), window.innerWidth - 340)}px`,
+                                                maxWidth: '90vw'
+                                              }}
+                                              className="z-[9999] w-max min-w-[320px] max-w-2xl p-4 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
                                               onClick={(e) => e.stopPropagation()}
                                             >
                                               <div className="flex justify-between items-center mb-3 pb-2 border-b border-amber-100 dark:border-amber-900/30">
@@ -2072,7 +2113,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                                   </tbody>
                                                 </table>
                                               </div>
-                                            </div>
+                                            </div>,
+                                            document.body
                                           )}
                                         </div>
                                       )}
@@ -2106,7 +2148,13 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setActiveObservationId(activeObservationId === task.id ? null : task.id);
+                                  if (activeObservationId === task.id) {
+                                    setActiveObservationId(null);
+                                    setTableObsRect(null);
+                                  } else {
+                                    setActiveObservationId(task.id);
+                                    setTableObsRect(e.currentTarget.getBoundingClientRect());
+                                  }
                                 }}
                                 className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 px-1.5 py-0.5 rounded transition-colors"
                               >
@@ -2114,9 +2162,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                 <span>Observação</span>
                               </button>
 
-                              {activeObservationId === task.id && (
+                              {activeObservationId === task.id && tableObsRect && createPortal(
                                 <div 
-                                  className="absolute z-[60] top-full left-0 mt-1 w-64 p-3 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
+                                  style={{
+                                    position: 'fixed',
+                                    top: `${tableObsRect.bottom + 6}px`,
+                                    left: `${Math.min(Math.max(10, tableObsRect.left), window.innerWidth - 266)}px`,
+                                    maxWidth: '90vw'
+                                  }}
+                                  className="z-[9999] w-64 p-3 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-700/50 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 cursor-default"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <div className="flex justify-between items-center mb-2 pb-2 border-b border-amber-100 dark:border-amber-900/30">
@@ -2133,7 +2187,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                   <p className="text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed font-medium">
                                     {task.observation}
                                   </p>
-                                </div>
+                                </div>,
+                                document.body
                               )}
                             </div>
                           )}

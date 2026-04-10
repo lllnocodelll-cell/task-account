@@ -380,9 +380,18 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestão de Clientes</h1>
-                    <p className="text-slate-500 dark:text-slate-400">Base de dados de clientes e empresas</p>
+                <div className="flex items-center gap-4 mb-2 md:mb-0">
+                    <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
+                        <Building2 size={24} className="text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 tracking-tight">
+                            Gestão de Clientes
+                        </h1>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 flex flex-wrap items-center gap-2">
+                            Base de dados de clientes e empresas
+                        </p>
+                    </div>
                 </div>
                 <div className="flex gap-3">
                     <Button
