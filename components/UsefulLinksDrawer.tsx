@@ -31,6 +31,26 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
   const [editSectorId, setEditSectorId] = useState('');
   const [editIconName, setEditIconName] = useState('');
 
+  // Gerenciamento de estado de montagem para animação de saída
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      const timer = setTimeout(() => setIsVisible(true), 10);
+      return () => clearTimeout(timer);
+    } else {
+      setIsVisible(false);
+    }
+  }, [isOpen]);
+
+  const handleTransitionEnd = (e: React.TransitionEvent) => {
+    if (!isOpen && e.propertyName === 'transform') {
+      setShouldRender(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       loadData();
@@ -51,12 +71,17 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
       setLinks(linksRes.data || []);
       setSectors(sectorsRes.data || []);
       
-      // Auto expand all sectors by default
-      const initialExpanded: Record<string, boolean> = { 'general': true };
-      (sectorsRes.data || []).forEach(s => {
-        initialExpanded[s.id] = true;
+      // Auto expand all sectors by default if not already set
+      setExpandedSectors(prev => {
+        const next = { ...prev };
+        if (Object.keys(next).length === 0) {
+          next['general'] = true;
+          (sectorsRes.data || []).forEach(s => {
+            next[s.id] = true;
+          });
+        }
+        return next;
       });
-      setExpandedSectors(initialExpanded);
 
     } catch (error) {
       console.error('Erro ao carregar links úteis:', error);
@@ -65,7 +90,11 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
     }
   };
 
-  const toggleSector = (id: string) => {
+  const toggleSector = (id: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setExpandedSectors(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
@@ -185,264 +214,182 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
     links: links.filter(l => l.sector_id === sector.id)
   })).filter(s => s.links.length > 0);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   return (
     <>
+      {/* Backdrop com transição de opacidade real */}
       <div 
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] transition-opacity"
+        className={`fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[100] transition-opacity duration-300 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
       />
       
-      <div className="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white dark:bg-slate-900 shadow-2xl z-[101] flex flex-col transform transition-transform duration-300 animate-in slide-in-from-right">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-            <Link2 className="text-indigo-500" size={20} />
-            Links Úteis
-          </h2>
-          <div className="flex items-center gap-2">
+      <div 
+        onTransitionEnd={handleTransitionEnd}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[101] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        
+        {/* Header com Design Premium */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
+          <div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-500 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent flex items-center gap-2">
+              <Link2 className="text-indigo-500" size={22} />
+              Links Úteis
+            </h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Acesso rápido aos portais e ferramentas</p>
+          </div>
+          <div className="flex items-center gap-3">
             {!adding && (
               <button
                 onClick={() => setAdding(true)}
-                className="p-1.5 text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 rounded-md transition-colors flex items-center gap-1 border border-indigo-100 dark:border-indigo-500/20"
+                className="group relative flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-full transition-all duration-300 shadow-lg shadow-indigo-500/20 active:scale-95"
               >
-                <Plus size={14} /> Novo Link
+                <Plus size={14} className="group-hover:rotate-90 transition-transform duration-300" />
+                Novo
               </button>
             )}
             <button 
               onClick={onClose}
-              className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
             >
               <X size={20} />
             </button>
           </div>
         </div>
 
-        {/* Form Add */}
+        {/* Form Add Link - Modernizado */}
         {adding && (
-          <div className="p-4 border-b border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/50 dark:bg-slate-800/40">
-            <h3 className="font-bold text-sm mb-3">Cadastrar Novo Link</h3>
-            <form onSubmit={handleCreate} className="space-y-3">
-              <Input label="Título *" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Ex: Receita Federal" />
-              <Input label="URL *" value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="https://..." />
-              
-              <div className="grid grid-cols-2 gap-2">
-                <Select 
-                  label="Setor"
-                  value={sectorId} 
-                  onChange={(e) => setSectorId(e.target.value)}
-                  options={[
-                    { value: '', label: 'Geral' },
-                    ...sectors.map(s => ({ value: s.id, label: s.name }))
-                  ]}
-                />
-                <Select 
-                  label="Ícone"
-                  value={iconName} 
-                  onChange={(e) => setIconName(e.target.value)}
-                  options={[
-                    { value: '', label: 'Padrão' },
-                    { value: 'Globe', label: '🌍 Globo' },
-                    { value: 'Landmark', label: '🏛️ Governo' },
-                    { value: 'Calculator', label: '🧮 Calculadora' },
-                    { value: 'FileText', label: '📄 Documento' },
-                    { value: 'BookOpen', label: '📖 Legislação' },
-                    { value: 'Briefcase', label: '💼 Maleta' }
-                  ]}
-                />
+          <div className="p-6 border-b border-indigo-100/50 dark:border-indigo-900/20 bg-indigo-50/30 dark:bg-indigo-500/5 animate-in slide-in-from-top duration-300">
+            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+              <Plus size={16} className="text-indigo-500" />
+              Configurar Novo Link
+            </h3>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="space-y-4">
+                <Input label="Título" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Ex: Receita Federal" />
+                <Input label="URL" value={url} onChange={(e) => setUrl(e.target.value)} required placeholder="https://..." />
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <Select 
+                    label="Setor"
+                    value={sectorId} 
+                    onChange={(e) => setSectorId(e.target.value)}
+                    options={[
+                      { value: '', label: 'Geral' },
+                      ...sectors.map(s => ({ value: s.id, label: s.name }))
+                    ]}
+                  />
+                  <Select 
+                    label="Ícone"
+                    value={iconName} 
+                    onChange={(e) => setIconName(e.target.value)}
+                    options={[
+                      { value: '', label: 'Padrão' },
+                      { value: 'Globe', label: '🌍 Globo' },
+                      { value: 'Landmark', label: '🏛️ Governo' },
+                      { value: 'Calculator', label: '🧮 Calculadora' },
+                      { value: 'FileText', label: '📄 Documento' },
+                      { value: 'BookOpen', label: '📖 Legislação' },
+                      { value: 'Briefcase', label: '💼 Maleta' }
+                    ]}
+                  />
+                </div>
+                <Input label="Descrição Curta" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional" />
               </div>
-              <Input label="Descrição" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Breve uso" />
               
-              <div className="flex gap-2 pt-2">
-                <Button type="button" variant="secondary" className="flex-1" onClick={() => setAdding(false)}>Cancelar</Button>
-                <Button type="submit" className="flex-1">Salvar</Button>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button" 
+                  className="flex-1 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  onClick={() => setAdding(false)}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md transition-all active:scale-[0.98]"
+                >
+                  Salvar Link
+                </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Lista de Links - Design de Cards Staggered */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-600 rounded-full animate-spin" />
+              <p className="text-sm text-slate-500 animate-pulse">Carregando seus links...</p>
             </div>
           ) : links.length === 0 ? (
-            <div className="text-center py-12 px-4">
-              <Link2 className="w-12 h-12 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
-              <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum link útil cadastrado.</p>
-              <p className="text-xs text-slate-400 mt-1">Gestores podem adicionar novos links pelas Configurações.</p>
+            <div className="text-center py-20 px-8 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+              <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                <Link2 className="text-slate-300 dark:text-slate-600" size={32} />
+              </div>
+              <p className="text-slate-600 dark:text-slate-300 font-bold">Sua biblioteca está vazia</p>
+              <p className="text-xs text-slate-500 mt-2 max-w-[200px] mx-auto">Adicione links importantes para acesso rápido da sua equipe.</p>
             </div>
           ) : (
-            <div className="space-y-4 pb-12">
-              {/* General Links */}
+            <div className="space-y-4 pb-10">
+              {/* Seção Geral */}
               {generalLinks.length > 0 && (
-                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                <div className="space-y-3">
                   <button 
                     onClick={() => toggleSector('general')}
-                    className="w-full flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="w-full flex items-center gap-4 group"
                   >
-                    <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Geral</span>
-                    {expandedSectors['general'] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 dark:text-indigo-400 whitespace-nowrap">Links Gerais</h3>
+                    <div className="h-px w-full bg-gradient-to-r from-indigo-500/20 to-transparent" />
+                    <div className={`transition-transform duration-300 text-indigo-400 ${expandedSectors['general'] ? 'rotate-180' : ''}`}>
+                      <ChevronDown size={14} />
+                    </div>
                   </button>
                   
-                  {expandedSectors['general'] && (
-                    <div className="p-2 grid gap-2">
-                      {generalLinks.map(link => (
-                        <div key={link.id} className="border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/50 rounded-lg transition-all overflow-hidden bg-white dark:bg-transparent">
-                          {editingLinkId === link.id ? (
-                            <div className="p-3 bg-indigo-50/50 dark:bg-slate-800/80 border border-indigo-100 dark:border-indigo-900/50 rounded-lg shadow-sm space-y-3">
-                              <Input label="Título" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
-                              <Input label="URL" value={editUrl} onChange={e => setEditUrl(e.target.value)} />
-                              <div className="grid grid-cols-2 gap-2">
-                                <Select 
-                                  label="Setor"
-                                  value={editSectorId} 
-                                  onChange={e => setEditSectorId(e.target.value)}
-                                  options={[
-                                    { value: '', label: 'Geral' },
-                                    ...sectors.map(s => ({ value: s.id, label: s.name }))
-                                  ]}
-                                />
-                                <Select 
-                                  label="Ícone"
-                                  value={editIconName} 
-                                  onChange={e => setEditIconName(e.target.value)}
-                                  options={[
-                                    { value: '', label: 'Padrão' },
-                                    { value: 'Globe', label: '🌍 Globo' },
-                                    { value: 'Landmark', label: '🏛️ Governo' },
-                                    { value: 'Calculator', label: '🧮 Calculadora' },
-                                    { value: 'FileText', label: '📄 Documento' },
-                                    { value: 'BookOpen', label: '📖 Legislação' },
-                                    { value: 'Briefcase', label: '💼 Maleta' }
-                                  ]}
-                                />
-                              </div>
-                              <Input label="Descrição" value={editDescription} onChange={e => setEditDescription(e.target.value)} />
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="secondary" className="flex-1" onClick={() => setEditingLinkId(null)}>Cancelar</Button>
-                                <Button size="sm" className="flex-1" onClick={() => handleUpdate(link.id)}>Salvar</Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <a 
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group relative"
-                            >
-                              <div className="mt-0.5 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-md group-hover:bg-white dark:group-hover:bg-slate-700 shadow-sm flex-shrink-0">
-                                {renderIcon(link.icon_name)}
-                              </div>
-                              <div className="flex-1 min-w-0 pr-12">
-                                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
-                                  {link.title}
-                                </h4>
-                                {link.description && (
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{link.description}</p>
-                                )}
-                              </div>
-                              <div className="absolute right-2 top-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e) => startEditing(link, e)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded">
-                                  <Edit2 size={14} />
-                                </button>
-                                <button onClick={(e) => handleDelete(link.id, e)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded">
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </a>
-                          )}
+                  <div className={`grid gap-3 transition-all duration-500 ease-in-out ${expandedSectors['general'] ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+                    <div className="overflow-hidden space-y-3">
+                      {generalLinks.map((link, idx) => (
+                        <div 
+                          key={link.id} 
+                          style={{ animationDelay: `${idx * 40}ms` }}
+                          className={`transition-all duration-500 ${isOpen ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}
+                        >
+                          {renderLinkCard(link)}
                         </div>
                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
-              {/* Links by Sector */}
-              {linksBySector.map(sector => (
-                <div key={sector.id} className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+              {/* Seções por Setor */}
+              {linksBySector.map((sector, sectorIdx) => (
+                <div key={sector.id} className="space-y-3 pt-2">
                   <button 
                     onClick={() => toggleSector(sector.id)}
-                    className="w-full flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="w-full flex items-center gap-4 group"
                   >
-                    <span className="font-bold text-sm text-slate-800 dark:text-slate-200">{sector.name}</span>
-                    {expandedSectors[sector.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 whitespace-nowrap">{sector.name}</h3>
+                    <div className="h-px w-full bg-gradient-to-r from-slate-200 dark:from-slate-800 to-transparent" />
+                    <div className={`transition-transform duration-300 text-slate-400 ${expandedSectors[sector.id] ? 'rotate-180' : ''}`}>
+                      <ChevronDown size={14} />
+                    </div>
                   </button>
                   
-                  {expandedSectors[sector.id] && (
-                    <div className="p-2 grid gap-2">
-                      {sector.links.map(link => (
-                        <div key={link.id} className="border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/50 rounded-lg transition-all overflow-hidden bg-white dark:bg-transparent">
-                          {editingLinkId === link.id ? (
-                            <div className="p-3 bg-indigo-50/50 dark:bg-slate-800/80 border border-indigo-100 dark:border-indigo-900/50 rounded-lg shadow-sm space-y-3">
-                              <Input label="Título" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
-                              <Input label="URL" value={editUrl} onChange={e => setEditUrl(e.target.value)} />
-                              <div className="grid grid-cols-2 gap-2">
-                                <Select 
-                                  label="Setor"
-                                  value={editSectorId} 
-                                  onChange={e => setEditSectorId(e.target.value)}
-                                  options={[
-                                    { value: '', label: 'Geral' },
-                                    ...sectors.map(s => ({ value: s.id, label: s.name }))
-                                  ]}
-                                />
-                                <Select 
-                                  label="Ícone"
-                                  value={editIconName} 
-                                  onChange={e => setEditIconName(e.target.value)}
-                                  options={[
-                                    { value: '', label: 'Padrão' },
-                                    { value: 'Globe', label: '🌍 Globo' },
-                                    { value: 'Landmark', label: '🏛️ Governo' },
-                                    { value: 'Calculator', label: '🧮 Calculadora' },
-                                    { value: 'FileText', label: '📄 Documento' },
-                                    { value: 'BookOpen', label: '📖 Legislação' },
-                                    { value: 'Briefcase', label: '💼 Maleta' }
-                                  ]}
-                                />
-                              </div>
-                              <Input label="Descrição" value={editDescription} onChange={e => setEditDescription(e.target.value)} />
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="secondary" className="flex-1" onClick={() => setEditingLinkId(null)}>Cancelar</Button>
-                                <Button size="sm" className="flex-1" onClick={() => handleUpdate(link.id)}>Salvar</Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <a 
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group relative"
-                            >
-                              <div className="mt-0.5 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-md group-hover:bg-white dark:group-hover:bg-slate-700 shadow-sm flex-shrink-0">
-                                {renderIcon(link.icon_name)}
-                              </div>
-                              <div className="flex-1 min-w-0 pr-12">
-                                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
-                                  {link.title}
-                                </h4>
-                                {link.description && (
-                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{link.description}</p>
-                                )}
-                              </div>
-                              <div className="absolute right-2 top-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e) => startEditing(link, e)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded">
-                                  <Edit2 size={14} />
-                                </button>
-                                <button onClick={(e) => handleDelete(link.id, e)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded">
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </a>
-                          )}
+                  <div className={`grid gap-3 transition-all duration-500 ease-in-out ${expandedSectors[sector.id] ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+                    <div className="overflow-hidden space-y-3">
+                      {sector.links.map((link, idx) => (
+                        <div 
+                          key={link.id}
+                          style={{ animationDelay: `${idx * 40}ms` }}
+                          className={`transition-all duration-500 ${isOpen ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}
+                        >
+                          {renderLinkCard(link)}
                         </div>
                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -451,4 +398,86 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
       </div>
     </>
   );
+
+  function renderLinkCard(link: any) {
+    const isEditing = editingLinkId === link.id;
+
+    if (isEditing) {
+      return (
+        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border-2 border-indigo-500/50 shadow-lg shadow-indigo-500/10 space-y-4 animate-in zoom-in-95 duration-200">
+          <Input label="Título" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+          <Input label="URL" value={editUrl} onChange={e => setEditUrl(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Select 
+              label="Setor"
+              value={editSectorId} 
+              onChange={e => setEditSectorId(e.target.value)}
+              options={[{ value: '', label: 'Geral' }, ...sectors.map(s => ({ value: s.id, label: s.name }))]}
+            />
+            <Select 
+              label="Ícone"
+              value={editIconName} 
+              onChange={e => setEditIconName(e.target.value)}
+              options={[
+                { value: '', label: 'Padrão' },
+                { value: 'Globe', label: '🌍 Globo' },
+                { value: 'Landmark', label: '🏛️ Governo' },
+                { value: 'Calculator', label: '🧮 Calculadora' },
+                { value: 'FileText', label: '📄 Documento' },
+                { value: 'BookOpen', label: '📖 Legislação' },
+                { value: 'Briefcase', label: '💼 Maleta' }
+              ]}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button className="flex-1 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" onClick={() => setEditingLinkId(null)}>Cancelar</button>
+            <button className="flex-1 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md" onClick={() => handleUpdate(link.id)}>Salvar</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <a 
+        href={link.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group flex items-center gap-4 p-3 bg-white/50 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-0.5 relative overflow-hidden"
+      >
+        {/* Glow de hover lateral */}
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
+        
+        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-slate-200 dark:ring-slate-700">
+          {renderIcon(link.icon_name)}
+        </div>
+        
+        <div className="flex-1 min-w-0 pr-10">
+          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+            {link.title}
+          </h4>
+          {link.description && (
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5 font-medium">{link.description}</p>
+          )}
+        </div>
+
+        {/* Action Buttons - Aparecem no Hover */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 absolute right-3 translate-x-2 group-hover:translate-x-0">
+          <button 
+            onClick={(e) => startEditing(link, e)}
+            className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
+            title="Editar"
+          >
+            <Edit2 size={14} />
+          </button>
+          <button 
+            onClick={(e) => handleDelete(link.id, e)}
+            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+            title="Excluir"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </a>
+    );
+  }
 };
