@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { ListOrdered } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
@@ -52,7 +52,7 @@ export const TopTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     }, [orgId]);
 
     return (
-        <WidgetContainer title="Ranking de Tarefas no Mês" icon={<ListOrdered size={18} />} onRemove={onRemove}>
+        <WidgetContainer title="RANKING TAREFAS" icon={<ListOrdered size={14} />} onRemove={onRemove}>
             <div className="flex-1 overflow-y-auto pr-2">
                 {loading ? (
                     <div className="animate-pulse space-y-3">

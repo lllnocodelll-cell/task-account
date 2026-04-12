@@ -25,7 +25,8 @@ import {
     Square,
     MapPin,
     LayoutGrid,
-    Table as TableIcon
+    Table as TableIcon,
+    ScanEye
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -36,6 +37,7 @@ import { ClientForm } from '../components/ClientForm';
 import { Modal } from '../components/ui/Modal';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Notification, NotificationType } from '../components/ui/Notification';
+import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
 
 
 
@@ -87,7 +89,7 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
 
 export const Clients: React.FC<{ userProfile: any, initialClientId?: string | null, onClearInitialClientId?: () => void }> = ({ userProfile, initialClientId, onClearInitialClientId }) => {
     const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
-    const [displayMode, setDisplayMode] = useState<'table' | 'cards'>('table');
+    const [displayMode, setDisplayMode] = useState<'table' | 'cards'>(() => typeof window !== 'undefined' && window.innerWidth < 1024 ? 'cards' : 'table');
     const [clients, setClients] = useState<Client[]>([]); // Use DB data
     const [loading, setLoading] = useState(true);
     const [notification, setNotification] = useState<{ show: boolean; message: string; type: NotificationType }>({
@@ -100,6 +102,8 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
         setNotification({ show: true, message, type });
     };
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+    const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
+    const [clientForDetails, setClientForDetails] = useState<Client | null>(null);
 
     // Deletion Modal State
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
@@ -424,7 +428,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         </button>
                     </div>
 
-                    <Button onClick={handleCreate} icon={<Plus size={18} />}>Novo Cliente</Button>
+                    <Button onClick={handleCreate} icon={<Plus size={18} />} className="hidden md:flex">Novo Cliente</Button>
                 </div>
             </div>
 
@@ -663,6 +667,18 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
                                                     {/* Hover Actions Overlay */}
                                                     <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 bg-white dark:bg-slate-900 shadow-lg px-1 py-1 rounded-lg border border-slate-200 dark:border-slate-700 z-10 animate-in fade-in duration-200">
+                                                        <Tooltip content="Visualizar" position="top">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                icon={<ScanEye size={16} />}
+                                                                className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+                                                                onClick={() => {
+                                                                    setClientForDetails(client);
+                                                                    setIsDetailsDrawerOpen(true);
+                                                                }}
+                                                            />
+                                                        </Tooltip>
                                                         <Tooltip content="Editar" position="top">
                                                             <Button
                                                                 size="sm"
@@ -745,6 +761,17 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                         </div>
                                         
                                         <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Tooltip content="Visualizar" position="top">
+                                                <button 
+                                                    onClick={() => {
+                                                        setClientForDetails(client);
+                                                        setIsDetailsDrawerOpen(true);
+                                                    }}
+                                                    className="p-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 rounded-md shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all font-bold"
+                                                >
+                                                    <ScanEye size={14} />
+                                                </button>
+                                            </Tooltip>
                                             <Tooltip content="Editar" position="top">
                                                 <button 
                                                     onClick={() => handleEdit(client)}
@@ -848,6 +875,24 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 type={notification.type}
                 onClose={() => setNotification({ ...notification, show: false })}
             />
+            {/* Client Details Drawer */}
+            <ClientDetailsDrawer
+                isOpen={isDetailsDrawerOpen}
+                onClose={() => setIsDetailsDrawerOpen(false)}
+                client={clientForDetails}
+                onEdit={(client) => {
+                    setIsDetailsDrawerOpen(false);
+                    handleEdit(client);
+                }}
+            />
+            {/* FAB: Novo Cliente (Mobile) */}
+            <button
+                onClick={handleCreate}
+                className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-indigo-700 dark:hover:bg-indigo-600 active:scale-95 transition-all z-50 md:hidden border-4 border-white dark:border-slate-900"
+                title="Novo Cliente"
+            >
+                <Plus size={28} strokeWidth={3} />
+            </button>
         </div>
     );
 };

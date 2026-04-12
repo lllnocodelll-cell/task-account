@@ -87,7 +87,7 @@ export const LoggedUsersWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     };
 
     return (
-        <WidgetContainer title="Usuários Online" icon={<Users size={18} />} onRemove={onRemove}>
+        <WidgetContainer title="USUÁRIOS ONLINE" icon={<Users size={14} />} onRemove={onRemove}>
             <div className="flex-1 flex flex-col p-2 space-y-3 overflow-y-auto w-full">
                 {loading ? (
                     <div className="animate-pulse space-y-4 w-full h-full p-2">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { UsersRound, Briefcase, Code, Megaphone, Headset, Calculator, FileText, ChevronRight, Scale, BookOpen } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
@@ -80,7 +80,7 @@ export const CollaboratorsByDeptWidget: React.FC<Props> = ({ orgId, onRemove }) 
     }, [orgId]);
 
     return (
-        <WidgetContainer title="Colaboradores por Setor" icon={<UsersRound size={18} className="text-indigo-500" />} onRemove={onRemove}>
+        <WidgetContainer title="COLABORADOR POR SETOR" icon={<UsersRound size={14} className="text-indigo-500" />} onRemove={onRemove}>
             <div className="flex-1 w-full h-full p-2 lg:p-4">
                 {loading ? (
                     <div className="flex-1 flex flex-col items-center justify-center space-y-4 h-full">

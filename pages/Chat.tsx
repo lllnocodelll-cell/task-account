@@ -2187,23 +2187,28 @@ export const Chat: React.FC = () => {
         </div>
       ) : (
         <div className={`flex-1 flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 text-slate-400 ${!showSidebarOnMobile ? 'flex' : 'hidden'} md:flex relative`}>
-          <button 
-            className="md:hidden absolute top-4 left-4 p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            onClick={() => setShowSidebarOnMobile(true)}
-          >
-            <ArrowLeft size={20} />
-          </button>
-          {isSidebarCollapsed && (
-            <div className="tooltip-container tooltip-bottom">
-              <button 
-                className="hidden md:flex absolute top-4 left-4 p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
-                onClick={() => setIsSidebarCollapsed(false)}
-              >
-                <PanelLeft size={20} />
-              </button>
-              <span className="tooltip-content">Expandir</span>
-            </div>
-          )}
+          {/* Barra superior com botão de expandir */}
+          <div className="absolute top-0 left-0 right-0 h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
+            <button
+              className="md:hidden p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              onClick={() => setShowSidebarOnMobile(true)}
+            >
+              <ArrowLeft size={20} />
+            </button>
+            {isSidebarCollapsed && (
+              <div className="tooltip-container tooltip-bottom hidden md:flex">
+                <button
+                  className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
+                  onClick={() => setIsSidebarCollapsed(false)}
+                >
+                  <PanelLeft size={18} />
+                </button>
+                <span className="tooltip-content">Expandir</span>
+              </div>
+            )}
+          </div>
+
+          {/* Conteúdo central */}
           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
             <MoreVertical size={32} />
           </div>

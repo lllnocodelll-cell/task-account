@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -107,6 +107,11 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [clients, setClients] = useState<any[]>([]);
   const [clientId, setClientId] = useState('');
   const [editClientId, setEditClientId] = useState('');
+
+  // Accordion state
+  const [isMembersExpanded, setIsMembersExpanded] = useState(false);
+  const [isClientsExpanded, setIsClientsExpanded] = useState(false);
+  const [isFormExpanded, setIsFormExpanded] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -310,18 +315,28 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
-            <Users size={18} className="text-slate-500 dark:text-slate-400" />
+        <div 
+          className="flex items-center justify-between mb-4 cursor-pointer group/header"
+          onClick={() => setIsFormExpanded(!isFormExpanded)}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+              <Users size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                Adicionar Membros
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
           </div>
-          <div className="flex flex-col text-left">
-            <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
-              Adicionar Membros
-            </h1>
-            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+          <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
+            {isFormExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        
+        {isFormExpanded && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-200">
           <Input label="Nome" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="João" />
           <Input label="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Silva" />
           <Input label="E-mail" value={email} onChange={e => setEmail(e.target.value)} placeholder="joao@empresa.com" type="email" autoComplete="new-password" />
@@ -362,90 +377,130 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             </Button>
           </div>
         </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Coluna 1: Membros Internos */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-             <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-               <Users size={20} className="text-indigo-600" />
-               Colaboradores Internos
-             </h3>
-             <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
-               {members.filter(m => m.role !== 'cliente').length}
-             </span>
+          <div 
+            className="flex items-center justify-between mb-4 cursor-pointer group/header"
+            onClick={() => setIsMembersExpanded(!isMembersExpanded)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+                <Users size={18} className="text-slate-500 dark:text-slate-400" />
+              </div>
+              <div className="flex flex-col text-left">
+                <h3 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                  MEMBROS
+                </h3>
+                <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
+                {members.filter(m => m.role !== 'cliente').length}
+              </span>
+              <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isMembersExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
+                {isMembersExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
           </div>
           
-          <div className="space-y-3">
-            {members.filter(m => m.role !== 'cliente').map(member => (
-              <MemberCard 
-                key={member.id} 
-                member={member} 
-                isEditing={editingMemberId === member.id}
-                onEdit={() => startEditingMember(member)}
-                onCancel={cancelEditingMember}
-                onUpdate={handleUpdateMember}
-                onToggleStatus={handleToggleStatus}
-                onDelete={initDeleteMember}
-                editStates={{
-                  editFirstName, setEditFirstName,
-                  editLastName, setEditLastName,
-                  editEmail, setEditEmail,
-                  editRole, setEditRole,
-                  editSectorId, setEditSectorId,
-                  editClientId, setEditClientId
-                }}
-                sectors={sectors}
-                clients={clients}
-                addToast={addToast}
-              />
-            ))}
-          </div>
+          {isMembersExpanded && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              {members.filter(m => m.role !== 'cliente').map(member => (
+                <MemberCard 
+                  key={member.id} 
+                  member={member} 
+                  isEditing={editingMemberId === member.id}
+                  onEdit={() => startEditingMember(member)}
+                  onCancel={cancelEditingMember}
+                  onUpdate={handleUpdateMember}
+                  onToggleStatus={handleToggleStatus}
+                  onDelete={initDeleteMember}
+                  editStates={{
+                    editFirstName, setEditFirstName,
+                    editLastName, setEditLastName,
+                    editEmail, setEditEmail,
+                    editRole, setEditRole,
+                    editSectorId, setEditSectorId,
+                    editClientId, setEditClientId
+                  }}
+                  sectors={sectors}
+                  clients={clients}
+                  addToast={addToast}
+                />
+              ))}
+              {members.filter(m => m.role !== 'cliente').length === 0 && (
+                <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                  <p className="text-sm text-slate-500">Nenhum membro cadastrado.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Coluna 2: Clientes com Acesso */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-             <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-               <UserCircle size={20} className="text-emerald-600" />
-               Clientes com Acesso
-             </h3>
-             <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
-               {members.filter(m => m.role === 'cliente').length}
-             </span>
+          <div 
+            className="flex items-center justify-between mb-4 cursor-pointer group/header"
+            onClick={() => setIsClientsExpanded(!isClientsExpanded)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-emerald-300 transition-colors">
+                <UserCircle size={18} className="text-slate-500 dark:text-slate-400" />
+              </div>
+              <div className="flex flex-col text-left">
+                <h3 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                  CLIENTES
+                </h3>
+                <div className="h-0.5 w-6 bg-emerald-500/30 dark:bg-emerald-400/20 mt-1.5 rounded-full" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
+                {members.filter(m => m.role === 'cliente').length}
+              </span>
+              <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isClientsExpanded ? 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
+                {isClientsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {members.filter(m => m.role === 'cliente').map(member => (
-              <MemberCard 
-                key={member.id} 
-                member={member} 
-                isEditing={editingMemberId === member.id}
-                onEdit={() => startEditingMember(member)}
-                onCancel={cancelEditingMember}
-                onUpdate={handleUpdateMember}
-                onToggleStatus={handleToggleStatus}
-                onDelete={initDeleteMember}
-                editStates={{
-                  editFirstName, setEditFirstName,
-                  editLastName, setEditLastName,
-                  editEmail, setEditEmail,
-                  editRole, setEditRole,
-                  editSectorId, setEditSectorId,
-                  editClientId, setEditClientId
-                }}
-                sectors={sectors}
-                clients={clients}
-                addToast={addToast}
-              />
-            ))}
-            {members.filter(m => m.role === 'cliente').length === 0 && (
-              <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                <p className="text-sm text-slate-500">Nenhum cliente com acesso liberado.</p>
-              </div>
-            )}
-          </div>
+          {isClientsExpanded && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              {members.filter(m => m.role === 'cliente').map(member => (
+                <MemberCard 
+                  key={member.id} 
+                  member={member} 
+                  isEditing={editingMemberId === member.id}
+                  onEdit={() => startEditingMember(member)}
+                  onCancel={cancelEditingMember}
+                  onUpdate={handleUpdateMember}
+                  onToggleStatus={handleToggleStatus}
+                  onDelete={initDeleteMember}
+                  editStates={{
+                    editFirstName, setEditFirstName,
+                    editLastName, setEditLastName,
+                    editEmail, setEditEmail,
+                    editRole, setEditRole,
+                    editSectorId, setEditSectorId,
+                    editClientId, setEditClientId
+                  }}
+                  sectors={sectors}
+                  clients={clients}
+                  addToast={addToast}
+                />
+              ))}
+              {members.filter(m => m.role === 'cliente').length === 0 && (
+                <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                  <p className="text-sm text-slate-500">Nenhum cliente com acesso liberado.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -676,6 +731,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [isFormExpanded, setIsFormExpanded] = useState(false);
 
   // Form
   const [name, setName] = useState('');
@@ -887,9 +943,12 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <div 
+          className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 cursor-pointer group/header"
+          onClick={() => setIsFormExpanded(!isFormExpanded)}
+        >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
               <Blocks size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -899,17 +958,28 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
             </div>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<CloudDownload size={16} />}
-            onClick={handleImportDefaultSectors}
-            disabled={importing || adding}
-          >
-            {importing ? 'Cadastrando...' : 'Sugerir Setores Padrão'}
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<CloudDownload size={16} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleImportDefaultSectors();
+              }}
+              disabled={importing || adding}
+            >
+              {importing ? 'Cadastrando...' : 'Sugerir Setores Padrão'}
+            </Button>
+            <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
+              {isFormExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+
+        {isFormExpanded && (
+          <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <Input label="Nome do Setor" value={name} onChange={e => setName(e.target.value)} />
           <Input label="Líder" value={leader} onChange={e => setLeader(e.target.value)} />
           <Input label="Centro de Custo" value={costCenter} onChange={e => setCostCenter(e.target.value)} />
@@ -917,6 +987,8 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         <div className="mt-4 flex justify-end">
           <Button onClick={handleAddSector} disabled={adding}>{adding ? 'Salvando...' : 'Salvar Setor'}</Button>
         </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1063,6 +1135,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [isFormExpanded, setIsFormExpanded] = useState(false);
 
   // Form
   const [name, setName] = useState('');
@@ -1215,18 +1288,29 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
-            <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
+        <div 
+          className="flex items-center justify-between mb-4 cursor-pointer group/header"
+          onClick={() => setIsFormExpanded(!isFormExpanded)}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+              <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                Adicionar Tipo de Tarefa
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
           </div>
-          <div className="flex flex-col text-left">
-            <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
-              Adicionar Tipo de Tarefa
-            </h1>
-            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+          <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
+            {isFormExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+
+        {isFormExpanded && (
+          <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <Input label="Nome da Tarefa" value={name} onChange={e => setName(e.target.value)} />
           <Select
             label="Setor Responsável"
@@ -1263,6 +1347,8 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         <div className="mt-4 flex justify-end">
           <Button onClick={handleAddToken} disabled={adding}>{adding ? 'Salvando...' : 'Salvar Tarefa'}</Button>
         </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -1364,6 +1450,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [importing, setImporting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [holidayToDelete, setHolidayToDelete] = useState<any | null>(null);
+  const [isFormExpanded, setIsFormExpanded] = useState(false);
 
   // Form
   const [date, setDate] = useState('');
@@ -1484,9 +1571,12 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <div 
+          className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 cursor-pointer group/header"
+          onClick={() => setIsFormExpanded(!isFormExpanded)}
+        >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
               <CalendarClock size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -1496,16 +1586,27 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
             </div>
           </div>
-          <Button
-            variant="secondary"
-            icon={importing ? <Loader2 className="animate-spin" size={16} /> : <CloudDownload size={16} />}
-            onClick={handleImportHolidays}
-            disabled={importing}
-          >
-            {importing ? 'Importando...' : `Importar Nacionais ${year}`}
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="secondary"
+              icon={importing ? <Loader2 className="animate-spin" size={16} /> : <CloudDownload size={16} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleImportHolidays();
+              }}
+              disabled={importing}
+            >
+              {importing ? 'Importando...' : `Importar Nacionais ${year}`}
+            </Button>
+            <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
+              {isFormExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+
+        {isFormExpanded && (
+          <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <Input label="Data" type="date" value={date} onChange={e => setDate(e.target.value)} />
           <Input label="Descrição" placeholder="Ex: Aniversário" className="md:col-span-2" value={name} onChange={e => setName(e.target.value)} />
           <Select label="Tipo" value={type} onChange={e => setType(e.target.value)} options={[
@@ -1520,6 +1621,8 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             {adding ? 'Salvando...' : 'Adicionar ao Calendário'}
           </Button>
         </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -12,12 +11,13 @@ import { Notifications } from './pages/Notifications';
 import { ClientPortal } from './pages/ClientPortal';
 import { Chat } from './pages/Chat';
 import { Notes } from './pages/Notes';
-import { UserRole } from './types';
+import { UserRole, Client } from './types';
 import { supabase } from './utils/supabaseClient';
 import { Loader2 } from 'lucide-react';
 import { GlobalCallListener } from './components/chat/GlobalCallListener';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ui/Toast';
+import { TutorialsModal } from './components/tutorials/TutorialsModal';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -43,10 +43,31 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isTutorialsOpen, setIsTutorialsOpen] = useState(false);
+  const [clientsList, setClientsList] = useState<Client[]>([]);
 
   const handleNavigateToClient = (clientId: string) => {
     setInitialClientsTabClientId(clientId);
     setActiveTab('clients');
+  };
+
+  const fetchClients = async (orgId: string) => {
+    try {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, company_name, trade_name')
+        .eq('org_id', orgId)
+        .order('company_name');
+      if (data) {
+        setClientsList(data.map((c: any) => ({
+          ...c,
+          companyName: c.company_name,
+          tradeName: c.trade_name,
+        })) as Client[]);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar clientes para tutoriais:', e);
+    }
   };
 
   // Toggle Theme Effect
@@ -202,6 +223,10 @@ function App() {
 
         setUserRole(data.role as UserRole);
         setUserProfile(finalProfile);
+
+        // Buscar clientes para o TutorialsModal
+        const effectiveOrgId = finalProfile.org_id || session.user.id;
+        fetchClients(effectiveOrgId);
         
         // Redirecionar cliente para a área do cliente apenas se estiver na aba inicial (dashboard)
         // Isso evita que o Alt+Tab ou retorno de foco da janela resete a aba atual do cliente (ex: Chat)
@@ -324,6 +349,7 @@ function App() {
           onProfileClick={() => setActiveTab('profile')}
           onNavigateToTab={(tab) => setActiveTab(tab)}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          onOpenTutorials={() => setIsTutorialsOpen(true)}
           userRole={userRole}
           userProfile={userProfile}
         />
@@ -341,6 +367,17 @@ function App() {
           userName={userProfile?.full_name || 'Usuário Local'}
         />
       )}
+
+      {isTutorialsOpen && userProfile && (
+        <TutorialsModal
+          isOpen={isTutorialsOpen}
+          onClose={() => setIsTutorialsOpen(false)}
+          orgId={userProfile.org_id || userProfile.id}
+          userId={userProfile.id}
+          clients={clientsList}
+        />
+      )}
+
       <ToastContainer />
       </div>
     </ToastProvider>

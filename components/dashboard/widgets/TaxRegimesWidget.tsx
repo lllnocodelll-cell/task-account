@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Landmark, Briefcase, FileText, CheckCircle2, ShieldOff, AlertCircle } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
@@ -92,7 +92,7 @@ export const TaxRegimesWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
     // Função para renderizar as barras visuais de forma minimalista
     return (
-        <WidgetContainer title="Regimes Tributários (Ativos)" icon={<Landmark size={18} className="text-indigo-500" />} onRemove={onRemove}>
+        <WidgetContainer title="MONITOR REGIMES" icon={<Landmark size={14} className="text-indigo-500" />} onRemove={onRemove}>
             <div className="flex-1 flex flex-col p-3 space-y-3 overflow-y-auto w-full custom-scrollbar">
                 {loading ? (
                     <div className="flex-1 flex flex-col items-center justify-center space-y-4">

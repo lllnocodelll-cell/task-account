@@ -4,14 +4,10 @@ import {
   X,
   FileCode,
   Code,
-  Scale,
-  FileWarning, 
-  ChevronDown, 
-  ExternalLink, 
-  Copy, 
+  ChevronDown,
+  ExternalLink,
+  Copy,
   Calendar,
-  User,
-  Hash,
   Key,
   FileText,
   MoveHorizontal
@@ -29,10 +25,8 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
   const [isVisible, setIsVisible] = useState(false);
   const [localTask, setLocalTask] = useState<Task | null>(task);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    obs: true,
-    access: false,
-    dfe: false,
-    legis: false
+    access: true,
+    dfe: true
   });
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
@@ -41,17 +35,14 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
     if (isOpen) {
       setShouldRender(true);
       setLocalTask(task);
-      // Pequeno delay para garantir que o componente monte no DOM antes de animar
       const timer = setTimeout(() => setIsVisible(true), 10);
       return () => clearTimeout(timer);
     } else {
       setIsVisible(false);
-      // Mantemos o localTask para que o conteúdo não mude durante o fechamento
     }
   }, [isOpen, task]);
 
   const handleTransitionEnd = (e: React.TransitionEvent) => {
-    // Apenas se a transição for a do próprio drawer container (como transform)
     if (!isOpen && e.propertyName === 'transform') {
       setShouldRender(false);
       setLocalTask(null);
@@ -80,7 +71,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
         onClick={onClose}
       />
       
-      {/* Drawer */}
+      {/* Drawer Container */}
       <div 
         onTransitionEnd={handleTransitionEnd}
         className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
@@ -100,9 +91,6 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                 <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
               </div>
             </div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate mt-2 pl-[52px]">
-              {localTask.taskName}
-            </p>
           </div>
           <button 
             onClick={onClose}
@@ -115,60 +103,15 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
           
-          {/* Sessão: Resumo Rápido */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          {/* Summary */}
+          <div className="grid grid-cols-1 gap-3 mb-6">
             <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
               <span className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Cliente</span>
               <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{localTask.clientName}</p>
             </div>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <span className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Competência</span>
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                <Calendar size={12} className="text-indigo-500" />
-                {localTask.competence}
-              </p>
-            </div>
           </div>
 
-          {/* 1. ACORDEÃO: OBSERVAÇÕES DA TAREFA */}
-          <div className="space-y-2">
-            <button 
-              onClick={() => toggleSection('obs')}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${expandedSections['obs'] ? 'bg-emerald-50 dark:bg-emerald-500/10 ring-1 ring-emerald-200 dark:ring-emerald-500/30' : 'bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800'}`}
-            >
-              <div className={`p-1.5 rounded-lg transition-colors ${expandedSections['obs'] ? 'bg-emerald-500 text-white' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20'}`}>
-                <FileWarning size={16} />
-              </div>
-              <span className={`text-sm font-bold flex-1 text-left ${expandedSections['obs'] ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`}>
-                Observação da Tarefa
-              </span>
-              <div className={`transition-transform duration-300 ${expandedSections['obs'] ? 'rotate-180 text-emerald-500' : 'text-slate-400'}`}>
-                <ChevronDown size={18} />
-              </div>
-            </button>
-
-            <div className={`grid transition-all duration-300 ease-in-out ${expandedSections['obs'] ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
-              <div className="overflow-hidden px-1">
-                <div className="p-5 bg-white dark:bg-slate-800/60 rounded-2xl border border-emerald-100 dark:border-emerald-500/20 shadow-sm">
-                  {localTask.observation ? (
-                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">
-                      "{localTask.observation}"
-                    </p>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic text-center py-2">Sem observações cadastradas.</p>
-                  )}
-                  {localTask.noMovement && (
-                    <div className="mt-4 p-2 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-lg flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-[10px] font-black uppercase text-red-600 dark:text-red-400 tracking-wider">Atenção: Tarefa Sem Movimento</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. ACORDEÃO: ACESSOS E CREDENCIAIS */}
+          {/* 1. ACORDEÃO: ACESSOS E CREDENCIAIS */}
           <div className="space-y-2">
             <button 
               onClick={() => toggleSection('access')}
@@ -235,7 +178,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
             </div>
           </div>
 
-          {/* 3. ACORDEÃO: DF-E */}
+          {/* 2. ACORDEÃO: DF-E */}
           <div className="space-y-2">
             <button 
               onClick={() => toggleSection('dfe')}
@@ -299,84 +242,9 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
             </div>
           </div>
 
-          {/* 4. ACORDEÃO: LEGISLAÇÃO */}
-          <div className="space-y-2">
-            <button 
-              onClick={() => toggleSection('legis')}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${expandedSections['legis'] ? 'bg-purple-50 dark:bg-purple-500/10 ring-1 ring-purple-200 dark:ring-purple-500/30' : 'bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800'}`}
-            >
-              <div className={`p-1.5 rounded-lg transition-colors ${expandedSections['legis'] ? 'bg-purple-500 text-white' : 'bg-purple-100 text-purple-500 dark:bg-purple-500/20'}`}>
-                <Scale size={16} />
-              </div>
-              <span className={`text-sm font-bold flex-1 text-left ${expandedSections['legis'] ? 'text-purple-700 dark:text-purple-400' : 'text-slate-600 dark:text-slate-300'}`}>
-                Legislação
-              </span>
-              <div className={`transition-transform duration-300 ${expandedSections['legis'] ? 'rotate-180 text-purple-500' : 'text-slate-400'}`}>
-                <ChevronDown size={18} />
-              </div>
-            </button>
 
-            <div className={`grid transition-all duration-300 ease-in-out ${expandedSections['legis'] ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
-              <div className="overflow-hidden space-y-3 px-1">
-                {localTask.clientLegislations && localTask.clientLegislations.length > 0 ? (
-                  localTask.clientLegislations.map((legis) => (
-                    <div key={legis.id} className="p-4 bg-white dark:bg-slate-800/60 rounded-xl border border-purple-100 dark:border-purple-500/20 shadow-sm hover:border-purple-300 dark:hover:border-purple-500/40 transition-all group overflow-hidden">
-                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-purple-50 dark:border-purple-500/10">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1 px-2 rounded-md bg-purple-50 dark:bg-purple-500/10 text-[10px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider">
-                            # LEGISLAÇÃO
-                          </div>
-                        </div>
-                        {legis.access_url && (
-                          <a 
-                            href={legis.access_url.startsWith('http') ? legis.access_url : `https://${legis.access_url}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="p-2 text-purple-500 hover:bg-purple-100 dark:hover:bg-purple-500/20 rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1.5"
-                          >
-                            <span className="text-[10px] font-black uppercase tracking-tight">VER COMPLETO</span>
-                            <ExternalLink size={14} />
-                          </a>
-                        )}
-                      </div>
-                      <div className="bg-purple-50/30 dark:bg-purple-500/5 p-3 rounded-lg border-l-4 border-purple-500">
-                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">
-                          {legis.description}
-                        </p>
-                      </div>
-                      <div className="mt-2 flex justify-end">
-                        <button 
-                          onClick={(e) => copyToClipboard(legis.description, `legis-${legis.id}`, e)}
-                          className="relative opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[9px] font-black text-slate-400 hover:text-purple-500 transition-all uppercase min-w-[50px] justify-end"
-                        >
-                          {copyFeedback === `legis-${legis.id}` ? (
-                            <span className="text-purple-600 animate-in fade-in zoom-in duration-200">Copiado!</span>
-                          ) : <><Copy size={10} /> Copiar</>}
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl italic text-center">Nenhuma legislação vinculada.</p>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
-          <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
-             <div className="flex items-center gap-1">
-               <User size={10} />
-               <span>Resp: <span className="font-bold text-slate-500 dark:text-slate-300 uppercase">{localTask.responsible}</span></span>
-             </div>
-             <div className="flex items-center gap-1">
-               <Hash size={10} />
-               <span>ID: <span className="font-mono">{localTask.id}</span></span>
-             </div>
-          </div>
-        </div>
       </div>
     </>,
     document.body

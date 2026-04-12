@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Bell, Sun, Moon, Menu, Link2 } from 'lucide-react';
+import { Bell, Sun, Moon, Menu, Link2, MonitorPlay } from 'lucide-react';
 import { UserRole } from '../types';
 import { NotificationsPopover } from './notifications/NotificationsPopover';
 import { UsefulLinksDrawer } from './UsefulLinksDrawer';
@@ -23,6 +23,7 @@ interface HeaderProps {
   onProfileClick: () => void;
   onNavigateToTab?: (tabName: string) => void;
   onToggleMobileMenu?: () => void;
+  onOpenTutorials?: () => void;
   userRole: UserRole;
   userProfile: UserProfile | null;
 }
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   onProfileClick,
   onNavigateToTab,
   onToggleMobileMenu,
+  onOpenTutorials,
   userRole,
   userProfile
 }) => {
@@ -63,6 +65,16 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="tooltip-content">Links Úteis</span>
         </div>
         <UsefulLinksDrawer isOpen={isLinksOpen} onClose={() => setIsLinksOpen(false)} />
+
+        <div className="tooltip-container tooltip-bottom">
+          <button
+            onClick={() => onOpenTutorials?.()}
+            className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors"
+          >
+            <MonitorPlay size={20} />
+          </button>
+          <span className="tooltip-content">Tutoriais</span>
+        </div>
 
         <div className="tooltip-container tooltip-bottom">
           <button

@@ -1,17 +1,13 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Layout } from 'react-grid-layout';
+import React, { useState, useEffect, useRef } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { supabase } from '../../utils/supabaseClient';
-import { Settings2, Check } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 
 // Import Widgets
-import { MonthlyVolumeWidget } from './widgets/MonthlyVolumeWidget';
-import { TopSegmentsWidget } from './widgets/TopSegmentsWidget';
 import { StatusByUserWidget } from './widgets/StatusByUserWidget';
-import { MonthlyEvolutionWidget } from './widgets/MonthlyEvolutionWidget';
-import { DailyProductivityWidget } from './widgets/DailyProductivityWidget';
+import { TopSegmentsWidget } from './widgets/TopSegmentsWidget';
 import { UpcomingDeadlinesWidget } from './widgets/UpcomingDeadlinesWidget';
 import { TopTasksWidget } from './widgets/TopTasksWidget';
 import { DocumentAlertsWidget } from './widgets/DocumentAlertsWidget';
@@ -26,82 +22,68 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Registro de todos os widgets disponíveis
 export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC<any>, defaultLayout: any }> = {
-    monthlyVolume: {
-        name: 'Volume Mensal',
-        component: MonthlyVolumeWidget,
-        defaultLayout: { i: 'monthlyVolume', x: 0, y: 0, w: 3, h: 4, minW: 2, minH: 3 }
-    },
     topSegments: {
-        name: 'Top Segmentos',
+        name: 'RANKING SEGMENTOS',
         component: TopSegmentsWidget,
-        defaultLayout: { i: 'topSegments', x: 3, y: 0, w: 4, h: 9, minW: 3, minH: 6 }
+        defaultLayout: { i: 'topSegments', x: 0, y: 0, w: 4, h: 9, minW: 3, minH: 6 }
     },
     statusByUser: {
-        name: 'Status por Colaborador',
+        name: 'MONITOR OPERAÇÃO',
         component: StatusByUserWidget,
-        defaultLayout: { i: 'statusByUser', x: 7, y: 0, w: 5, h: 9, minW: 4, minH: 6 }
-    },
-    monthlyEvolution: {
-        name: 'Evolução Mensal',
-        component: MonthlyEvolutionWidget,
-        defaultLayout: { i: 'monthlyEvolution', x: 0, y: 4, w: 7, h: 8, minW: 4, minH: 6 }
-    },
-    dailyProductivity: {
-        name: 'Produtividade Diária',
-        component: DailyProductivityWidget,
-        defaultLayout: { i: 'dailyProductivity', x: 7, y: 9, w: 5, h: 8, minW: 3, minH: 6 }
+        defaultLayout: { i: 'statusByUser', x: 4, y: 0, w: 5, h: 9, minW: 4, minH: 6 }
     },
     upcomingDeadlines: {
-        name: 'Próximos Vencimentos',
+        name: 'PRÓXIMOS VENCIMENTOS',
         component: UpcomingDeadlinesWidget,
-        defaultLayout: { i: 'upcomingDeadlines', x: 0, y: 12, w: 4, h: 7, minW: 3, minH: 5 }
+        defaultLayout: { i: 'upcomingDeadlines', x: 0, y: 9, w: 4, h: 7, minW: 3, minH: 5 }
     },
     topTasks: {
-        name: 'Ranking de Tarefas',
+        name: 'RANKING TAREFAS',
         component: TopTasksWidget,
-        defaultLayout: { i: 'topTasks', x: 4, y: 12, w: 4, h: 7, minW: 3, minH: 5 }
+        defaultLayout: { i: 'topTasks', x: 4, y: 9, w: 4, h: 7, minW: 3, minH: 5 }
     },
     documentAlerts: {
-        name: 'Alertas de Documentos',
+        name: 'ALERTAS DE DOCUMENTOS',
         component: DocumentAlertsWidget,
-        defaultLayout: { i: 'documentAlerts', x: 8, y: 17, w: 4, h: 7, minW: 3, minH: 4 }
+        defaultLayout: { i: 'documentAlerts', x: 8, y: 9, w: 4, h: 7, minW: 3, minH: 4 }
     },
     clientStatus: {
-        name: 'Status de Clientes',
+        name: 'STATUS DE CLIENTES',
         component: ClientStatusWidget,
-        defaultLayout: { i: 'clientStatus', x: 0, y: 19, w: 3, h: 5, minW: 2, minH: 3 }
+        defaultLayout: { i: 'clientStatus', x: 0, y: 16, w: 3, h: 7, minW: 2, minH: 5 }
     },
     taxRegimes: {
-        name: 'Regimes Tributários',
+        name: 'MONITOR REGIMES',
         component: TaxRegimesWidget,
-        defaultLayout: { i: 'taxRegimes', x: 3, y: 19, w: 4, h: 6, minW: 3, minH: 4 }
+        defaultLayout: { i: 'taxRegimes', x: 3, y: 16, w: 4, h: 7, minW: 3, minH: 4 }
     },
     loggedUsers: {
-        name: 'Usuários Online',
+        name: 'USUÁRIOS ONLINE',
         component: LoggedUsersWidget,
-        defaultLayout: { i: 'loggedUsers', x: 7, y: 19, w: 4, h: 6, minW: 3, minH: 4 }
+        defaultLayout: { i: 'loggedUsers', x: 7, y: 16, w: 5, h: 7, minW: 3, minH: 4 }
     },
     notifiedExclusion: {
-        name: 'Exclusão Notificada',
+        name: 'EXCLUSÃO SIMPLES',
         component: NotifiedExclusionWidget,
-        defaultLayout: { i: 'notifiedExclusion', x: 0, y: 25, w: 4, h: 6, minW: 3, minH: 4 }
+        defaultLayout: { i: 'notifiedExclusion', x: 0, y: 23, w: 4, h: 6, minW: 3, minH: 4 }
     },
     collaboratorsByDept: {
-        name: 'Colaboradores por Setor',
+        name: 'COLABORADOR POR SETOR',
         component: CollaboratorsByDeptWidget,
-        defaultLayout: { i: 'collaboratorsByDept', x: 4, y: 25, w: 4, h: 6, minW: 3, minH: 4 }
+        defaultLayout: { i: 'collaboratorsByDept', x: 4, y: 23, w: 4, h: 6, minW: 3, minH: 4 }
     },
     uncompletedTasks: {
-        name: 'Tarefas Pendentes (Mês)',
+        name: 'TAREFAS PENDENTES',
         component: UncompletedTasksWidget,
-        defaultLayout: { i: 'uncompletedTasks', x: 8, y: 25, w: 4, h: 6, minW: 3, minH: 4 }
+        defaultLayout: { i: 'uncompletedTasks', x: 8, y: 23, w: 4, h: 7, minW: 3, minH: 5 }
     }
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
-    'monthlyVolume', 'topSegments', 'statusByUser',
-    'monthlyEvolution', 'dailyProductivity',
-    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'clientStatus', 'taxRegimes', 'loggedUsers', 'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks'
+    'topSegments', 'statusByUser',
+    'upcomingDeadlines', 'topTasks', 'documentAlerts',
+    'clientStatus', 'taxRegimes', 'loggedUsers',
+    'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks'
 ];
 
 interface DashboardGridProps {
@@ -155,18 +137,13 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 if (error) throw error;
 
                 if (data) {
-                    // Filter loaded widgets based on role
-                    const validWidgets = (data.widgets || defaultWidgetsForRole).filter((id: string) => 
+                    const validWidgets = ((data.widgets as string[]) || defaultWidgetsForRole).filter((id: string) => 
                         role === 'gestor' || OPERACIONAL_ALLOWED_WIDGETS.includes(id)
                     );
-                    
-                    // Filter layout to only include valid widgets
-                    const validLayout = (data.layout || []).filter((l: any) => validWidgets.includes(l.i));
-                    
+                    const validLayout = ((data.layout as any[]) || []).filter((l: any) => validWidgets.includes(l.i));
                     setLayouts({ lg: validLayout });
                     setActiveWidgets(validWidgets);
                 } else {
-                    // Initialize with defaults if none exist
                     const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
                     setLayouts({ lg: defaultLgLayout });
                     setActiveWidgets(defaultWidgetsForRole);
@@ -175,7 +152,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     await supabase.from('user_dashboard_configs').insert({
                         user_id: userId,
                         layout: defaultLgLayout,
-                        widgets: DEFAULT_ACTIVE_WIDGETS
+                        widgets: defaultWidgetsForRole
                     });
                 }
             } catch (err) {
@@ -188,7 +165,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         if (userId) {
             loadConfig();
         }
-    }, [userId]);
+    }, [userId, role]);
 
     const saveLayout = async (currentLayout: any[]) => {
         try {
@@ -215,27 +192,21 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         let newLayout = [...layouts.lg];
 
         if (activeWidgets.includes(id)) {
-            // Desativar
             newWidgets = activeWidgets.filter(w => w !== id);
             newLayout = newLayout.filter(l => l.i !== id);
         } else {
-            // Ativar
             newWidgets = [...activeWidgets, id];
             const defaultLayout = WIDGET_REGISTRY[id].defaultLayout;
-
-            // Tenta encontrar uma posição livre no fim
             let maxY = 0;
             newLayout.forEach(l => {
                 if (l.y + l.h > maxY) maxY = l.y + l.h;
             });
-
             newLayout.push({ ...defaultLayout, y: maxY });
         }
 
         setActiveWidgets(newWidgets);
         setLayouts({ lg: newLayout });
 
-        // Save state
         supabase.from('user_dashboard_configs').upsert({
             user_id: userId,
             layout: newLayout,
@@ -249,7 +220,6 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     return (
         <div className="w-full">
             <style>{`
-                /* Hide handles by default, show on hover */
                 .react-grid-item .react-resizable-handle {
                     opacity: 0;
                     transition: opacity 0.2s ease-in-out;
@@ -257,9 +227,8 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 .react-grid-item:hover .react-resizable-handle {
                     opacity: 1;
                 }
-                /* Custom SE indicator (bottom-right edge) */
                 .react-grid-item .react-resizable-handle-se {
-                    background-image: none !important; /* Remove legacy icon */
+                    background-image: none !important;
                     display: flex;
                     align-items: flex-end;
                     justify-content: flex-end;
@@ -270,12 +239,12 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     content: '';
                     width: 10px;
                     height: 10px;
-                    border-right: 2px solid #94a3b8; /* slate-400 */
+                    border-right: 2px solid #94a3b8;
                     border-bottom: 2px solid #94a3b8;
                     border-bottom-right-radius: 2px;
                 }
                 .dark .react-grid-item .react-resizable-handle-se::after {
-                    border-right-color: #64748b; /* slate-500 */
+                    border-right-color: #64748b;
                     border-bottom-color: #64748b;
                 }
             `}</style>

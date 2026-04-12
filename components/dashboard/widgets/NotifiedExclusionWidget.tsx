@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { AlertOctagon, AlertTriangle, X } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
@@ -88,7 +88,7 @@ export const NotifiedExclusionWidget: React.FC<Props> = ({ orgId, onRemove }) =>
     };
 
     return (
-        <WidgetContainer title="Exclusão Notificada" icon={<AlertOctagon size={18} className="text-rose-500" />} onRemove={onRemove}>
+        <WidgetContainer title="EXCLUSÃO SIMPLES" icon={<AlertOctagon size={14} className="text-rose-500" />} onRemove={onRemove}>
             <div className="flex-1 flex flex-col p-2 space-y-4 overflow-y-auto w-full custom-scrollbar">
                 {loading ? (
                     <div className="animate-pulse space-y-3 w-full">

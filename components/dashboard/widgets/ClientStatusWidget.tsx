@@ -43,7 +43,7 @@ export const ClientStatusWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     }, [orgId]);
 
     return (
-        <WidgetContainer title="Status de Clientes" icon={<Users size={18} />} onRemove={onRemove}>
+        <WidgetContainer title="STATUS DE CLIENTES" icon={<Users size={14} />} onRemove={onRemove}>
             <div className="flex-1 flex flex-col justify-center p-2 space-y-6">
                 {loading ? (
                     <div className="animate-pulse space-y-4">

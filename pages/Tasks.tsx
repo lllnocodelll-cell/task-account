@@ -38,10 +38,10 @@ import {
   ListChecks,
   Bookmark,
   GitCompareArrows,
-  FileBadge,
-  FileStack,
   FileCheck2,
-  MinusCircle
+  MinusCircle,
+  ScanEye,
+  Eye
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -51,10 +51,12 @@ import { Input, Select, SearchableSelect, Toggle, GroupedSelect } from '../compo
 import { supabase } from '../utils/supabaseClient';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 import { ClientForm } from '../components/ClientForm';
+import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
 import { TutorialsModal } from '../components/tutorials/TutorialsModal';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Notification, NotificationType } from '../components/ui/Notification';
 import { TaskInfoDrawer } from '../components/TaskInfoDrawer';
+import { TaskDetailsDrawer } from '../components/TaskDetailsDrawer';
 
 // --- CONFIGS ---
 
@@ -330,12 +332,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               key={task.id}
               draggable
               onDragStart={(e) => onDragStart(e, task.id)}
-              className={`bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 border-t-4 ${color.replace('border-', 'border-t-')} hover:-translate-y-1 hover:shadow-xl transition-all duration-200 active:cursor-grabbing group select-none relative ${task.status === TaskStatus.CONCLUIDA ? 'cursor-default' : 'cursor-pointer'}`}
-              onClick={() => {
-                if (task.status !== TaskStatus.CONCLUIDA) {
-                  onViewTask(task);
-                }
-              }}
+              className={`bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 border-t-4 ${color.replace('border-', 'border-t-')} hover:-translate-y-1 hover:shadow-xl transition-all duration-200 active:cursor-grabbing group select-none relative cursor-default`}
             >
               <div className="flex justify-between items-center px-3 pt-3 pb-2">
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide ${
@@ -362,6 +359,27 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 <h4 className="text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-snug line-clamp-2">
                   {task.taskName}
                 </h4>
+                
+                {/* Pilha de Ações/Badges */}
+                <div className="flex items-center gap-2 mt-2">
+                  <Tooltip content="Dados da Tarefa">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewTask(task);
+                      }}
+                      className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-90"
+                    >
+                      <Eye size={14} />
+                    </button>
+                  </Tooltip>
+                  
+                  {task.noMovement && (
+                    <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-black whitespace-nowrap border border-red-100 dark:border-red-900/30 rounded-md shadow-sm">
+                      Sem Movimento
+                    </span>
+                  )}
+                </div>
               </div>
 
               {task.taxRegime && (
@@ -382,7 +400,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                     <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-700/50">
                       {task.selectedAnnexes && task.selectedAnnexes.length > 0 && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-[9px] text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-500/20">
-                          <Layers size={8} /> {task.selectedAnnexes.map(a => a.replace('Anexo ', 'Anx.')).join(' ')}
+                          <Layers size={8} /> Anexo: {task.selectedAnnexes.map(a => a.replace('Anexo ', '')).join(', ')}
                         </span>
                       )}
                       {task.factorR && (
@@ -406,19 +424,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               )}
 
               <div
-                className="mx-3 mb-2 px-2.5 py-2 rounded-lg bg-indigo-50/40 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all group/client"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (clientData) {
-                    onViewClient(clientData);
-                  }
-                }}
+                className="mx-3 mb-2 px-2.5 py-2 rounded-lg bg-indigo-50/40 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 group/client"
               >
                 <div className="flex items-start justify-between gap-1 mb-0.5">
-                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight line-clamp-2 group-hover/client:text-indigo-600 dark:group-hover/client:text-indigo-400 transition-colors">
+                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight line-clamp-2 transition-colors">
                     {task.clientName}
                   </p>
-                  <ExternalLink size={9} className="text-indigo-300 dark:text-indigo-600 shrink-0 mt-0.5 group-hover/client:text-indigo-500 transition-colors" />
                 </div>
                 {clientData?.document && (
                   <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono tracking-wide mb-1">
@@ -444,22 +455,33 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       </span>
                     )}
 
-                    {hasExtraInfo && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewTaskInfo(task);
-                        }}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase transition-all shadow-sm active:scale-95 ${
-                          task.noMovement 
-                            ? 'bg-red-500 text-white hover:bg-red-600 ring-2 ring-red-200 dark:ring-red-900/50' 
-                            : 'bg-indigo-600 text-white hover:bg-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-900/50'
-                        }`}
-                      >
-                        <Bookmark size={10} fill="currentColor" />
-                        Info
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <Tooltip content="Dados da Empresa">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (clientData) onViewClient(clientData);
+                          }}
+                          className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                        >
+                          <Eye size={14} />
+                        </button>
+                      </Tooltip>
+
+                      {hasExtraInfo && (
+                        <Tooltip content="Acessos">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onViewTaskInfo(task);
+                            }}
+                            className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                          >
+                            <ExternalLink size={14} />
+                          </button>
+                        </Tooltip>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -584,7 +606,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
 export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId: string) => void }> = ({ userProfile, onNavigateToClient }) => {
   const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
-  const [layoutMode, setLayoutMode] = useState<'list' | 'kanban'>('list');
+  const [layoutMode, setLayoutMode] = useState<'list' | 'kanban'>(() => typeof window !== 'undefined' && window.innerWidth < 1024 ? 'kanban' : 'list');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -601,10 +623,11 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [deleteModalDocsStatus, setDeleteModalDocsStatus] = useState<any[]>([]);
   const concludeFileInputRef = useRef<HTMLInputElement>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedTaskForView, setSelectedTaskForView] = useState<Task | null>(null);
-  const [clientViewModalOpen, setClientViewModalOpen] = useState(false);
-  const [selectedClientForView, setSelectedClientForView] = useState<Client | null>(null);
+  const [isTaskDetailsDrawerOpen, setIsTaskDetailsDrawerOpen] = useState(false);
+  const [selectedTaskForDetails, setSelectedTaskForDetails] = useState<Task | null>(null);
+  const [isClientDetailsDrawerOpen, setIsClientDetailsDrawerOpen] = useState(false);
+  const [selectedClientForDetails, setSelectedClientForDetails] = useState<Client | null>(null);
+  const [isClientEditModalOpen, setIsClientEditModalOpen] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [isTaskInfoDrawerOpen, setIsTaskInfoDrawerOpen] = useState(false);
   const [selectedTaskForInfo, setSelectedTaskForInfo] = useState<Task | null>(null);
@@ -620,6 +643,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       clientName: '',
       taskName: '',
       competence: defaultCompetence,
+      competenceFrom: '',
+      competenceTo: '',
       taxRegime: '',
       priority: '',
       sector: '',
@@ -640,10 +665,25 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
   // Tasks filtradas para os cards (ignora filtro de status da tabela)
   const cardsTasks = tasks.filter((task) => {
+    // Filtro de competência: intervalo tem prioridade sobre mês único
+    let competenceMatch = true;
+    if (filters.competenceFrom || filters.competenceTo) {
+      const taskComp = task.competence; // formato YYYY-MM
+      if (filters.competenceFrom && filters.competenceTo) {
+        competenceMatch = taskComp >= filters.competenceFrom && taskComp <= filters.competenceTo;
+      } else if (filters.competenceFrom) {
+        competenceMatch = taskComp >= filters.competenceFrom;
+      } else {
+        competenceMatch = taskComp <= filters.competenceTo;
+      }
+    } else if (filters.competence) {
+      competenceMatch = task.competence.toLowerCase().includes(filters.competence.toLowerCase());
+    }
+
     return (
       task.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) &&
       task.taskName.toLowerCase().includes(filters.taskName.toLowerCase()) &&
-      task.competence.toLowerCase().includes(filters.competence.toLowerCase()) &&
+      competenceMatch &&
       (filters.taxRegime === '' || task.taxRegime === filters.taxRegime) &&
       (filters.priority === '' || task.priority === filters.priority) &&
       (filters.sector === '' || task.sector === filters.sector) &&
@@ -676,6 +716,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       clientName: '',
       taskName: '',
       competence: defaultCompetence,
+      competenceFrom: '',
+      competenceTo: '',
       taxRegime: '',
       priority: '',
       sector: '',
@@ -683,7 +725,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       status: '',
     });
     setVisibleFilters({});
+    setRangeMode(false);
   };
+
+  const [rangeMode, setRangeMode] = useState(false);
 
   const getPrevMonthCompetence = (curr: string) => {
     if (!curr) return '';
@@ -1208,6 +1253,20 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         task={selectedTaskForInfo}
       />
 
+      <TaskDetailsDrawer
+        isOpen={isTaskDetailsDrawerOpen}
+        onClose={() => {
+          setIsTaskDetailsDrawerOpen(false);
+          setSelectedTaskForDetails(null);
+        }}
+        task={selectedTaskForDetails}
+        onEdit={(task) => {
+          handleEdit(task);
+          setIsTaskDetailsDrawerOpen(false);
+        }}
+        registrationRegimeLabels={REGISTRATION_REGIME_LABELS}
+      />
+
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0">
         <div className="flex items-center gap-3 mb-2 md:mb-0">
           <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
@@ -1248,72 +1307,125 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             </div>
           </div>
 
-          <div className={`flex items-center bg-white dark:bg-slate-900 rounded-lg border ${filters.competence ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'} h-10 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all`}>
-            <div className="relative group flex items-center pl-3 h-full">
-              <Calendar size={16} className="text-indigo-500 dark:text-indigo-400 mr-2 group-focus-within:text-indigo-600 dark:group-focus-within:text-indigo-300" />
-              <div className="relative w-32 h-full flex items-center">
-                <input
-                  type="month"
-                  className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
-                  value={filters.competence}
-                  onChange={(e) => handleFilterChange('competence', e.target.value)}
-                />
-                <div className="absolute left-0 right-8 top-1/2 -translate-y-1/2 flex items-center pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%]">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">
-                    {filters.competence ? `${filters.competence.split('-')[1]}/${filters.competence.split('-')[0]}` : 'COMPETÊNCIA'}
-                  </span>
+          {/* Filtro de Competência: modo simples ou intervalo */}
+          <div className="flex items-center gap-1.5">
+            {!rangeMode ? (
+              // Modo Simples
+              <div className={`flex items-center bg-white dark:bg-slate-900 rounded-lg border ${
+                filters.competence ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'
+              } h-10 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all`}>
+                <div className="relative group flex items-center pl-3 h-full">
+                  <Calendar size={16} className="text-indigo-500 dark:text-indigo-400 mr-2" />
+                  <div className="relative w-28 h-full flex items-center">
+                    <input
+                      type="month"
+                      className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
+                      value={filters.competence}
+                      onChange={(e) => handleFilterChange('competence', e.target.value)}
+                    />
+                    <div className="absolute left-0 right-8 top-1/2 -translate-y-1/2 flex items-center pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%]">
+                      {filters.competence
+                        ? <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">{filters.competence.split('-')[1]}/{filters.competence.split('-')[0]}</span>
+                        : <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">Competência</span>
+                      }
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-                Selecionar Competência
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
-              </div>
-            </div>
-
-            {filters.competence && (
-              <div className="relative group/x flex pr-1">
-                <button
-                  onClick={() => handleFilterChange('competence', '')}
-                  className="p-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors z-10 mr-1"
-                >
-                  <X size={14} strokeWidth={2.5} />
-                </button>
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/x:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-                  Limpar Filtro de Período
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
+            ) : (
+              // Modo Intervalo
+              <div className={`flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg border ${
+                (filters.competenceFrom || filters.competenceTo) ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'
+              } h-10 px-2 transition-all`}>
+                <Calendar size={14} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
+                {/* De */}
+                <div className="relative w-24 h-full flex items-center">
+                  <input
+                    type="month"
+                    className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
+                    value={filters.competenceFrom}
+                    onChange={(e) => handleFilterChange('competenceFrom', e.target.value)}
+                  />
+                  <div className="absolute left-0 right-6 top-1/2 -translate-y-1/2 pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%] flex items-center">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">
+                      {filters.competenceFrom ? `${filters.competenceFrom.split('-')[1]}/${filters.competenceFrom.split('-')[0]}` : <span className="text-slate-400">De</span>}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-slate-300 dark:text-slate-600 font-bold text-xs shrink-0">→</span>
+                {/* Até */}
+                <div className="relative w-24 h-full flex items-center">
+                  <input
+                    type="month"
+                    className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
+                    value={filters.competenceTo}
+                    onChange={(e) => handleFilterChange('competenceTo', e.target.value)}
+                  />
+                  <div className="absolute left-0 right-6 top-1/2 -translate-y-1/2 pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%] flex items-center">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">
+                      {filters.competenceTo ? `${filters.competenceTo.split('-')[1]}/${filters.competenceTo.split('-')[0]}` : <span className="text-slate-400">Até</span>}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Toggle modo intervalo */}
+            <div className="relative group">
+              <button
+                onClick={() => {
+                  setRangeMode(p => !p);
+                  // Ao trocar de modo, limpa os campos do modo anterior
+                  if (!rangeMode) {
+                    handleFilterChange('competence', '');
+                  } else {
+                    handleFilterChange('competenceFrom', '');
+                    handleFilterChange('competenceTo', '');
+                  }
+                }}
+                className={`h-10 w-10 flex items-center justify-center rounded-lg border transition-all ${
+                  rangeMode
+                    ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-400 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-indigo-300 hover:text-indigo-500'
+                }`}
+              >
+                <ChevronRight size={14} className={rangeMode ? 'opacity-100' : 'opacity-60'} />
+                <ChevronRight size={14} className={`-ml-2 ${rangeMode ? 'opacity-100' : 'opacity-60'}`} />
+              </button>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
+                {rangeMode ? 'Modo: Intervalo (ativo)' : 'Filtrar por Intervalo'}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
+              </div>
+            </div>
           </div>
 
           <div className="relative group flex">
-            <Button
-              variant="secondary"
-              onClick={clearFilters}
-              icon={<X size={16} />}
-              className="text-xs hidden md:flex"
-              disabled={Object.values(filters).every(v => v === '')}
-            >
-              Limpar
-            </Button>
+            {(() => {
+              const hasActiveFilters = !Object.entries(filters).every(([k, v]) =>
+                k === 'competence'
+                  ? v === (() => { const n = new Date(); const lm = new Date(n.getFullYear(), n.getMonth() - 1, 1); return `${lm.getFullYear()}-${(lm.getMonth() + 1).toString().padStart(2, '0')}`; })()
+                  : v === ''
+              ) || rangeMode;
+              return (
+                <button
+                  onClick={clearFilters}
+                  disabled={!hasActiveFilters}
+                  className={`h-10 w-10 flex items-center justify-center rounded-lg border transition-all ${
+                    hasActiveFilters
+                      ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                  }`}
+                >
+                  <ListFilter size={16} />
+                </button>
+              );
+            })()}
             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
               Limpar Todos os Filtros
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
             </div>
           </div>
-          <div className="relative group flex">
-            <button
-              onClick={() => setTutorialsModalOpen(true)}
-              className="flex items-center justify-center h-10 w-10 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-            >
-              <FileText size={18} />
-            </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2.5 py-1.5 bg-slate-900 text-white text-[11px] font-medium rounded-md shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-              Manuais / Tutoriais
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
-            </div>
-          </div>
-          <Button onClick={handleCreate} icon={<Plus size={18} />}>Nova Tarefa</Button>
+          <Button onClick={handleCreate} icon={<Plus size={18} />} className="hidden md:flex">Nova Tarefa</Button>
         </div>
       </div>
 
@@ -1536,14 +1648,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <div
-                              className="font-medium text-slate-900 dark:text-white cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                              onClick={() => {
-                                const clientData = clients.find(c => c.id === task.clientId);
-                                if (clientData) {
-                                  setSelectedClientForView(clientData);
-                                  setClientViewModalOpen(true);
-                                }
-                              }}
+                              className="font-medium text-slate-900 dark:text-white"
                             >
                               {task.clientName}
                             </div>
@@ -1577,24 +1682,37 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                       )}
                                     </div>
                                   )}
-                                  {((task.clientDfes && task.clientDfes.length > 0) || (task.clientAccesses && task.clientAccesses.length > 0) || (task.clientLegislations && task.clientLegislations.length > 0) || task.observation || task.noMovement) && (
                                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleViewTaskInfo(task);
-                                        }}
-                                        className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-black uppercase transition-all shadow-sm active:scale-95 ${
-                                          task.noMovement 
-                                            ? 'bg-red-500 text-white hover:bg-red-600 ring-2 ring-red-200 dark:ring-red-900/50' 
-                                            : 'bg-indigo-600 text-white hover:bg-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-900/50'
-                                        }`}
-                                      >
-                                        <Bookmark size={10} fill="currentColor" className="mr-1" />
-                                        Info
-                                      </button>
+                                      <Tooltip content="Dados da Empresa">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const clientData = clients.find(c => c.id === task.clientId);
+                                            if (clientData) {
+                                              setSelectedClientForDetails(clientData);
+                                              setIsClientDetailsDrawerOpen(true);
+                                            }
+                                          }}
+                                          className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                                        >
+                                          <Eye size={14} />
+                                        </button>
+                                      </Tooltip>
+
+                                      {((task.clientDfes && task.clientDfes.length > 0) || (task.clientAccesses && task.clientAccesses.length > 0) || (task.clientLegislations && task.clientLegislations.length > 0) || task.observation || task.noMovement) && (
+                                        <Tooltip content="Acessos">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleViewTaskInfo(task);
+                                            }}
+                                            className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                                          >
+                                            <ExternalLink size={14} />
+                                          </button>
+                                        </Tooltip>
+                                      )}
                                     </div>
-                                  )}
                                   {task.hasBranches && (
                                     <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold">
                                       <GitMerge size={10} />
@@ -1607,15 +1725,32 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <button
-                            onClick={() => {
-                              setSelectedTaskForView(task);
-                              setViewModalOpen(true);
-                            }}
-                            className="font-bold text-slate-800 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400 text-left transition-colors"
-                          >
-                            {task.taskName}
-                          </button>
+                          <div className="flex flex-col gap-2">
+                            <span className="font-bold text-slate-800 dark:text-slate-100 text-sm leading-snug max-w-[200px]">
+                              {task.taskName}
+                            </span>
+                            
+                            {/* Pilha de Ações/Badges */}
+                            <div className="flex items-center gap-2">
+                              <Tooltip content="Dados da Tarefa">
+                                <button
+                                  onClick={() => {
+                                    setSelectedTaskForDetails(task);
+                                    setIsTaskDetailsDrawerOpen(true);
+                                  }}
+                                  className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                              </Tooltip>
+                              
+                              {task.noMovement && (
+                                <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-black whitespace-nowrap border border-red-100 dark:border-red-900/30 rounded-md shadow-sm">
+                                  Sem Movimento
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
@@ -1744,12 +1879,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
                   onViewTask={(task) => {
-                    setSelectedTaskForView(task);
-                    setViewModalOpen(true);
+                    setSelectedTaskForDetails(task);
+                    setIsTaskDetailsDrawerOpen(true);
                   }}
                   onViewClient={(client) => {
-                    setSelectedClientForView(client);
-                    setClientViewModalOpen(true);
+                    setSelectedClientForDetails(client);
+                    setIsClientDetailsDrawerOpen(true);
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
                   onStatusChange={handleStatusChange}
@@ -1770,12 +1905,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
                   onViewTask={(task) => {
-                    setSelectedTaskForView(task);
-                    setViewModalOpen(true);
+                    setSelectedTaskForDetails(task);
+                    setIsTaskDetailsDrawerOpen(true);
                   }}
                   onViewClient={(client) => {
-                    setSelectedClientForView(client);
-                    setClientViewModalOpen(true);
+                    setSelectedClientForDetails(client);
+                    setIsClientDetailsDrawerOpen(true);
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
                   onStatusChange={handleStatusChange}
@@ -1796,12 +1931,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
                   onViewTask={(task) => {
-                    setSelectedTaskForView(task);
-                    setViewModalOpen(true);
+                    setSelectedTaskForDetails(task);
+                    setIsTaskDetailsDrawerOpen(true);
                   }}
                   onViewClient={(client) => {
-                    setSelectedClientForView(client);
-                    setClientViewModalOpen(true);
+                    setSelectedClientForDetails(client);
+                    setIsClientDetailsDrawerOpen(true);
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
                   onStatusChange={handleStatusChange}
@@ -1822,12 +1957,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
                   onViewTask={(task) => {
-                    setSelectedTaskForView(task);
-                    setViewModalOpen(true);
+                    setSelectedTaskForDetails(task);
+                    setIsTaskDetailsDrawerOpen(true);
                   }}
                   onViewClient={(client) => {
-                    setSelectedClientForView(client);
-                    setClientViewModalOpen(true);
+                    setSelectedClientForDetails(client);
+                    setIsClientDetailsDrawerOpen(true);
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
                   onStatusChange={handleStatusChange}
@@ -2046,316 +2181,37 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         </div>
       </Modal>
 
-      {/* Task Detail View Modal - Premium Redesign */}
+
+      {/* Client Edit Modal */}
       <Modal
-        isOpen={viewModalOpen}
-        onClose={() => setViewModalOpen(false)}
-        title={null} // We'll make our own custom header
-        size="lg"
-        footer={
-          <div className="flex justify-between w-full items-center">
-            <div className="flex gap-2">
-              <span className={`px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm ${selectedTaskForView?.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
-                selectedTaskForView?.status === TaskStatus.ATRASADA ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' :
-                  selectedTaskForView?.status === TaskStatus.INICIADA ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
-                    'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
-                }`}>
-                {selectedTaskForView?.status}
-              </span>
-              <span className={`px-3 py-1 rounded-full text-[11px] font-bold border shadow-sm ${selectedTaskForView?.priority === Priority.ALTA ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30' :
-                selectedTaskForView?.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30' :
-                  'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
-                }`}>
-                {selectedTaskForView?.priority}
-              </span>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setViewModalOpen(false)}>Fechar</Button>
-              {selectedTaskForView?.status !== TaskStatus.CONCLUIDA && (
-                <>
-                  <button
-                    onClick={() => {
-                      if (selectedTaskForView) {
-                        handleEdit(selectedTaskForView);
-                        setViewModalOpen(false);
-                      }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700"
-                  >
-                    <Pencil size={18} />
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (selectedTaskForView) {
-                        openConcludeModal(selectedTaskForView.id);
-                        setViewModalOpen(false);
-                      }
-                    }}
-                    className="flex items-center gap-2 px-6 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <CheckCircle size={18} />
-                    Concluir
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        }
-      >
-        {selectedTaskForView && (
-          <div className="space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar pr-2 -m-1 p-1">
-            {/* Main Header Card */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 dark:from-indigo-600/20 dark:to-indigo-900/40 p-6 text-white shadow-xl shadow-indigo-500/10 border border-indigo-500/20">
-              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                <FileBadge size={120} strokeWidth={1} />
-              </div>
-
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-2 py-0.5 rounded backdrop-blur-md">
-                    Tarefa Operacional
-                  </span>
-                </div>
-                <h2 className="text-2xl font-black mb-1 leading-tight drop-shadow-sm truncate">
-                  {selectedTaskForView.taskName}
-                </h2>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-indigo-100/80 font-bold text-sm flex items-center gap-1.5">
-                    <User size={14} />
-                    {selectedTaskForView.clientName}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-white/10">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] text-white/50 uppercase font-black tracking-wider">Competência</span>
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <Calendar size={14} className="text-indigo-300" />
-                      <span className="uppercase">{selectedTaskForView.competence}</span>
-                    </div>
-                  </div>
-                  {selectedTaskForView.dueDate && (
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-white/50 uppercase font-black tracking-wider">Vencimento</span>
-                      <div className="flex items-center gap-1.5 font-bold">
-                        <Clock size={14} className="text-amber-300" />
-                        <span>{selectedTaskForView.dueDate.split('-').reverse().join('/')}</span>
-                      </div>
-                    </div>
-                  )}
-                  {selectedTaskForView.noMovement && (
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] text-white/50 uppercase font-black tracking-wider">Status Especial</span>
-                      <div className="flex items-center gap-1.5 font-bold text-red-200">
-                        <MinusCircle size={14} />
-                        <span>Sem Movimento</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Card: Perfil Fiscal */}
-              <div className="bg-white dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center gap-2.5 mb-5">
-                  <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg text-indigo-600 dark:text-indigo-400 font-bold shadow-sm">
-                    <Activity size={18} />
-                  </div>
-                  <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight uppercase">Perfil Fiscal</h3>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
-                    <span className="text-xs font-bold text-slate-500">Regime</span>
-                    <span className="text-xs font-black text-slate-900 dark:text-white">
-                      {TAX_REGIME_LABELS[selectedTaskForView.taxRegime] || selectedTaskForView.taxRegime}
-                    </span>
-                  </div>
-
-                  {selectedTaskForView.registrationRegime && (
-                    <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
-                      <span className="text-xs font-bold text-slate-500">Registro</span>
-                      <span className="text-xs font-black text-slate-900 dark:text-white">
-                        {REGISTRATION_REGIME_LABELS[selectedTaskForView.registrationRegime] || selectedTaskForView.registrationRegime}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Fator R</span>
-                      <span className={`text-xs font-black ${selectedTaskForView.factorR ? 'text-indigo-600' : 'text-slate-400'}`}>
-                        {selectedTaskForView.factorR ? 'Ativado' : 'Inativo'}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">Sublimite</span>
-                      <span className={`text-xs font-black ${selectedTaskForView.exceededSublimit ? 'text-rose-600' : 'text-slate-400'}`}>
-                        {selectedTaskForView.exceededSublimit ? 'Excedido' : 'Normal'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card: Obrigações Adicionais */}
-              <div className="bg-white dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center gap-2.5 mb-5">
-                  <div className="p-2 bg-amber-50 dark:bg-amber-500/10 rounded-lg text-amber-600 dark:text-amber-400 font-bold shadow-sm">
-                    <FileStack size={18} />
-                  </div>
-                  <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight uppercase">Obrigações e DF-e</h3>
-                </div>
-
-                <div className="space-y-5">
-                  {(selectedTaskForView.selectedAnnexes?.length || 0) > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Anexos Vinculados</label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selectedTaskForView.selectedAnnexes.map(annex => (
-                          <span key={annex} className="px-2 py-1 bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-black rounded-lg border border-amber-100 dark:border-amber-500/20">
-                            {annex}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {!selectedTaskForView.selectedAnnexes?.length && (
-                    <div className="h-full flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
-                      <Layers size={24} className="text-slate-300 mb-2" />
-                      <span className="text-[11px] text-slate-400 font-bold uppercase text-center">Nenhuma obrigação especial</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Row: Observações e Arquivos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Observações - Col Span 1 */}
-              <div className="md:col-span-1 space-y-3">
-                <div className="bg-white dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm h-full">
-                  <div className="flex items-center gap-2 mb-4">
-                    <FileText size={18} className="text-indigo-500" />
-                    <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight uppercase">Observações</h3>
-                  </div>
-                  {selectedTaskForView.observation ? (
-                    <div className="bg-indigo-50/30 dark:bg-indigo-500/5 p-4 rounded-xl border-l-4 border-indigo-500">
-                      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-                        {selectedTaskForView.observation}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="h-[120px] flex items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl">
-                      <span className="text-[11px] text-slate-400 font-bold uppercase italic">Sem observações</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Arquivos - Col Span 1 */}
-              <div className="md:col-span-1 space-y-3">
-                <div className="bg-white dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm h-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <FileBadge size={18} className="text-indigo-500" />
-                      <h3 className="font-black text-slate-800 dark:text-slate-100 text-sm tracking-tight uppercase">Arquivos e Anexos</h3>
-                    </div>
-                    <span className="text-[10px] font-black text-slate-400 uppercase bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                      {selectedTaskForView.attachments?.length || 0} Itens
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {selectedTaskForView.attachments && selectedTaskForView.attachments.length > 0 ? (
-                      selectedTaskForView.attachments.map((file, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-900 hidden-overflow rounded-xl border border-slate-100 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/50 transition-all group overflow-hidden">
-                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                            <div className="p-1.5 bg-white dark:bg-slate-800 rounded-lg text-indigo-500 shadow-sm">
-                              <File size={14} />
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 truncate">{file.name}</span>
-                              <span className="text-[9px] text-slate-400 font-bold">{(file.size / 1024).toFixed(1)} KB</span>
-                            </div>
-                          </div>
-                          {file.url && (
-                            <a
-                              href={file.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all shadow-sm shrink-0"
-                            >
-                              <ExternalLink size={14} />
-                            </a>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="h-[120px] flex flex-col items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl text-slate-300">
-                        <Upload size={20} className="mb-1 opacity-50" />
-                        <span className="text-[11px] font-bold uppercase">Nenhum anexo disponível</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Audit */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 border border-slate-200 dark:border-slate-700">
-                    <User size={14} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Responsável</span>
-                    <span className="text-xs font-black text-slate-700 dark:text-slate-200">{selectedTaskForView.responsible}</span>
-                  </div>
-                </div>
-
-                <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
-
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">Setor Executor</span>
-                  <div className="flex items-center gap-1.5">
-                    <Activity size={12} className="text-indigo-500" />
-                    <span className="text-xs font-black text-slate-700 dark:text-slate-200">{selectedTaskForView.sector}</span>
-                  </div>
-                </div>
-              </div>
-
-              {selectedTaskForView.id && (
-                <div className="text-[9px] text-slate-300 dark:text-slate-600 font-mono tracking-tighter">
-                  ID: {selectedTaskForView.id.substring(0, 8)}...
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Client Detail View Modal */}
-      <Modal
-        isOpen={clientViewModalOpen}
-        onClose={() => setClientViewModalOpen(false)}
+        isOpen={isClientEditModalOpen}
+        onClose={() => setIsClientEditModalOpen(false)}
         size="7xl"
-        title="Visualizar Cliente"
+        title="Editar Cliente"
       >
-        {selectedClientForView && (
+        {selectedClientForDetails && (
           <ClientForm
-            onBack={() => setClientViewModalOpen(false)}
-            initialData={selectedClientForView}
-            isViewOnly={true}
+            onBack={() => {
+              setIsClientEditModalOpen(false);
+              fetchTasks(); // Refresh to catch any changes
+            }}
+            initialData={selectedClientForDetails}
             userProfile={userProfile}
           />
         )}
       </Modal>
+
+      {/* Client Details Drawer */}
+      <ClientDetailsDrawer
+        isOpen={isClientDetailsDrawerOpen}
+        onClose={() => setIsClientDetailsDrawerOpen(false)}
+        client={selectedClientForDetails}
+        onEdit={(client) => {
+          setIsClientDetailsDrawerOpen(false);
+          setSelectedClientForDetails(client);
+          setIsClientEditModalOpen(true);
+        }}
+      />
 
       {/* Modal de Confirmação de Exclusão de Recorrência */}
       <Modal
@@ -2427,7 +2283,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           clients={clients}
         />
       )}
-    </div >
+      {/* FAB: Nova Tarefa (Mobile) */}
+      <button
+        onClick={handleCreate}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 dark:bg-indigo-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-indigo-700 dark:hover:bg-indigo-600 active:scale-95 transition-all z-50 md:hidden border-4 border-white dark:border-slate-900"
+        title="Nova Tarefa"
+      >
+        <Plus size={28} strokeWidth={3} />
+      </button>
+    </div>
   );
 };
 
@@ -3752,7 +3616,8 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       </Modal>
 
       {/* TaskInfoDrawer movido para o topo */}
+      
     </div>
   );
-};
+}
 

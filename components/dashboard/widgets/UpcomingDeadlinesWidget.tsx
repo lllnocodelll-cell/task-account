@@ -42,7 +42,7 @@ export const UpcomingDeadlinesWidget: React.FC<Props> = ({ orgId, onRemove }) =>
     }, [orgId]);
 
     return (
-        <WidgetContainer title="Próximos Vencimentos" icon={<CalendarClock size={18} />} onRemove={onRemove}>
+        <WidgetContainer title="PRÓXIMOS VENCIMENTOS" icon={<CalendarClock size={14} />} onRemove={onRemove}>
             <div className="flex-1 overflow-y-auto pr-2">
                 {loading ? (
                     <div className="animate-pulse space-y-3">

@@ -96,7 +96,7 @@ export const DocumentAlertsWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     }, [orgId]);
 
     return (
-        <WidgetContainer title="Alertas de Documentos" icon={<AlertCircle size={18} className="text-red-500" />} onRemove={onRemove}>
+        <WidgetContainer title="ALERTAS DE DOCUMENTOS" icon={<AlertCircle size={14} className="text-red-500" />} onRemove={onRemove}>
             <div className="flex-1 overflow-y-auto pr-2">
                 {loading ? (
                     <div className="animate-pulse space-y-3">
