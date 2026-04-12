@@ -231,12 +231,16 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
         
         {/* Header com Design Premium */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
-          <div>
-            <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-500 dark:from-indigo-400 dark:to-violet-400 bg-clip-text text-transparent flex items-center gap-2">
-              <Link2 className="text-indigo-500" size={22} />
-              Links Úteis
-            </h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Acesso rápido aos portais e ferramentas</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+              <Link2 size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                Links Úteis
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {!adding && (

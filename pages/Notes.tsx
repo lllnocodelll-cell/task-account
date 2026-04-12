@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Pin, Calendar, Save, Loader2, StickyNote } from 'lucide-react';
+import { Plus, Search, Trash2, Pin, Calendar, Save, Loader2, StickyNote, Sticker } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
@@ -227,17 +227,15 @@ export const Notes: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
         <div>
-          <div className="flex items-center gap-4 mb-2">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
-              <StickyNote size={24} className="text-white" />
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+              <StickyNote size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 tracking-tight">
+            <div className="flex flex-col">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
                 Anotações
               </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 flex flex-wrap items-center gap-2">
-                Lembretes rápidos e informações importantes
-              </p>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
             </div>
           </div>
 
@@ -354,7 +352,19 @@ export const Notes: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={currentNote.id ? 'Editar Nota' : 'Nova Nota'}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+              <Sticker size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                {currentNote.id ? 'Editar Nota' : 'Nova Anotação'}
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
+          </div>
+        }
         size="lg"
         footer={
           <>

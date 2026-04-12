@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { User, Mail, Phone, MapPin, Camera, Shield, Key, Bell, Save, LogOut, Loader2, Briefcase } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Shield, Key, Bell, Save, LogOut, Loader2, Briefcase, ScanFace } from 'lucide-react';
 import { UserRole } from '../types';
 import { supabase } from '../utils/supabaseClient';
 
@@ -252,7 +252,17 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
 
    return (
       <div className="space-y-6">
-         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Meu Perfil</h1>
+         <div className="flex items-center gap-3 mb-2 md:mb-0">
+            <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+               <ScanFace size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col">
+               <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                  Meu Perfil
+               </h1>
+               <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
+         </div>
 
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column: Identity Card */}

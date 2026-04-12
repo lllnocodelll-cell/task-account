@@ -18,6 +18,7 @@ import {
     FileText,
     Building2,
     Mail,
+    CopyPlus,
     Phone,
     Search,
     Landmark,
@@ -637,18 +638,21 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 dark:shadow-none animate-in zoom-in duration-500">
-                        {readOnly ? <Users size={24} /> : isEditing ? <Pencil size={24} /> : <Plus size={24} />}
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0">
+                <div className="flex items-center gap-3 mb-2 md:mb-0">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                        <CopyPlus size={18} className="text-slate-500 dark:text-slate-400" />
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                            {readOnly ? `Visualizando Cliente` : isEditing ? `Editar Cliente` : 'Cadastro de Cliente'}
-                        </h2>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                            {readOnly || isEditing ? (formData.tradeName || formData.companyName) : 'Preencha os dados para registrar um novo cliente'}
-                        </p>
+                    <div className="flex flex-col">
+                        <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                            {readOnly ? `Visualizando Cliente` : isEditing ? `Editar Cliente` : 'Cadastro de Clientes'}
+                        </h1>
+                        <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+                        {(readOnly || isEditing) && (formData.tradeName || formData.companyName) && (
+                            <span className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tight">
+                                {formData.tradeName || formData.companyName}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="flex gap-3">

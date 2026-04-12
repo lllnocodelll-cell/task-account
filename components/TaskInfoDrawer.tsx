@@ -89,15 +89,18 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="p-1.5 bg-indigo-500/10 rounded-lg text-indigo-500">
-                <MoveHorizontal size={18} />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                <MoveHorizontal size={18} className="text-slate-500 dark:text-slate-400" />
               </div>
-              <h2 className="text-[13px] font-black text-slate-800 dark:text-white truncate uppercase tracking-widest">
-                Acesso Rápido
-              </h2>
+              <div className="flex flex-col text-left">
+                <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                  Acesso Rápido
+                </h1>
+                <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+              </div>
             </div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 truncate pl-8">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate mt-2 pl-[52px]">
               {localTask.taskName}
             </p>
           </div>

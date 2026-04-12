@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input, SearchableSelect } from '../ui/Input';
-import { Plus, Search, FileText, Link as LinkIcon, Download, Trash2, Edit, Star } from 'lucide-react';
+import { Plus, Search, FileText, Link as LinkIcon, Download, Trash2, Edit, Star, MonitorPlay, GraduationCap } from 'lucide-react';
 import { Tutorial, Client } from '../../types';
 import { supabase } from '../../utils/supabaseClient';
 import { TutorialForm } from './TutorialForm';
@@ -149,7 +149,23 @@ export const TutorialsModal: React.FC<TutorialsModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={view === 'list' ? 'Manuais e Tutoriais' : (selectedTutorial ? 'Editar Manual' : 'Novo Manual')}
+      title={
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            {view === 'list' ? (
+              <MonitorPlay size={18} className="text-slate-500 dark:text-slate-400" />
+            ) : (
+              <GraduationCap size={18} className="text-slate-500 dark:text-slate-400" />
+            )}
+          </div>
+          <div className="flex flex-col text-left">
+            <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+              {view === 'list' ? 'Tutoriais' : (selectedTutorial ? 'Editar Manual' : 'Adicionar Tutorial')}
+            </h1>
+            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+          </div>
+        </div>
+      }
       size="6xl"
     >
       {view === 'list' && (

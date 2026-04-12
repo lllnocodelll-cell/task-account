@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2 } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -20,17 +20,15 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4 mb-2 md:mb-0">
-        <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
-          <SettingsIcon size={24} className="text-white" />
+      <div className="flex items-center gap-3 mb-2 md:mb-0">
+        <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+          <SettingsIcon size={18} className="text-slate-500 dark:text-slate-400" />
         </div>
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 tracking-tight">
+        <div className="flex flex-col">
+          <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
             Configurações
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 flex flex-wrap items-center gap-2">
-            Ajustes e gestão do sistema
-          </p>
+          <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
         </div>
       </div>
 
@@ -312,7 +310,17 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Adicionar Acesso</h3>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <Users size={18} className="text-slate-500 dark:text-slate-400" />
+          </div>
+          <div className="flex flex-col text-left">
+            <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+              Adicionar Membros
+            </h1>
+            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <Input label="Nome" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="João" />
           <Input label="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Silva" />
@@ -879,8 +887,18 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Novo Setor</h3>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+              <Blocks size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                Adicionar Setor
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
+          </div>
           <Button
             variant="secondary"
             size="sm"
@@ -1197,7 +1215,17 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Novo Tipo de Tarefa</h3>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
+          </div>
+          <div className="flex flex-col text-left">
+            <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+              Adicionar Tipo de Tarefa
+            </h1>
+            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <Input label="Nome da Tarefa" value={name} onChange={e => setName(e.target.value)} />
           <Select
@@ -1457,9 +1485,16 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Adicionar Feriado</h3>
-            <p className="text-sm text-slate-500">Cadastre feriados nacionais, estaduais ou municipais.</p>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+              <CalendarClock size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                Adicionar Feriado
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
           </div>
           <Button
             variant="secondary"

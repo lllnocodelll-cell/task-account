@@ -23,7 +23,9 @@ import {
     Loader2,
     CheckSquare,
     Square,
-    MapPin
+    MapPin,
+    LayoutGrid,
+    Table as TableIcon
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -85,6 +87,7 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
 
 export const Clients: React.FC<{ userProfile: any, initialClientId?: string | null, onClearInitialClientId?: () => void }> = ({ userProfile, initialClientId, onClearInitialClientId }) => {
     const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
+    const [displayMode, setDisplayMode] = useState<'table' | 'cards'>('table');
     const [clients, setClients] = useState<Client[]>([]); // Use DB data
     const [loading, setLoading] = useState(true);
     const [notification, setNotification] = useState<{ show: boolean; message: string; type: NotificationType }>({
@@ -380,17 +383,15 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                <div className="flex items-center gap-4 mb-2 md:mb-0">
-                    <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
-                        <Building2 size={24} className="text-white" />
+                <div className="flex items-center gap-3 mb-2 md:mb-0">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                        <Building2 size={18} className="text-slate-500 dark:text-slate-400" />
                     </div>
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 tracking-tight">
-                            Gestão de Clientes
+                    <div className="flex flex-col">
+                        <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                            Cadastro de Clientes
                         </h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 flex flex-wrap items-center gap-2">
-                            Base de dados de clientes e empresas
-                        </p>
+                        <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
                     </div>
                 </div>
                 <div className="flex gap-3">
@@ -403,6 +404,26 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                     >
                         Limpar Filtros
                     </Button>
+                    
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                        <button
+                            onClick={() => setDisplayMode('table')}
+                            className={`p-1.5 rounded-md transition-all ${displayMode === 'table' 
+                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        >
+                            <TableIcon size={18} />
+                        </button>
+                        <button
+                            onClick={() => setDisplayMode('cards')}
+                            className={`p-1.5 rounded-md transition-all ${displayMode === 'cards' 
+                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        >
+                            <LayoutGrid size={18} />
+                        </button>
+                    </div>
+
                     <Button onClick={handleCreate} icon={<Plus size={18} />}>Novo Cliente</Button>
                 </div>
             </div>
@@ -452,223 +473,302 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 />
             </div>
 
-            <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
+            <div className="flex-1 overflow-auto min-h-0">
                 {loading ? (
                     <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-600" /></div>
-                ) : (
-                    <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
-                        <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-0">
-                            <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
-                                <tr>
-                                    <HeaderCell
-                                        label="Código"
-                                        fieldKey="code"
-                                        filterValue={filters.code}
-                                        isVisible={!!visibleFilters['code']}
-                                        onToggle={toggleFilterVisibility}
-                                        widthClass="min-w-[100px]"
-                                    >
-                                        <input
-                                            type="text"
-                                            placeholder="000..."
-                                            className={headerInputClass}
-                                            value={filters.code}
-                                            onChange={(e) => handleFilterChange('code', e.target.value)}
-                                            autoFocus
-                                        />
-                                    </HeaderCell>
-
-                                    <HeaderCell
-                                        label="Razão Social"
-                                        fieldKey="companyName"
-                                        filterValue={filters.companyName}
-                                        isVisible={!!visibleFilters['companyName']}
-                                        onToggle={toggleFilterVisibility}
-                                        widthClass="min-w-[200px]"
-                                    >
-                                        <input
-                                            type="text"
-                                            placeholder="Buscar empresa..."
-                                            className={headerInputClass}
-                                            value={filters.companyName}
-                                            onChange={(e) => handleFilterChange('companyName', e.target.value)}
-                                            autoFocus
-                                        />
-                                    </HeaderCell>
-
-                                    <HeaderCell
-                                        label="CPF/CNPJ"
-                                        fieldKey="document"
-                                        filterValue={filters.document}
-                                        isVisible={!!visibleFilters['document']}
-                                        onToggle={toggleFilterVisibility}
-                                        widthClass="min-w-[160px]"
-                                    >
-                                        <input
-                                            type="text"
-                                            placeholder="Documento..."
-                                            className={headerInputClass}
-                                            value={filters.document}
-                                            onChange={(e) => handleFilterChange('document', e.target.value)}
-                                            autoFocus
-                                        />
-                                    </HeaderCell>
-
-                                    <HeaderCell
-                                        label="Contato"
-                                        fieldKey="contactName"
-                                        filterValue={filters.contactName}
-                                        isVisible={!!visibleFilters['contactName']}
-                                        onToggle={toggleFilterVisibility}
-                                        widthClass="min-w-[150px]"
-                                    >
-                                        <input
-                                            type="text"
-                                            placeholder="Nome contato..."
-                                            className={headerInputClass}
-                                            value={filters.contactName}
-                                            onChange={(e) => handleFilterChange('contactName', e.target.value)}
-                                            autoFocus
-                                        />
-                                    </HeaderCell>
-
-                                    <HeaderCell
-                                        label="Fixo"
-                                        fieldKey="phoneFixed"
-                                        filterValue={filters.phoneFixed}
-                                        isVisible={!!visibleFilters['phoneFixed']}
-                                        onToggle={toggleFilterVisibility}
-                                        widthClass="min-w-[140px]"
-                                    >
-                                        <input
-                                            type="text"
-                                            placeholder="Telefone..."
-                                            className={headerInputClass}
-                                            value={filters.phoneFixed}
-                                            onChange={(e) => handleFilterChange('phoneFixed', e.target.value)}
-                                            autoFocus
-                                        />
-                                    </HeaderCell>
-
-                                    <HeaderCell
-                                        label="Celular"
-                                        fieldKey="phoneMobile"
-                                        filterValue={filters.phoneMobile}
-                                        isVisible={!!visibleFilters['phoneMobile']}
-                                        onToggle={toggleFilterVisibility}
-                                        widthClass="min-w-[140px]"
-                                    >
-                                        <input
-                                            type="text"
-                                            placeholder="Celular..."
-                                            className={headerInputClass}
-                                            value={filters.phoneMobile}
-                                            onChange={(e) => handleFilterChange('phoneMobile', e.target.value)}
-                                            autoFocus
-                                        />
-                                    </HeaderCell>
-
-                                    <HeaderCell
-                                        label="E-mail"
-                                        fieldKey="email"
-                                        filterValue={filters.email}
-                                        isVisible={!!visibleFilters['email']}
-                                        onToggle={toggleFilterVisibility}
-                                        widthClass="min-w-[200px]"
-                                    >
-                                        <input
-                                            type="text"
-                                            placeholder="Email..."
-                                            className={headerInputClass}
-                                            value={filters.email}
-                                            onChange={(e) => handleFilterChange('email', e.target.value)}
-                                            autoFocus
-                                        />
-                                    </HeaderCell>
-
-                                    <HeaderCell
-                                        label="Situação"
-                                        fieldKey="status"
-                                        filterValue={filters.status}
-                                        isVisible={!!visibleFilters['status']}
-                                        onToggle={toggleFilterVisibility}
-                                        widthClass="min-w-[120px]"
-                                    >
-                                        <select
-                                            className={headerInputClass}
-                                            value={filters.status}
-                                            onChange={(e) => handleFilterChange('status', e.target.value)}
-                                            autoFocus
-                                        >
-                                            <option value="">Todas</option>
-                                            <option value="Ativo">Ativo</option>
-                                            <option value="Inativo">Inativo</option>
-                                        </select>
-                                    </HeaderCell>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                                {filteredClients.length === 0 ? (
+                ) : displayMode === 'table' ? (
+                    <Card className="overflow-hidden">
+                        <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 340px)' }}>
+                            <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-0">
+                                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
                                     <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
-                                            Nenhum cliente encontrado com os filtros selecionados.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredClients.map((client) => (
-                                        <tr key={client.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td className="px-6 py-4 font-mono text-slate-500">{client.code}</td>
-                                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                                                <div className="flex flex-col">
-                                                    <span>{client.companyName}</span>
-                                                    {(client.city || client.state) && (
-                                                        <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-                                                            <MapPin size={10} className="text-slate-400" />
-                                                            <span>{client.city}{client.city && client.state ? ', ' : ''}{client.state}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-[11px]">{client.document}</td>
-                                            <td className="px-6 py-4">{client.contactName}</td>
-                                            <td className="px-6 py-4 text-[11px]">{client.phoneFixed}</td>
-                                            <td className="px-6 py-4 text-[11px]">{client.phoneMobile}</td>
-                                            <td className="px-6 py-4">{client.email}</td>
-                                            <td className="px-6 py-4 relative">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
-                                                    {client.status}
-                                                </span>
+                                        <HeaderCell
+                                            label="Código"
+                                            fieldKey="code"
+                                            filterValue={filters.code}
+                                            isVisible={!!visibleFilters['code']}
+                                            onToggle={toggleFilterVisibility}
+                                            widthClass="min-w-[100px]"
+                                        >
+                                            <input
+                                                type="text"
+                                                placeholder="000..."
+                                                className={headerInputClass}
+                                                value={filters.code}
+                                                onChange={(e) => handleFilterChange('code', e.target.value)}
+                                                autoFocus
+                                            />
+                                        </HeaderCell>
 
-                                                {/* Hover Actions Overlay */}
-                                                <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 bg-white dark:bg-slate-900 shadow-lg px-1 py-1 rounded-lg border border-slate-200 dark:border-slate-700 z-10 animate-in fade-in duration-200">
-                                                    <Tooltip content="Editar" position="top">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            icon={<Pencil size={16} />}
-                                                            className="h-8 w-8 p-0 text-indigo-600 dark:text-indigo-400"
-                                                            onClick={() => handleEdit(client)}
-                                                        />
-                                                    </Tooltip>
-                                                    <Tooltip content="Excluir" position="top">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            icon={<Trash2 size={16} />}
-                                                            className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
-                                                            onClick={() => initDeleteClient(client)}
-                                                        />
-                                                    </Tooltip>
-                                                </div>
+                                        <HeaderCell
+                                            label="Razão Social"
+                                            fieldKey="companyName"
+                                            filterValue={filters.companyName}
+                                            isVisible={!!visibleFilters['companyName']}
+                                            onToggle={toggleFilterVisibility}
+                                            widthClass="min-w-[200px]"
+                                        >
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar empresa..."
+                                                className={headerInputClass}
+                                                value={filters.companyName}
+                                                onChange={(e) => handleFilterChange('companyName', e.target.value)}
+                                                autoFocus
+                                            />
+                                        </HeaderCell>
+
+                                        <HeaderCell
+                                            label="CPF/CNPJ"
+                                            fieldKey="document"
+                                            filterValue={filters.document}
+                                            isVisible={!!visibleFilters['document']}
+                                            onToggle={toggleFilterVisibility}
+                                            widthClass="min-w-[160px]"
+                                        >
+                                            <input
+                                                type="text"
+                                                placeholder="Documento..."
+                                                className={headerInputClass}
+                                                value={filters.document}
+                                                onChange={(e) => handleFilterChange('document', e.target.value)}
+                                                autoFocus
+                                            />
+                                        </HeaderCell>
+
+                                        <HeaderCell
+                                            label="Contato"
+                                            fieldKey="contactName"
+                                            filterValue={filters.contactName}
+                                            isVisible={!!visibleFilters['contactName']}
+                                            onToggle={toggleFilterVisibility}
+                                            widthClass="min-w-[150px]"
+                                        >
+                                            <input
+                                                type="text"
+                                                placeholder="Nome contato..."
+                                                className={headerInputClass}
+                                                value={filters.contactName}
+                                                onChange={(e) => handleFilterChange('contactName', e.target.value)}
+                                                autoFocus
+                                            />
+                                        </HeaderCell>
+
+                                        <HeaderCell
+                                            label="Fixo"
+                                            fieldKey="phoneFixed"
+                                            filterValue={filters.phoneFixed}
+                                            isVisible={!!visibleFilters['phoneFixed']}
+                                            onToggle={toggleFilterVisibility}
+                                            widthClass="min-w-[140px]"
+                                        >
+                                            <input
+                                                type="text"
+                                                placeholder="Telefone..."
+                                                className={headerInputClass}
+                                                value={filters.phoneFixed}
+                                                onChange={(e) => handleFilterChange('phoneFixed', e.target.value)}
+                                                autoFocus
+                                            />
+                                        </HeaderCell>
+
+                                        <HeaderCell
+                                            label="Celular"
+                                            fieldKey="phoneMobile"
+                                            filterValue={filters.phoneMobile}
+                                            isVisible={!!visibleFilters['phoneMobile']}
+                                            onToggle={toggleFilterVisibility}
+                                            widthClass="min-w-[140px]"
+                                        >
+                                            <input
+                                                type="text"
+                                                placeholder="Celular..."
+                                                className={headerInputClass}
+                                                value={filters.phoneMobile}
+                                                onChange={(e) => handleFilterChange('phoneMobile', e.target.value)}
+                                                autoFocus
+                                            />
+                                        </HeaderCell>
+
+                                        <HeaderCell
+                                            label="E-mail"
+                                            fieldKey="email"
+                                            filterValue={filters.email}
+                                            isVisible={!!visibleFilters['email']}
+                                            onToggle={toggleFilterVisibility}
+                                            widthClass="min-w-[200px]"
+                                        >
+                                            <input
+                                                type="text"
+                                                placeholder="Email..."
+                                                className={headerInputClass}
+                                                value={filters.email}
+                                                onChange={(e) => handleFilterChange('email', e.target.value)}
+                                                autoFocus
+                                            />
+                                        </HeaderCell>
+
+                                        <HeaderCell
+                                            label="Situação"
+                                            fieldKey="status"
+                                            filterValue={filters.status}
+                                            isVisible={!!visibleFilters['status']}
+                                            onToggle={toggleFilterVisibility}
+                                            widthClass="min-w-[120px]"
+                                        >
+                                            <select
+                                                className={headerInputClass}
+                                                value={filters.status}
+                                                onChange={(e) => handleFilterChange('status', e.target.value)}
+                                                autoFocus
+                                            >
+                                                <option value="">Todas</option>
+                                                <option value="Ativo">Ativo</option>
+                                                <option value="Inativo">Inativo</option>
+                                            </select>
+                                        </HeaderCell>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                                    {filteredClients.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                                                Nenhum cliente encontrado com os filtros selecionados.
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                                    ) : (
+                                        filteredClients.map((client) => (
+                                            <tr key={client.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                                <td className="px-6 py-4 font-mono text-slate-500">{client.code}</td>
+                                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                                                    <div className="flex flex-col">
+                                                        <span>{client.companyName}</span>
+                                                        {(client.city || client.state) && (
+                                                            <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">
+                                                                <MapPin size={10} className="text-slate-400" />
+                                                                <span>{client.city}{client.city && client.state ? ', ' : ''}{client.state}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-[11px]">{client.document}</td>
+                                                <td className="px-6 py-4">{client.contactName}</td>
+                                                <td className="px-6 py-4 text-[11px]">{client.phoneFixed}</td>
+                                                <td className="px-6 py-4 text-[11px]">{client.phoneMobile}</td>
+                                                <td className="px-6 py-4">{client.email}</td>
+                                                <td className="px-6 py-4 relative">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
+                                                        {client.status}
+                                                    </span>
+
+                                                    {/* Hover Actions Overlay */}
+                                                    <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 bg-white dark:bg-slate-900 shadow-lg px-1 py-1 rounded-lg border border-slate-200 dark:border-slate-700 z-10 animate-in fade-in duration-200">
+                                                        <Tooltip content="Editar" position="top">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                icon={<Pencil size={16} />}
+                                                                className="h-8 w-8 p-0 text-indigo-600 dark:text-indigo-400"
+                                                                onClick={() => handleEdit(client)}
+                                                            />
+                                                        </Tooltip>
+                                                        <Tooltip content="Excluir" position="top">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                icon={<Trash2 size={16} />}
+                                                                className="h-8 w-8 p-0 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                                                onClick={() => initDeleteClient(client)}
+                                                            />
+                                                        </Tooltip>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+                        {filteredClients.length === 0 ? (
+                            <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                                Nenhum cliente encontrado com os filtros selecionados.
+                            </div>
+                        ) : (
+                            filteredClients.map((client) => (
+                                <Card key={client.id} className="group hover:border-indigo-500/50 dark:hover:border-indigo-400/30 transition-all duration-300 hover:shadow-lg dark:hover:shadow-indigo-500/5 flex flex-col p-0 overflow-hidden relative border-slate-200 dark:border-slate-800">
+                                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">#{client.code}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
+                                                {client.status.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <h3 className="font-bold text-slate-900 dark:text-white line-clamp-2 leading-tight min-h-[2.5rem]">
+                                            {client.companyName}
+                                        </h3>
+                                    </div>
+                                    
+                                    <div className="p-4 flex-1 space-y-3">
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <FileText size={14} className="text-slate-400 shrink-0" />
+                                            <span className="text-slate-600 dark:text-slate-300 font-mono tracking-tighter">{client.document}</span>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <Users size={14} className="text-slate-400 shrink-0" />
+                                            <span className="text-slate-600 dark:text-slate-300 truncate">{client.contactName}</span>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 pt-1">
+                                            {client.email && (
+                                                <div className="flex items-center gap-2 text-[11px] text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                                    <Mail size={12} className="shrink-0" />
+                                                    <span className="truncate">{client.email}</span>
+                                                </div>
+                                            )}
+                                            {client.phoneMobile && (
+                                                <div className="flex items-center gap-2 text-[11px] text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                                    <Phone size={12} className="shrink-0" />
+                                                    <span>{client.phoneMobile}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="p-3 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+                                            <MapPin size={12} />
+                                            <span className="truncate max-w-[120px]">{client.city || 'N/A'}, {client.state || 'N/A'}</span>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Tooltip content="Editar" position="top">
+                                                <button 
+                                                    onClick={() => handleEdit(client)}
+                                                    className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 rounded-md shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+                                                >
+                                                    <Pencil size={14} />
+                                                </button>
+                                            </Tooltip>
+                                            <Tooltip content="Excluir" position="top">
+                                                <button 
+                                                    onClick={() => initDeleteClient(client)}
+                                                    className="p-1.5 text-red-600 dark:text-red-400 hover:bg-white dark:hover:bg-slate-800 rounded-md shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </Tooltip>
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))
+                        )}
                     </div>
                 )}
-            </Card>
+            </div>
 
             {/* Modais de Exclusão */}
             <Modal

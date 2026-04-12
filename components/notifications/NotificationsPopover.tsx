@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import { Notification } from '../../types';
-import { Check, Clock, TrendingUp, AlertCircle, FileText, Bell, CheckCircle, CalendarClock, ShieldAlert, MailOpen, Mail } from 'lucide-react';
+import { Notification as NotificationType } from '../../types';
+import { Check, Clock, TrendingUp, AlertCircle, FileText, Bell, CheckCircle, CalendarClock, ShieldAlert, MailOpen, Mail, Trash2 } from 'lucide-react';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 interface NotificationsPopoverProps {
   userId: string;
@@ -18,8 +19,11 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
   onNavigate,
   onUnreadCountChange
 }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [targetId, setTargetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
         table: 'notifications',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
-        setNotifications((prev) => [payload.new as Notification, ...prev]);
+        setNotifications((prev) => [payload.new as NotificationType, ...prev]);
       })
       .on('postgres_changes', { 
         event: 'UPDATE', 
@@ -43,7 +47,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
         filter: `user_id=eq.${userId}`
       }, (payload) => {
         setNotifications((prev) => 
-          prev.map(n => n.id === payload.new.id ? (payload.new as Notification) : n)
+          prev.map(n => n.id === payload.new.id ? (payload.new as NotificationType) : n)
         );
       })
       .subscribe();
@@ -139,7 +143,34 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
     }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const handleDeleteNotification = async () => {
+    if (!targetId) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', targetId);
+      
+      if (error) throw error;
+      
+      setNotifications(prev => prev.filter(n => n.id !== targetId));
+      setIsConfirmOpen(false);
+      setTargetId(null);
+    } catch (e2) {
+      console.error('Error deleting notification:', e2);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openDeleteConfirm = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTargetId(id);
+    setIsConfirmOpen(true);
+  };
+
+  const handleNotificationClick = (notification: NotificationType) => {
     if (!notification.read) {
       handleMarkAsRead(notification.id);
     }
@@ -180,10 +211,15 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
   return (
     <div 
       ref={popoverRef}
-      className={`absolute top-14 right-8 w-80 max-h-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl flex flex-col z-50 overflow-hidden ${!isOpen ? 'hidden' : ''}`}
+      className={`absolute top-14 right-[-75px] w-72 sm:w-80 max-h-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl flex flex-col z-50 overflow-hidden ${!isOpen ? 'hidden' : ''}`}
     >
       <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
-        <h3 className="font-semibold text-slate-800 dark:text-slate-200">Notificações</h3>
+        <div className="flex flex-col text-left">
+          <h1 className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+            Notificações
+          </h1>
+          <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+        </div>
         <button 
           onClick={handleMarkAllAsRead}
           className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium flex items-center gap-1"
@@ -223,6 +259,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
                     <p className={`text-sm truncate ${notif.read ? 'text-slate-700 dark:text-slate-300 font-medium' : 'text-slate-900 dark:text-white font-bold'}`}>
                       {notif.title}
                     </p>
+                  <div className="flex flex-col gap-2 items-center">
                     {!notif.read 
                       ? <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0 mt-1.5" />
                       : <button
@@ -233,8 +270,16 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
                           <Mail size={12} />
                         </button>
                     }
+                    <button
+                      onClick={(e) => openDeleteConfirm(notif.id, e)}
+                      className="p-0.5 text-slate-400 hover:text-red-500 rounded transition-colors shrink-0"
+                      title="Excluir notificação"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-1.5 leading-snug">
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 whitespace-pre-line line-clamp-4 mb-1.5 leading-snug">
                     {notif.message}
                   </p>
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
@@ -255,6 +300,16 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
           Ver histórico completo
         </button>
       </div>
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDeleteNotification}
+        title="Excluir Notificação"
+        message="Deseja realmente excluir esta notificação? Esta ação não pode ser desfeita."
+        confirmText="Excluir"
+        cancelText="Voltar"
+        loading={deleting}
+      />
     </div>
   );
 };

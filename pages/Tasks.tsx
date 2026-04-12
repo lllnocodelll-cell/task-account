@@ -33,12 +33,14 @@ import {
   Zap,
   AlertTriangle,
   ChevronRight,
+  ChevronLeft,
   Repeat,
   ListChecks,
   Bookmark,
   GitCompareArrows,
   FileBadge,
   FileStack,
+  FileCheck2,
   MinusCircle
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
@@ -245,6 +247,7 @@ interface KanbanColumnProps {
   onViewTask: (task: Task) => void;
   onViewClient: (client: Client) => void;
   onViewTaskInfo: (task: Task) => void;
+  onStatusChange: (id: string, status: TaskStatus) => void;
   clients: Client[];
   userProfile: any;
 }
@@ -263,6 +266,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onViewTask,
   onViewClient,
   onViewTaskInfo,
+  onStatusChange,
   clients,
   userProfile
 }) => {
@@ -461,46 +465,101 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </div>
 
               <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-slate-100 dark:border-slate-700/50">
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">{task.competence}</span>
-                    {task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence) && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700/50 rounded-md text-[9px] text-slate-500 dark:text-slate-400 font-medium capitalize">
-                        <Repeat size={8} className="shrink-0" />
-                        {task.recurrence}
-                      </span>
-                    )}
+                <div className="flex flex-col gap-1 min-w-0">
+                  {task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence) && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800/50 rounded-md w-fit">
+                      <Repeat size={8} className="text-slate-500 dark:text-slate-400 shrink-0" />
+                      <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium capitalize truncate">{task.recurrence}</span>
+                    </div>
+                  )}
+                  <div className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">
+                    {task.competence}
                   </div>
                   {task.dueDate && (
-                    <div className="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold" title="Vencimento">
-                      <Calendar size={9} />
+                    <div className="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold" title="Vencimento">
+                      <Calendar size={9} className="shrink-0" />
                       <span>{task.dueDate.split('-').reverse().join('/')}</span>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {status !== TaskStatus.CONCLUIDA && (
+                <div className="flex items-center gap-1 transition-all">
+                  {status === TaskStatus.INICIADA && (
+                    <Tooltip content="Voltar para Pendente" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, TaskStatus.PENDENTE);
+                        }}
+                        className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-500/10 transition-all"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {status === TaskStatus.CONCLUIDA && (
+                    <Tooltip content="Mover para Iniciadas (Reabrir)" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, TaskStatus.INICIADA);
+                        }}
+                        className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-500/10 transition-all"
+                      >
+                        <RotateCcw size={15} />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {status === TaskStatus.PENDENTE && (
+                    <Tooltip content="Iniciar Tarefa" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, TaskStatus.INICIADA);
+                        }}
+                        className="text-blue-500 hover:text-blue-600 dark:text-blue-400 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {status === TaskStatus.INICIADA && (
+                    <Tooltip content="Concluir Tarefa" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConclude(task.id);
+                        }}
+                        className="text-emerald-500 hover:text-emerald-600 dark:text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {status !== TaskStatus.CONCLUIDA && status !== TaskStatus.PENDENTE && status !== TaskStatus.INICIADA && (
+                    <Tooltip content="Concluir Rápido" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConclude(task.id);
+                        }}
+                        className="text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
+                      >
+                        <CheckCircle size={15} />
+                      </button>
+                    </Tooltip>
+                  )}
+                  <div className="w-px h-4 bg-slate-200 dark:bg-slate-700/50 mx-0.5" />
+                  <Tooltip content="Excluir" position="top">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onConclude(task.id);
+                        onDelete(task);
                       }}
-                      className="text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
-                      title="Concluir Rápido"
+                      className="text-red-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
                     >
-                      <CheckCircle size={15} />
+                      <Trash2 size={13} />
                     </button>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(task);
-                    }}
-                    className="text-red-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                    title="Excluir"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  </Tooltip>
                 </div>
               </div>
             </div>
@@ -1150,17 +1209,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       />
 
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0">
-        <div className="flex items-center gap-4 mb-2 md:mb-0">
-          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-indigo-500/20 flex-shrink-0">
-            <ListChecks size={24} className="text-white" />
+        <div className="flex items-center gap-3 mb-2 md:mb-0">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <ListChecks size={18} className="text-slate-500 dark:text-slate-400" />
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 tracking-tight">
-              Gestão de Tarefas
+          <div className="flex flex-col">
+            <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+              Controle de Tarefa
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 flex flex-wrap items-center gap-2">
-              Controle operacional e acompanhamento de prazos
-            </p>
+            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
           </div>
         </div>
         <div className="flex gap-3">
@@ -1695,6 +1752,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                     setClientViewModalOpen(true);
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
+                  onStatusChange={handleStatusChange}
                   clients={clients}
                   userProfile={userProfile}
                 />
@@ -1720,6 +1778,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                     setClientViewModalOpen(true);
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
+                  onStatusChange={handleStatusChange}
                   clients={clients}
                   userProfile={userProfile}
                 />
@@ -1745,6 +1804,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                     setClientViewModalOpen(true);
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
+                  onStatusChange={handleStatusChange}
                   clients={clients}
                   userProfile={userProfile}
                 />
@@ -1770,6 +1830,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                     setClientViewModalOpen(true);
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
+                  onStatusChange={handleStatusChange}
                   clients={clients}
                   userProfile={userProfile}
                 />
@@ -2994,14 +3055,29 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-            {isEditing ? `Editando: ${initialData.taskName}` : 'Cadastro de Tarefas em Lote'}
-          </h2>
-          <p className="text-slate-500 dark:text-slate-400">
-            {isEditing ? `Cliente: ${initialData.clientName}` : `${selectedClientIds.length} empresa(s) selecionada(s). Adicione as tarefas operacionais.`}
-          </p>
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <FileCheck2 size={18} className="text-slate-500 dark:text-slate-400" />
+          </div>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                {isEditing ? `Editando` : 'Cadastro de Tarefas em Lote'}
+              </h1>
+              {!isEditing && (
+                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase rounded-full border border-indigo-100 dark:border-indigo-400/20 shadow-sm">
+                  {selectedClientIds.length} {selectedClientIds.length === 1 ? 'Empresa' : 'Empresas'}
+                </span>
+              )}
+            </div>
+            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            {isEditing && (
+              <span className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tight">
+                {initialData.taskName} | {initialData.clientName}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={onBack} disabled={isSaving}>Cancelar</Button>

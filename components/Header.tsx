@@ -78,6 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="tooltip-container tooltip-bottom">
             <button
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              onMouseDown={(e) => e.stopPropagation()}
               className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors relative"
             >
               <Bell size={20} />

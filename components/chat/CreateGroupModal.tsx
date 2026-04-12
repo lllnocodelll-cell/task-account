@@ -116,7 +116,19 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Novo Grupo"
+            title={
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                        <Users size={18} className="text-slate-500 dark:text-slate-400" />
+                    </div>
+                    <div className="flex flex-col text-left">
+                        <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                            Criar Grupo
+                        </h1>
+                        <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+                    </div>
+                </div>
+            }
             size="md"
             footer={
                 <>
