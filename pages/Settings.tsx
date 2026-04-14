@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -14,7 +14,7 @@ interface SettingsProps {
 }
 
 export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
-  const [activeTab, setActiveTab] = useState<'equipe' | 'setores' | 'tipos' | 'calendario'>('equipe');
+  const [activeTab, setActiveTab] = useState<'credenciais' | 'setores' | 'tipos' | 'feriados'>('credenciais');
 
   const contentProps = { userProfile };
 
@@ -35,11 +35,11 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
         <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('equipe')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'equipe' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            onClick={() => setActiveTab('credenciais')}
+            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'credenciais' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
           >
-            <Users size={18} /> Equipe
+            <ShieldCheck size={18} /> Credenciais
           </button>
           <button
             onClick={() => setActiveTab('setores')}
@@ -56,19 +56,19 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
             <List size={18} /> Tipos de Tarefa
           </button>
           <button
-            onClick={() => setActiveTab('calendario')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'calendario' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            onClick={() => setActiveTab('feriados')}
+            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'feriados' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
           >
-            <Calendar size={18} /> Calendário
+            <Calendar size={18} /> Feriados
           </button>
         </div>
 
         <div className="p-6">
-          {activeTab === 'equipe' && <TeamSettings {...contentProps} />}
+          {activeTab === 'credenciais' && <TeamSettings {...contentProps} />}
           {activeTab === 'setores' && <SectorSettings {...contentProps} />}
           {activeTab === 'tipos' && <TaskTypeSettings {...contentProps} />}
-          {activeTab === 'calendario' && <CalendarSettings {...contentProps} />}
+          {activeTab === 'feriados' && <CalendarSettings {...contentProps} />}
         </div>
       </div>
     </div>
@@ -335,49 +335,51 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           </div>
         </div>
         
-        {isFormExpanded && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end animate-in fade-in slide-in-from-top-2 duration-200">
-          <Input label="Nome" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="João" />
-          <Input label="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Silva" />
-          <Input label="E-mail" value={email} onChange={e => setEmail(e.target.value)} placeholder="joao@empresa.com" type="email" autoComplete="new-password" />
-          <Select
-            label="Nível de Permissão"
-            value={role}
-            onChange={e => setRole(e.target.value)}
-            options={[
-              { value: 'operacional', label: 'Operacional' },
-              { value: 'gestor', label: 'Gestor' },
-              { value: 'cliente', label: 'Cliente (Portal)' }
-            ]}
-          />
-          {role === 'cliente' ? (
-            <Select
-              label="Empresa Vinculada"
-              value={clientId}
-              onChange={e => setClientId(e.target.value)}
-              options={[
-                { value: '', label: 'Selecione a empresa' },
-                ...clients.map(c => ({ value: c.id, label: c.company_name }))
-              ]}
-            />
-          ) : (
-            <Select
-              label="Setor"
-              value={sectorId} // Control the select
-              onChange={e => setSectorId(e.target.value)}
-              options={[
-                { value: '', label: 'Selecione um setor' },
-                ...sectors.map(s => ({ value: s.id, label: s.name }))
-              ]}
-            />
-          )}
-          <div className="md:col-span-1">
-            <Button onClick={handleAddMember} disabled={adding} className="w-full">
-              {adding ? <Loader2 size={18} className="animate-spin" /> : 'Confirmar'}
-            </Button>
+        <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+          <div className="overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end pt-4">
+              <Input label="Nome" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="João" />
+              <Input label="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Silva" />
+              <Input label="E-mail" value={email} onChange={e => setEmail(e.target.value)} placeholder="joao@empresa.com" type="email" autoComplete="new-password" />
+              <Select
+                label="Nível de Permissão"
+                value={role}
+                onChange={e => setRole(e.target.value)}
+                options={[
+                  { value: 'operacional', label: 'Operacional' },
+                  { value: 'gestor', label: 'Gestor' },
+                  { value: 'cliente', label: 'Cliente (Portal)' }
+                ]}
+              />
+              {role === 'cliente' ? (
+                <Select
+                  label="Empresa Vinculada"
+                  value={clientId}
+                  onChange={e => setClientId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Selecione a empresa' },
+                    ...clients.map(c => ({ value: c.id, label: c.company_name }))
+                  ]}
+                />
+              ) : (
+                <Select
+                  label="Setor"
+                  value={sectorId} // Control the select
+                  onChange={e => setSectorId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Selecione um setor' },
+                    ...sectors.map(s => ({ value: s.id, label: s.name }))
+                  ]}
+                />
+              )}
+              <div className="md:col-span-1">
+                <Button onClick={handleAddMember} disabled={adding} className="w-full">
+                  {adding ? <Loader2 size={18} className="animate-spin" /> : 'Confirmar'}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -408,38 +410,40 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             </div>
           </div>
           
-          {isMembersExpanded && (
-            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              {members.filter(m => m.role !== 'cliente').map(member => (
-                <MemberCard 
-                  key={member.id} 
-                  member={member} 
-                  isEditing={editingMemberId === member.id}
-                  onEdit={() => startEditingMember(member)}
-                  onCancel={cancelEditingMember}
-                  onUpdate={handleUpdateMember}
-                  onToggleStatus={handleToggleStatus}
-                  onDelete={initDeleteMember}
-                  editStates={{
-                    editFirstName, setEditFirstName,
-                    editLastName, setEditLastName,
-                    editEmail, setEditEmail,
-                    editRole, setEditRole,
-                    editSectorId, setEditSectorId,
-                    editClientId, setEditClientId
-                  }}
-                  sectors={sectors}
-                  clients={clients}
-                  addToast={addToast}
-                />
-              ))}
-              {members.filter(m => m.role !== 'cliente').length === 0 && (
-                <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                  <p className="text-sm text-slate-500">Nenhum membro cadastrado.</p>
-                </div>
-              )}
+          <div className={`grid transition-all duration-300 ease-in-out ${isMembersExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+            <div className="overflow-hidden">
+              <div className="space-y-3 pt-4">
+                {members.filter(m => m.role !== 'cliente').map(member => (
+                  <MemberCard 
+                    key={member.id} 
+                    member={member} 
+                    isEditing={editingMemberId === member.id}
+                    onEdit={() => startEditingMember(member)}
+                    onCancel={cancelEditingMember}
+                    onUpdate={handleUpdateMember}
+                    onToggleStatus={handleToggleStatus}
+                    onDelete={initDeleteMember}
+                    editStates={{
+                      editFirstName, setEditFirstName,
+                      editLastName, setEditLastName,
+                      editEmail, setEditEmail,
+                      editRole, setEditRole,
+                      editSectorId, setEditSectorId,
+                      editClientId, setEditClientId
+                    }}
+                    sectors={sectors}
+                    clients={clients}
+                    addToast={addToast}
+                  />
+                ))}
+                {members.filter(m => m.role !== 'cliente').length === 0 && (
+                  <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <p className="text-sm text-slate-500">Nenhum membro cadastrado.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Coluna 2: Clientes com Acesso */}
@@ -469,38 +473,40 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             </div>
           </div>
 
-          {isClientsExpanded && (
-            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              {members.filter(m => m.role === 'cliente').map(member => (
-                <MemberCard 
-                  key={member.id} 
-                  member={member} 
-                  isEditing={editingMemberId === member.id}
-                  onEdit={() => startEditingMember(member)}
-                  onCancel={cancelEditingMember}
-                  onUpdate={handleUpdateMember}
-                  onToggleStatus={handleToggleStatus}
-                  onDelete={initDeleteMember}
-                  editStates={{
-                    editFirstName, setEditFirstName,
-                    editLastName, setEditLastName,
-                    editEmail, setEditEmail,
-                    editRole, setEditRole,
-                    editSectorId, setEditSectorId,
-                    editClientId, setEditClientId
-                  }}
-                  sectors={sectors}
-                  clients={clients}
-                  addToast={addToast}
-                />
-              ))}
-              {members.filter(m => m.role === 'cliente').length === 0 && (
-                <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                  <p className="text-sm text-slate-500">Nenhum cliente com acesso liberado.</p>
-                </div>
-              )}
+          <div className={`grid transition-all duration-300 ease-in-out ${isClientsExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+            <div className="overflow-hidden">
+              <div className="space-y-3 pt-4">
+                {members.filter(m => m.role === 'cliente').map(member => (
+                  <MemberCard 
+                    key={member.id} 
+                    member={member} 
+                    isEditing={editingMemberId === member.id}
+                    onEdit={() => startEditingMember(member)}
+                    onCancel={cancelEditingMember}
+                    onUpdate={handleUpdateMember}
+                    onToggleStatus={handleToggleStatus}
+                    onDelete={initDeleteMember}
+                    editStates={{
+                      editFirstName, setEditFirstName,
+                      editLastName, setEditLastName,
+                      editEmail, setEditEmail,
+                      editRole, setEditRole,
+                      editSectorId, setEditSectorId,
+                      editClientId, setEditClientId
+                    }}
+                    sectors={sectors}
+                    clients={clients}
+                    addToast={addToast}
+                  />
+                ))}
+                {members.filter(m => m.role === 'cliente').length === 0 && (
+                  <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                    <p className="text-sm text-slate-500">Nenhum cliente com acesso liberado.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -977,74 +983,157 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           </div>
         </div>
 
-        {isFormExpanded && (
-          <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <Input label="Nome do Setor" value={name} onChange={e => setName(e.target.value)} />
-          <Input label="Líder" value={leader} onChange={e => setLeader(e.target.value)} />
-          <Input label="Centro de Custo" value={costCenter} onChange={e => setCostCenter(e.target.value)} />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button onClick={handleAddSector} disabled={adding}>{adding ? 'Salvando...' : 'Salvar Setor'}</Button>
-        </div>
+        <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+          <div className="overflow-hidden">
+            <div className="pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <Input label="Nome do Setor" value={name} onChange={e => setName(e.target.value)} />
+                <Input label="Líder" value={leader} onChange={e => setLeader(e.target.value)} />
+                <Input label="Centro de Custo" value={costCenter} onChange={e => setCostCenter(e.target.value)} />
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button onClick={handleAddSector} disabled={adding}>{adding ? 'Salvando...' : 'Salvar Setor'}</Button>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sectors.map(sector => (
-          <div key={sector.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 shadow-sm group relative flex flex-col justify-between">
+          <div 
+            key={sector.id} 
+            className={`group relative bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-5 ${
+              editingSectorId === sector.id 
+                ? 'border-indigo-500 ring-4 ring-indigo-500/10 shadow-xl' 
+                : 'border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 dark:hover:border-indigo-400/30'
+            }`}
+          >
             {editingSectorId === sector.id ? (
-              <div className="space-y-3">
-                <Input label="Nome do Setor" value={editName} onChange={e => setEditName(e.target.value)} />
-                <Input label="Líder" value={editLeader} onChange={e => setEditLeader(e.target.value)} />
-                <Input label="Centro de Custo" value={editCostCenter} onChange={e => setEditCostCenter(e.target.value)} />
+              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg">
+                    <Edit3 size={18} className="text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <h4 className="font-bold text-slate-900 dark:text-white">Editar Setor</h4>
+                </div>
+                
+                <div className="space-y-3">
+                  <Input label="Nome do Setor" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Ex: Financeiro" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input label="Líder" value={editLeader} onChange={e => setEditLeader(e.target.value)} placeholder="Nome do responsável" />
+                    <Input label="C. Custo" value={editCostCenter} onChange={e => setEditCostCenter(e.target.value)} placeholder="001.01" />
+                  </div>
+                </div>
 
-                <div className="flex justify-end gap-2 mt-4">
+                <div className="flex justify-end gap-2 pt-2">
                   <Button variant="secondary" size="sm" onClick={cancelEditing}>Cancelar</Button>
-                  <Button variant="primary" size="sm" onClick={() => handleUpdateSector(sector.id)}>Salvar</Button>
+                  <Button variant="primary" size="sm" onClick={() => handleUpdateSector(sector.id)} icon={<Save size={16} />}>Salvar</Button>
                 </div>
               </div>
             ) : (
-              <>
-                <div className="absolute top-2 right-8 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex flex-col h-full">
+                {/* Ações */}
+                <div className="absolute top-4 right-4 flex items-center gap-1">
                   <Tooltip content="Editar Setor">
                     <button
                       onClick={() => startEditing(sector)}
-                      className="p-1.5 text-slate-300 hover:text-indigo-500"
+                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors"
                     >
-                      <SettingsIcon size={16} />
+                      <Edit3 size={16} />
                     </button>
                   </Tooltip>
-                </div>
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Tooltip content="Excluir Setor">
                     <button
                       onClick={() => initDeleteSector(sector)}
-                      className="p-1.5 text-slate-300 hover:text-red-500"
+                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
                     >
                       <Trash2 size={16} />
                     </button>
                   </Tooltip>
                 </div>
-                <div>
-                  <div className="flex justify-between items-start mb-2 pr-6">
-                    <h4 className="font-semibold text-slate-900 dark:text-white text-lg">{sector.name}</h4>
-                    {sector.cost_center && <span className="text-xs font-mono text-slate-500 whitespace-nowrap">CC: {sector.cost_center}</span>}
+
+                {/* Cabeçalho do Card */}
+                <div className="flex items-start gap-4 mb-6">
+                  <div className={`relative w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black shrink-0 transition-transform duration-300 group-hover:scale-110 shadow-sm ${
+                    sector.status === 'Inativo'
+                      ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600'
+                      : 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-indigo-200 dark:shadow-none'
+                  }`}>
+                    {sector.name.substring(0, 2).toUpperCase()}
+                    
+                    {/* Status Indicator (Pulse) */}
+                    <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900 shadow-sm ${
+                      sector.status === 'Inativo' ? 'bg-slate-400' : 'bg-emerald-500'
+                    }`}>
+                      {sector.status !== 'Inativo' && (
+                        <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75"></span>
+                      )}
+                    </div>
                   </div>
-                  {sector.leader && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Líder: <span className="text-slate-900 dark:text-white">{sector.leader}</span></p>}
+
+                  <div className="pr-12">
+                    <h4 className="font-bold text-slate-900 dark:text-white text-lg leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {sector.name}
+                    </h4>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <div className={`w-1.5 h-1.5 rounded-full ${sector.status === 'Inativo' ? 'bg-slate-400' : 'bg-emerald-500'}`} />
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${
+                        sector.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {sector.status === 'Inativo' ? 'Inativo' : 'Ativo'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <Toggle
-                    checked={sector.status !== 'Inativo'}
-                    onChange={() => handleToggleSectorStatus(sector.id, sector.status || 'Ativo')}
-                  />
-                  <span className={`text-xs font-semibold ${sector.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {sector.status === 'Inativo' ? 'Inativo' : 'Ativo'}
-                  </span>
+                {/* Corpo do Card */}
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100/50 dark:border-slate-700/30">
+                    <div className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+                      <UserCircle size={14} className="text-slate-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider leading-none mb-1">Líder</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                        {sector.leader || 'Não definido'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100/50 dark:border-slate-700/30">
+                    <div className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+                      <Target size={14} className="text-slate-400" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider leading-none mb-1">C. Custo</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {sector.cost_center || '---'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </>
+
+                {/* Rodapé do Card */}
+                <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Toggle
+                      checked={sector.status !== 'Inativo'}
+                      onChange={() => handleToggleSectorStatus(sector.id, sector.status || 'Ativo')}
+                    />
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                      {sector.status === 'Inativo' ? 'Habilitar' : 'Ativo'}
+                    </span>
+                  </div>
+                  
+                  <div className="h-6 w-px bg-slate-100 dark:bg-slate-800 mx-2" />
+                  
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-slate-300 dark:text-slate-600 group-hover:text-indigo-500/50 transition-colors">
+                    <Blocks size={12} />
+                    #{sector.id.slice(0, 4)}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         ))}
@@ -1308,68 +1397,24 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           </div>
         </div>
 
-        {isFormExpanded && (
-          <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <Input label="Nome da Tarefa" value={name} onChange={e => setName(e.target.value)} />
-          <Select
-            label="Setor Responsável"
-            value={sectorId}
-            onChange={e => setSectorId(e.target.value)}
-            options={[
-              { value: '', label: 'Selecione...' },
-              ...sectors.map(s => ({ value: s.id, label: s.name }))
-            ]}
-          />
-          <Select
-            label="Ente Federativo"
-            value={entity}
-            onChange={e => setEntity(e.target.value)}
-            options={[
-              { value: 'Municipal', label: 'Municipal' },
-              { value: 'Estadual', label: 'Estadual' },
-              { value: 'Federal', label: 'Federal' },
-              { value: 'Outro', label: 'Outro' },
-            ]}
-          />
-          <Input label="Vencimento (dia)" value={dueDay} onChange={e => setDueDay(e.target.value)} type="number" min="1" max="31" placeholder="Ex: 20" />
-          <Select
-            label="Dia não útil"
-            value={nonWorkingAction}
-            onChange={e => setNonWorkingAction(e.target.value)}
-            options={[
-              { value: 'antecipar', label: 'Antecipar' },
-              { value: 'prorrogar', label: 'Prorrogar' },
-              { value: 'nao_se_aplica', label: 'Não se aplica' }
-            ]}
-          />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button onClick={handleAddToken} disabled={adding}>{adding ? 'Salvando...' : 'Salvar Tarefa'}</Button>
-        </div>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {taskTypes.map(task => (
-          <div key={task.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-5 shadow-sm group relative flex flex-col justify-between">
-            {editingTaskTypeId === task.id ? (
-              <div className="space-y-3">
-                <Input label="Nome da Tarefa" value={editName} onChange={e => setEditName(e.target.value)} />
+        <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+          <div className="overflow-hidden">
+            <div className="pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <Input label="Nome da Tarefa" value={name} onChange={e => setName(e.target.value)} />
                 <Select
                   label="Setor Responsável"
-                  value={editSectorId}
-                  onChange={e => setEditSectorId(e.target.value)}
+                  value={sectorId}
+                  onChange={e => setSectorId(e.target.value)}
                   options={[
-                    { value: '', label: 'Sem restrição' },
+                    { value: '', label: 'Selecione...' },
                     ...sectors.map(s => ({ value: s.id, label: s.name }))
                   ]}
                 />
                 <Select
                   label="Ente Federativo"
-                  value={editEntity}
-                  onChange={e => setEditEntity(e.target.value)}
+                  value={entity}
+                  onChange={e => setEntity(e.target.value)}
                   options={[
                     { value: 'Municipal', label: 'Municipal' },
                     { value: 'Estadual', label: 'Estadual' },
@@ -1377,63 +1422,183 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     { value: 'Outro', label: 'Outro' },
                   ]}
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Venc. (dia)" value={editDueDay} onChange={e => setEditDueDay(e.target.value)} type="number" min="1" max="31" placeholder="Ex: 20" />
-                  <Select
-                    label="Dia não útil"
-                    value={editNonWorkingAction}
-                    onChange={e => setEditNonWorkingAction(e.target.value)}
-                    options={[
-                      { value: 'antecipar', label: 'Antecipar' },
-                      { value: 'prorrogar', label: 'Prorrogar' },
-                      { value: 'nao_se_aplica', label: 'Não se aplica' }
-                    ]}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="secondary" size="sm" onClick={cancelEditing}>Cancelar</Button>
-                  <Button variant="primary" size="sm" onClick={() => handleUpdateTaskType(task.id)}>Salvar</Button>
-                </div>
+                <Input label="Vencimento (dia)" value={dueDay} onChange={e => setDueDay(e.target.value)} type="number" min="1" max="31" placeholder="Ex: 20" />
+                <Select
+                  label="Dia não útil"
+                  value={nonWorkingAction}
+                  onChange={e => setNonWorkingAction(e.target.value)}
+                  options={[
+                    { value: 'antecipar', label: 'Antecipar' },
+                    { value: 'prorrogar', label: 'Prorrogar' },
+                    { value: 'nao_se_aplica', label: 'Não se aplica' }
+                  ]}
+                />
               </div>
-            ) : (
-              <>
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Tooltip content="Editar Tipo de Tarefa">
-                    <button
-                      onClick={() => startEditing(task)}
-                      className="p-1.5 text-slate-300 hover:text-indigo-500"
-                    >
-                      <SettingsIcon size={16} />
-                    </button>
-                  </Tooltip>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-slate-900 dark:text-white mb-2 pr-6">{task.name}</h4>
-                  <div className="space-y-1 mb-4">
-                    {task.sectors?.name && <p className="text-xs text-slate-500 dark:text-slate-400">Setor: <span className="text-indigo-600 dark:text-indigo-400">{task.sectors?.name}</span></p>}
-                    {task.federative_entity && <p className="text-xs text-slate-500 dark:text-slate-400">Ente: <span className="text-emerald-600 dark:text-emerald-400">{task.federative_entity}</span></p>}
-                    {task.due_day && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Vencimento: dia <span className="font-semibold text-slate-700 dark:text-slate-300">{task.due_day}</span> <span className="text-slate-400">({task.non_working_day_action === 'antecipar' ? 'Antecipar' : task.non_working_day_action === 'prorrogar' ? 'Prorrogar' : 'Não se aplica'})</span>
-                      </p>
-                    )}
+              <div className="mt-4 flex justify-end">
+                <Button onClick={handleAddToken} disabled={adding}>{adding ? 'Salvando...' : 'Salvar Tarefa'}</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {taskTypes.map(task => {
+          // Entity-specific Icon and Styling
+          const getEntityConfig = (entity: string) => {
+            switch (entity) {
+              case 'Municipal': return { icon: MapPin, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-100 dark:border-emerald-500/20' };
+              case 'Estadual': return { icon: Map, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-100 dark:border-amber-500/20' };
+              case 'Federal': return { icon: Globe, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10', border: 'border-indigo-100 dark:border-indigo-500/20' };
+              default: return { icon: HelpCircle, color: 'text-slate-500', bg: 'bg-slate-50 dark:bg-slate-500/10', border: 'border-slate-100 dark:border-slate-500/20' };
+            }
+          };
+          const entityCfg = getEntityConfig(task.federative_entity);
+          const SectorIcon = Briefcase;
+          const EntityIcon = entityCfg.icon;
+
+          return (
+            <div 
+              key={task.id} 
+              className={`group relative h-full bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-5 flex flex-col ${
+                editingTaskTypeId === task.id 
+                  ? 'border-indigo-500 ring-4 ring-indigo-500/10 shadow-xl' 
+                  : 'border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-xl dark:hover:border-indigo-400/30'
+              }`}
+            >
+              {editingTaskTypeId === task.id ? (
+                <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg">
+                      <Edit3 size={18} className="text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <h4 className="font-bold text-slate-900 dark:text-white">Editar Tipo</h4>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Input label="Nome da Tarefa" value={editName} onChange={e => setEditName(e.target.value)} />
+                    <Select
+                      label="Setor Responsável"
+                      value={editSectorId}
+                      onChange={e => setEditSectorId(e.target.value)}
+                      options={[{ value: '', label: 'Sem restrição' }, ...sectors.map(s => ({ value: s.id, label: s.name }))]}
+                    />
+                    <Select
+                      label="Ente Federativo"
+                      value={editEntity}
+                      onChange={e => setEditEntity(e.target.value)}
+                      options={[
+                        { value: 'Municipal', label: 'Municipal' },
+                        { value: 'Estadual', label: 'Estadual' },
+                        { value: 'Federal', label: 'Federal' },
+                        { value: 'Outro', label: 'Outro' },
+                      ]}
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input label="Venc. (dia)" value={editDueDay} onChange={e => setEditDueDay(e.target.value)} type="number" />
+                      <Select
+                        label="Dia não útil"
+                        value={editNonWorkingAction}
+                        onChange={e => setEditNonWorkingAction(e.target.value)}
+                        options={[
+                          { value: 'antecipar', label: 'Antecipar' },
+                          { value: 'prorrogar', label: 'Prorrogar' },
+                          { value: 'nao_se_aplica', label: 'Ponto' }
+                        ]}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="secondary" size="sm" onClick={cancelEditing}>Cancelar</Button>
+                    <Button variant="primary" size="sm" onClick={() => handleUpdateTaskType(task.id)} icon={<Save size={16} />}>Salvar</Button>
                   </div>
                 </div>
+              ) : (
+                <div className="flex flex-col h-full">
+                  {/* Ações Fixas */}
+                  <div className="absolute top-4 right-4 translate-x-1 -translate-y-1">
+                    <Tooltip content="Editar Tipo de Tarefa">
+                      <button
+                        onClick={() => startEditing(task)}
+                        className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-all"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                    </Tooltip>
+                  </div>
 
-                <div className="flex items-center gap-2 mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <Toggle
-                    checked={task.status !== 'Inativo'}
-                    onChange={() => handleToggleTaskTypeStatus(task.id, task.status || 'Ativo')}
-                  />
-                  <span className={`text-xs font-semibold ${task.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {task.status === 'Inativo' ? 'Inativo' : 'Ativo'}
-                  </span>
+                  {/* Cabeçalho */}
+                  <div className="mb-4 pr-8">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`p-1.5 rounded-lg ${entityCfg.bg} ${entityCfg.color} border ${entityCfg.border}`}>
+                        <EntityIcon size={14} />
+                      </div>
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${entityCfg.color}`}>
+                        {task.federative_entity || 'Outro'}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {task.name}
+                    </h4>
+                  </div>
+
+                  {/* Informações Principais */}
+                  <div className="space-y-3 mb-6">
+                    {/* Badge do Setor */}
+                    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <SectorIcon size={12} className="text-slate-400" />
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        {task.sectors?.name || 'Setor não definido'}
+                      </span>
+                    </div>
+
+                    {/* Regra de Vencimento */}
+                    {task.due_day && (
+                      <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-indigo-500" />
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Vencimento</span>
+                          </div>
+                          <div className="px-2 py-0.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+                            <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">Dia {task.due_day}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-1.5 opacity-80">
+                          <Activity size={10} className="text-slate-400" />
+                          <span className="text-[10px] font-semibold text-slate-500">
+                            Regra: <span className="text-indigo-600 dark:text-indigo-500 uppercase">{task.non_working_day_action === 'antecipar' ? 'Antecipar' : task.non_working_day_action === 'prorrogar' ? 'Prorrogar' : 'Manter'}</span>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rodapé */}
+                  <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Toggle
+                        checked={task.status !== 'Inativo'}
+                        onChange={() => handleToggleTaskTypeStatus(task.id, task.status || 'Ativo')}
+                      />
+                      <span className={`text-[11px] font-black uppercase tracking-wider ${
+                        task.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {task.status === 'Inativo' ? 'Inativo' : 'Ativo'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-slate-300 dark:text-slate-700">
+                      <FileText size={12} />
+                      #{task.id.slice(0, 4)}
+                    </div>
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1604,25 +1769,27 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           </div>
         </div>
 
-        {isFormExpanded && (
-          <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <Input label="Data" type="date" value={date} onChange={e => setDate(e.target.value)} />
-          <Input label="Descrição" placeholder="Ex: Aniversário" className="md:col-span-2" value={name} onChange={e => setName(e.target.value)} />
-          <Select label="Tipo" value={type} onChange={e => setType(e.target.value)} options={[
-            { value: 'Nacional', label: 'Nacional' },
-            { value: 'Estadual', label: 'Estadual' },
-            { value: 'Municipal', label: 'Municipal' },
-            { value: 'Facultativo', label: 'Ponto Facultativo' },
-          ]} />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button onClick={handleAddHoliday} disabled={adding} icon={<Calendar size={16} />}>
-            {adding ? 'Salvando...' : 'Adicionar ao Calendário'}
-          </Button>
-        </div>
+        <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+          <div className="overflow-hidden">
+            <div className="pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <Input label="Data" type="date" value={date} onChange={e => setDate(e.target.value)} />
+                <Input label="Descrição" placeholder="Ex: Aniversário" className="md:col-span-2" value={name} onChange={e => setName(e.target.value)} />
+                <Select label="Tipo" value={type} onChange={e => setType(e.target.value)} options={[
+                  { value: 'Nacional', label: 'Nacional' },
+                  { value: 'Estadual', label: 'Estadual' },
+                  { value: 'Municipal', label: 'Municipal' },
+                  { value: 'Facultativo', label: 'Ponto Facultativo' },
+                ]} />
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button onClick={handleAddHoliday} disabled={adding} icon={<Calendar size={16} />}>
+                  {adding ? 'Salvando...' : 'Adicionar ao Calendário'}
+                </Button>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">

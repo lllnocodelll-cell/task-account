@@ -14,7 +14,11 @@ import {
   CheckCircle2, 
   ChevronDown, 
   Copy,
-  LayoutList
+  LayoutList,
+  Calendar,
+  LogIn,
+  LogOut,
+  Fingerprint
 } from 'lucide-react';
 import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
@@ -94,6 +98,17 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const formatPhone = (phone: string) => {
+    if (!phone) return '---';
+    const clean = phone.replace(/\D/g, '');
+    if (clean.length === 11) {
+      return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7)}`;
+    } else if (clean.length === 10) {
+      return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+    }
+    return phone;
+  };
+
   const copyToClipboard = (text: string, fieldId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -105,26 +120,43 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
 
   if (!shouldRender || !client) return null;
 
-  const InfoField = ({ label, value, id, valueClassName = "text-sm" }: { label: string; value: string; id: string; valueClassName?: string }) => (
-    <div 
-      className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
-      onClick={(e) => copyToClipboard(value, id, e)}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</span>
-        <div className="flex items-center gap-1">
-          {copyFeedback === id ? (
-            <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in slide-in-from-right-1">Copiado!</span>
-          ) : (
-            <Copy size={10} className="text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-          )}
+  const InfoField = ({ 
+    label, 
+    value, 
+    id, 
+    valueClassName = "text-sm",
+    autoReduce = true 
+  }: { 
+    label: string; 
+    value: string; 
+    id: string; 
+    valueClassName?: string;
+    autoReduce?: boolean 
+  }) => {
+    const isUppercase = autoReduce && value && value === value.toUpperCase() && /[A-Z]/.test(value);
+    const finalValueClassName = isUppercase ? "text-[12px]" : valueClassName;
+
+    return (
+      <div 
+        className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
+        onClick={(e) => copyToClipboard(value, id, e)}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</span>
+          <div className="flex items-center gap-1">
+            {copyFeedback === id ? (
+              <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in slide-in-from-right-1">Copiado!</span>
+            ) : (
+              <Copy size={10} className="text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
+          </div>
         </div>
+        <span className={`${finalValueClassName} font-bold text-slate-700 dark:text-slate-200 break-words leading-tight`}>
+          {value || '---'}
+        </span>
       </div>
-      <span className={`${valueClassName} font-bold text-slate-700 dark:text-slate-200 break-words leading-tight`}>
-        {value || '---'}
-      </span>
-    </div>
-  );
+    );
+  };
 
   return createPortal(
     <>
@@ -183,19 +215,79 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.info ? 'rotate-180' : ''}`} size={16} />
             </button>
-            {openSections.info && (
-              <div className="p-4 pt-0 grid grid-cols-1 gap-3 animate-in fade-in duration-300">
-                <InfoField label="Razão Social" value={client.companyName} id="comp-name" />
-                <div className="grid grid-cols-2 gap-3">
-                  <InfoField label="Nome Fantasia" value={client.tradeName} id="trade-name" />
-                  <InfoField label="Documento (CNPJ/CPF)" value={client.document} id="doc" valueClassName="text-[13px]" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <InfoField label="Situação" value={client.status} id="status" />
-                  <InfoField label="Segmento" value={client.segment} id="segment" />
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.info ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 grid grid-cols-1 gap-3">
+                  <InfoField label="Razão Social" value={client.companyName} id="comp-name" />
+                  <InfoField label="Nome Fantasia" value={client.tradeName || '---'} id="trade-name" />
+                  
+                  {/* Informações Compactas - Grid 1 */}
+                  <div className="grid grid-cols-3 gap-2 mt-1 border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <div className="flex flex-col gap-0.5" onClick={(e) => copyToClipboard(client.document, 'doc', e)}>
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <div className="flex items-center gap-1">
+                          <Receipt size={10} className="text-indigo-400" />
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">CNPJ/CPF</span>
+                        </div>
+                        {copyFeedback === 'doc' && <span className="text-[7px] font-bold text-emerald-500">Copiado</span>}
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">
+                        {client.document || '---'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Activity size={10} className="text-emerald-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Situação</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">
+                        {client.status || '---'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <CheckCircle2 size={10} className="text-amber-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Segmento</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">
+                        {client.segment || '---'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Datas Minimalistas */}
+                  <div className="grid grid-cols-3 gap-2 mt-1 border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Calendar size={10} className="text-indigo-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Constituição</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                        {client.constitution_date ? new Date(client.constitution_date).toLocaleDateString('pt-BR') : '---'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <LogIn size={10} className="text-emerald-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Entrada</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                        {client.entry_date ? new Date(client.entry_date).toLocaleDateString('pt-BR') : '---'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <LogOut size={10} className="text-rose-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Saída</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                        {client.exit_date ? new Date(client.exit_date).toLocaleDateString('pt-BR') : '---'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Section 02: Endereço */}
@@ -210,17 +302,25 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.address ? 'rotate-180' : ''}`} size={16} />
             </button>
-            {openSections.address && (
-              <div className="p-4 pt-0 grid grid-cols-1 gap-3 animate-in fade-in duration-300">
-                <InfoField label="CEP" value={client.zip_code || ''} id="cep" />
-                <InfoField label="Logradouro" value={`${client.street || ''}${client.street_number ? `, ${client.street_number}` : ''}`} id="street" />
-                <div className="grid grid-cols-2 gap-3">
-                  <InfoField label="Bairro" value={client.neighborhood || ''} id="neighborhood" />
-                  <InfoField label="Cidade/UF" value={`${client.city || ''} / ${client.state || ''}`} id="city" />
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.address ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-1">
+                      <InfoField label="CEP" value={client.zip_code || ''} id="cep" />
+                    </div>
+                    <div className="col-span-2">
+                       <InfoField label="Complemento" value={client.complement || '---'} id="complement" />
+                    </div>
+                  </div>
+                  <InfoField label="Logradouro" value={`${client.street || ''}${client.street_number ? `, ${client.street_number}` : ''}`} id="street" autoReduce />
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoField label="Bairro" value={client.neighborhood || ''} id="neighborhood" autoReduce />
+                    <InfoField label="Cidade/UF" value={`${client.city || ''} / ${client.state || ''}`} id="city" autoReduce />
+                  </div>
                 </div>
-                {client.complement && <InfoField label="Complemento" value={client.complement} id="complement" />}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Section 03: Sócio Administrador */}
@@ -235,15 +335,35 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.partner ? 'rotate-180' : ''}`} size={16} />
             </button>
-            {openSections.partner && (
-              <div className="p-4 pt-0 grid grid-cols-1 gap-3 animate-in fade-in duration-300">
-                <InfoField label="Nome do Sócio" value={client.admin_partner_name || ''} id="partner-name" />
-                <div className="grid grid-cols-2 gap-3">
-                  <InfoField label="CPF" value={client.admin_partner_cpf || ''} id="partner-cpf" />
-                  <InfoField label="Data de Nasc." value={client.admin_partner_birthdate ? new Date(client.admin_partner_birthdate).toLocaleDateString('pt-BR') : ''} id="partner-birth" />
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.partner ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 grid grid-cols-1 gap-3">
+                  <InfoField label="Nome do Sócio" value={client.admin_partner_name || ''} id="partner-name" />
+                  {/* Sócio Compacto */}
+                  <div className="grid grid-cols-2 gap-2 mt-1 border-t border-slate-100 dark:border-slate-800 pt-3 px-1">
+                    <div className="flex flex-col gap-0.5" onClick={(e) => copyToClipboard(client.admin_partner_cpf || '', 'partner-cpf', e)}>
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Fingerprint size={10} className="text-indigo-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">CPF</span>
+                        {copyFeedback === 'partner-cpf' && <span className="text-[8px] font-bold text-emerald-500 ml-1">Copiado</span>}
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                        {client.admin_partner_cpf || '---'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-4">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Calendar size={10} className="text-emerald-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Data de Nasc.</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                        {client.admin_partner_birthdate ? new Date(client.admin_partner_birthdate).toLocaleDateString('pt-BR') : '---'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Section 04: Inscrições */}
@@ -258,22 +378,26 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.inscriptions ? 'rotate-180' : ''}`} size={16} />
             </button>
-            {openSections.inscriptions && (
-              <div className="p-4 pt-0 grid grid-cols-1 gap-2 animate-in fade-in duration-300">
-                {inscriptions.length > 0 ? inscriptions.map((insc, idx) => (
-                  <div key={idx} className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 cursor-pointer" onClick={(e) => copyToClipboard(insc.number, `insc-${idx}`, e)}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase">{insc.type}</span>
-                      {copyFeedback === `insc-${idx}` && <span className="text-[9px] font-bold text-emerald-500">Copiado!</span>}
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.inscriptions ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 grid grid-cols-2 gap-2">
+                  {inscriptions.length > 0 ? inscriptions.map((insc, idx) => (
+                    <div key={idx} className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={(e) => copyToClipboard(insc.number, `insc-${idx}`, e)}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[9px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter truncate">{insc.type}</span>
+                        {copyFeedback === `insc-${idx}` && <span className="text-[8px] font-bold text-emerald-500 flex-shrink-0">Copiado!</span>}
+                      </div>
+                      <span className={`font-bold text-slate-700 dark:text-slate-200 mt-1 truncate ${insc.number === insc.number?.toUpperCase() && /[A-Z]/.test(insc.number) ? 'text-[12px]' : 'text-[13px]'}`}>
+                        {insc.number}
+                      </span>
+                      {insc.observation && <span className="text-[9px] text-slate-400 mt-1 truncate italic">{insc.observation}</span>}
                     </div>
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 mt-1">{insc.number}</span>
-                    {insc.observation && <span className="text-[10px] text-slate-400 mt-1">{insc.observation}</span>}
-                  </div>
-                )) : (
-                  <div className="text-center py-4 text-slate-400 text-xs italic">Nenhuma inscrição cadastrada</div>
-                )}
+                  )) : (
+                    <div className="col-span-2 text-center py-4 text-slate-400 text-xs italic">Nenhuma inscrição cadastrada</div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Section 05: Contatos */}
@@ -288,52 +412,64 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.contacts ? 'rotate-180' : ''}`} size={16} />
             </button>
-            {openSections.contacts && (
-              <div className="p-4 pt-0 grid grid-cols-1 gap-2 animate-in fade-in duration-300">
-                {contacts.length > 0 ? contacts.map((cont, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 space-y-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <User size={12} className="text-slate-400" />
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{cont.name}</span>
-                      {cont.is_main && <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded uppercase font-black">Principal</span>}
-                    </div>
-                    {cont.email && (
-                      <div className="flex items-center justify-between group cursor-pointer" onClick={(e) => copyToClipboard(cont.email, `cont-e-${idx}`, e)}>
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.contacts ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 space-y-3">
+                  {contacts.length > 0 ? contacts.map((cont, idx) => (
+                    <div key={idx} className={`p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/50 shadow-sm relative overflow-hidden group ${idx !== 0 ? 'mt-4 pt-4 border-t border-dashed' : ''}`}>
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <Mail size={12} className="text-slate-400" />
-                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{cont.email}</span>
+                          <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700">
+                             <User size={14} className="text-slate-400" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className={`font-bold text-slate-700 dark:text-slate-200 ${cont.name === cont.name?.toUpperCase() && /[A-Z]/.test(cont.name) ? 'text-[12px]' : 'text-[13px]'}`}>
+                              {cont.name}
+                            </span>
+                            {cont.is_main && <span className="text-[8px] text-emerald-500 font-black uppercase tracking-widest mt-0.5">Representante Principal</span>}
+                          </div>
                         </div>
-                        {copyFeedback === `cont-e-${idx}` && <span className="text-[9px] font-bold text-emerald-500">Copiado!</span>}
                       </div>
-                    )}
-                    {(cont.phone_mobile || cont.phone_fixed) && (
-                      <div className="flex flex-col gap-1.5">
-                        {cont.phone_mobile && (
-                          <div className="flex items-center justify-between group cursor-pointer" onClick={(e) => copyToClipboard(cont.phone_mobile, `cont-m-${idx}`, e)}>
-                            <div className="flex items-center gap-2">
-                              <Phone size={12} className="text-slate-400" />
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{cont.phone_mobile} (Cel)</span>
+                      
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {cont.email && (
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 cursor-pointer transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20" onClick={(e) => copyToClipboard(cont.email, `cont-e-${idx}`, e)}>
+                            <div className="flex items-center gap-2.5">
+                              <Mail size={12} className="text-indigo-400" />
+                              <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{cont.email}</span>
                             </div>
-                            {copyFeedback === `cont-m-${idx}` && <span className="text-[9px] font-bold text-emerald-500">Copiado!</span>}
+                            {copyFeedback === `cont-e-${idx}` && <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in zoom-in">Copiado!</span>}
                           </div>
                         )}
-                        {cont.phone_fixed && (
-                          <div className="flex items-center justify-between group cursor-pointer" onClick={(e) => copyToClipboard(cont.phone_fixed, `cont-f-${idx}`, e)}>
-                            <div className="flex items-center gap-2">
-                              <Phone size={12} className="text-slate-400" />
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{cont.phone_fixed} (Fixo)</span>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {cont.phone_mobile && (
+                            <div className="flex-1 min-w-[140px] flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 cursor-pointer transition-all border border-transparent hover:border-emerald-100 dark:hover:border-emerald-500/20" onClick={(e) => copyToClipboard(cont.phone_mobile, `cont-m-${idx}`, e)}>
+                              <div className="flex items-center gap-2.5">
+                                <Phone size={12} className="text-emerald-400" />
+                                <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{formatPhone(cont.phone_mobile)}</span>
+                              </div>
+                              {copyFeedback === `cont-m-${idx}` && <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in zoom-in">Cop.</span>}
                             </div>
-                            {copyFeedback === `cont-f-${idx}` && <span className="text-[9px] font-bold text-emerald-500">Copiado!</span>}
-                          </div>
-                        )}
+                          )}
+                          {cont.phone_fixed && (
+                            <div className="flex-1 min-w-[140px] flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700" onClick={(e) => copyToClipboard(cont.phone_fixed, `cont-f-${idx}`, e)}>
+                              <div className="flex items-center gap-2.5">
+                                <Phone size={12} className="text-slate-400" />
+                                <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{formatPhone(cont.phone_fixed)}</span>
+                              </div>
+                              {copyFeedback === `cont-f-${idx}` && <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in zoom-in">Cop.</span>}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )) : (
-                  <div className="text-center py-4 text-slate-400 text-xs italic">Nenhum contato cadastrado</div>
-                )}
+                    </div>
+                  )) : (
+                    <div className="text-center py-4 text-slate-400 text-xs italic">Nenhum contato cadastrado</div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Section 06: Certificado */}
@@ -348,40 +484,68 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.certificate ? 'rotate-180' : ''}`} size={16} />
             </button>
-            {openSections.certificate && (
-              <div className="p-4 pt-0 grid grid-cols-1 gap-2 animate-in fade-in duration-300">
-                {certificates.length > 0 ? certificates.map((cert, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck size={16} className="text-emerald-500" />
-                      <span className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tighter">{cert.model}</span>
-                    </div>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase">Vencimento</span>
-                        <span className={`text-sm font-bold ${new Date(cert.expires_at || cert.expiration_date) < new Date() ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                          {cert.expires_at || cert.expiration_date ? new Date(cert.expires_at || cert.expiration_date).toLocaleDateString('pt-BR') : '---'}
-                        </span>
-                      </div>
-                      <div 
-                        className="flex flex-col gap-1 cursor-pointer group"
-                        onClick={(e) => copyToClipboard(cert.password || '', `cert-p-${idx}`, e)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-black text-slate-400 uppercase">Senha</span>
-                          {copyFeedback === `cert-p-${idx}` && <span className="text-[9px] font-bold text-emerald-500">Copiado!</span>}
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.certificate ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 grid grid-cols-1 gap-3">
+                  {certificates.length > 0 ? certificates.map((cert, idx) => (
+                    <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 relative overflow-hidden group">
+                      <div className="flex items-center gap-4">
+                        {/* Modelo / Tipo */}
+                        <div className="flex items-center gap-2.5 min-w-[85px]">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-100/50 dark:border-emerald-500/20">
+                            <ShieldCheck size={16} className="text-emerald-500" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Modelo</span>
+                            <span className={`font-black text-slate-800 dark:text-slate-200 uppercase tracking-tighter leading-none ${cert.model === cert.model?.toUpperCase() && /[A-Z]/.test(cert.model) ? 'text-[11px]' : 'text-xs'}`}>
+                              {cert.model || 'eCNPJ'}
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-md w-fit">
-                          {cert.password || '---'}
-                        </span>
+
+                        {/* Divisor */}
+                        <div className="w-px h-8 bg-slate-200/60 dark:bg-slate-700/50" />
+
+                        {/* Vencimento */}
+                        <div className="flex-1 flex items-center gap-3 min-w-[100px]">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Vencimento</span>
+                            <div className="flex items-center gap-2">
+                              <Calendar size={12} className={new Date(cert.expires_at || cert.expiration_date) < new Date() ? 'text-rose-500' : 'text-indigo-400'} />
+                              <span className={`text-[12px] font-bold leading-none ${new Date(cert.expires_at || cert.expiration_date) < new Date() ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                                {cert.expires_at || cert.expiration_date ? new Date(cert.expires_at || cert.expiration_date).toLocaleDateString('pt-BR') : '---'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Divisor */}
+                        <div className="w-px h-8 bg-slate-200/60 dark:bg-slate-700/50" />
+
+                        {/* Senha */}
+                        <div 
+                          className="flex flex-col gap-1 cursor-pointer min-w-[100px]"
+                          onClick={(e) => copyToClipboard(cert.password || '', `cert-p-${idx}`, e)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Senha</span>
+                            {copyFeedback === `cert-p-${idx}` && <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in zoom-in">Copiado</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg group-hover:border-indigo-300 transition-all w-full shadow-sm">
+                            <Fingerprint size={12} className="text-indigo-400" />
+                            <span className="text-[12px] font-mono font-bold text-indigo-600 dark:text-indigo-400 truncate">
+                              {cert.password || '---'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )) : (
-                  <div className="text-center py-4 text-slate-400 text-xs italic">Nenhum certificado cadastrado</div>
-                )}
+                  )) : (
+                    <div className="text-center py-4 text-slate-400 text-xs italic">Nenhum certificado cadastrado</div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Section 07: Atividades */}
@@ -396,31 +560,33 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.activities ? 'rotate-180' : ''}`} size={16} />
             </button>
-            {openSections.activities && (
-              <div className="p-4 pt-0 grid grid-cols-1 gap-2 animate-in fade-in duration-300">
-                {activities.length > 0 ? activities.map((act, idx) => (
-                  <div 
-                    key={idx} 
-                    className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 cursor-pointer group"
-                    onClick={(e) => copyToClipboard(act.cnae_code, `act-${idx}`, e)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Activity size={12} className={act.order_type === 'principal' ? 'text-indigo-500' : 'text-slate-400'} />
-                        <span className={`text-[10px] font-black uppercase ${act.order_type === 'principal' ? 'text-indigo-500' : 'text-slate-400'}`}>
-                          {act.order_type === 'principal' ? 'Principal' : 'Secundária'}
-                        </span>
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.activities ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 grid grid-cols-1 gap-2">
+                  {activities.length > 0 ? activities.map((act, idx) => (
+                    <div 
+                      key={idx} 
+                      className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 cursor-pointer group"
+                      onClick={(e) => copyToClipboard(act.cnae_code, `act-${idx}`, e)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Activity size={12} className={act.order_type === 'principal' ? 'text-indigo-500' : 'text-slate-400'} />
+                          <span className={`text-[10px] font-black uppercase ${act.order_type === 'principal' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                            {act.order_type === 'principal' ? 'Principal' : 'Secundária'}
+                          </span>
+                        </div>
+                        {copyFeedback === `act-${idx}` && <span className="text-[9px] font-bold text-emerald-500">Copiado!</span>}
                       </div>
-                      {copyFeedback === `act-${idx}` && <span className="text-[9px] font-bold text-emerald-500">Copiado!</span>}
+                      <span className="text-sm font-mono font-bold text-slate-700 dark:text-slate-200 mt-1">{act.cnae_code}</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">{act.cnae_description}</span>
                     </div>
-                    <span className="text-sm font-mono font-bold text-slate-700 dark:text-slate-200 mt-1">{act.cnae_code}</span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">{act.cnae_description}</span>
-                  </div>
-                )) : (
-                  <div className="text-center py-4 text-slate-400 text-xs italic">Nenhuma atividade cadastrada</div>
-                )}
+                  )) : (
+                    <div className="text-center py-4 text-slate-400 text-xs italic">Nenhuma atividade cadastrada</div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
         </div>
