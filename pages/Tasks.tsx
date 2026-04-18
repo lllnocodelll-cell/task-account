@@ -104,11 +104,11 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
   isVisible,
   onToggle
 }) => (
-  <th className={`px-6 py-4 align-top ${widthClass}`}>
+  <th className={`px-6 py-4 align-top ${widthClass} ${isVisible || filterValue ? 'relative z-50' : 'relative z-10'}`}>
     <div className="flex flex-col">
       <div className="flex items-center justify-between gap-2 h-6">
         <span className="truncate">{label}</span>
-        <Tooltip content={`Filtrar por ${label}`} position="bottom">
+        <Tooltip content={`Filtrar por ${label}`} position="top">
           <button
             onClick={() => onToggle(fieldKey)}
             className={`p-1 rounded-md transition-colors ${filterValue || isVisible
@@ -135,23 +135,55 @@ interface ActionMenuProps {
 
 const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclude, onEdit, onDelete }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (
+        isOpen &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node) &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+
+    const handleScroll = () => {
+      if (isOpen) setIsOpen(false);
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('scroll', handleScroll, true);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [isOpen]);
+
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right
+      });
+    }
+    setIsOpen(!isOpen);
+  };
 
   return (
-    <div className="relative flex justify-end" ref={menuRef}>
+    <div className="relative flex justify-end">
       <Tooltip content="Ações" position="left">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          ref={buttonRef}
+          onClick={toggleMenu}
           className={`p-2 rounded-lg transition-colors ${isOpen
             ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'
             : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -161,13 +193,16 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
         </button>
       </Tooltip>
 
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 z-50 py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right">
-
-
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+          ref={menuRef}
+          style={{ top: coords.top, right: coords.right }}
+          className="fixed w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right"
+        >
           {task.status === TaskStatus.CONCLUIDA ? (
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 onStatusChange(task.id, TaskStatus.PENDENTE);
                 setIsOpen(false);
               }}
@@ -179,7 +214,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
             <>
               {task.status !== TaskStatus.INICIADA && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onStatusChange(task.id, TaskStatus.INICIADA);
                     setIsOpen(false);
                   }}
@@ -190,7 +226,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
               )}
 
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onConclude(task.id);
                   setIsOpen(false);
                 }}
@@ -202,7 +239,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
               <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
 
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onStatusChange(task.id, TaskStatus.PENDENTE);
                   setIsOpen(false);
                 }}
@@ -218,7 +256,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
               <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
 
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onDelete(task);
                   setIsOpen(false);
                 }}
@@ -228,7 +267,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
               </button>
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1483,8 +1523,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         ) : layoutMode === 'list' ? (
           <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
             <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
-              <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-0">
-                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
+              <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-collapse">
+                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
                   <tr>
                     <HeaderCell
                       label="Cliente"
@@ -1530,10 +1570,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       onToggle={toggleFilterVisibility}
                       widthClass="min-w-[110px]"
                     >
-                      <div className="relative w-full">
+                      <div className="relative z-50 w-full mt-2">
                         <input
                           type="month"
-                          className={`${headerInputClass} text-transparent cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity`}
+                          className={`${headerInputClass} !mt-0 text-transparent cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity`}
                           value={filters.competence}
                           onChange={(e) => handleFilterChange('competence', e.target.value)}
                           autoFocus
@@ -1635,7 +1675,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                     <th className="px-6 py-4 w-[80px]"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                <tbody className="">
                   {filteredTasks.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
@@ -1644,7 +1684,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                     </tr>
                   ) : (
                     filteredTasks.map((task) => (
-                      <tr key={task.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <tr key={task.id} className="group relative border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <div
