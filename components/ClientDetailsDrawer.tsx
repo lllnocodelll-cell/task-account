@@ -489,10 +489,10 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                 <div className="p-4 pt-0 grid grid-cols-1 gap-3">
                   {certificates.length > 0 ? certificates.map((cert, idx) => (
                     <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 relative overflow-hidden group">
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
                         {/* Modelo / Tipo */}
                         <div className="flex items-center gap-2.5 min-w-[85px]">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-100/50 dark:border-emerald-500/20">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center border border-emerald-100/50 dark:border-emerald-500/20 shrink-0">
                             <ShieldCheck size={16} className="text-emerald-500" />
                           </div>
                           <div className="flex flex-col">
@@ -504,14 +504,14 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         </div>
 
                         {/* Divisor */}
-                        <div className="w-px h-8 bg-slate-200/60 dark:bg-slate-700/50" />
+                        <div className="hidden sm:block w-px h-8 bg-slate-200/60 dark:bg-slate-700/50" />
 
                         {/* Vencimento */}
                         <div className="flex-1 flex items-center gap-3 min-w-[100px]">
                           <div className="flex flex-col">
                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Vencimento</span>
                             <div className="flex items-center gap-2">
-                              <Calendar size={12} className={new Date(cert.expires_at || cert.expiration_date) < new Date() ? 'text-rose-500' : 'text-indigo-400'} />
+                              <Calendar size={12} className={`shrink-0 ${new Date(cert.expires_at || cert.expiration_date) < new Date() ? 'text-rose-500' : 'text-indigo-400'}`} />
                               <span className={`text-[12px] font-bold leading-none ${new Date(cert.expires_at || cert.expiration_date) < new Date() ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
                                 {cert.expires_at || cert.expiration_date ? new Date(cert.expires_at || cert.expiration_date).toLocaleDateString('pt-BR') : '---'}
                               </span>
@@ -520,19 +520,19 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         </div>
 
                         {/* Divisor */}
-                        <div className="w-px h-8 bg-slate-200/60 dark:bg-slate-700/50" />
+                        <div className="hidden sm:block w-px h-8 bg-slate-200/60 dark:bg-slate-700/50" />
 
                         {/* Senha */}
                         <div 
-                          className="flex flex-col gap-1 cursor-pointer min-w-[100px]"
+                          className="flex flex-col gap-1 cursor-pointer w-full sm:w-auto sm:min-w-[100px] mt-1 sm:mt-0"
                           onClick={(e) => copyToClipboard(cert.password || '', `cert-p-${idx}`, e)}
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Senha</span>
                             {copyFeedback === `cert-p-${idx}` && <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in zoom-in">Copiado</span>}
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg group-hover:border-indigo-300 transition-all w-full shadow-sm">
-                            <Fingerprint size={12} className="text-indigo-400" />
+                          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg group-hover:border-indigo-300 transition-all w-full shadow-sm min-w-0">
+                            <Fingerprint size={12} className="text-indigo-400 shrink-0" />
                             <span className="text-[12px] font-mono font-bold text-indigo-600 dark:text-indigo-400 truncate">
                               {cert.password || '---'}
                             </span>
@@ -563,7 +563,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
             <div className={`grid transition-all duration-300 ease-in-out ${openSections.activities ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 grid grid-cols-1 gap-2">
-                  {activities.length > 0 ? activities.map((act, idx) => (
+                  {activities.length > 0 ? [...activities].sort((a, b) => a.order_type === 'principal' ? -1 : b.order_type === 'principal' ? 1 : 0).map((act, idx) => (
                     <div 
                       key={idx} 
                       className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 cursor-pointer group"

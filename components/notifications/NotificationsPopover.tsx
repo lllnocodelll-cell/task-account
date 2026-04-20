@@ -21,9 +21,6 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
 }) => {
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [targetId, setTargetId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -143,32 +140,25 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
     }
   };
 
-  const handleDeleteNotification = async () => {
-    if (!targetId) return;
-    setDeleting(true);
+  const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
+      // Optimistic update
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      
       const { error } = await supabase
         .from('notifications')
         .delete()
-        .eq('id', targetId);
+        .eq('id', id);
       
       if (error) throw error;
-      
-      setNotifications(prev => prev.filter(n => n.id !== targetId));
-      setIsConfirmOpen(false);
-      setTargetId(null);
     } catch (e2) {
       console.error('Error deleting notification:', e2);
-    } finally {
-      setDeleting(false);
+      fetchNotifications(); // Rollback/Refresh on error
     }
   };
 
-  const openDeleteConfirm = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setTargetId(id);
-    setIsConfirmOpen(true);
-  };
+
 
   const handleNotificationClick = (notification: NotificationType) => {
     if (!notification.read) {
@@ -271,7 +261,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
                         </button>
                     }
                     <button
-                      onClick={(e) => openDeleteConfirm(notif.id, e)}
+                      onClick={(e) => handleDeleteNotification(notif.id, e)}
                       className="p-0.5 text-slate-400 hover:text-red-500 rounded transition-colors shrink-0"
                       title="Excluir notificação"
                     >
@@ -300,16 +290,6 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
           Ver histórico completo
         </button>
       </div>
-      <ConfirmModal
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={handleDeleteNotification}
-        title="Excluir Notificação"
-        message="Deseja realmente excluir esta notificação? Esta ação não pode ser desfeita."
-        confirmText="Excluir"
-        cancelText="Voltar"
-        loading={deleting}
-      />
     </div>
   );
 };

@@ -107,7 +107,7 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
   <th className={`px-6 py-4 align-top ${widthClass} ${isVisible || filterValue ? 'relative z-50' : 'relative z-10'}`}>
     <div className="flex flex-col">
       <div className="flex items-center justify-between gap-2 h-6">
-        <span className="truncate">{label}</span>
+        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{label}</span>
         <Tooltip content={`Filtrar por ${label}`} position="top">
           <button
             onClick={() => onToggle(fieldKey)}
@@ -349,8 +349,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       onDrop={handleDrop}
     >
       <div className={`flex items-center justify-between mb-3 px-1 pb-2 border-b-2 ${color}`}>
-        <h3 className="font-semibold text-slate-700 dark:text-slate-300">{title}</h3>
-        <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs px-2 py-0.5 rounded-full font-bold">
+        <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{title}</h3>
+        <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-md font-bold">
           {tasks.length}
         </span>
       </div>
@@ -375,13 +375,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               className={`bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 border-t-4 ${color.replace('border-', 'border-t-')} hover:-translate-y-1 hover:shadow-xl transition-all duration-200 active:cursor-grabbing group select-none relative cursor-default`}
             >
               <div className="flex justify-between items-center px-3 pt-3 pb-2">
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide ${
-                  task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                  task.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                  'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-                }`}>
-                  {task.priority}
-                </span>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                    {task.taskName}
+                  </h4>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <GripVertical size={13} className="text-slate-300 dark:text-slate-600" />
                   <div className="flex flex-col items-end">
@@ -395,31 +393,32 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </div>
               </div>
 
-              <div className="px-3 pb-2">
-                <h4 className="text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-snug line-clamp-2">
-                  {task.taskName}
-                </h4>
-                
-                {/* Pilha de Ações/Badges */}
-                <div className="flex items-center gap-2 mt-2">
-                  <Tooltip content="Dados da Tarefa">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewTask(task);
-                      }}
-                      className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-90"
-                    >
-                      <Eye size={14} />
-                    </button>
-                  </Tooltip>
-                  
-                  {task.noMovement && (
-                    <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-black whitespace-nowrap border border-red-100 dark:border-red-900/30 rounded-md shadow-sm">
-                      Sem Movimento
-                    </span>
-                  )}
-                </div>
+              <div className="px-3 pb-2 flex items-center justify-start gap-2">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wide ${
+                  task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                  task.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                  'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                }`}>
+                  {task.priority}
+                </span>
+
+                {task.noMovement && (
+                  <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-black whitespace-nowrap border border-red-100 dark:border-red-900/30 rounded-md shadow-sm">
+                    Sem Movimento
+                  </span>
+                )}
+
+                <Tooltip content="Dados da Tarefa">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewTask(task);
+                    }}
+                    className="p-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-90"
+                  >
+                    <Eye size={13} />
+                  </button>
+                </Tooltip>
               </div>
 
               {task.taxRegime && (
@@ -483,26 +482,28 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   </div>
                 )}
                 {(task.establishmentType || hasExtraInfo) && (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {task.establishmentType && (
-                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide rounded-md ${
-                        task.establishmentType === 'matriz'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                      }`}>
-                        <GitMerge size={8} />
-                        {task.establishmentType === 'matriz' ? 'Matriz' : 'Filial'}
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between gap-1.5 mt-1 pt-1.5 border-t border-indigo-100/50 dark:border-indigo-800/30">
+                    <div>
+                      {task.establishmentType && (
+                        <span className={`inline-flex items-center justify-center h-[26px] gap-1 px-2 text-[9px] font-bold uppercase tracking-wide rounded-md ${
+                          task.establishmentType === 'matriz'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        }`}>
+                          <GitMerge size={10} />
+                          {task.establishmentType === 'matriz' ? 'Matriz' : 'Filial'}
+                        </span>
+                      )}
+                    </div>
 
-                    <div className="flex items-center gap-1.5 mt-2">
+                    <div className="flex items-center gap-1.5">
                       <Tooltip content="Dados da Empresa">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             if (clientData) onViewClient(clientData);
                           }}
-                          className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                          className="h-[26px] w-[26px] flex items-center justify-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
                         >
                           <Eye size={14} />
                         </button>
@@ -515,7 +516,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                               e.stopPropagation();
                               onViewTaskInfo(task);
                             }}
-                            className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                            className="h-[26px] w-[26px] flex items-center justify-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
                           >
                             <ExternalLink size={14} />
                           </button>
@@ -526,25 +527,35 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center justify-between px-3 pb-3 pt-2 border-t border-slate-100 dark:border-slate-700/50">
-                <div className="flex flex-col gap-1 min-w-0">
+              <div className="px-3 pb-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0 py-0.5">
                   {task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence) && (
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800/50 rounded-md w-fit">
-                      <Repeat size={8} className="text-slate-500 dark:text-slate-400 shrink-0" />
-                      <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium capitalize truncate">{task.recurrence}</span>
-                    </div>
+                    <>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-400 rounded-md shadow-sm">
+                        <Repeat size={9} className="shrink-0" />
+                        <span className="text-[9px] font-bold capitalize tracking-wide">{task.recurrence}</span>
+                      </div>
+                      <div className="w-px h-3 bg-slate-300 dark:bg-slate-600/60" />
+                    </>
                   )}
-                  <div className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">
-                    {task.competence}
+                  <div className="flex items-center gap-1 text-[9.5px] font-bold text-slate-600 dark:text-slate-400" title="Competência">
+                    <Calendar size={10} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                    <span className="uppercase tracking-[0.05em]">{task.competence}</span>
                   </div>
                   {task.dueDate && (
-                    <div className="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold" title="Vencimento">
-                      <Calendar size={9} className="shrink-0" />
-                      <span>{task.dueDate.split('-').reverse().join('/')}</span>
-                    </div>
+                    <>
+                      <div className="w-px h-3 bg-slate-300 dark:bg-slate-600/60" />
+                      <div className="flex items-center gap-1 text-[9.5px] font-bold text-indigo-600 dark:text-indigo-400" title="Vencimento">
+                        <Clock size={10} className="shrink-0" />
+                        <span>{task.dueDate.split('-').reverse().join('/')}</span>
+                      </div>
+                    </>
                   )}
                 </div>
-                <div className="flex items-center gap-1 transition-all">
+              </div>
+
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700/50 rounded-b-xl">
+                <div className="flex items-center gap-1.5 transition-all">
                   {status === TaskStatus.INICIADA && (
                     <Tooltip content="Voltar para Pendente" position="top">
                       <button
@@ -552,9 +563,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           e.stopPropagation();
                           onStatusChange(task.id, TaskStatus.PENDENTE);
                         }}
-                        className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-500/10 transition-all"
+                        className="text-slate-600 bg-slate-200/60 hover:bg-slate-300/80 dark:bg-slate-800 dark:text-slate-400 p-1.5 rounded-lg transition-all shadow-sm"
                       >
-                        <ChevronLeft size={18} />
+                        <ChevronLeft size={16} />
                       </button>
                     </Tooltip>
                   )}
@@ -565,9 +576,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           e.stopPropagation();
                           onStatusChange(task.id, TaskStatus.INICIADA);
                         }}
-                        className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-500/10 transition-all"
+                        className="text-slate-600 bg-slate-200/60 hover:bg-slate-300/80 dark:bg-slate-800 dark:text-slate-400 p-1.5 rounded-lg transition-all shadow-sm"
                       >
-                        <RotateCcw size={15} />
+                        <RotateCcw size={14} />
                       </button>
                     </Tooltip>
                   )}
@@ -578,9 +589,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           e.stopPropagation();
                           onStatusChange(task.id, TaskStatus.INICIADA);
                         }}
-                        className="text-blue-500 hover:text-blue-600 dark:text-blue-400 p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all"
+                        className="text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:hover:bg-blue-900/60 p-1.5 rounded-lg transition-all shadow-sm"
                       >
-                        <ChevronRight size={18} />
+                        <ChevronRight size={16} />
                       </button>
                     </Tooltip>
                   )}
@@ -591,9 +602,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           e.stopPropagation();
                           onConclude(task.id);
                         }}
-                        className="text-emerald-500 hover:text-emerald-600 dark:text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
+                        className="text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:hover:bg-emerald-900/60 p-1.5 rounded-lg transition-all shadow-sm"
                       >
-                        <ChevronRight size={18} />
+                        <CheckCircle size={16} />
                       </button>
                     </Tooltip>
                   )}
@@ -604,25 +615,24 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           e.stopPropagation();
                           onConclude(task.id);
                         }}
-                        className="text-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all"
+                        className="text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:hover:bg-emerald-900/60 p-1.5 rounded-lg transition-all shadow-sm"
                       >
-                        <CheckCircle size={15} />
+                        <CheckCircle size={14} />
                       </button>
                     </Tooltip>
                   )}
-                  <div className="w-px h-4 bg-slate-200 dark:bg-slate-700/50 mx-0.5" />
-                  <Tooltip content="Excluir" position="top">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(task);
-                      }}
-                      className="text-red-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </Tooltip>
                 </div>
+                <Tooltip content="Excluir" position="top">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(task);
+                    }}
+                    className="text-red-600 bg-red-100/60 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-400 dark:hover:bg-red-900/60 p-1.5 rounded-lg transition-all shadow-sm"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </Tooltip>
               </div>
             </div>
           );
@@ -2998,7 +3008,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* COLUNA ESQUERDA: CONTEXTO DO CLIENTE */}
         <div className="lg:col-span-4 space-y-6">
-          <Card title="Contexto do Cliente">
+          <Card title="Contexto do Cliente" titleClassName="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">
             {activeClientId && (
               <div className="flex justify-end mb-4">
                 <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold rounded-full uppercase tracking-tighter animate-pulse">
@@ -3134,7 +3144,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 px-4 py-3 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
+                    className={`flex-1 px-4 py-3 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
                       }`}
                   >
                     {tab.label}
@@ -3290,7 +3300,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
         {/* COLUNA DIREITA: TAREFAS */}
         <div className="lg:col-span-8 space-y-6">
-          <Card title="Adicionar Tarefas à Operação">
+          <Card title="Adicionar Tarefas à Operação" titleClassName="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">
             <div className="space-y-6">
               {/* LINHA DE ADIÇÃO RÁPIDA */}
               <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">

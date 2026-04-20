@@ -157,8 +157,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         fetchSectors();
 
         const fetchSegments = async () => {
-            const { data } = await supabase
-                .from('client_segments')
+            const { data } = await (supabase.from('client_segments') as any)
                 .select('id, name, category')
                 .eq('is_active', true)
                 .order('sort_order', { ascending: true });
@@ -670,7 +669,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             </div>
 
             {/* Section 1: Initial Data */}
-            <Card title="Dados Iniciais" collapsible>
+            <Card title="Dados Iniciais" titleClassName="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]" collapsible>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                     <div className="md:col-span-2">
                         <Input
@@ -888,7 +887,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             </Card>
 
             {/* Section 2: Address */}
-            <Card title="Endereço" collapsible>
+            <Card title="Endereço" titleClassName="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]" collapsible>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                     <Input
                         label="CEP"
@@ -972,7 +971,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     setTempLegislation({ status: 'vigente', description: '', access_url: '' });
                                     setOtherInscriptionType(false);
                                 }}
-                                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-800/30' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+                                className={`px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-800/30' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
                                     }`}
                             >
                                 {tab.label}
@@ -1374,10 +1373,16 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                     <Input
                                         label="CNAE"
-                                        placeholder="6920-6/0"
+                                        placeholder="6920-6/01"
                                         containerClassName="md:col-span-2"
                                         value={tempActivity.cnae_code}
-                                        onChange={e => setTempActivity({ ...tempActivity, cnae_code: e.target.value })}
+                                        onChange={e => {
+                                            let v = e.target.value.replace(/\D/g, "");
+                                            if (v.length > 7) v = v.substring(0, 7);
+                                            if (v.length > 5) v = `${v.substring(0, 4)}-${v.substring(4, 5)}/${v.substring(5)}`;
+                                            else if (v.length > 4) v = `${v.substring(0, 4)}-${v.substring(4)}`;
+                                            setTempActivity({ ...tempActivity, cnae_code: v });
+                                        }}
                                     />
                                     <Input
                                         label="Descrição do CNAE"

@@ -17,6 +17,7 @@ import { LoggedUsersWidget } from './widgets/LoggedUsersWidget';
 import { NotifiedExclusionWidget } from './widgets/NotifiedExclusionWidget';
 import { CollaboratorsByDeptWidget } from './widgets/CollaboratorsByDeptWidget';
 import { UncompletedTasksWidget } from './widgets/UncompletedTasksWidget';
+import { MonthlyEvolutionWidget } from './widgets/MonthlyEvolutionWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -76,11 +77,16 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'TAREFAS PENDENTES',
         component: UncompletedTasksWidget,
         defaultLayout: { i: 'uncompletedTasks', x: 8, y: 23, w: 4, h: 7, minW: 3, minH: 5 }
+    },
+    monthlyEvolution: {
+        name: 'EVOLUÇÃO MENSAL',
+        component: MonthlyEvolutionWidget,
+        defaultLayout: { i: 'monthlyEvolution', x: 0, y: 30, w: 12, h: 9, minW: 4, minH: 6 }
     }
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
-    'topSegments', 'statusByUser',
+    'topSegments', 'statusByUser', 'monthlyEvolution',
     'upcomingDeadlines', 'topTasks', 'documentAlerts',
     'clientStatus', 'taxRegimes', 'loggedUsers',
     'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks'
@@ -102,7 +108,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     const OPERACIONAL_ALLOWED_WIDGETS = [
         'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
         'topTasks', 'uncompletedTasks', 'clientStatus', 
-        'notifiedExclusion', 'topSegments'
+        'notifiedExclusion', 'topSegments', 'monthlyEvolution'
     ];
 
     const allWidgets = Object.keys(WIDGET_REGISTRY).filter(id => 
@@ -271,7 +277,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                                         onClick={() => toggleWidget(id)}
                                         className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
                                     >
-                                        <span className={`text-sm font-medium ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
+                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
                                             {WIDGET_REGISTRY[id].name}
                                         </span>
                                         <div className={`w-10 h-5.5 rounded-full flex items-center transition-colors p-1 ${isActive ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}>

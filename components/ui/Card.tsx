@@ -5,12 +5,13 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   title?: string;
+  titleClassName?: string;
   action?: React.ReactNode;
   collapsible?: boolean;
   defaultCollapsed?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className = '', title, action, collapsible = false, defaultCollapsed = false }) => {
+export const Card: React.FC<CardProps> = ({ children, className = '', title, titleClassName = 'text-base font-bold text-slate-900 dark:text-white tracking-tight', action, collapsible = false, defaultCollapsed = false }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
   return (
@@ -22,7 +23,7 @@ export const Card: React.FC<CardProps> = ({ children, className = '', title, act
         >
           <div className="flex items-center gap-3">
             <div className="w-1 h-5 bg-indigo-500 rounded-full" />
-            {title && <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>}
+            {title && <h3 className={titleClassName}>{title}</h3>}
           </div>
           <div className="flex items-center gap-3">
             {action && <div onClick={(e) => collapsible && e.stopPropagation()}>{action}</div>}

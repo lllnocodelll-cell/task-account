@@ -69,7 +69,7 @@ const HeaderCell: React.FC<HeaderCellProps> = ({
     <th className={`px-6 py-4 align-top ${widthClass}`}>
         <div className="flex flex-col">
             <div className="flex items-center justify-between gap-2 h-6">
-                <span className="truncate">{label}</span>
+                <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{label}</span>
                 <Tooltip content={`Filtrar por ${label.toLowerCase()}`} position="bottom">
                     <button
                         onClick={() => onToggle(fieldKey)}

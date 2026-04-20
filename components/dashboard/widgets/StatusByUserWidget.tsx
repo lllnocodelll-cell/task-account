@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { BarChart2, Users, Calendar, ChevronLeft, ChevronRight, CheckCircle2, Clock, AlertTriangle, Hourglass } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
+import { Tooltip } from '../../ui/Tooltip';
 
 interface Props {
     orgId: string;
@@ -106,13 +107,14 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             onRemove={onRemove}
             headerActions={
                 <div className="flex items-center gap-0.5" onMouseDown={e => e.stopPropagation()}>
-                    <button
-                        onClick={() => navigatePeriod('prev')}
-                        className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                        title="Mês anterior"
-                    >
-                        <ChevronLeft size={13} strokeWidth={2.5} />
-                    </button>
+                    <Tooltip content="Mês anterior" position="top">
+                        <button
+                            onClick={() => navigatePeriod('prev')}
+                            className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                        >
+                            <ChevronLeft size={13} strokeWidth={2.5} />
+                        </button>
+                    </Tooltip>
                     <div className={`relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer transition-all ${
                         period === defaultPeriod ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
                     }`}>
@@ -126,13 +128,14 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                         />
                         <span className="text-[11px] font-bold pointer-events-none whitespace-nowrap">{periodLabel}</span>
                     </div>
-                    <button
-                        onClick={() => navigatePeriod('next')}
-                        className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                        title="Próximo mês"
-                    >
-                        <ChevronRight size={13} strokeWidth={2.5} />
-                    </button>
+                    <Tooltip content="Próximo mês" position="top">
+                        <button
+                            onClick={() => navigatePeriod('next')}
+                            className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                        >
+                            <ChevronRight size={13} strokeWidth={2.5} />
+                        </button>
+                    </Tooltip>
                     {period !== defaultPeriod && (
                         <button
                             onClick={resetToCurrentMonth}
@@ -181,11 +184,18 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                             }`}>
                                                 {item.name}
                                             </span>
-                                            <span className={`text-xs font-black shrink-0 tabular-nums ${
-                                                isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'
-                                            }`}>
-                                                {item.total}
-                                            </span>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                <span className={`text-xs font-black tabular-nums ${
+                                                    isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'
+                                                }`}>
+                                                    {item.total}
+                                                </span>
+                                                {totals.total > 0 && (
+                                                    <span className="text-[10px] font-bold text-slate-400/80 tabular-nums">
+                                                        ({((item.total / totals.total) * 100).toFixed(0)}%)
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex gap-px">
@@ -194,16 +204,21 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                             const pct = (count / item.total) * 100;
                                             if (!count) return null;
                                             return (
-                                                <div
+                                                <Tooltip
                                                     key={status}
-                                                    className="h-full rounded-full transition-all duration-500"
-                                                    style={{
-                                                        width: `${pct}%`,
-                                                        backgroundColor: STATUS_CONFIG[status].color,
-                                                        opacity: isSelected || selectedIndex === null ? 1 : 0.4,
-                                                    }}
-                                                    title={`${status}: ${count}`}
-                                                />
+                                                    content={`${status}: ${count}`}
+                                                    position="top"
+                                                    style={{ width: `${pct}%` }}
+                                                    className="h-full"
+                                                >
+                                                    <div
+                                                        className="h-full w-full rounded-full transition-all duration-500"
+                                                        style={{
+                                                            backgroundColor: STATUS_CONFIG[status].color,
+                                                            opacity: isSelected || selectedIndex === null ? 1 : 0.4,
+                                                        }}
+                                                    />
+                                                </Tooltip>
                                             );
                                         })}
                                     </div>

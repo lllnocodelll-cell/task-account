@@ -5,9 +5,11 @@ interface TooltipProps {
     children: React.ReactNode;
     content: string;
     position?: 'top' | 'bottom' | 'left' | 'right';
+    className?: string;
+    style?: React.CSSProperties;
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ children, content, position = 'top' }) => {
+export const Tooltip: React.FC<TooltipProps> = ({ children, content, position = 'top', className = '', style }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [coords, setCoords] = useState({ top: 0, left: 0 });
     const triggerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,8 @@ export const Tooltip: React.FC<TooltipProps> = ({ children, content, position = 
             ref={triggerRef}
             onMouseEnter={() => setIsVisible(true)}
             onMouseLeave={() => setIsVisible(false)}
-            className="inline-block"
+            className={className || "inline-block"}
+            style={style}
         >
             {children}
             {isVisible && createPortal(
