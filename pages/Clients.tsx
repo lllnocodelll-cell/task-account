@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Users,
+    User,
     UserCheck,
     UserX,
     Calendar,
@@ -26,7 +28,8 @@ import {
     MapPin,
     LayoutGrid,
     Table as TableIcon,
-    ScanEye
+    ScanEye,
+    SlidersHorizontal
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -47,45 +50,108 @@ import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
 // --- Clients List Components ---
 const NotificationPlaceholder = () => null; // Placeholder for state insertion
 
-interface HeaderCellProps {
-    label: string;
-    fieldKey: string;
-    filterValue: string;
-    widthClass?: string;
-    children: React.ReactNode;
-    isVisible: boolean;
-    onToggle: (key: string) => void;
+// --- TABLE COLUMN FILTER PANEL ---
+interface TableColumnFilterProps {
+  label: string;
+  isActive: boolean;
+  activeCount: number;
+  children: React.ReactNode;
 }
 
-const HeaderCell: React.FC<HeaderCellProps> = ({
-    label,
-    fieldKey,
-    filterValue,
-    widthClass,
-    children,
-    isVisible,
-    onToggle
-}) => (
-    <th className={`px-6 py-4 align-top ${widthClass}`}>
-        <div className="flex flex-col">
-            <div className="flex items-center justify-between gap-2 h-6">
-                <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{label}</span>
-                <Tooltip content={`Filtrar por ${label.toLowerCase()}`} position="bottom">
-                    <button
-                        onClick={() => onToggle(fieldKey)}
-                        className={`p-1 rounded-md transition-colors ${filterValue || isVisible
-                            ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
-                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                    >
-                        <ListFilter size={14} strokeWidth={filterValue ? 2.5 : 2} />
-                    </button>
-                </Tooltip>
+const PANEL_WIDTH = 288; // w-72 = 18rem
+
+const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ label, isActive, activeCount, children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  const openPanel = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+
+    // Ajuste de borda: se o painel ultrapassar a janela, ancora pela direita
+    const rawLeft = rect.left;
+    const left = rawLeft + PANEL_WIDTH > window.innerWidth
+      ? window.innerWidth - PANEL_WIDTH - 8
+      : rawLeft;
+
+    setCoords({ top: rect.bottom + 6, left });
+    setIsOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    const handleScroll = () => setIsOpen(false);
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [isOpen]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        onClick={() => isOpen ? setIsOpen(false) : openPanel()}
+        className={`relative p-1 rounded-md transition-colors ${isActive || isOpen
+          ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
+          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        title={`Filtrar por ${label}`}
+      >
+        <ListFilter size={14} strokeWidth={isActive ? 2.5 : 2} />
+        {isActive && activeCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 bg-indigo-600 text-white">
+            {activeCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={panelRef}
+          style={{ top: coords.top, left: coords.left }}
+          className="fixed z-[9999] w-72 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
+                  Filtrar por {label}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-0.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X size={12} />
+              </button>
             </div>
-            {isVisible && children}
-        </div>
-    </th>
-);
+            <div className="px-4 py-3 space-y-2.5">
+              {children}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
 
 export const Clients: React.FC<{ userProfile: any, initialClientId?: string | null, onClearInitialClientId?: () => void }> = ({ userProfile, initialClientId, onClearInitialClientId }) => {
     const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
@@ -121,8 +187,22 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
         status: '',
     });
 
-    // Filter Visibility State
-    const [visibleFilters, setVisibleFilters] = useState<Record<string, boolean>>({});
+    // Grid Filter State
+    const [isGridFilterOpen, setIsGridFilterOpen] = useState(false);
+    const gridFilterRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (gridFilterRef.current && !gridFilterRef.current.contains(event.target as Node)) {
+                setIsGridFilterOpen(false);
+            }
+        }
+        if (isGridFilterOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isGridFilterOpen]);
+
 
     // Initial load and handling specialized navigation
     useEffect(() => {
@@ -240,12 +320,6 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
         }
     };
 
-    const toggleFilterVisibility = (field: string) => {
-        setVisibleFilters(prev => ({
-            ...prev,
-            [field]: !prev[field]
-        }));
-    };
 
     const handleFilterChange = (field: string, value: string) => {
         setFilters(prev => ({ ...prev, [field]: value }));
@@ -262,7 +336,6 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
             email: '',
             status: '',
         });
-        setVisibleFilters({});
     };
 
     const handleEdit = (client: Client) => {
@@ -338,9 +411,16 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
     // Derived filtered clients
     const filteredClients = clients.filter((client) => {
+        const companySearch = filters.companyName.toLowerCase();
+        const matchesCompany = 
+            (client.companyName || '').toLowerCase().includes(companySearch) ||
+            (client.tradeName || '').toLowerCase().includes(companySearch) ||
+            (client.city || '').toLowerCase().includes(companySearch) ||
+            (client.state || '').toLowerCase().includes(companySearch);
+
         return (
             (client.code || '').toLowerCase().includes(filters.code.toLowerCase()) &&
-            (client.companyName || '').toLowerCase().includes(filters.companyName.toLowerCase()) &&
+            matchesCompany &&
             (client.document || '').includes(filters.document) &&
             (client.contactName || '').toLowerCase().includes(filters.contactName.toLowerCase()) &&
             (client.phoneFixed || '').includes(filters.phoneFixed) &&
@@ -399,15 +479,105 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                     </div>
                 </div>
                 <div className="flex gap-3">
-                    <Button
-                        variant="secondary"
-                        onClick={clearFilters}
-                        icon={<X size={16} />}
-                        className="text-xs"
-                        disabled={Object.values(filters).every(v => v === '')}
-                    >
-                        Limpar Filtros
-                    </Button>
+                    
+                        <div className="relative" ref={gridFilterRef}>
+                            <Tooltip content="Filtros" position="top">
+                                <Button
+                                    variant={Object.values(filters).filter(v => v !== '').length > 0 ? "primary" : "secondary"}
+                                    onClick={() => setIsGridFilterOpen(!isGridFilterOpen)}
+                                    icon={<SlidersHorizontal size={16} />}
+                                    className={`text-xs relative p-2 ${Object.values(filters).filter(v => v !== '').length > 0 ? 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30' : ''}`}
+                                >
+                                    {Object.values(filters).filter(v => v !== '').length > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center rounded-full text-[9px] font-black px-1 ring-2 ring-white dark:ring-slate-900 bg-indigo-500 text-white shadow-sm">
+                                            {Object.values(filters).filter(v => v !== '').length}
+                                        </span>
+                                    )}
+                                </Button>
+                            </Tooltip>
+
+                            {isGridFilterOpen && (
+                                <div className="fixed inset-x-4 top-24 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 w-auto md:w-[340px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 p-4 z-[999] animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+                                        <h3 className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em] flex items-center gap-2">
+                                            <SlidersHorizontal size={14} className="text-indigo-500" />
+                                            Filtros Avancados
+                                        </h3>
+                                        <button onClick={() => setIsGridFilterOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Código</label>
+                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.code} onChange={e => handleFilterChange('code', e.target.value)} placeholder="000" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Empresa / Local</label>
+                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.companyName} onChange={e => handleFilterChange('companyName', e.target.value)} placeholder="Nome, Cidade ou UF..." />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">CPF / CNPJ</label>
+                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.document} onChange={e => handleFilterChange('document', e.target.value)} placeholder="000.000.000-00" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Contato</label>
+                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.contactName} onChange={e => handleFilterChange('contactName', e.target.value)} placeholder="Nome do representante" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Fixo</label>
+                                                <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.phoneFixed} onChange={e => handleFilterChange('phoneFixed', e.target.value)} placeholder="(00) ..." />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Celular</label>
+                                                <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.phoneMobile} onChange={e => handleFilterChange('phoneMobile', e.target.value)} placeholder="(00) 9 ..." />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">E-mail</label>
+                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.email} onChange={e => handleFilterChange('email', e.target.value)} placeholder="cliente@email.com" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Situação</label>
+                                            <div className="space-y-1.5 mt-1">
+                                                {[
+                                                    { value: 'Ativo',  label: 'Ativo',  color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
+                                                    { value: 'Inativo',  label: 'Inativo',  color: 'bg-rose-500/10 border-rose-300 dark:border-rose-500/40 text-rose-700 dark:text-rose-400' },
+                                                ].map(opt => (
+                                                    <button
+                                                        key={opt.value}
+                                                        onClick={() => handleFilterChange('status', filters.status === opt.value ? '' : opt.value)}
+                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
+                                                        filters.status === opt.value
+                                                            ? opt.color
+                                                            : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                                        }`}
+                                                    >
+                                                        <span>{opt.label}</span>
+                                                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+                                                        filters.status === opt.value
+                                                            ? 'bg-current text-white opacity-80'
+                                                            : 'bg-slate-200 dark:bg-slate-700'
+                                                        }`}>
+                                                        {filters.status === opt.value ? '✓' : ''}
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {Object.values(filters).filter(v => v !== '').length > 0 && (
+                                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                            <button onClick={clearFilters} className="w-full text-center text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400 hover:text-rose-700 py-2.5 bg-rose-50 dark:bg-rose-500/10 rounded-lg transition-colors border border-rose-200 dark:border-rose-500/30">
+                                                Limpar Todos os Filtros
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     
                     <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                         <button
@@ -486,151 +656,200 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                             <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-0">
                                 <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
                                     <tr>
-                                        <HeaderCell
-                                            label="Código"
-                                            fieldKey="code"
-                                            filterValue={filters.code}
-                                            isVisible={!!visibleFilters['code']}
-                                            onToggle={toggleFilterVisibility}
-                                            widthClass="min-w-[100px]"
-                                        >
-                                            <input
-                                                type="text"
-                                                placeholder="000..."
-                                                className={headerInputClass}
-                                                value={filters.code}
-                                                onChange={(e) => handleFilterChange('code', e.target.value)}
-                                                autoFocus
-                                            />
-                                        </HeaderCell>
+                                        {(() => {
+                                            const codeActive = !!filters.code;
+                                            const codeCount = codeActive ? 1 : 0;
+                                            return (
+                                                <th className={`px-6 py-4 align-top min-w-[100px] ${codeActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                    <div className="flex items-center justify-between gap-2 h-6">
+                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Código</span>
+                                                        <TableColumnFilter label="Código" isActive={codeActive} activeCount={codeCount}>
+                                                            <div>
+                                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Código</label>
+                                                                <input type="text" className={headerInputClass} value={filters.code} onChange={e => handleFilterChange('code', e.target.value)} autoFocus placeholder="000..." />
+                                                            </div>
+                                                            {codeActive && (
+                                                                <button onClick={() => handleFilterChange('code', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
+                                                            )}
+                                                        </TableColumnFilter>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })()}
 
-                                        <HeaderCell
-                                            label="Razão Social"
-                                            fieldKey="companyName"
-                                            filterValue={filters.companyName}
-                                            isVisible={!!visibleFilters['companyName']}
-                                            onToggle={toggleFilterVisibility}
-                                            widthClass="min-w-[200px]"
-                                        >
-                                            <input
-                                                type="text"
-                                                placeholder="Buscar empresa..."
-                                                className={headerInputClass}
-                                                value={filters.companyName}
-                                                onChange={(e) => handleFilterChange('companyName', e.target.value)}
-                                                autoFocus
-                                            />
-                                        </HeaderCell>
+                                        {(() => {
+                                            const nameActive = !!filters.companyName;
+                                            const nameCount = nameActive ? 1 : 0;
+                                            return (
+                                                <th className={`px-6 py-4 align-top min-w-[200px] ${nameActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                    <div className="flex items-center justify-between gap-2 h-6">
+                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Razão Social</span>
+                                                        <TableColumnFilter label="Razão Social" isActive={nameActive} activeCount={nameCount}>
+                                                            <div>
+                                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Nome/Cidade/UF</label>
+                                                                <input type="text" className={headerInputClass} value={filters.companyName} onChange={e => handleFilterChange('companyName', e.target.value)} autoFocus placeholder="Nome, Cidade ou UF..." />
+                                                            </div>
+                                                            {nameActive && (
+                                                                <button onClick={() => handleFilterChange('companyName', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
+                                                            )}
+                                                        </TableColumnFilter>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })()}
 
-                                        <HeaderCell
-                                            label="CPF/CNPJ"
-                                            fieldKey="document"
-                                            filterValue={filters.document}
-                                            isVisible={!!visibleFilters['document']}
-                                            onToggle={toggleFilterVisibility}
-                                            widthClass="min-w-[160px]"
-                                        >
-                                            <input
-                                                type="text"
-                                                placeholder="Documento..."
-                                                className={headerInputClass}
-                                                value={filters.document}
-                                                onChange={(e) => handleFilterChange('document', e.target.value)}
-                                                autoFocus
-                                            />
-                                        </HeaderCell>
+                                        {(() => {
+                                            const docActive = !!filters.document;
+                                            const docCount = docActive ? 1 : 0;
+                                            return (
+                                                <th className={`px-6 py-4 align-top min-w-[160px] ${docActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                    <div className="flex items-center justify-between gap-2 h-6">
+                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">CPF/CNPJ</span>
+                                                        <TableColumnFilter label="CPF/CNPJ" isActive={docActive} activeCount={docCount}>
+                                                            <div>
+                                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Documento</label>
+                                                                <input type="text" className={headerInputClass} value={filters.document} onChange={e => handleFilterChange('document', e.target.value)} autoFocus placeholder="Documento..." />
+                                                            </div>
+                                                            {docActive && (
+                                                                <button onClick={() => handleFilterChange('document', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
+                                                            )}
+                                                        </TableColumnFilter>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })()}
 
-                                        <HeaderCell
-                                            label="Contato"
-                                            fieldKey="contactName"
-                                            filterValue={filters.contactName}
-                                            isVisible={!!visibleFilters['contactName']}
-                                            onToggle={toggleFilterVisibility}
-                                            widthClass="min-w-[150px]"
-                                        >
-                                            <input
-                                                type="text"
-                                                placeholder="Nome contato..."
-                                                className={headerInputClass}
-                                                value={filters.contactName}
-                                                onChange={(e) => handleFilterChange('contactName', e.target.value)}
-                                                autoFocus
-                                            />
-                                        </HeaderCell>
+                                        {(() => {
+                                            const contactActive = !!filters.contactName;
+                                            const contactCount = contactActive ? 1 : 0;
+                                            return (
+                                                <th className={`px-6 py-4 align-top min-w-[150px] ${contactActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                    <div className="flex items-center justify-between gap-2 h-6">
+                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Contato</span>
+                                                        <TableColumnFilter label="Contato" isActive={contactActive} activeCount={contactCount}>
+                                                            <div>
+                                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Contato</label>
+                                                                <input type="text" className={headerInputClass} value={filters.contactName} onChange={e => handleFilterChange('contactName', e.target.value)} autoFocus placeholder="Nome contato..." />
+                                                            </div>
+                                                            {contactActive && (
+                                                                <button onClick={() => handleFilterChange('contactName', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
+                                                            )}
+                                                        </TableColumnFilter>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })()}
 
-                                        <HeaderCell
-                                            label="Fixo"
-                                            fieldKey="phoneFixed"
-                                            filterValue={filters.phoneFixed}
-                                            isVisible={!!visibleFilters['phoneFixed']}
-                                            onToggle={toggleFilterVisibility}
-                                            widthClass="min-w-[140px]"
-                                        >
-                                            <input
-                                                type="text"
-                                                placeholder="Telefone..."
-                                                className={headerInputClass}
-                                                value={filters.phoneFixed}
-                                                onChange={(e) => handleFilterChange('phoneFixed', e.target.value)}
-                                                autoFocus
-                                            />
-                                        </HeaderCell>
+                                        {(() => {
+                                            const fixedActive = !!filters.phoneFixed;
+                                            const fixedCount = fixedActive ? 1 : 0;
+                                            return (
+                                                <th className={`px-6 py-4 align-top min-w-[140px] ${fixedActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                    <div className="flex items-center justify-between gap-2 h-6">
+                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Fixo</span>
+                                                        <TableColumnFilter label="Fixo" isActive={fixedActive} activeCount={fixedCount}>
+                                                            <div>
+                                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Fixo</label>
+                                                                <input type="text" className={headerInputClass} value={filters.phoneFixed} onChange={e => handleFilterChange('phoneFixed', e.target.value)} autoFocus placeholder="Telefone..." />
+                                                            </div>
+                                                            {fixedActive && (
+                                                                <button onClick={() => handleFilterChange('phoneFixed', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
+                                                            )}
+                                                        </TableColumnFilter>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })()}
 
-                                        <HeaderCell
-                                            label="Celular"
-                                            fieldKey="phoneMobile"
-                                            filterValue={filters.phoneMobile}
-                                            isVisible={!!visibleFilters['phoneMobile']}
-                                            onToggle={toggleFilterVisibility}
-                                            widthClass="min-w-[140px]"
-                                        >
-                                            <input
-                                                type="text"
-                                                placeholder="Celular..."
-                                                className={headerInputClass}
-                                                value={filters.phoneMobile}
-                                                onChange={(e) => handleFilterChange('phoneMobile', e.target.value)}
-                                                autoFocus
-                                            />
-                                        </HeaderCell>
+                                        {(() => {
+                                            const mobileActive = !!filters.phoneMobile;
+                                            const mobileCount = mobileActive ? 1 : 0;
+                                            return (
+                                                <th className={`px-6 py-4 align-top min-w-[140px] ${mobileActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                    <div className="flex items-center justify-between gap-2 h-6">
+                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Celular</span>
+                                                        <TableColumnFilter label="Celular" isActive={mobileActive} activeCount={mobileCount}>
+                                                            <div>
+                                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Celular</label>
+                                                                <input type="text" className={headerInputClass} value={filters.phoneMobile} onChange={e => handleFilterChange('phoneMobile', e.target.value)} autoFocus placeholder="Celular..." />
+                                                            </div>
+                                                            {mobileActive && (
+                                                                <button onClick={() => handleFilterChange('phoneMobile', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
+                                                            )}
+                                                        </TableColumnFilter>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })()}
 
-                                        <HeaderCell
-                                            label="E-mail"
-                                            fieldKey="email"
-                                            filterValue={filters.email}
-                                            isVisible={!!visibleFilters['email']}
-                                            onToggle={toggleFilterVisibility}
-                                            widthClass="min-w-[200px]"
-                                        >
-                                            <input
-                                                type="text"
-                                                placeholder="Email..."
-                                                className={headerInputClass}
-                                                value={filters.email}
-                                                onChange={(e) => handleFilterChange('email', e.target.value)}
-                                                autoFocus
-                                            />
-                                        </HeaderCell>
+                                        {(() => {
+                                            const emailActive = !!filters.email;
+                                            const emailCount = emailActive ? 1 : 0;
+                                            return (
+                                                <th className={`px-6 py-4 align-top min-w-[200px] ${emailActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                    <div className="flex items-center justify-between gap-2 h-6">
+                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">E-mail</span>
+                                                        <TableColumnFilter label="E-mail" isActive={emailActive} activeCount={emailCount}>
+                                                            <div>
+                                                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar E-mail</label>
+                                                                <input type="text" className={headerInputClass} value={filters.email} onChange={e => handleFilterChange('email', e.target.value)} autoFocus placeholder="Email..." />
+                                                            </div>
+                                                            {emailActive && (
+                                                                <button onClick={() => handleFilterChange('email', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
+                                                            )}
+                                                        </TableColumnFilter>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })()}
 
-                                        <HeaderCell
-                                            label="Situação"
-                                            fieldKey="status"
-                                            filterValue={filters.status}
-                                            isVisible={!!visibleFilters['status']}
-                                            onToggle={toggleFilterVisibility}
-                                            widthClass="min-w-[120px]"
-                                        >
-                                            <select
-                                                className={headerInputClass}
-                                                value={filters.status}
-                                                onChange={(e) => handleFilterChange('status', e.target.value)}
-                                                autoFocus
-                                            >
-                                                <option value="">Todas</option>
-                                                <option value="Ativo">Ativo</option>
-                                                <option value="Inativo">Inativo</option>
-                                            </select>
-                                        </HeaderCell>
+                                        {(() => {
+                                            const statActive = !!filters.status;
+                                            const statCount = statActive ? 1 : 0;
+                                            const statOptions = [
+                                                { value: 'Ativo',  label: 'Ativo',  color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
+                                                { value: 'Inativo',  label: 'Inativo',  color: 'bg-rose-500/10 border-rose-300 dark:border-rose-500/40 text-rose-700 dark:text-rose-400' },
+                                                { value: 'Prospecto',  label: 'Prospecto',  color: 'bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' },
+                                            ];
+                                            return (
+                                                <th className={`px-6 py-4 align-top min-w-[120px] ${statActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                    <div className="flex items-center justify-between gap-2 h-6">
+                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Situação</span>
+                                                        <TableColumnFilter label="Situação" isActive={statActive} activeCount={statCount}>
+                                                            <div className="space-y-1.5">
+                                                                {statOptions.map(opt => (
+                                                                    <button
+                                                                        key={opt.value}
+                                                                        onClick={() => handleFilterChange('status', filters.status === opt.value ? '' : opt.value)}
+                                                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
+                                                                        filters.status === opt.value
+                                                                            ? opt.color
+                                                                            : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                                                        }`}
+                                                                    >
+                                                                        <span>{opt.label}</span>
+                                                                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+                                                                        filters.status === opt.value
+                                                                            ? 'bg-current text-white opacity-80'
+                                                                            : 'bg-slate-200 dark:bg-slate-700'
+                                                                        }`}>
+                                                                        {filters.status === opt.value ? '✓' : ''}
+                                                                        </span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            {statActive && (
+                                                                <button onClick={() => handleFilterChange('status', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                                                    Limpar filtro
+                                                                </button>
+                                                            )}
+                                                        </TableColumnFilter>
+                                                    </div>
+                                                </th>
+                                            );
+                                        })()}
+
+                                        <th className="px-6 py-4 w-[80px]"></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -715,59 +934,98 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         ) : (
                             filteredClients.map((client) => (
                                 <Card key={client.id} className="group hover:border-indigo-500/50 dark:hover:border-indigo-400/30 transition-all duration-300 hover:shadow-lg dark:hover:shadow-indigo-500/5 flex flex-col p-0 overflow-hidden relative border-slate-200 dark:border-slate-800">
-                                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">#{client.code}</span>
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
+                                    {/* Secao 1: Cabecalho e Infos */}
+                                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800/40 dark:to-slate-900/40">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <span className="text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">#{client.code}</span>
+                                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20'}`}>
                                                 {client.status.toUpperCase()}
                                             </span>
                                         </div>
-                                        <h3 className="font-bold text-slate-900 dark:text-white line-clamp-2 leading-tight min-h-[2.5rem]">
-                                            {client.companyName}
-                                        </h3>
+                                        <div className="flex flex-col gap-1.5">
+                                            <h3 className="font-extrabold text-slate-800 dark:text-white line-clamp-2 leading-tight text-[13px]">
+                                                {client.companyName}
+                                            </h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-xs font-mono text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1.5 shadow-sm">
+                                                    <FileText size={10} className="opacity-50" />
+                                                    {client.document || 'Sem Documento'}
+                                                </span>
+                                                <span className="text-[9px] uppercase tracking-widest font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-500/20 shadow-sm">
+                                                    {client.establishment_type || 'Matriz'}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                     
-                                    <div className="p-4 flex-1 space-y-3">
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <FileText size={14} className="text-slate-400 shrink-0" />
-                                            <span className="text-slate-600 dark:text-slate-300 font-mono tracking-tighter">{client.document}</span>
-                                        </div>
+                                    {/* Secao 2: Contatos */}
+                                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-1 flex flex-col justify-center">
+                                        <h4 className="text-[9px] uppercase tracking-widest font-black text-slate-400 dark:text-slate-500 mb-2.5">Contatos</h4>
                                         
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <Users size={14} className="text-slate-400 shrink-0" />
-                                            <span className="text-slate-600 dark:text-slate-300 truncate">{client.contactName}</span>
-                                        </div>
+                                        <div className="flex flex-col gap-2.5">
+                                            {/* Nome principal */}
+                                            {client.contactName && (
+                                                <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200 font-semibold truncate leading-none">
+                                                    <User size={13} className="text-slate-400 shrink-0" />
+                                                    <span className="truncate">{client.contactName}</span>
+                                                </div>
+                                            )}
+                                            {/* E-mail */}
+                                            {client.email ? (
+                                                <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-none truncate">
+                                                    <Mail size={13} className="shrink-0" />
+                                                    <span className="truncate tracking-wide">{client.email}</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-[11px] text-slate-300 dark:text-slate-600 italic leading-none isolate">
+                                                    <Mail size={13} className="shrink-0 opacity-50" />
+                                                    <span className="truncate">E-mail não informado</span>
+                                                </div>
+                                            )}
 
-                                        <div className="flex flex-col gap-2 pt-1">
-                                            {client.email && (
-                                                <div className="flex items-center gap-2 text-[11px] text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                                                    <Mail size={12} className="shrink-0" />
-                                                    <span className="truncate">{client.email}</span>
-                                                </div>
-                                            )}
-                                            {client.phoneMobile && (
-                                                <div className="flex items-center gap-2 text-[11px] text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                                                    <Phone size={12} className="shrink-0" />
-                                                    <span>{client.phoneMobile}</span>
-                                                </div>
-                                            )}
+                                            {/* Telefones */}
+                                            <div className="grid grid-cols-2 gap-2 mt-1">
+                                                {client.phoneFixed ? (
+                                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                        <Phone size={11} className="text-slate-400 shrink-0" />
+                                                        <span className="whitespace-nowrap tracking-tight">{client.phoneFixed}</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-slate-300 dark:text-slate-600 italic bg-slate-50/50 dark:bg-slate-800/20 px-2 py-1.5 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                                                        <Phone size={11} className="opacity-50 shrink-0" />
+                                                        <span>S/ Fixo</span>
+                                                    </div>
+                                                )}
+                                                {client.phoneMobile ? (
+                                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                        <Phone size={11} className="text-slate-400 shrink-0" />
+                                                        <span className="whitespace-nowrap tracking-tight">{client.phoneMobile}</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 text-[10px] text-slate-300 dark:text-slate-600 italic bg-slate-50/50 dark:bg-slate-800/20 px-2 py-1.5 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                                                        <Phone size={11} className="opacity-50 shrink-0" />
+                                                        <span>S/ Celular</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="p-3 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500">
-                                            <MapPin size={12} />
-                                            <span className="truncate max-w-[120px]">{client.city || 'N/A'}, {client.state || 'N/A'}</span>
+                                    {/* Secao 3: Localizacao e Acoes */}
+                                    <div className="p-3 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row items-center justify-between gap-3 relative">
+                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase w-full sm:w-auto overflow-hidden bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded shadow-sm">
+                                            <MapPin size={12} className="text-indigo-400 shrink-0" />
+                                            <span className="truncate">{client.city || 'N/A'}, {client.state || 'N/A'}</span>
                                         </div>
                                         
-                                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center justify-end w-full sm:w-auto gap-1">
                                             <Tooltip content="Visualizar" position="top">
                                                 <button 
                                                     onClick={() => {
                                                         setClientForDetails(client);
                                                         setIsDetailsDrawerOpen(true);
                                                     }}
-                                                    className="p-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 rounded-md shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all font-bold"
+                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm rounded transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                                                 >
                                                     <ScanEye size={14} />
                                                 </button>
@@ -775,7 +1033,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             <Tooltip content="Editar" position="top">
                                                 <button 
                                                     onClick={() => handleEdit(client)}
-                                                    className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 rounded-md shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm rounded transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                                                 >
                                                     <Pencil size={14} />
                                                 </button>
@@ -783,7 +1041,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             <Tooltip content="Excluir" position="top">
                                                 <button 
                                                     onClick={() => initDeleteClient(client)}
-                                                    className="p-1.5 text-red-600 dark:text-red-400 hover:bg-white dark:hover:bg-slate-800 rounded-md shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 hover:shadow-sm rounded transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                                                 >
                                                     <Trash2 size={14} />
                                                 </button>

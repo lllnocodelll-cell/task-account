@@ -144,11 +144,20 @@ interface TableColumnFilterProps {
   isActive: boolean;
   activeCount: number;
   children: React.ReactNode;
+  widthClass?: string;
+  widthPx?: number;
 }
 
 const PANEL_WIDTH = 288; // w-72 = 18rem
 
-const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ label, isActive, activeCount, children }) => {
+const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ 
+  label, 
+  isActive, 
+  activeCount, 
+  children,
+  widthClass = 'w-72',
+  widthPx = 288
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -160,8 +169,8 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ label, isActive, 
 
     // Ajuste de borda: se o painel ultrapassar a janela, ancora pela direita
     const rawLeft = rect.left;
-    const left = rawLeft + PANEL_WIDTH > window.innerWidth
-      ? window.innerWidth - PANEL_WIDTH - 8
+    const left = rawLeft + widthPx > window.innerWidth
+      ? window.innerWidth - widthPx - 8
       : rawLeft;
 
     setCoords({ top: rect.bottom + 6, left });
@@ -214,7 +223,7 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ label, isActive, 
         <div
           ref={panelRef}
           style={{ top: coords.top, left: coords.left }}
-          className="fixed z-[9999] w-72 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
+          className={`fixed z-[9999] ${widthClass} animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200`}
           onClick={e => e.stopPropagation()}
         >
           <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
@@ -1109,9 +1118,11 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       clientName: '',
       taskName: '',
       competence: defaultCompetence,
-      competenceFrom: '',
-      competenceTo: '',
+      competenceFrom: defaultCompetence,
+      competenceTo: defaultCompetence,
       dueDate: '',
+      dueDateFrom: '',
+      dueDateTo: '',
       taxRegime: '',
       selectedAnnex: '',
       exceededSublimit: false,
@@ -1128,6 +1139,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     };
   });
 
+  const [rangeMode, setRangeMode] = useState(false);
+
   // Filter Visibility State
   const [visibleFilters, setVisibleFilters] = useState<Record<string, boolean>>({});
 
@@ -1140,15 +1153,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
   // Tasks filtradas para os cards (ignora filtro de status da tabela)
   const cardsTasks = tasks.filter((task) => {
-    // Filtro de competência: intervalo tem prioridade sobre mês único
+    // Filtro de competência: respeita o modo ativo (aba selecionada)
     let competenceMatch = true;
-    if (filters.competenceFrom || filters.competenceTo) {
+    if (rangeMode) {
       const taskComp = task.competence; // formato YYYY-MM
       if (filters.competenceFrom && filters.competenceTo) {
         competenceMatch = taskComp >= filters.competenceFrom && taskComp <= filters.competenceTo;
       } else if (filters.competenceFrom) {
         competenceMatch = taskComp >= filters.competenceFrom;
-      } else {
+      } else if (filters.competenceTo) {
         competenceMatch = taskComp <= filters.competenceTo;
       }
     } else if (filters.competence) {
@@ -1163,7 +1176,19 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       task.taskName.toLowerCase().includes(filters.taskName.toLowerCase()) &&
       (!filters.noMovement || task.noMovement === true) &&
       competenceMatch &&
-      (filters.dueDate === '' || task.dueDate === filters.dueDate) &&
+      (() => {
+        if (rangeMode) {
+          if (filters.dueDateFrom && filters.dueDateTo) {
+            return task.dueDate >= filters.dueDateFrom && task.dueDate <= filters.dueDateTo;
+          } else if (filters.dueDateFrom) {
+            return task.dueDate >= filters.dueDateFrom;
+          } else if (filters.dueDateTo) {
+            return task.dueDate <= filters.dueDateTo;
+          }
+          return true;
+        }
+        return filters.dueDate === '' || task.dueDate === filters.dueDate;
+      })() &&
       (filters.taxRegime === '' || task.taxRegime === filters.taxRegime) &&
       (filters.selectedAnnex === '' || (task.selectedAnnexes ?? []).includes(filters.selectedAnnex)) &&
       (!filters.exceededSublimit || task.exceededSublimit === true) &&
@@ -1201,9 +1226,11 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       clientName: '',
       taskName: '',
       competence: defaultCompetence,
-      competenceFrom: '',
-      competenceTo: '',
+      competenceFrom: defaultCompetence,
+      competenceTo: defaultCompetence,
       dueDate: '',
+      dueDateFrom: '',
+      dueDateTo: '',
       taxRegime: '',
       selectedAnnex: '',
       exceededSublimit: false,
@@ -1222,7 +1249,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     setRangeMode(false);
   };
 
-  const [rangeMode, setRangeMode] = useState(false);
+  const formatMonthDisplay = (val: string) => {
+    if (!val) return '';
+    const [year, month] = val.split('-');
+    return `${month}/${year}`;
+  };
+
 
   const getPrevMonthCompetence = (curr: string) => {
     if (!curr) return '';
@@ -1739,6 +1771,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
   return (
     <div className="space-y-6 h-full flex flex-col">
+      <style>
+        {`
+          .month-input-mask::-webkit-datetime-edit { color: transparent !important; }
+          .month-input-mask::-webkit-datetime-edit-fields-wrapper { color: transparent !important; }
+        `}
+      </style>
       <TaskInfoDrawer
         key={selectedTaskForInfo?.id || 'none'}
         isOpen={isTaskInfoDrawerOpen}
@@ -1800,125 +1838,6 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                 Kanban
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
               </div>
-            </div>
-          </div>
-
-          {/* Filtro de Competência: modo simples ou intervalo */}
-          <div className="flex items-center gap-1.5">
-            {!rangeMode ? (
-              // Modo Simples
-              <div className={`flex items-center bg-white dark:bg-slate-900 rounded-lg border ${
-                filters.competence ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'
-              } h-10 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all`}>
-                <div className="relative group flex items-center pl-3 h-full">
-                  <Calendar size={16} className="text-indigo-500 dark:text-indigo-400 mr-2" />
-                  <div className="relative w-28 h-full flex items-center">
-                    <input
-                      type="month"
-                      className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
-                      value={filters.competence}
-                      onChange={(e) => handleFilterChange('competence', e.target.value)}
-                    />
-                    <div className="absolute left-0 right-8 top-1/2 -translate-y-1/2 flex items-center pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%]">
-                      {filters.competence
-                        ? <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">{filters.competence.split('-')[1]}/{filters.competence.split('-')[0]}</span>
-                        : <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">Competência</span>
-                      }
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              // Modo Intervalo
-              <div className={`flex items-center gap-1 bg-white dark:bg-slate-900 rounded-lg border ${
-                (filters.competenceFrom || filters.competenceTo) ? 'border-indigo-400 dark:border-indigo-500 ring-1 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-800'
-              } h-10 px-2 transition-all`}>
-                <Calendar size={14} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
-                {/* De */}
-                <div className="relative w-24 h-full flex items-center">
-                  <input
-                    type="month"
-                    className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
-                    value={filters.competenceFrom}
-                    onChange={(e) => handleFilterChange('competenceFrom', e.target.value)}
-                  />
-                  <div className="absolute left-0 right-6 top-1/2 -translate-y-1/2 pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%] flex items-center">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">
-                      {filters.competenceFrom ? `${filters.competenceFrom.split('-')[1]}/${filters.competenceFrom.split('-')[0]}` : <span className="text-slate-400">De</span>}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-slate-300 dark:text-slate-600 font-bold text-xs shrink-0">→</span>
-                {/* Até */}
-                <div className="relative w-24 h-full flex items-center">
-                  <input
-                    type="month"
-                    className="absolute inset-0 w-full h-full bg-transparent border-none text-transparent focus:ring-0 p-0 cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity"
-                    value={filters.competenceTo}
-                    onChange={(e) => handleFilterChange('competenceTo', e.target.value)}
-                  />
-                  <div className="absolute left-0 right-6 top-1/2 -translate-y-1/2 pointer-events-none bg-white dark:bg-slate-900 overflow-hidden h-[80%] flex items-center">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase truncate">
-                      {filters.competenceTo ? `${filters.competenceTo.split('-')[1]}/${filters.competenceTo.split('-')[0]}` : <span className="text-slate-400">Até</span>}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Toggle modo intervalo */}
-            <div className="relative group">
-              <button
-                onClick={() => {
-                  setRangeMode(p => !p);
-                  // Ao trocar de modo, limpa os campos do modo anterior
-                  if (!rangeMode) {
-                    handleFilterChange('competence', '');
-                  } else {
-                    handleFilterChange('competenceFrom', '');
-                    handleFilterChange('competenceTo', '');
-                  }
-                }}
-                className={`h-10 w-10 flex items-center justify-center rounded-lg border transition-all ${
-                  rangeMode
-                    ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-400 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-indigo-300 hover:text-indigo-500'
-                }`}
-              >
-                <ChevronRight size={14} className={rangeMode ? 'opacity-100' : 'opacity-60'} />
-                <ChevronRight size={14} className={`-ml-2 ${rangeMode ? 'opacity-100' : 'opacity-60'}`} />
-              </button>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-                {rangeMode ? 'Modo: Intervalo (ativo)' : 'Filtrar por Intervalo'}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
-              </div>
-            </div>
-          </div>
-
-          <div className="relative group flex">
-            {(() => {
-              const hasActiveFilters = !Object.entries(filters).every(([k, v]) =>
-                k === 'competence'
-                  ? v === (() => { const n = new Date(); const lm = new Date(n.getFullYear(), n.getMonth() - 1, 1); return `${lm.getFullYear()}-${(lm.getMonth() + 1).toString().padStart(2, '0')}`; })()
-                  : v === ''
-              ) || rangeMode;
-              return (
-                <button
-                  onClick={clearFilters}
-                  disabled={!hasActiveFilters}
-                  className={`h-10 w-10 flex items-center justify-center rounded-lg border transition-all ${
-                    hasActiveFilters
-                      ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                  }`}
-                >
-                  <ListFilter size={16} />
-                </button>
-              );
-            })()}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-              Limpar Todos os Filtros
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
             </div>
           </div>
           <Button onClick={handleCreate} icon={<Plus size={18} />} className="hidden md:flex">Nova Tarefa</Button>
@@ -2067,8 +1986,11 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
                     {/* == PERÍODO == */}
                     {(() => {
-                      const periodActive = !!(filters.competence || filters.competenceFrom || filters.competenceTo || filters.dueDate);
-                      const periodCount = [filters.competence || (filters.competenceFrom || filters.competenceTo) ? 'x' : '', filters.dueDate].filter(Boolean).length;
+                      const periodActive = !!(filters.competence || filters.competenceFrom || filters.competenceTo || filters.dueDate || filters.dueDateFrom || filters.dueDateTo);
+                      const periodCount = [
+                        (filters.competence || filters.competenceFrom || filters.competenceTo) ? 'c' : '',
+                        (filters.dueDate || filters.dueDateFrom || filters.dueDateTo) ? 'd' : ''
+                      ].filter(Boolean).length;
                       return (
                         <th className={`px-6 py-4 align-top min-w-[130px] ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
@@ -2077,23 +1999,53 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                               {/* Toggle mês único / intervalo */}
                               <div>
                                 <div className="flex items-center gap-1 mb-2 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                                  <button onClick={() => { setRangeMode(false); handleFilterChange('competenceFrom', ''); handleFilterChange('competenceTo', ''); }} className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}>Mês único</button>
-                                  <button onClick={() => { setRangeMode(true); handleFilterChange('competence', ''); }} className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}>Intervalo</button>
+                                  <button onClick={() => setRangeMode(false)} className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}>Mês único</button>
+                                  <button onClick={() => setRangeMode(true)} className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}>Intervalo</button>
                                 </div>
                                 {!rangeMode ? (
-                                  <div>
+                                  <div className="relative group">
                                     <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Competência</label>
-                                    <input type="month" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.competence} onChange={e => handleFilterChange('competence', e.target.value)} />
+                                    <div className="relative">
+                                      <input 
+                                        type="month" 
+                                        className={`${headerInputClass} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`} 
+                                        value={filters.competence} 
+                                        onChange={e => handleFilterChange('competence', e.target.value)} 
+                                      />
+                                      <div className="absolute inset-y-0 left-0 flex items-center px-2 pointer-events-none text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase">
+                                        {formatMonthDisplay(filters.competence)}
+                                      </div>
+                                    </div>
                                   </div>
                                 ) : (
                                   <div className="grid grid-cols-2 gap-2">
-                                    <div>
+                                    <div className="relative group">
                                       <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">De</label>
-                                      <input type="month" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.competenceFrom} onChange={e => handleFilterChange('competenceFrom', e.target.value)} />
+                                      <div className="relative">
+                                        <input 
+                                          type="month" 
+                                          className={`${headerInputClass} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`} 
+                                          value={filters.competenceFrom} 
+                                          onChange={e => handleFilterChange('competenceFrom', e.target.value)} 
+                                        />
+                                        <div className="absolute inset-y-0 left-0 flex items-center px-2 pointer-events-none text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase">
+                                          {formatMonthDisplay(filters.competenceFrom)}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div>
+                                    <div className="relative group">
                                       <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Até</label>
-                                      <input type="month" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.competenceTo} onChange={e => handleFilterChange('competenceTo', e.target.value)} />
+                                      <div className="relative">
+                                        <input 
+                                          type="month" 
+                                          className={`${headerInputClass} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`} 
+                                          value={filters.competenceTo} 
+                                          onChange={e => handleFilterChange('competenceTo', e.target.value)} 
+                                        />
+                                        <div className="absolute inset-y-0 left-0 flex items-center px-2 pointer-events-none text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase">
+                                          {formatMonthDisplay(filters.competenceTo)}
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
                                 )}
@@ -2101,11 +2053,26 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                               {/* Vencimento */}
                               <div>
                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Data de Vencimento</label>
-                                <input type="date" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.dueDate} onChange={e => handleFilterChange('dueDate', e.target.value)} />
+                                {!rangeMode ? (
+                                  <input type="date" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.dueDate} onChange={e => handleFilterChange('dueDate', e.target.value)} />
+                                ) : (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <input type="date" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.dueDateFrom} onChange={e => handleFilterChange('dueDateFrom', e.target.value)} />
+                                    <input type="date" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.dueDateTo} onChange={e => handleFilterChange('dueDateTo', e.target.value)} />
+                                  </div>
+                                )}
                               </div>
                               {/* Limpar */}
                               {periodActive && (
-                                <button onClick={() => { handleFilterChange('competence', ''); handleFilterChange('competenceFrom', ''); handleFilterChange('competenceTo', ''); handleFilterChange('dueDate', ''); setRangeMode(false); }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                <button onClick={() => { 
+                                  handleFilterChange('competence', ''); 
+                                  handleFilterChange('competenceFrom', ''); 
+                                  handleFilterChange('competenceTo', ''); 
+                                  handleFilterChange('dueDate', ''); 
+                                  handleFilterChange('dueDateFrom', ''); 
+                                  handleFilterChange('dueDateTo', ''); 
+                                  setRangeMode(false); 
+                                }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
                                   Limpar filtros
                                 </button>
                               )}
@@ -2182,7 +2149,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         <th className={`px-6 py-4 align-top min-w-[120px] ${prioActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Prioridade</span>
-                            <TableColumnFilter label="Prioridade" isActive={prioActive} activeCount={prioCount}>
+                            <TableColumnFilter label="Prioridade" isActive={prioActive} activeCount={prioCount} widthClass="w-60" widthPx={240}>
                               <div className="space-y-1.5">
                                 {prioOptions.map(opt => (
                                   <button
@@ -2255,7 +2222,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         <th className={`px-6 py-4 align-top min-w-[130px] ${statActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Status</span>
-                            <TableColumnFilter label="Status" isActive={statActive} activeCount={statCount}>
+                            <TableColumnFilter label="Status" isActive={statActive} activeCount={statCount} widthClass="w-60" widthPx={240}>
                               <div className="space-y-1.5">
                                 {statOptions.map(opt => (
                                   <button
@@ -4143,76 +4110,129 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                 )}
               </div>
 
-              {/* LISTA DE TAREFAS ADICIONADAS */}
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-[11px]">
-                  <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3">Tarefa</th>
-                      <th className="px-4 py-3">Setor</th>
-                      <th className="px-4 py-3">Responsável</th>
-                      <th className="px-4 py-3">Comp.</th>
-                      <th className="px-4 py-3">Venc.</th>
-                      <th className="px-4 py-3">Variável</th>
-                      <th className="px-4 py-3">Recorrência</th>
-                      <th className="px-4 py-3">Prioridade</th>
-                      <th className="px-4 py-3 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {pendingTasks.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-slate-400 italic">
-                          Nenhuma tarefa adicionada à lista. Preencha acima e clique em "Adicionar".
-                        </td>
-                      </tr>
-                    ) : (
-                      pendingTasks.map((task) => (
-                        <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">{task.taskName}</td>
-                          <td className="px-4 py-3 text-slate-500">{task.sector}</td>
-                          <td className="px-4 py-3 text-slate-500">{task.responsible}</td>
-                          <td className="px-4 py-3 text-slate-500">{task.competence}</td>
-                          <td className="px-4 py-3 text-slate-500">{task.vencimento}</td>
-                          <td className="px-4 py-3 text-slate-500 text-[10px] font-medium italic">
-                            {task.vencimentoVariavel === 'nao_aplica' ? '-' : task.vencimentoVariavel}
-                          </td>
-                          <td className="px-4 py-3 text-slate-500 uppercase text-[10px] font-bold">
-                            {task.recurrence}
-                            {task.months.length > 0 && (
-                              <div className="text-[9px] text-indigo-500 mt-0.5">
-                                {task.months.map((m: number) => ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m - 1]).join(', ')}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
-                              {task.priority}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleEditPendingTask(task)}
-                                className={`p-1 rounded transition-colors ${editingTaskId === task.id ? 'text-amber-500 bg-amber-50' : 'text-slate-300 hover:text-indigo-500 hover:bg-indigo-50'}`}
-                                title="Editar tarefa"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                onClick={() => removePendingTask(task.id)}
-                                className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                title="Remover da lista"
-                              >
-                                <X size={14} />
-                              </button>
+              {/* LISTA DE TAREFAS ADICIONADAS - CARDS REORGANIZADOS E COMPACTOS */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <ListChecks size={14} />
+                    Tarefas na Fila ({pendingTasks.length})
+                  </h4>
+                  {pendingTasks.length > 0 && (
+                    <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">
+                      Pronto para salvar
+                    </span>
+                  )}
+                </div>
+
+                {pendingTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-slate-100 dark:border-slate-800/50 rounded-2xl bg-slate-50/30 dark:bg-slate-900/20 text-center animate-in fade-in duration-500">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-4 scale-110">
+                      <Zap size={32} />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Nenhuma tarefa na fila</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-[240px]">Preencha os campos acima e clique em "Adicionar à Lista" para montar sua operação.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {pendingTasks.map((task) => (
+                      <div 
+                        key={task.id} 
+                        className={`group relative overflow-hidden bg-white/60 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/50 rounded-2xl p-5 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-500/30 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${editingTaskId === task.id ? 'ring-2 ring-amber-500 border-amber-500 shadow-amber-500/10' : ''}`}
+                      >
+                        {/* Seção 1: Nome da Tarefa e Prioridade */}
+                        <div className="flex justify-between items-center mb-4 relative z-10">
+                          <h5 className="text-sm font-black text-slate-800 dark:text-slate-100 truncate tracking-tight flex-1 pr-2">
+                            {task.taskName}
+                          </h5>
+                          <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm ${
+                            task.priority === Priority.ALTA 
+                              ? 'bg-red-500 text-white' 
+                              : task.priority === Priority.MEDIA 
+                                ? 'bg-amber-400 text-amber-900' 
+                                : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                          }`}>
+                            {task.priority}
+                          </span>
+                        </div>
+
+                        {/* Seção 2: Competência | Vencimento */}
+                        <div className="flex items-center gap-3 py-2 border-b border-slate-100/50 dark:border-slate-800/50 relative z-10">
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                            <Calendar size={13} className="shrink-0" />
+                            <span>{task.competence.split('-').reverse().join('/')}</span>
+                          </div>
+                          <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />
+                          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+                            <Clock size={11} className="text-rose-500 shrink-0" />
+                            <span>{task.vencimento ? new Date(task.vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                          </div>
+                        </div>
+
+                        {/* Seção 3: Variável | Tipo de Recorrência */}
+                        <div className="flex items-center gap-3 py-2 border-b border-slate-100/50 dark:border-slate-800/50 relative z-10">
+                          <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400 italic">
+                            <GitCompareArrows size={13} className="text-slate-300 shrink-0" />
+                            <span>{task.vencimentoVariavel === 'nao_aplica' ? 'Fixo' : task.vencimentoVariavel}</span>
+                          </div>
+                          <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />
+                          <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-600 dark:text-slate-200 uppercase tracking-widest">
+                            <Repeat size={13} className="text-indigo-500 shrink-0" />
+                            <span>{task.recurrence}</span>
+                          </div>
+                        </div>
+
+                        {/* Seção 4: Responsável | Setor */}
+                        <div className="flex items-center justify-between py-3 relative z-10">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                              <User size={11} />
                             </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                            <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 truncate">{task.responsible}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase tracking-tighter shrink-0 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                            <Layers size={9} className="text-slate-300" />
+                            {task.sector}
+                          </div>
+                        </div>
+
+                        {/* Meses da Recorrência (Sub-seção de contexto) */}
+                        {task.months.length > 0 && task.recurrence !== 'mensal' && (
+                          <div className="flex flex-wrap gap-1 mb-4 animate-in fade-in slide-in-from-top-1 duration-300">
+                            {task.months.map((m: number) => (
+                              <span key={m} className="px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-[8px] font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 uppercase tracking-tighter">
+                                {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m - 1]}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Seção 5: Ações */}
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 relative z-10">
+                          <span className="text-[8px] text-slate-300 font-mono">ID: {task.id.toString().slice(-6)}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleEditPendingTask(task)}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                                editingTaskId === task.id 
+                                  ? 'bg-amber-500 text-white' 
+                                  : 'bg-indigo-50/80 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white'
+                              }`}
+                            >
+                              <Pencil size={11} />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => removePendingTask(task.id)}
+                              className="p-1 px-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all hover:rotate-12"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </Card>
