@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Play,
@@ -41,7 +41,8 @@ import {
   FileCheck2,
   MinusCircle,
   ScanEye,
-  Eye
+  Eye,
+  SlidersHorizontal
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -88,7 +89,9 @@ const REGISTRATION_REGIME_LABELS: Record<string, string> = {
 interface HeaderCellProps {
   label: string;
   fieldKey: string;
-  filterValue: string;
+  filterValue?: string;
+  isActive?: boolean;
+  activeCount?: number;
   widthClass?: string;
   children: React.ReactNode;
   isVisible: boolean;
@@ -98,32 +101,150 @@ interface HeaderCellProps {
 const HeaderCell: React.FC<HeaderCellProps> = ({
   label,
   fieldKey,
-  filterValue,
+  filterValue = '',
+  isActive,
+  activeCount = 0,
   widthClass,
   children,
   isVisible,
   onToggle
-}) => (
-  <th className={`px-6 py-4 align-top ${widthClass} ${isVisible || filterValue ? 'relative z-50' : 'relative z-10'}`}>
-    <div className="flex flex-col">
-      <div className="flex items-center justify-between gap-2 h-6">
-        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{label}</span>
-        <Tooltip content={`Filtrar por ${label}`} position="top">
-          <button
-            onClick={() => onToggle(fieldKey)}
-            className={`p-1 rounded-md transition-colors ${filterValue || isVisible
-              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
-              : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-          >
-            <ListFilter size={14} strokeWidth={filterValue ? 2.5 : 2} />
-          </button>
-        </Tooltip>
+}) => {
+  const hasFilter = isActive ?? !!filterValue;
+  return (
+    <th className={`px-6 py-4 align-top ${widthClass} ${isVisible || hasFilter ? 'relative z-50' : 'relative z-10'}`}>
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between gap-2 h-6">
+          <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{label}</span>
+          <Tooltip content={`Filtrar por ${label}`} position="top">
+            <button
+              onClick={() => onToggle(fieldKey)}
+              className={`relative p-1 rounded-md transition-colors ${hasFilter || isVisible
+                ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+            >
+              <ListFilter size={14} strokeWidth={hasFilter ? 2.5 : 2} />
+              {hasFilter && activeCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 bg-indigo-600 text-white">
+                  {activeCount}
+                </span>
+              )}
+            </button>
+          </Tooltip>
+        </div>
+        {isVisible && children}
       </div>
-      {isVisible && children}
-    </div>
-  </th>
-);
+    </th>
+  );
+};
+
+// --- TABLE COLUMN FILTER PANEL ---
+interface TableColumnFilterProps {
+  label: string;
+  isActive: boolean;
+  activeCount: number;
+  children: React.ReactNode;
+}
+
+const PANEL_WIDTH = 288; // w-72 = 18rem
+
+const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ label, isActive, activeCount, children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  const openPanel = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+
+    // Ajuste de borda: se o painel ultrapassar a janela, ancora pela direita
+    const rawLeft = rect.left;
+    const left = rawLeft + PANEL_WIDTH > window.innerWidth
+      ? window.innerWidth - PANEL_WIDTH - 8
+      : rawLeft;
+
+    setCoords({ top: rect.bottom + 6, left });
+    setIsOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    const handleScroll = () => setIsOpen(false);
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [isOpen]);
+
+  return (
+    <>
+      {/* Botão trigger */}
+      <button
+        ref={buttonRef}
+        onClick={() => isOpen ? setIsOpen(false) : openPanel()}
+        className={`relative p-1 rounded-md transition-colors ${isActive || isOpen
+          ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
+          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        title={`Filtrar por ${label}`}
+      >
+        <ListFilter size={14} strokeWidth={isActive ? 2.5 : 2} />
+        {isActive && activeCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 bg-indigo-600 text-white">
+            {activeCount}
+          </span>
+        )}
+      </button>
+
+      {/* Painel via portal — renderizado no document.body, fora do overflow */}
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={panelRef}
+          style={{ top: coords.top, left: coords.left }}
+          className="fixed z-[9999] w-72 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
+            {/* Header do painel */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
+                  Filtrar por {label}
+                </span>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-0.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </div>
+            {/* Conteúdo dos filtros */}
+            <div className="px-4 py-3 space-y-2.5">
+              {children}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
 
 interface ActionMenuProps {
   task: Task;
@@ -274,6 +395,91 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
   );
 };
 
+// --- RESPONSIBLE FILTER PANEL ---
+interface ResponsibleFilterPanelProps {
+  tasks: Task[];
+  selected: string[];
+  onChange: (list: string[]) => void;
+}
+
+const ResponsibleFilterPanel: React.FC<ResponsibleFilterPanelProps> = ({ tasks, selected, onChange }) => {
+  const [search, setSearch] = useState('');
+
+  const responsibles = useMemo(() => {
+    const unique = Array.from(new Set(tasks.map(t => t.responsible).filter(Boolean)));
+    return unique.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [tasks]);
+
+  const filtered = responsibles.filter(r => r.toLowerCase().includes(search.toLowerCase()));
+
+  const toggle = (name: string) => {
+    if (selected.includes(name)) {
+      onChange(selected.filter(n => n !== name));
+    } else {
+      onChange([...selected, name]);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* Busca */}
+      <input
+        type="text"
+        placeholder="Buscar colaborador..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        className="w-full text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
+      />
+      {/* Lista com scroll */}
+      <div className="max-h-[160px] overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
+        {filtered.length === 0 ? (
+          <p className="text-[10px] text-slate-400 text-center py-3">Nenhum colaborador encontrado</p>
+        ) : (
+          filtered.map(name => {
+            const isChecked = selected.includes(name);
+            return (
+              <button
+                key={name}
+                onClick={() => toggle(name)}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all text-left ${isChecked ? 'bg-indigo-50 dark:bg-indigo-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+              >
+                <span className={`flex-shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-600'}`}>
+                  {isChecked && <span className="text-[8px] text-white font-black leading-none">✓</span>}
+                </span>
+                <span className={`text-[11px] truncate ${isChecked ? 'font-semibold text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                  {name}
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+      {/* Contador */}
+      {selected.length > 0 && (
+        <p className="text-[9px] text-indigo-500 dark:text-indigo-400 font-semibold text-center">
+          {selected.length} selecionado{selected.length > 1 ? 's' : ''}
+        </p>
+      )}
+    </div>
+  );
+};
+
+// --- Kanban Column Filter State ---
+
+interface KanbanColFilter {
+  taskName: string;
+  responsible: string;
+  priority: string;
+  taxRegime: string;
+  clientName: string;
+  dueDate: string;
+}
+
+const EMPTY_COL_FILTER: KanbanColFilter = {
+  taskName: '', responsible: '', priority: '',
+  taxRegime: '', clientName: '', dueDate: ''
+};
+
 // --- Kanban Column Component ---
 interface KanbanColumnProps {
   title: string;
@@ -283,6 +489,7 @@ interface KanbanColumnProps {
   onConclude: (id: string) => void;
   onDelete: (task: Task) => void;
   color: string;
+  accentColor: string; // e.g. 'indigo' | 'amber' | 'rose' | 'emerald'
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDrop: (e: React.DragEvent, status: TaskStatus) => void;
   onNavigateToClient?: (clientId: string) => void;
@@ -302,6 +509,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onConclude,
   onDelete,
   color,
+  accentColor,
   onDragStart,
   onDrop,
   onNavigateToClient,
@@ -313,6 +521,35 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   userProfile
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [colFilter, setColFilter] = useState<KanbanColFilter>(EMPTY_COL_FILTER);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterContainerRef = useRef<HTMLDivElement>(null);
+
+  // click outside fecha o painel
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (filterContainerRef.current && !filterContainerRef.current.contains(e.target as Node)) {
+        setIsFilterOpen(false);
+      }
+    };
+    if (isFilterOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isFilterOpen]);
+
+  const activeFilterCount = Object.values(colFilter).filter(v => v !== '').length;
+  const isFilterActive = activeFilterCount > 0;
+
+  const localFilteredTasks = tasks.filter(task => {
+    const dueDateMatch = !colFilter.dueDate || task.dueDate === colFilter.dueDate;
+    return (
+      task.taskName.toLowerCase().includes(colFilter.taskName.toLowerCase()) &&
+      task.responsible.toLowerCase().includes(colFilter.responsible.toLowerCase()) &&
+      (colFilter.priority === '' || task.priority === colFilter.priority) &&
+      (colFilter.taxRegime === '' || task.taxRegime === colFilter.taxRegime) &&
+      task.clientName.toLowerCase().includes(colFilter.clientName.toLowerCase()) &&
+      dueDateMatch
+    );
+  });
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -336,6 +573,37 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     onDrop(e, status);
   };
 
+  // Mapeamento de accent para classes CSS
+  const accentMap: Record<string, { btn: string; badge: string; dot: string; input: string }> = {
+    indigo: {
+      btn: 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-400',
+      badge: 'bg-indigo-600 text-white',
+      dot: 'bg-indigo-500',
+      input: 'focus:ring-indigo-500/30 focus:border-indigo-400'
+    },
+    amber: {
+      btn: 'bg-amber-50 dark:bg-amber-500/15 border-amber-300 dark:border-amber-500/40 text-amber-600 dark:text-amber-400',
+      badge: 'bg-amber-500 text-white',
+      dot: 'bg-amber-500',
+      input: 'focus:ring-amber-500/30 focus:border-amber-400'
+    },
+    rose: {
+      btn: 'bg-rose-50 dark:bg-rose-500/15 border-rose-300 dark:border-rose-500/40 text-rose-600 dark:text-rose-400',
+      badge: 'bg-rose-500 text-white',
+      dot: 'bg-rose-500',
+      input: 'focus:ring-rose-500/30 focus:border-rose-400'
+    },
+    emerald: {
+      btn: 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-300 dark:border-emerald-500/40 text-emerald-600 dark:text-emerald-400',
+      badge: 'bg-emerald-500 text-white',
+      dot: 'bg-emerald-500',
+      input: 'focus:ring-emerald-500/30 focus:border-emerald-400'
+    },
+  };
+  const accent = accentMap[accentColor] || accentMap.indigo;
+
+  const inputBase = `w-full text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${accent.input}`;
+
   return (
     <div
       className={`flex flex-col h-full rounded-xl p-3 border transition-colors duration-200
@@ -348,15 +616,161 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className={`flex items-center justify-between mb-3 px-1 pb-2 border-b-2 ${color}`}>
-        <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{title}</h3>
-        <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-md font-bold">
-          {tasks.length}
-        </span>
+
+      {/* Cabeçalho da Coluna + Painel de Filtro — wrapper com ref para click-outside */}
+      <div ref={filterContainerRef} className="relative mb-3">
+
+        {/* Linha do cabeçalho */}
+        <div className={`flex items-center justify-between px-1 pb-2 border-b-2 ${color}`}>
+          <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{title}</h3>
+
+          <div className="flex items-center gap-1.5">
+            {/* Contador: X/Y quando filtrado, apenas Y quando normal */}
+            <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-2 py-0.5 rounded-md font-bold">
+              {isFilterActive ? `${localFilteredTasks.length}/${tasks.length}` : tasks.length}
+            </span>
+
+            {/* Botão de Filtro */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setIsFilterOpen(p => !p); }}
+              className={`relative p-1.5 rounded-lg border transition-all duration-200 ${
+                isFilterActive
+                  ? accent.btn
+                  : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+              }`}
+              title="Filtrar coluna"
+            >
+              <SlidersHorizontal size={12} strokeWidth={2.5} />
+              {/* Badge de contagem */}
+              {isFilterActive && (
+                <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 ${accent.badge}`}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Painel de Filtro — posicionado relativo ao container da coluna, left-0 right-0 = alinhado à coluna */}
+        {isFilterOpen && (
+          <div
+            className="absolute top-full left-0 right-0 mt-2 z-[200] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
+
+              {/* Topo do painel */}
+              <div className="flex items-center justify-between px-3.5 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
+                <div className="flex items-center gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
+                  <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
+                    Filtrar Coluna
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsFilterOpen(false)}
+                  className="p-0.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+
+              {/* Campos de filtro */}
+              <div className="px-3.5 py-3 space-y-2">
+
+                {/* Tarefa */}
+                <input
+                  type="text"
+                  placeholder="Nome da tarefa..."
+                  className={inputBase}
+                  value={colFilter.taskName}
+                  onChange={e => setColFilter(p => ({ ...p, taskName: e.target.value }))}
+                />
+
+                {/* Responsável */}
+                <input
+                  type="text"
+                  placeholder="Responsável..."
+                  className={inputBase}
+                  value={colFilter.responsible}
+                  onChange={e => setColFilter(p => ({ ...p, responsible: e.target.value }))}
+                />
+
+                {/* Prioridade + Regime — em linha */}
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    className={inputBase}
+                    value={colFilter.priority}
+                    onChange={e => setColFilter(p => ({ ...p, priority: e.target.value }))}
+                  >
+                    <option value="">Prioridade</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Média">Média</option>
+                    <option value="Baixa">Baixa</option>
+                  </select>
+
+                  <select
+                    className={inputBase}
+                    value={colFilter.taxRegime}
+                    onChange={e => setColFilter(p => ({ ...p, taxRegime: e.target.value }))}
+                  >
+                    <option value="">Regime</option>
+                    {TAX_REGIME_GROUPS.map(group => (
+                      <optgroup key={group.category} label={group.category}>
+                        {group.options.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Cliente */}
+                <input
+                  type="text"
+                  placeholder="Nome do cliente..."
+                  className={inputBase}
+                  value={colFilter.clientName}
+                  onChange={e => setColFilter(p => ({ ...p, clientName: e.target.value }))}
+                />
+
+                {/* Vencimento */}
+                <input
+                  type="date"
+                  className={`${inputBase} dark:[color-scheme:dark]`}
+                  value={colFilter.dueDate}
+                  onChange={e => setColFilter(p => ({ ...p, dueDate: e.target.value }))}
+                />
+              </div>
+
+              {/* Rodapé — Limpar */}
+              <div className="px-3.5 pb-3 pt-0">
+                <div className="border-t border-slate-100 dark:border-slate-800/60 pt-2.5 flex items-center justify-between">
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500">
+                    {activeFilterCount === 0
+                      ? 'Sem filtros ativos'
+                      : `${activeFilterCount} filtro${activeFilterCount > 1 ? 's' : ''} ativo${activeFilterCount > 1 ? 's' : ''}`}
+                  </span>
+                  <button
+                    onClick={() => setColFilter(EMPTY_COL_FILTER)}
+                    disabled={!isFilterActive}
+                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all ${
+                      isFilterActive
+                        ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10'
+                        : 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                    }`}
+                  >
+                    Limpar tudo
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 min-h-[100px]">
-        {tasks.map(task => {
+        {localFilteredTasks.map(task => {
           const clientData = clients.find(c => c.id === task.clientId);
           const hasSimplesBadges = task.taxRegime === 'simples' && (
             (task.selectedAnnexes && task.selectedAnnexes.length > 0) || task.factorR || task.exceededSublimit || task.notifiedExclusion
@@ -637,9 +1051,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             </div>
           );
         })}
-        {tasks.length === 0 && !isDragOver && (
+        {localFilteredTasks.length === 0 && !isDragOver && (
           <div className="h-24 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-center text-slate-400 text-xs text-center p-4">
-            Arraste tarefas para cá
+            {isFilterActive ? 'Nenhuma tarefa encontrada com os filtros aplicados.' : 'Arraste tarefas para cá'}
           </div>
         )}
         {isDragOver && (
@@ -651,6 +1065,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     </div>
   );
 };
+// --- MAIN TASKS PAGE ---
+
 
 // --- MAIN TASKS PAGE ---
 
@@ -695,11 +1111,20 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       competence: defaultCompetence,
       competenceFrom: '',
       competenceTo: '',
+      dueDate: '',
       taxRegime: '',
+      selectedAnnex: '',
+      exceededSublimit: false,
+      notifiedExclusion: false,
       priority: '',
       sector: '',
       responsible: '',
+      responsibleList: [] as string[],
       status: '',
+      clientDocument: '',
+      clientCity: '',
+      clientState: '',
+      noMovement: false,
     };
   });
 
@@ -732,12 +1157,22 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
     return (
       task.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) &&
+      (filters.clientDocument === '' || (task.clientDocument ?? '').toLowerCase().includes(filters.clientDocument.toLowerCase())) &&
+      (filters.clientCity === '' || (task.clientCity ?? '').toLowerCase().includes(filters.clientCity.toLowerCase())) &&
+      (filters.clientState === '' || task.clientState === filters.clientState) &&
       task.taskName.toLowerCase().includes(filters.taskName.toLowerCase()) &&
+      (!filters.noMovement || task.noMovement === true) &&
       competenceMatch &&
+      (filters.dueDate === '' || task.dueDate === filters.dueDate) &&
       (filters.taxRegime === '' || task.taxRegime === filters.taxRegime) &&
+      (filters.selectedAnnex === '' || (task.selectedAnnexes ?? []).includes(filters.selectedAnnex)) &&
+      (!filters.exceededSublimit || task.exceededSublimit === true) &&
+      (!filters.notifiedExclusion || task.notifiedExclusion === true) &&
       (filters.priority === '' || task.priority === filters.priority) &&
       (filters.sector === '' || task.sector === filters.sector) &&
-      task.responsible.toLowerCase().includes(filters.responsible.toLowerCase())
+      (filters.responsibleList.length > 0
+        ? filters.responsibleList.includes(task.responsible)
+        : task.responsible.toLowerCase().includes(filters.responsible.toLowerCase()))
     );
   });
 
@@ -768,11 +1203,20 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       competence: defaultCompetence,
       competenceFrom: '',
       competenceTo: '',
+      dueDate: '',
       taxRegime: '',
+      selectedAnnex: '',
+      exceededSublimit: false,
+      notifiedExclusion: false,
       priority: '',
       sector: '',
       responsible: '',
+      responsibleList: [],
       status: '',
+      clientDocument: '',
+      clientCity: '',
+      clientState: '',
+      noMovement: false,
     });
     setVisibleFilters({});
     setRangeMode(false);
@@ -806,7 +1250,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       const { data: membersData, error: membersError } = await supabase
         .from('members')
         .select('first_name, last_name, sectors(name)')
-        .eq('org_id', userProfile.org_id);
+        .eq('org_id', userProfile.org_id)
+        .not('sector_id', 'is', null);
         
       if (membersError) console.error('Error fetching members for sectors:', membersError);
       
@@ -814,7 +1259,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         .from('tasks')
         .select(`
           *,
-          clients(city, state, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
+          clients(city, state, document, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
           attachments:task_attachments(*)
         `)
         .order('created_at', { ascending: false });
@@ -855,6 +1300,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             selectedAnnexes: t.selected_annexes,
             clientCity: t.clients?.city,
             clientState: t.clients?.state,
+            clientDocument: t.clients?.document,
             establishmentType: t.clients?.establishment_type,
             clientDfes: t.clients?.client_dfe_series || [],
             clientAccesses: t.clients?.client_accesses || [],
@@ -1536,154 +1982,316 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-collapse">
                 <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
                   <tr>
-                    <HeaderCell
-                      label="Cliente"
-                      fieldKey="clientName"
-                      filterValue={filters.clientName}
-                      isVisible={!!visibleFilters['clientName']}
-                      onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[200px]"
-                    >
-                      <input
-                        type="text"
-                        placeholder="Buscar cliente..."
-                        className={headerInputClass}
-                        value={filters.clientName}
-                        onChange={(e) => handleFilterChange('clientName', e.target.value)}
-                        autoFocus
-                      />
-                    </HeaderCell>
+                    {/* == CLIENTE == */}
+                    {(() => {
+                      const clientActive = !!(filters.clientName || filters.clientDocument || filters.clientCity || filters.clientState);
+                      const clientCount = [filters.clientName, filters.clientDocument, filters.clientCity, filters.clientState].filter(Boolean).length;
+                      return (
+                        <th className={`px-6 py-4 align-top min-w-[200px] ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
+                          <div className="flex items-center justify-between gap-2 h-6">
+                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Cliente</span>
+                            <TableColumnFilter label="Cliente" isActive={clientActive} activeCount={clientCount}>
+                              {/* Nome */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Nome</label>
+                                <input type="text" placeholder="Buscar cliente..." className={headerInputClass} value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} autoFocus />
+                              </div>
+                              {/* CNPJ/CPF */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">CNPJ / CPF</label>
+                                <input type="text" placeholder="Digite o documento..." className={headerInputClass} value={filters.clientDocument} onChange={e => handleFilterChange('clientDocument', e.target.value)} />
+                              </div>
+                              {/* Cidade + UF */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Cidade</label>
+                                  <input type="text" placeholder="Cidade..." className={headerInputClass} value={filters.clientCity} onChange={e => handleFilterChange('clientCity', e.target.value)} />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">UF</label>
+                                  <select className={headerInputClass} value={filters.clientState} onChange={e => handleFilterChange('clientState', e.target.value)}>
+                                    <option value="">Todos</option>
+                                    {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
+                                      <option key={uf} value={uf}>{uf}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                              {/* Limpar */}
+                              {clientActive && (
+                                <button onClick={() => { handleFilterChange('clientName', ''); handleFilterChange('clientDocument', ''); handleFilterChange('clientCity', ''); handleFilterChange('clientState', ''); }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                  Limpar filtros
+                                </button>
+                              )}
+                            </TableColumnFilter>
+                          </div>
+                        </th>
+                      );
+                    })()}
 
-                    <HeaderCell
-                      label="Tarefa"
-                      fieldKey="taskName"
-                      filterValue={filters.taskName}
-                      isVisible={!!visibleFilters['taskName']}
-                      onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[180px]"
-                    >
-                      <input
-                        type="text"
-                        placeholder="Nome da tarefa..."
-                        className={headerInputClass}
-                        value={filters.taskName}
-                        onChange={(e) => handleFilterChange('taskName', e.target.value)}
-                        autoFocus
-                      />
-                    </HeaderCell>
+                    {/* == TAREFA == */}
+                    {(() => {
+                      const tarefaActive = !!(filters.taskName || filters.noMovement);
+                      const tarefaCount = [filters.taskName, filters.noMovement ? 'x' : ''].filter(Boolean).length;
+                      return (
+                        <th className={`px-6 py-4 align-top min-w-[180px] ${tarefaActive ? 'relative z-50' : 'relative z-10'}`}>
+                          <div className="flex items-center justify-between gap-2 h-6">
+                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Tarefa</span>
+                            <TableColumnFilter label="Tarefa" isActive={tarefaActive} activeCount={tarefaCount}>
+                              {/* Nome */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Nome da Tarefa</label>
+                                <input type="text" placeholder="Buscar tarefa..." className={headerInputClass} value={filters.taskName} onChange={e => handleFilterChange('taskName', e.target.value)} autoFocus />
+                              </div>
+                              {/* Toggle Sem Movimento */}
+                              <button
+                                onClick={() => setFilters(p => ({ ...p, noMovement: !p.noMovement }))}
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.noMovement ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
+                              >
+                                <span>Sem Movimento</span>
+                                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${filters.noMovement ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+                                  {filters.noMovement ? '✓' : ''}
+                                </span>
+                              </button>
+                              {/* Limpar */}
+                              {tarefaActive && (
+                                <button onClick={() => { handleFilterChange('taskName', ''); setFilters(p => ({ ...p, noMovement: false })); }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                  Limpar filtros
+                                </button>
+                              )}
+                            </TableColumnFilter>
+                          </div>
+                        </th>
+                      );
+                    })()}
 
-                    <HeaderCell
-                      label="Período"
-                      fieldKey="competence"
-                      filterValue={filters.competence}
-                      isVisible={!!visibleFilters['competence']}
-                      onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[110px]"
-                    >
-                      <div className="relative z-50 w-full mt-2">
-                        <input
-                          type="month"
-                          className={`${headerInputClass} !mt-0 text-transparent cursor-pointer dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity`}
-                          value={filters.competence}
-                          onChange={(e) => handleFilterChange('competence', e.target.value)}
-                          autoFocus
-                        />
-                        <div className="absolute left-[1px] right-6 top-1/2 -translate-y-1/2 flex items-center pl-2 pointer-events-none bg-white dark:bg-slate-900 h-[calc(100%-2px)] rounded-l">
-                          <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
-                            {filters.competence ? `${filters.competence.split('-')[1]}/${filters.competence.split('-')[0]}` : ''}
-                          </span>
-                        </div>
-                      </div>
-                    </HeaderCell>
+                    {/* == PERÍODO == */}
+                    {(() => {
+                      const periodActive = !!(filters.competence || filters.competenceFrom || filters.competenceTo || filters.dueDate);
+                      const periodCount = [filters.competence || (filters.competenceFrom || filters.competenceTo) ? 'x' : '', filters.dueDate].filter(Boolean).length;
+                      return (
+                        <th className={`px-6 py-4 align-top min-w-[130px] ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
+                          <div className="flex items-center justify-between gap-2 h-6">
+                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Período</span>
+                            <TableColumnFilter label="Período" isActive={periodActive} activeCount={periodCount}>
+                              {/* Toggle mês único / intervalo */}
+                              <div>
+                                <div className="flex items-center gap-1 mb-2 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                                  <button onClick={() => { setRangeMode(false); handleFilterChange('competenceFrom', ''); handleFilterChange('competenceTo', ''); }} className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}>Mês único</button>
+                                  <button onClick={() => { setRangeMode(true); handleFilterChange('competence', ''); }} className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}>Intervalo</button>
+                                </div>
+                                {!rangeMode ? (
+                                  <div>
+                                    <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Competência</label>
+                                    <input type="month" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.competence} onChange={e => handleFilterChange('competence', e.target.value)} />
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">De</label>
+                                      <input type="month" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.competenceFrom} onChange={e => handleFilterChange('competenceFrom', e.target.value)} />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Até</label>
+                                      <input type="month" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.competenceTo} onChange={e => handleFilterChange('competenceTo', e.target.value)} />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              {/* Vencimento */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Data de Vencimento</label>
+                                <input type="date" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.dueDate} onChange={e => handleFilterChange('dueDate', e.target.value)} />
+                              </div>
+                              {/* Limpar */}
+                              {periodActive && (
+                                <button onClick={() => { handleFilterChange('competence', ''); handleFilterChange('competenceFrom', ''); handleFilterChange('competenceTo', ''); handleFilterChange('dueDate', ''); setRangeMode(false); }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                  Limpar filtros
+                                </button>
+                              )}
+                            </TableColumnFilter>
+                          </div>
+                        </th>
+                      );
+                    })()}
 
-                    <HeaderCell
-                      label="Regime"
-                      fieldKey="taxRegime"
-                      filterValue={filters.taxRegime}
-                      isVisible={!!visibleFilters['taxRegime']}
-                      onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[200px]"
-                    >
-                      <select
-                        className={headerInputClass}
-                        value={filters.taxRegime}
-                        onChange={(e) => handleFilterChange('taxRegime', e.target.value)}
-                        autoFocus
-                      >
-                        <option value="">Todos</option>
-                        {TAX_REGIME_GROUPS.map((group) => (
-                          <optgroup key={group.category} label={group.category}>
-                            {group.options.map((opt) => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </HeaderCell>
+                    {/* == REGIME == */}
+                    {(() => {
+                      const regimeActive = !!(filters.taxRegime || filters.selectedAnnex || filters.exceededSublimit || filters.notifiedExclusion);
+                      const regimeCount = [filters.taxRegime, filters.selectedAnnex, filters.exceededSublimit ? 'x' : '', filters.notifiedExclusion ? 'x' : ''].filter(Boolean).length;
+                      return (
+                        <th className={`px-6 py-4 align-top min-w-[200px] ${regimeActive ? 'relative z-50' : 'relative z-10'}`}>
+                          <div className="flex items-center justify-between gap-2 h-6">
+                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Regime</span>
+                            <TableColumnFilter label="Regime" isActive={regimeActive} activeCount={regimeCount}>
+                              {/* Regime */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Regime Fiscal</label>
+                                <select className={headerInputClass} value={filters.taxRegime} onChange={e => { handleFilterChange('taxRegime', e.target.value); if (e.target.value !== 'simples') handleFilterChange('selectedAnnex', ''); }}>
+                                  <option value="">Todos</option>
+                                  {TAX_REGIME_GROUPS.map(group => (
+                                    <optgroup key={group.category} label={group.category}>
+                                      {group.options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                    </optgroup>
+                                  ))}
+                                </select>
+                              </div>
+                              {/* Anexo — só para Simples */}
+                              {filters.taxRegime === 'simples' && (
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Anexo do Simples</label>
+                                  <select className={headerInputClass} value={filters.selectedAnnex} onChange={e => handleFilterChange('selectedAnnex', e.target.value)}>
+                                    <option value="">Todos os Anexos</option>
+                                    {SIMPLES_ANNEXES.map(a => <option key={a} value={a}>{a}</option>)}
+                                  </select>
+                                </div>
+                              )}
+                              {/* Toggles */}
+                              <div className="space-y-1.5">
+                                <button onClick={() => setFilters(p => ({ ...p, exceededSublimit: !p.exceededSublimit }))} className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.exceededSublimit ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>
+                                  <span>Sublimite Excedido</span>
+                                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${filters.exceededSublimit ? 'bg-amber-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>{filters.exceededSublimit ? '✓' : ''}</span>
+                                </button>
+                                <button onClick={() => setFilters(p => ({ ...p, notifiedExclusion: !p.notifiedExclusion }))} className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>
+                                  <span>Exclusão Notificada</span>
+                                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${filters.notifiedExclusion ? 'bg-rose-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>{filters.notifiedExclusion ? '✓' : ''}</span>
+                                </button>
+                              </div>
+                              {/* Limpar */}
+                              {regimeActive && (
+                                <button onClick={() => { handleFilterChange('taxRegime', ''); handleFilterChange('selectedAnnex', ''); setFilters(p => ({ ...p, exceededSublimit: false, notifiedExclusion: false })); }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                  Limpar filtros
+                                </button>
+                              )}
+                            </TableColumnFilter>
+                          </div>
+                        </th>
+                      );
+                    })()}
 
-                    <HeaderCell
-                      label="Prioridade"
-                      fieldKey="priority"
-                      filterValue={filters.priority}
-                      isVisible={!!visibleFilters['priority']}
-                      onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[120px]"
-                    >
-                      <select
-                        className={headerInputClass}
-                        value={filters.priority}
-                        onChange={(e) => handleFilterChange('priority', e.target.value)}
-                        autoFocus
-                      >
-                        <option value="">Todas</option>
-                        <option value="Alta">Alta</option>
-                        <option value="Média">Média</option>
-                        <option value="Baixa">Baixa</option>
-                      </select>
-                    </HeaderCell>
+                    {/* == PRIORIDADE == */}
+                    {(() => {
+                      const prioActive = !!filters.priority;
+                      const prioCount = prioActive ? 1 : 0;
+                      const prioOptions = [
+                        { value: 'Alta',  label: 'Alta',  color: 'bg-rose-500/10 border-rose-300 dark:border-rose-500/40 text-rose-700 dark:text-rose-400' },
+                        { value: 'Média', label: 'Média', color: 'bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' },
+                        { value: 'Baixa', label: 'Baixa', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
+                      ];
+                      return (
+                        <th className={`px-6 py-4 align-top min-w-[120px] ${prioActive ? 'relative z-50' : 'relative z-10'}`}>
+                          <div className="flex items-center justify-between gap-2 h-6">
+                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Prioridade</span>
+                            <TableColumnFilter label="Prioridade" isActive={prioActive} activeCount={prioCount}>
+                              <div className="space-y-1.5">
+                                {prioOptions.map(opt => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => handleFilterChange('priority', filters.priority === opt.value ? '' : opt.value)}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
+                                      filters.priority === opt.value
+                                        ? opt.color
+                                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                    }`}
+                                  >
+                                    <span>{opt.label}</span>
+                                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+                                      filters.priority === opt.value
+                                        ? 'bg-current text-white opacity-80'
+                                        : 'bg-slate-200 dark:bg-slate-700'
+                                    }`}>
+                                      {filters.priority === opt.value ? '✓' : ''}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                              {prioActive && (
+                                <button onClick={() => handleFilterChange('priority', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                  Limpar filtro
+                                </button>
+                              )}
+                            </TableColumnFilter>
+                          </div>
+                        </th>
+                      );
+                    })()}
 
-                    <HeaderCell
-                      label="Responsável"
-                      fieldKey="responsible"
-                      filterValue={filters.responsible}
-                      isVisible={!!visibleFilters['responsible']}
-                      onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[150px]"
-                    >
-                      <input
-                        type="text"
-                        placeholder="Nome..."
-                        className={headerInputClass}
-                        value={filters.responsible}
-                        onChange={(e) => handleFilterChange('responsible', e.target.value)}
-                        autoFocus
-                      />
-                    </HeaderCell>
+                    {/* == RESPONSÁVEL == */}
+                    {(() => {
+                      const respActive = filters.responsibleList.length > 0;
+                      const respCount = filters.responsibleList.length;
+                      return (
+                        <th className={`px-6 py-4 align-top min-w-[150px] ${respActive ? 'relative z-50' : 'relative z-10'}`}>
+                          <div className="flex items-center justify-between gap-2 h-6">
+                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Responsável</span>
+                            <TableColumnFilter label="Responsável" isActive={respActive} activeCount={respCount}>
+                              <ResponsibleFilterPanel
+                                tasks={tasks}
+                                selected={filters.responsibleList}
+                                onChange={list => setFilters(p => ({ ...p, responsibleList: list, responsible: '' }))}
+                              />
+                              {respActive && (
+                                <button onClick={() => setFilters(p => ({ ...p, responsibleList: [] }))} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                  Limpar filtros
+                                </button>
+                              )}
+                            </TableColumnFilter>
+                          </div>
+                        </th>
+                      );
+                    })()}
 
-                    <HeaderCell
-                      label="Status"
-                      fieldKey="status"
-                      filterValue={filters.status}
-                      isVisible={!!visibleFilters['status']}
-                      onToggle={toggleFilterVisibility}
-                      widthClass="min-w-[130px]"
-                    >
-                      <select
-                        className={headerInputClass}
-                        value={filters.status}
-                        onChange={(e) => handleFilterChange('status', e.target.value)}
-                        autoFocus
-                      >
-                        <option value="">Todos</option>
-                        <option value={TaskStatus.PENDENTE}>{TaskStatus.PENDENTE}</option>
-                        <option value={TaskStatus.INICIADA}>{TaskStatus.INICIADA}</option>
-                        <option value={TaskStatus.ATRASADA}>{TaskStatus.ATRASADA}</option>
-                        <option value={TaskStatus.CONCLUIDA}>{TaskStatus.CONCLUIDA}</option>
-                      </select>
-                    </HeaderCell>
+                    {/* == STATUS == */}
+                    {(() => {
+                      const statActive = !!filters.status;
+                      const statCount = statActive ? 1 : 0;
+                      const statOptions = [
+                        { value: TaskStatus.PENDENTE,  label: 'Pendente',  color: 'bg-slate-500/10 border-slate-300 dark:border-slate-500/40 text-slate-600 dark:text-slate-300' },
+                        { value: TaskStatus.INICIADA,  label: 'Iniciada',  color: 'bg-blue-500/10 border-blue-300 dark:border-blue-500/40 text-blue-700 dark:text-blue-400' },
+                        { value: TaskStatus.ATRASADA,  label: 'Atrasada',  color: 'bg-rose-500/10 border-rose-300 dark:border-rose-500/40 text-rose-700 dark:text-rose-400' },
+                        { value: TaskStatus.CONCLUIDA, label: 'Concluída', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
+                      ];
+                      return (
+                        <th className={`px-6 py-4 align-top min-w-[130px] ${statActive ? 'relative z-50' : 'relative z-10'}`}>
+                          <div className="flex items-center justify-between gap-2 h-6">
+                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Status</span>
+                            <TableColumnFilter label="Status" isActive={statActive} activeCount={statCount}>
+                              <div className="space-y-1.5">
+                                {statOptions.map(opt => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => handleFilterChange('status', filters.status === opt.value ? '' : opt.value)}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
+                                      filters.status === opt.value
+                                        ? opt.color
+                                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                    }`}
+                                  >
+                                    <span>{opt.label}</span>
+                                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+                                      filters.status === opt.value
+                                        ? 'bg-current text-white opacity-80'
+                                        : 'bg-slate-200 dark:bg-slate-700'
+                                    }`}>
+                                      {filters.status === opt.value ? '✓' : ''}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                              {statActive && (
+                                <button onClick={() => handleFilterChange('status', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                  Limpar filtro
+                                </button>
+                              )}
+                            </TableColumnFilter>
+                          </div>
+                        </th>
+                      );
+                    })()}
 
                     <th className="px-6 py-4 w-[80px]"></th>
                   </tr>
+
                 </thead>
                 <tbody className="">
                   {filteredTasks.length === 0 ? (
@@ -1925,6 +2533,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
                   color="border-slate-400"
+                  accentColor="indigo"
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
@@ -1951,6 +2560,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
                   color="border-amber-400"
+                  accentColor="amber"
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
@@ -1977,6 +2587,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
                   color="border-rose-400"
+                  accentColor="rose"
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
@@ -2003,6 +2614,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
                   color="border-emerald-400"
+                  accentColor="emerald"
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onNavigateToClient={onNavigateToClient}
@@ -2466,7 +3078,10 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       const [taskTypesRes, sectorsRes, membersRes, clientsRes, holidaysRes] = await Promise.all([
         supabase.from('task_types').select('*').eq('org_id', userProfile.org_id),
         supabase.from('sectors').select('*').eq('org_id', userProfile.org_id),
-        supabase.from('members').select('*').eq('org_id', userProfile.org_id),
+        supabase.from('members')
+          .select('*')
+          .eq('org_id', userProfile.org_id)
+          .not('sector_id', 'is', null),
         supabase.from('clients').select('*').eq('org_id', userProfile.org_id).eq('status', 'Ativo'),
         supabase.from('holidays').select('date').eq('org_id', userProfile.org_id)
       ]);

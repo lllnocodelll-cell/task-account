@@ -97,6 +97,7 @@ export interface Task {
   selectedAnnexes?: string[];
   clientCity?: string;
   clientState?: string;
+  clientDocument?: string;
   establishmentType?: string;
   hasBranches?: boolean;
   clientDfes?: { id: string; dfe_type: string; login_url?: string; issuer?: string; series?: string; username?: string; password?: string; }[];
