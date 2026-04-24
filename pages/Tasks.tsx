@@ -4137,85 +4137,88 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                     {pendingTasks.map((task) => (
                       <div 
                         key={task.id} 
-                        className={`group relative overflow-hidden bg-white/60 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/50 rounded-2xl p-5 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-500/30 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${editingTaskId === task.id ? 'ring-2 ring-amber-500 border-amber-500 shadow-amber-500/10' : ''}`}
+                        className={`group relative overflow-hidden bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/40 rounded-2xl p-4 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-500/40 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${editingTaskId === task.id ? 'ring-2 ring-amber-500/50 border-amber-500 shadow-amber-500/10 bg-amber-50/10 dark:bg-amber-900/5' : ''}`}
                       >
-                        {/* Seção 1: Nome da Tarefa e Prioridade */}
-                        <div className="flex justify-between items-center mb-4 relative z-10">
-                          <h5 className="text-sm font-black text-slate-800 dark:text-slate-100 truncate tracking-tight flex-1 pr-2">
+                        {/* Seção 1: Nome e Prioridade */}
+                        <div className="flex justify-between items-start gap-2 mb-3 relative z-10">
+                          <h5 className="text-[13px] font-black text-slate-800 dark:text-slate-100 truncate tracking-tight leading-tight flex-1">
                             {task.taskName}
                           </h5>
-                          <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm ${
+                          <span className={`shrink-0 px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest shadow-sm ${
                             task.priority === Priority.ALTA 
-                              ? 'bg-red-500 text-white' 
+                              ? 'bg-rose-500 text-white' 
                               : task.priority === Priority.MEDIA 
-                                ? 'bg-amber-400 text-amber-900' 
+                                ? 'bg-amber-400 text-amber-950' 
                                 : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                           }`}>
                             {task.priority}
                           </span>
                         </div>
 
-                        {/* Seção 2: Competência | Vencimento */}
-                        <div className="flex items-center gap-3 py-2 border-b border-slate-100/50 dark:border-slate-800/50 relative z-10">
-                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
-                            <Calendar size={13} className="shrink-0" />
+                        {/* Seção 2: Datas e Regra (Compacto) */}
+                        <div className="flex items-center gap-2 mb-3 relative z-10 bg-slate-50/50 dark:bg-slate-800/40 p-2 rounded-xl border border-slate-100/50 dark:border-slate-700/30 flex-nowrap overflow-hidden">
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
+                            <Calendar size={12} className="shrink-0 opacity-80" />
                             <span>{task.competence.split('-').reverse().join('/')}</span>
                           </div>
-                          <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />
-                          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-                            <Clock size={11} className="text-rose-500 shrink-0" />
-                            <span>{task.vencimento ? new Date(task.vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>
+                          <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                            <Clock size={12} className="shrink-0 opacity-80" />
+                            <span>{task.vencimento ? new Date(task.vencimento + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '-'}</span>
+                          </div>
+                          <div className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                          <div className="flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap italic truncate">
+                            <GitCompareArrows size={12} className="shrink-0 opacity-60" />
+                            <span>{task.vencimentoVariavel === 'nao_aplica' ? 'Fixo' : (task.vencimentoVariavel.charAt(0).toUpperCase() + task.vencimentoVariavel.slice(1))}</span>
                           </div>
                         </div>
 
-                        {/* Seção 3: Variável | Tipo de Recorrência */}
-                        <div className="flex items-center gap-3 py-2 border-b border-slate-100/50 dark:border-slate-800/50 relative z-10">
-                          <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400 italic">
-                            <GitCompareArrows size={13} className="text-slate-300 shrink-0" />
-                            <span>{task.vencimentoVariavel === 'nao_aplica' ? 'Fixo' : task.vencimentoVariavel}</span>
-                          </div>
-                          <div className="h-3 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />
-                          <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-600 dark:text-slate-200 uppercase tracking-widest">
-                            <Repeat size={13} className="text-indigo-500 shrink-0" />
-                            <span>{task.recurrence}</span>
-                          </div>
-                        </div>
-
-                        {/* Seção 4: Responsável | Setor */}
-                        <div className="flex items-center justify-between py-3 relative z-10">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                              <User size={11} />
+                        {/* Seção 3: Recorrência e Meses */}
+                        <div className="mb-3 relative z-10">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-200">
+                              <Repeat size={12} className="text-indigo-500 shrink-0" />
+                              <span className="capitalize">{task.recurrence}</span>
                             </div>
-                            <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 truncate">{task.responsible}</span>
                           </div>
-                          <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase tracking-tighter shrink-0 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-100 dark:border-slate-700">
-                            <Layers size={9} className="text-slate-300" />
+                          {task.months.length > 0 && task.recurrence !== 'mensal' && (
+                            <div className="flex flex-wrap gap-1">
+                              {task.months.map((m: number) => (
+                                <span key={m} className="px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 text-[8px] font-bold text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 uppercase tracking-tighter shadow-sm">
+                                  {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m - 1]}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Seção 4: Responsável e Setor (Compacto) */}
+                        <div className="flex items-center justify-between gap-2 mb-4 relative z-10">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="w-6 h-6 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm shadow-indigo-500/20">
+                              {task.responsible.charAt(0)}
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate">{task.responsible}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter shrink-0 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
+                            <Layers size={10} className="opacity-50" />
                             {task.sector}
                           </div>
                         </div>
 
-                        {/* Meses da Recorrência (Sub-seção de contexto) */}
-                        {task.months.length > 0 && task.recurrence !== 'mensal' && (
-                          <div className="flex flex-wrap gap-1 mb-4 animate-in fade-in slide-in-from-top-1 duration-300">
-                            {task.months.map((m: number) => (
-                              <span key={m} className="px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-[8px] font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 uppercase tracking-tighter">
-                                {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m - 1]}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
                         {/* Seção 5: Ações */}
-                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 relative z-10">
-                          <span className="text-[8px] text-slate-300 font-mono">ID: {task.id.toString().slice(-6)}</span>
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/50 relative z-10">
+                          <div className="flex items-center gap-1">
+                             <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+                             <span className="text-[8px] text-slate-400 font-mono">#{task.id.toString().slice(-4)}</span>
+                          </div>
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => handleEditPendingTask(task)}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all shadow-sm ${
                                 editingTaskId === task.id 
-                                  ? 'bg-amber-500 text-white' 
-                                  : 'bg-indigo-50/80 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500 hover:text-white'
+                                  ? 'bg-amber-500 text-white shadow-amber-500/20' 
+                                  : 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white border border-slate-100 dark:border-slate-700'
                               }`}
                             >
                               <Pencil size={11} />
@@ -4223,11 +4226,17 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                             </button>
                             <button
                               onClick={() => removePendingTask(task.id)}
-                              className="p-1 px-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all hover:rotate-12"
+                              className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all active:scale-90"
+                              title="Remover da fila"
                             >
                               <Trash2 size={14} />
                             </button>
                           </div>
+                        </div>
+                        
+                        {/* Decoração sutil de background */}
+                        <div className="absolute -right-2 -bottom-2 text-slate-50 dark:text-slate-800/20 pointer-events-none -rotate-12 group-hover:rotate-0 transition-transform duration-500">
+                          <Zap size={64} strokeWidth={1} />
                         </div>
                       </div>
                     ))}
