@@ -29,7 +29,8 @@ import {
     LayoutGrid,
     Table as TableIcon,
     ScanEye,
-    SlidersHorizontal
+    SlidersHorizontal,
+    BarChart2
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -163,6 +164,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
         message: '',
         type: 'info'
     });
+    const [showMetrics, setShowMetrics] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
 
     const showNotify = (message: string, type: NotificationType = 'info') => {
         setNotification({ show: true, message, type });
@@ -580,6 +582,19 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         </div>
                     
                     <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                        <Tooltip content={showMetrics ? "Ocultar Métricas" : "Mostrar Métricas"}>
+                            <button
+                                onClick={() => setShowMetrics(!showMetrics)}
+                                className={`p-1.5 rounded-md transition-all ${showMetrics 
+                                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                            >
+                                <BarChart2 size={18} />
+                            </button>
+                        </Tooltip>
+
+                        <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+
                         <button
                             onClick={() => setDisplayMode('table')}
                             className={`p-1.5 rounded-md transition-all ${displayMode === 'table' 
@@ -602,50 +617,52 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricCard 
-                    title="Total de Cadastros" 
-                    value={clients.length} 
-                    icon={<Users size={20} />} 
-                    color="indigo" 
-                    trend={clientsTrendLabel}
-                    variant="horizontal"
-                />
-                <MetricCard 
-                    title="Ativos" 
-                    value={clients.filter(c => c.status === 'Ativo').length} 
-                    icon={<UserCheck size={20} />} 
-                    color="emerald" 
-                    progress={getClientPercent(clients.filter(c => c.status === 'Ativo').length)}
-                    variant="horizontal"
-                />
-                <MetricCard 
-                    title="Inativos" 
-                    value={clients.filter(c => c.status === 'Inativo').length} 
-                    icon={<UserX size={20} />} 
-                    color="rose" 
-                    progress={getClientPercent(clients.filter(c => c.status === 'Inativo').length)}
-                    variant="horizontal"
-                />
-                <MetricCard 
-                    title="Novos no Mês" 
-                    value={clients.filter(c => {
-                        if (!c.created_at) return false;
-                        const createdAt = new Date(c.created_at);
-                        return createdAt.getMonth() === now.getMonth() &&
-                            createdAt.getFullYear() === now.getFullYear();
-                    }).length} 
-                    icon={<Calendar size={20} />} 
-                    color="amber" 
-                    progress={getClientPercent(clients.filter(c => {
-                        if (!c.created_at) return false;
-                        const createdAt = new Date(c.created_at);
-                        return createdAt.getMonth() === now.getMonth() &&
-                            createdAt.getFullYear() === now.getFullYear();
-                    }).length)}
-                    variant="horizontal"
-                />
-            </div>
+            {showMetrics && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <MetricCard 
+                        title="Total de Cadastros" 
+                        value={clients.length} 
+                        icon={<Users size={20} />} 
+                        color="indigo" 
+                        trend={clientsTrendLabel}
+                        variant="horizontal"
+                    />
+                    <MetricCard 
+                        title="Ativos" 
+                        value={clients.filter(c => c.status === 'Ativo').length} 
+                        icon={<UserCheck size={20} />} 
+                        color="emerald" 
+                        progress={getClientPercent(clients.filter(c => c.status === 'Ativo').length)}
+                        variant="horizontal"
+                    />
+                    <MetricCard 
+                        title="Inativos" 
+                        value={clients.filter(c => c.status === 'Inativo').length} 
+                        icon={<UserX size={20} />} 
+                        color="rose" 
+                        progress={getClientPercent(clients.filter(c => c.status === 'Inativo').length)}
+                        variant="horizontal"
+                    />
+                    <MetricCard 
+                        title="Novos no Mês" 
+                        value={clients.filter(c => {
+                            if (!c.created_at) return false;
+                            const createdAt = new Date(c.created_at);
+                            return createdAt.getMonth() === now.getMonth() &&
+                                createdAt.getFullYear() === now.getFullYear();
+                        }).length} 
+                        icon={<Calendar size={20} />} 
+                        color="amber" 
+                        progress={getClientPercent(clients.filter(c => {
+                            if (!c.created_at) return false;
+                            const createdAt = new Date(c.created_at);
+                            return createdAt.getMonth() === now.getMonth() &&
+                                createdAt.getFullYear() === now.getFullYear();
+                        }).length)}
+                        variant="horizontal"
+                    />
+                </div>
+            )}
 
             <div className="flex-1 overflow-auto min-h-0">
                 {loading ? (

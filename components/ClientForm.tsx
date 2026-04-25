@@ -604,6 +604,22 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         return v; // Estrangeiro
     };
 
+    const formatPhone = (v: string, type: 'fixed' | 'mobile') => {
+        if (!v) return '';
+        v = v.replace(/\D/g, "");
+        if (type === 'fixed') {
+            if (v.length > 10) v = v.substring(0, 10);
+            if (v.length <= 2) return v;
+            if (v.length <= 6) return `(${v.substring(0, 2)}) ${v.substring(2)}`;
+            return `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`;
+        } else {
+            if (v.length > 11) v = v.substring(0, 11);
+            if (v.length <= 2) return v;
+            if (v.length <= 7) return `(${v.substring(0, 2)}) ${v.substring(2)}`;
+            return `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`;
+        }
+    };
+
     const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const formatted = formatDocument(e.target.value, personType);
         setFormData({ ...formData, document: formatted });
@@ -1187,12 +1203,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Input
                                         label="Fixo"
                                         value={tempContact.phone_fixed}
-                                        onChange={e => setTempContact({ ...tempContact, phone_fixed: e.target.value })}
+                                        onChange={e => setTempContact({ ...tempContact, phone_fixed: formatPhone(e.target.value, 'fixed') })}
                                     />
                                     <Input
                                         label="Celular"
                                         value={tempContact.phone_mobile}
-                                        onChange={e => setTempContact({ ...tempContact, phone_mobile: e.target.value })}
+                                        onChange={e => setTempContact({ ...tempContact, phone_mobile: formatPhone(e.target.value, 'mobile') })}
                                     />
                                     <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
                                         {editingIndex !== null && (

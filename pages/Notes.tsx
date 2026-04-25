@@ -282,17 +282,6 @@ export const Notes: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
-          {/* Create Card Button (Visual) */}
-          <button
-            onClick={handleCreate}
-            className="group flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 min-h-[220px] h-full"
-          >
-            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-3">
-              <Plus size={24} />
-            </div>
-            <p className="text-sm font-medium text-slate-500 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-400">Criar nova nota</p>
-          </button>
-
           {filteredNotes.map((note) => {
             const safeColor = (NOTE_COLORS[note.color as NoteColor] || NOTE_COLORS['yellow']);
             return (
@@ -306,7 +295,7 @@ export const Notes: React.FC = () => {
                   <div className="tooltip-container tooltip-top">
                     <button
                       onClick={(e) => togglePin(note.id, note.is_pinned, e)}
-                      className={`shrink-0 p-1.5 rounded-full transition-colors ${note.is_pinned ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10 opacity-0 group-hover:opacity-100'}`}
+                      className={`shrink-0 p-1.5 rounded-full transition-colors ${note.is_pinned ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10'}`}
                     >
                       <Pin size={14} className={note.is_pinned ? 'fill-current' : ''} />
                     </button>
@@ -326,7 +315,7 @@ export const Notes: React.FC = () => {
                     <div className="tooltip-container tooltip-top">
                       <button
                         onClick={(e) => toggleArchive(note.id, note.is_archived, e)}
-                        className="text-slate-400 hover:text-indigo-500 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-slate-400 hover:text-indigo-500 p-1 rounded transition-colors"
                       >
                         {note.is_archived ? <Plus size={16} className="rotate-45" /> : <Save size={16} />}
                       </button>
@@ -335,7 +324,7 @@ export const Notes: React.FC = () => {
                     <div className="tooltip-container tooltip-top">
                       <button
                         onClick={(e) => handleDelete(note.id, e)}
-                        className="text-slate-400 hover:text-red-500 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-slate-400 hover:text-red-500 p-1 rounded transition-colors"
                       >
                         <Trash2 size={16} />
                       </button>

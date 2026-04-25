@@ -18,6 +18,7 @@ import { NotifiedExclusionWidget } from './widgets/NotifiedExclusionWidget';
 import { CollaboratorsByDeptWidget } from './widgets/CollaboratorsByDeptWidget';
 import { UncompletedTasksWidget } from './widgets/UncompletedTasksWidget';
 import { MonthlyEvolutionWidget } from './widgets/MonthlyEvolutionWidget';
+import { EconomicIndicesWidget } from './widgets/EconomicIndicesWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -82,6 +83,11 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'EVOLUÇÃO MENSAL',
         component: MonthlyEvolutionWidget,
         defaultLayout: { i: 'monthlyEvolution', x: 0, y: 30, w: 12, h: 9, minW: 4, minH: 6 }
+    },
+    economicIndices: {
+        name: 'ÍNDICES ECONÔMICOS',
+        component: EconomicIndicesWidget,
+        defaultLayout: { i: 'economicIndices', x: 0, y: 39, w: 6, h: 7, minW: 4, minH: 5 }
     }
 };
 
@@ -89,7 +95,7 @@ const DEFAULT_ACTIVE_WIDGETS = [
     'topSegments', 'statusByUser', 'monthlyEvolution',
     'upcomingDeadlines', 'topTasks', 'documentAlerts',
     'clientStatus', 'taxRegimes', 'loggedUsers',
-    'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks'
+    'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices'
 ];
 
 interface DashboardGridProps {
@@ -108,7 +114,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     const OPERACIONAL_ALLOWED_WIDGETS = [
         'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
         'topTasks', 'uncompletedTasks', 'clientStatus', 
-        'notifiedExclusion', 'topSegments', 'monthlyEvolution'
+        'notifiedExclusion', 'topSegments', 'monthlyEvolution', 'economicIndices'
     ];
 
     const allWidgets = Object.keys(WIDGET_REGISTRY).filter(id => 

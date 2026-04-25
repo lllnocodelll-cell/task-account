@@ -203,7 +203,8 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded">{dfe.dfe_type}</span>
-                          {dfe.series && <span className="text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 dark:text-slate-400 px-1.5 py-0.5 rounded uppercase">Sér: {dfe.series}</span>}
+                          {dfe.series && <span className="text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 dark:text-slate-400 px-1.5 py-0.5 rounded uppercase">série: {dfe.series}</span>}
+                          {dfe.issuer && <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-500/5 px-1.5 py-0.5 rounded uppercase">{dfe.issuer}</span>}
                         </div>
                         {dfe.login_url && (
                           <a href={dfe.login_url.startsWith('http') ? dfe.login_url : `https://${dfe.login_url}`} target="_blank" rel="noopener noreferrer" className="p-1 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors">

@@ -34,6 +34,8 @@ import {
   AlertTriangle,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  BarChart2,
   Repeat,
   ListChecks,
   Bookmark,
@@ -482,11 +484,37 @@ interface KanbanColFilter {
   taxRegime: string;
   clientName: string;
   dueDate: string;
+  competence: string;
+  clientDocument: string;
+  clientCity: string;
+  clientState: string;
+  noMovement: boolean;
+  exceededSublimit: boolean;
+  notifiedExclusion: boolean;
 }
 
+const getInitialColCompetence = () => {
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${lastMonth.getFullYear()}-${(lastMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+};
+
+const DEFAULT_COL_COMPETENCE = getInitialColCompetence();
+
 const EMPTY_COL_FILTER: KanbanColFilter = {
-  taskName: '', responsible: '', priority: '',
-  taxRegime: '', clientName: '', dueDate: ''
+  taskName: '', 
+  responsible: '', 
+  priority: '',
+  taxRegime: '', 
+  clientName: '', 
+  dueDate: '',
+  competence: DEFAULT_COL_COMPETENCE,
+  clientDocument: '',
+  clientCity: '',
+  clientState: '',
+  noMovement: false,
+  exceededSublimit: false,
+  notifiedExclusion: false
 };
 
 // --- Kanban Column Component ---
@@ -532,7 +560,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [colFilter, setColFilter] = useState<KanbanColFilter>(EMPTY_COL_FILTER);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [expandedFilterSections, setExpandedFilterSections] = useState<Record<string, boolean>>({
+    tarefa: true,
+    cliente: false,
+    fiscal: false
+  });
   const filterContainerRef = useRef<HTMLDivElement>(null);
+
+  const toggleFilterSection = (section: string) => {
+    setExpandedFilterSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   // click outside fecha o painel
   useEffect(() => {
@@ -545,18 +582,36 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [isFilterOpen]);
 
-  const activeFilterCount = Object.values(colFilter).filter(v => v !== '').length;
+  const activeFilterCount = Object.entries(colFilter).filter(([key, value]) => {
+    if (key === 'competence') return value !== DEFAULT_COL_COMPETENCE;
+    return value !== '' && value !== false;
+  }).length;
   const isFilterActive = activeFilterCount > 0;
 
   const localFilteredTasks = tasks.filter(task => {
     const dueDateMatch = !colFilter.dueDate || task.dueDate === colFilter.dueDate;
+    const competenceMatch = !colFilter.competence || task.competence.toLowerCase().includes(colFilter.competence.toLowerCase());
+    const docMatch = !colFilter.clientDocument || (task.clientDocument ?? '').toLowerCase().includes(colFilter.clientDocument.toLowerCase());
+    const cityMatch = !colFilter.clientCity || (task.clientCity ?? '').toLowerCase().includes(colFilter.clientCity.toLowerCase());
+    const stateMatch = !colFilter.clientState || task.clientState === colFilter.clientState;
+    const noMovementMatch = !colFilter.noMovement || task.noMovement === true;
+    const sublimitMatch = !colFilter.exceededSublimit || task.exceededSublimit === true;
+    const exclusionMatch = !colFilter.notifiedExclusion || task.notifiedExclusion === true;
+
     return (
       task.taskName.toLowerCase().includes(colFilter.taskName.toLowerCase()) &&
       task.responsible.toLowerCase().includes(colFilter.responsible.toLowerCase()) &&
       (colFilter.priority === '' || task.priority === colFilter.priority) &&
       (colFilter.taxRegime === '' || task.taxRegime === colFilter.taxRegime) &&
       task.clientName.toLowerCase().includes(colFilter.clientName.toLowerCase()) &&
-      dueDateMatch
+      dueDateMatch &&
+      competenceMatch &&
+      docMatch &&
+      cityMatch &&
+      stateMatch &&
+      noMovementMatch &&
+      sublimitMatch &&
+      exclusionMatch
     );
   });
 
@@ -685,71 +740,170 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </div>
 
               {/* Campos de filtro */}
-              <div className="px-3.5 py-3 space-y-2">
-
-                {/* Tarefa */}
-                <input
-                  type="text"
-                  placeholder="Nome da tarefa..."
-                  className={inputBase}
-                  value={colFilter.taskName}
-                  onChange={e => setColFilter(p => ({ ...p, taskName: e.target.value }))}
-                />
-
-                {/* Responsável */}
-                <input
-                  type="text"
-                  placeholder="Responsável..."
-                  className={inputBase}
-                  value={colFilter.responsible}
-                  onChange={e => setColFilter(p => ({ ...p, responsible: e.target.value }))}
-                />
-
-                {/* Prioridade + Regime — em linha */}
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    className={inputBase}
-                    value={colFilter.priority}
-                    onChange={e => setColFilter(p => ({ ...p, priority: e.target.value }))}
+              <div className="px-3.5 py-3 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+                
+                {/* GRUPO: TAREFA */}
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => toggleFilterSection('tarefa')}
+                    className="w-full flex items-center justify-between text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1 py-1 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                   >
-                    <option value="">Prioridade</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Média">Média</option>
-                    <option value="Baixa">Baixa</option>
-                  </select>
-
-                  <select
-                    className={inputBase}
-                    value={colFilter.taxRegime}
-                    onChange={e => setColFilter(p => ({ ...p, taxRegime: e.target.value }))}
-                  >
-                    <option value="">Regime</option>
-                    {TAX_REGIME_GROUPS.map(group => (
-                      <optgroup key={group.category} label={group.category}>
-                        {group.options.map(opt => (
-                          <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                    <span>Tarefa</span>
+                    <ChevronDown size={10} className={`transition-transform duration-200 ${expandedFilterSections.tarefa ? 'rotate-0' : '-rotate-90'}`} />
+                  </button>
+                  
+                  {expandedFilterSections.tarefa && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <input
+                        type="text"
+                        placeholder="Nome da tarefa..."
+                        className={inputBase}
+                        value={colFilter.taskName}
+                        onChange={e => setColFilter(p => ({ ...p, taskName: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Responsável..."
+                        className={inputBase}
+                        value={colFilter.responsible}
+                        onChange={e => setColFilter(p => ({ ...p, responsible: e.target.value }))}
+                      />
+                      <select
+                        className={inputBase}
+                        value={colFilter.priority}
+                        onChange={e => setColFilter(p => ({ ...p, priority: e.target.value }))}
+                      >
+                        <option value="">Todas as Prioridades</option>
+                        <option value="Alta">Prioridade Alta</option>
+                        <option value="Média">Prioridade Média</option>
+                        <option value="Baixa">Prioridade Baixa</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
 
-                {/* Cliente */}
-                <input
-                  type="text"
-                  placeholder="Nome do cliente..."
-                  className={inputBase}
-                  value={colFilter.clientName}
-                  onChange={e => setColFilter(p => ({ ...p, clientName: e.target.value }))}
-                />
+                {/* GRUPO: CLIENTE */}
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => toggleFilterSection('cliente')}
+                    className="w-full flex items-center justify-between text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1 py-1 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  >
+                    <span>Cliente</span>
+                    <ChevronDown size={10} className={`transition-transform duration-200 ${expandedFilterSections.cliente ? 'rotate-0' : '-rotate-90'}`} />
+                  </button>
 
-                {/* Vencimento */}
-                <input
-                  type="date"
-                  className={`${inputBase} dark:[color-scheme:dark]`}
-                  value={colFilter.dueDate}
-                  onChange={e => setColFilter(p => ({ ...p, dueDate: e.target.value }))}
-                />
+                  {expandedFilterSections.cliente && (
+                    <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <input
+                        type="text"
+                        placeholder="Nome do cliente..."
+                        className={inputBase}
+                        value={colFilter.clientName}
+                        onChange={e => setColFilter(p => ({ ...p, clientName: e.target.value }))}
+                      />
+                      <input
+                        type="text"
+                        placeholder="CNPJ / CPF..."
+                        className={inputBase}
+                        value={colFilter.clientDocument}
+                        onChange={e => setColFilter(p => ({ ...p, clientDocument: e.target.value }))}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Cidade..."
+                          className={inputBase}
+                          value={colFilter.clientCity}
+                          onChange={e => setColFilter(p => ({ ...p, clientCity: e.target.value }))}
+                        />
+                        <select
+                          className={inputBase}
+                          value={colFilter.clientState}
+                          onChange={e => setColFilter(p => ({ ...p, clientState: e.target.value }))}
+                        >
+                          <option value="">UF</option>
+                          {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
+                            <option key={uf} value={uf}>{uf}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* GRUPO: FISCAL E STATUS */}
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => toggleFilterSection('fiscal')}
+                    className="w-full flex items-center justify-between text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1 py-1 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  >
+                    <span>Fiscal e Status</span>
+                    <ChevronDown size={10} className={`transition-transform duration-200 ${expandedFilterSections.fiscal ? 'rotate-0' : '-rotate-90'}`} />
+                  </button>
+
+                  {expandedFilterSections.fiscal && (
+                    <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <select
+                        className={inputBase}
+                        value={colFilter.taxRegime}
+                        onChange={e => setColFilter(p => ({ ...p, taxRegime: e.target.value }))}
+                      >
+                        <option value="">Todos os Regimes</option>
+                        {TAX_REGIME_GROUPS.map(group => (
+                          <optgroup key={group.category} label={group.category}>
+                            {group.options.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="relative group">
+                          <input 
+                            type="month" 
+                            className={`${inputBase} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`} 
+                            value={colFilter.competence} 
+                            onChange={e => setColFilter(p => ({ ...p, competence: e.target.value }))} 
+                          />
+                          <div className="absolute inset-y-0 left-0 flex items-center px-2.5 pointer-events-none text-[9.5px] font-bold text-slate-700 dark:text-slate-200 uppercase">
+                            {colFilter.competence ? colFilter.competence.split('-').reverse().join('/') : 'Competência'}
+                          </div>
+                        </div>
+                        <input
+                          type="date"
+                          className={`${inputBase} dark:[color-scheme:dark]`}
+                          value={colFilter.dueDate}
+                          onChange={e => setColFilter(p => ({ ...p, dueDate: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        <button
+                          onClick={() => setColFilter(p => ({ ...p, noMovement: !p.noMovement }))}
+                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.noMovement ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
+                        >
+                          <span>S. Mov.</span>
+                          {colFilter.noMovement && <span className="ml-1">✓</span>}
+                        </button>
+                        <button
+                          onClick={() => setColFilter(p => ({ ...p, exceededSublimit: !p.exceededSublimit }))}
+                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.exceededSublimit ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
+                        >
+                          <span>Sublim.</span>
+                          {colFilter.exceededSublimit && <span className="ml-1">✓</span>}
+                        </button>
+                        <button
+                          onClick={() => setColFilter(p => ({ ...p, notifiedExclusion: !p.notifiedExclusion }))}
+                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
+                        >
+                          <span>Exclus.</span>
+                          {colFilter.notifiedExclusion && <span className="ml-1">✓</span>}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Rodapé — Limpar */}
@@ -1107,6 +1261,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [isTaskInfoDrawerOpen, setIsTaskInfoDrawerOpen] = useState(false);
   const [selectedTaskForInfo, setSelectedTaskForInfo] = useState<Task | null>(null);
   const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
+  const [showMetrics, setShowMetrics] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
 
   // Filter Values State
   const [filters, setFilters] = useState(() => {
@@ -1814,7 +1969,18 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           </div>
         </div>
         <div className="flex gap-3">
-          <div className="flex bg-white dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-800">
+          <div className="flex items-center bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm h-9">
+            <Tooltip content={showMetrics ? "Ocultar Métricas" : "Mostrar Métricas"}>
+              <button
+                onClick={() => setShowMetrics(!showMetrics)}
+                className={`p-2 rounded transition-all ${showMetrics ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                <BarChart2 size={18} />
+              </button>
+            </Tooltip>
+            
+            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+
             <div className="relative group flex">
               <button
                 onClick={() => setLayoutMode('list')}
@@ -1823,7 +1989,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                 <LayoutList size={18} />
               </button>
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-                Tabela
+                Lista
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
               </div>
             </div>
@@ -1844,48 +2010,50 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 shrink-0 px-1">
-        <MetricCard 
-          title="Total de Tarefas" 
-          value={totalTasks} 
-          icon={<ListChecks size={20} />} 
-          color="slate" 
-          trend={trendLabel}
-          variant="horizontal"
-        />
-        <MetricCard 
-          title="Pendentes" 
-          value={pendingCount} 
-          icon={<Clock size={20} />} 
-          color="indigo" 
-          progress={Number(getPercent(pendingCount))}
-          variant="horizontal"
-        />
-        <MetricCard 
-          title="Iniciadas" 
-          value={inProgressCount} 
-          icon={<Play size={20} />} 
-          color="amber" 
-          progress={Number(getPercent(inProgressCount))}
-          variant="horizontal"
-        />
-        <MetricCard 
-          title="Atrasadas" 
-          value={delayedCount} 
-          icon={<XCircle size={20} />} 
-          color="rose" 
-          progress={Number(getPercent(delayedCount))}
-          variant="horizontal"
-        />
-        <MetricCard 
-          title="Concluídas" 
-          value={completedCount} 
-          icon={<CheckCircle size={20} />} 
-          color="emerald" 
-          progress={Number(getPercent(completedCount))}
-          variant="horizontal"
-        />
-      </div>
+      {showMetrics && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 shrink-0 px-1 animate-in fade-in slide-in-from-top-2 duration-300">
+          <MetricCard 
+            title="Total de Tarefas" 
+            value={totalTasks} 
+            icon={<ListChecks size={20} />} 
+            color="slate" 
+            trend={trendLabel}
+            variant="horizontal"
+          />
+          <MetricCard 
+            title="Pendentes" 
+            value={pendingCount} 
+            icon={<Clock size={20} />} 
+            color="indigo" 
+            progress={Number(getPercent(pendingCount))}
+            variant="horizontal"
+          />
+          <MetricCard 
+            title="Iniciadas" 
+            value={inProgressCount} 
+            icon={<Play size={20} />} 
+            color="amber" 
+            progress={Number(getPercent(inProgressCount))}
+            variant="horizontal"
+          />
+          <MetricCard 
+            title="Atrasadas" 
+            value={delayedCount} 
+            icon={<XCircle size={20} />} 
+            color="rose" 
+            progress={Number(getPercent(delayedCount))}
+            variant="horizontal"
+          />
+          <MetricCard 
+            title="Concluídas" 
+            value={completedCount} 
+            icon={<CheckCircle size={20} />} 
+            color="emerald" 
+            progress={Number(getPercent(completedCount))}
+            variant="horizontal"
+          />
+        </div>
+      )}
 
       {
         loading ? (
