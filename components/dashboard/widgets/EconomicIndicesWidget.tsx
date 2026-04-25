@@ -99,13 +99,28 @@ export const EconomicIndicesWidget: React.FC<{ onRemove?: () => void; orgId?: st
         load();
     }, []);
 
-    const getIcon = (name: string) => {
-        if (name.includes('IPCA')) return <TrendingUp className="text-indigo-500" size={14} />;
-        if (name.includes('IGP-M')) return <Percent className="text-emerald-500" size={14} />;
-        if (name.includes('Dólar')) return <Globe className="text-blue-500" size={14} />;
-        if (name.includes('SELIC')) return <Coins className="text-amber-500" size={14} />;
-        return <TrendingUp className="text-slate-500" size={14} />;
-    };
+    const categories = [
+        {
+            title: 'Câmbio',
+            icon: <Globe className="text-blue-500" size={14} />,
+            items: indices.filter(i => i.name.toLowerCase().includes('dólar') || i.name.toLowerCase().includes('euro'))
+        },
+        {
+            title: 'Taxa Básica',
+            icon: <Coins className="text-amber-500" size={14} />,
+            items: indices.filter(i => i.name.toLowerCase().includes('selic') || i.name.toLowerCase().includes('cdi'))
+        },
+        {
+            title: 'Inflação / Correção',
+            icon: <TrendingUp className="text-indigo-500" size={14} />,
+            items: indices.filter(i => i.name.toLowerCase().includes('ipca') || i.name.toLowerCase().includes('igp'))
+        },
+        {
+            title: 'Outros',
+            icon: <Percent className="text-slate-500" size={14} />,
+            items: indices.filter(i => !i.name.toLowerCase().includes('dólar') && !i.name.toLowerCase().includes('euro') && !i.name.toLowerCase().includes('selic') && !i.name.toLowerCase().includes('cdi') && !i.name.toLowerCase().includes('ipca') && !i.name.toLowerCase().includes('igp'))
+        }
+    ].filter(c => c.items.length > 0);
 
     return (
         <WidgetContainer 
@@ -127,38 +142,55 @@ export const EconomicIndicesWidget: React.FC<{ onRemove?: () => void; orgId?: st
             <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
                     {loading && !syncing ? (
-                        <div className="grid grid-cols-1 gap-2">
-                            {[1, 2, 3, 4].map(i => (
-                                <div key={i} className="h-10 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-lg" />
+                        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))] items-start">
+                            {[1, 2, 3].map(section => (
+                                <div key={section} className="flex flex-col gap-3 p-3 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-700/50 rounded-2xl">
+                                    <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                                        <div className="h-6 w-6 bg-slate-200 dark:bg-slate-700 animate-pulse rounded-md" />
+                                        <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 animate-pulse rounded" />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        {[1, 2].map(i => (
+                                            <div key={i} className="h-14 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-xl" />
+                                        ))}
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 gap-2">
-                            {indices.map((index) => (
-                                <div 
-                                    key={index.id} 
-                                    className="p-2.5 bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-700/50 rounded-xl flex items-center justify-between gap-3 hover:bg-white dark:hover:bg-slate-800 transition-all group"
-                                >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className="p-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 group-hover:scale-105 transition-transform">
-                                            {getIcon(index.name)}
+                        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))] items-start">
+                            {categories.map((category, idx) => (
+                                <div key={idx} className="flex flex-col gap-3 p-3 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-700/50 rounded-2xl">
+                                    <div className="flex items-center gap-2 px-1 border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                                        <div className="p-1 bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-100 dark:border-slate-700">
+                                            {category.icon}
                                         </div>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
-                                                {index.name}
-                                            </span>
-                                            <div className="flex items-center gap-1 text-[8px] text-slate-400 mt-0.5">
-                                                <Clock size={8} className="shrink-0" />
-                                                <span className="truncate">
-                                                    Ref: {index.updated_at ? index.updated_at.split('-').reverse().slice(0, 2).join('/') : '--'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-end shrink-0">
-                                        <span className="text-xs font-black text-slate-800 dark:text-slate-100 tabular-nums">
-                                            {index.unit === 'R$' ? `R$ ${index.value?.toFixed(4)}` : `${index.value?.toFixed(4)}%`}
+                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                            {category.title}
                                         </span>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        {category.items.map((index) => (
+                                            <div 
+                                                key={index.id} 
+                                                className="p-3 bg-white/80 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 rounded-xl flex flex-col justify-between hover:bg-white dark:hover:bg-slate-700/80 hover:border-slate-200 dark:hover:border-slate-600 transition-all hover:scale-[1.02] hover:shadow-sm group"
+                                            >
+                                                <div className="flex items-center justify-between gap-2 min-w-0">
+                                                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider truncate" title={index.name}>
+                                                        {index.name}
+                                                    </span>
+                                                    <div className="flex items-center gap-1 text-[8px] text-slate-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Clock size={8} />
+                                                        <span>{index.updated_at ? index.updated_at.split('-').reverse().slice(0, 2).join('/') : '--'}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-end mt-1">
+                                                    <span className="text-sm font-black text-slate-800 dark:text-slate-100 tabular-nums">
+                                                        {index.unit === 'R$' ? `R$ ${index.value?.toFixed(4)}` : `${index.value?.toFixed(4)}%`}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             ))}

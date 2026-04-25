@@ -73,7 +73,7 @@ export const VideoCallModal: React.FC<VideoCallModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm transition-all duration-300">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/80 backdrop-blur-sm transition-all duration-300">
             <div
                 className={`bg-slate-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col transition-all duration-300 ${isFullscreen ? 'w-full h-full rounded-none' : 'w-[90vw] h-[85vh] max-w-6xl'
                     }`}

@@ -480,6 +480,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
     const handleSave = async () => {
         try {
+            if (!formData.document) {
+                return showNotify('O campo Documento (CPF/CNPJ) é obrigatório.', 'warning');
+            }
+            if (!formData.companyName) {
+                return showNotify('O campo Razão Social é obrigatório.', 'warning');
+            }
+
             setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Usuário não autenticado');

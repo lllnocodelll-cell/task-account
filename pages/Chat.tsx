@@ -1241,8 +1241,23 @@ export const Chat: React.FC = () => {
         });
 
       // --- Sinalização de chamada via Broadcast ---
-      // Agora o GlobalCallListener escuta via postgres_changes diretamente na tabela chat_messages.
-      // O broadcast manual não é mais necessário.
+      const { data: members } = await supabase
+        .from('chat_channel_members')
+        .select('user_id')
+        .eq('channel_id', selectedChannelId)
+        .neq('user_id', userId);
+
+      if (members) {
+        for (const m of members) {
+          await (supabase as any).from('chat_calls').insert({
+            caller_id: userId,
+            target_id: m.user_id,
+            channel_id: selectedChannelId,
+            is_video: isVideoEnabled,
+            status: 'pending'
+          });
+        }
+      }
     } catch (e) {
       console.error('Failed to send call start message or create room', e);
       alert('Não foi possível iniciar a chamada devido a falha de conexão.');

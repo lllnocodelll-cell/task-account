@@ -66,6 +66,8 @@ export const Notes: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchSessionAndNotes();
@@ -156,19 +158,31 @@ export const Notes: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm('Tem certeza que deseja excluir esta nota?')) return;
+  const triggerDelete = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setNoteToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!noteToDelete) return;
+    setIsDeleting(true);
 
     try {
-      const { error } = await supabase.from('notes').delete().eq('id', id);
+      const { error } = await supabase.from('notes').delete().eq('id', noteToDelete);
       if (error) throw error;
 
-      setNotes(prev => prev.filter(n => n.id !== id));
-      if (currentNote.id === id) setIsModalOpen(false);
+      setNotes(prev => prev.filter(n => n.id !== noteToDelete));
+      if (currentNote.id === noteToDelete) setIsModalOpen(false);
     } catch (error: any) {
       alert('Erro ao excluir anotação: ' + error.message);
+    } finally {
+      setIsDeleting(false);
+      setNoteToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setNoteToDelete(null);
   };
 
   const togglePin = async (id: string, currentPinStatus: boolean, e: React.MouseEvent) => {
@@ -323,7 +337,7 @@ export const Notes: React.FC = () => {
                     </div>
                     <div className="tooltip-container tooltip-top">
                       <button
-                        onClick={(e) => handleDelete(note.id, e)}
+                        onClick={(e) => triggerDelete(note.id, e)}
                         className="text-slate-400 hover:text-red-500 p-1 rounded transition-colors"
                       >
                         <Trash2 size={16} />
@@ -361,9 +375,9 @@ export const Notes: React.FC = () => {
               <div className="flex gap-2 mr-auto">
                 <Button
                   variant="danger"
-                  onClick={(e) => handleDelete(currentNote.id!, e as any)}
+                  onClick={(e) => triggerDelete(currentNote.id!, e as any)}
                   icon={<Trash2 size={16} />}
-                  disabled={saving}
+                  disabled={saving || isDeleting}
                 >
                   Excluir
                 </Button>
@@ -438,6 +452,47 @@ export const Notes: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Delete Confirmation Overlay */}
+      {noteToDelete && (
+        <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="flex flex-col items-center gap-6 p-8 sm:p-10 rounded-2xl bg-slate-900/90 border border-rose-500/30 shadow-[0_0_40px_rgba(244,63,94,0.15)] animate-in zoom-in-95 duration-200 max-w-sm w-full mx-4">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+                <Trash2 className="w-8 h-8 text-rose-500" />
+              </div>
+              <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-transparent border-t-rose-500/50 animate-spin [animation-duration:3s]" />
+            </div>
+            
+            <div className="text-center space-y-2">
+              <h3 className="text-white font-bold text-xl">Excluir Anotação?</h3>
+              <p className="text-slate-400 text-sm leading-relaxed px-4">
+                Tem certeza que deseja excluir esta nota? Esta ação <strong className="text-rose-400 font-medium">não poderá ser desfeita</strong>.
+              </p>
+            </div>
+
+            <div className="flex w-full gap-3 mt-2">
+              <Button 
+                variant="secondary" 
+                onClick={cancelDelete} 
+                disabled={isDeleting}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="danger" 
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="flex-1 shadow-lg shadow-rose-500/20"
+                icon={isDeleting ? <Loader2 size={18} className="animate-spin" /> : undefined}
+              >
+                {isDeleting ? 'Excluindo...' : 'Sim, Excluir'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

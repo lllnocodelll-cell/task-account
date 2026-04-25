@@ -44,7 +44,8 @@ import {
   MinusCircle,
   ScanEye,
   Eye,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Building2
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -267,141 +268,96 @@ interface ActionMenuProps {
 
 const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclude, onEdit, onDelete }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState({ top: 0, right: 0 });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        isOpen &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node) &&
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
+      if (isOpen && menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
 
-    const handleScroll = () => {
-      if (isOpen) setIsOpen(false);
-    };
-
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('scroll', handleScroll, true);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('scroll', handleScroll, true);
     };
   }, [isOpen]);
 
-  const toggleMenu = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      setCoords({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right
-      });
-    }
-    setIsOpen(!isOpen);
-  };
-
   return (
-    <div className="relative flex justify-end">
-      <Tooltip content="Ações" position="left">
+    <div className="relative flex justify-end items-center" ref={menuRef}>
+      {/* Horizontal Expanded Menu */}
+      <div 
+        className={`absolute right-full mr-2 flex items-center gap-1 overflow-hidden transition-all duration-300 ease-out bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-full shadow-lg ${isOpen ? 'opacity-100 translate-x-0 px-2 py-1.5 max-w-[250px]' : 'opacity-0 translate-x-4 max-w-0 pointer-events-none px-0 py-1.5 border-transparent'}`}
+      >
+        {task.status === TaskStatus.CONCLUIDA ? (
+          <Tooltip content="Reabrir Tarefa">
+            <button
+              onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, TaskStatus.PENDENTE); setIsOpen(false); }}
+              className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 transition-colors shrink-0"
+            >
+              <RotateCcw size={16} />
+            </button>
+          </Tooltip>
+        ) : (
+          <>
+            {task.status !== TaskStatus.INICIADA && (
+              <Tooltip content="Iniciar">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, TaskStatus.INICIADA); setIsOpen(false); }}
+                  className="p-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-500/20 text-blue-500 transition-colors shrink-0"
+                >
+                  <Play size={16} />
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip content="Concluir">
+              <button
+                onClick={(e) => { e.stopPropagation(); onConclude(task.id); setIsOpen(false); }}
+                className="p-1.5 rounded-full hover:bg-emerald-50 dark:hover:bg-emerald-500/20 text-emerald-500 transition-colors shrink-0"
+              >
+                <CheckCircle size={16} />
+              </button>
+            </Tooltip>
+            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0" />
+            <Tooltip content="Cancelar">
+              <button
+                onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, TaskStatus.PENDENTE); setIsOpen(false); }}
+                className="p-1.5 rounded-full hover:bg-amber-50 dark:hover:bg-amber-500/20 text-amber-500 transition-colors shrink-0"
+              >
+                <XCircle size={16} />
+              </button>
+            </Tooltip>
+          </>
+        )}
+        {task.status !== TaskStatus.CONCLUIDA && (
+          <>
+            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0" />
+            <Tooltip content="Excluir Tarefa">
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(task); setIsOpen(false); }}
+                className="p-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-500/20 text-red-500 transition-colors shrink-0"
+              >
+                <Trash2 size={16} />
+              </button>
+            </Tooltip>
+          </>
+        )}
+      </div>
+
+      {/* Main Trigger Button */}
+      <Tooltip content={isOpen ? "Fechar Ações" : "Ações"} position="left">
         <button
-          ref={buttonRef}
-          onClick={toggleMenu}
-          className={`p-2 rounded-lg transition-colors ${isOpen
-            ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'
+          onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+          className={`p-2 transition-all duration-300 rounded-lg ${isOpen
+            ? 'bg-indigo-600 text-white rotate-90 shadow-md'
             : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
         >
-          <MoreHorizontal size={18} />
+          {isOpen ? <X size={18} /> : <MoreHorizontal size={18} />}
         </button>
       </Tooltip>
-
-      {isOpen && typeof document !== 'undefined' && createPortal(
-        <div 
-          ref={menuRef}
-          style={{ top: coords.top, right: coords.right }}
-          className="fixed w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 z-[9999] py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right"
-        >
-          {task.status === TaskStatus.CONCLUIDA ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onStatusChange(task.id, TaskStatus.PENDENTE);
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
-            >
-              <RotateCcw size={16} className="text-slate-500" /> Reabrir Tarefa
-            </button>
-          ) : (
-            <>
-              {task.status !== TaskStatus.INICIADA && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStatusChange(task.id, TaskStatus.INICIADA);
-                    setIsOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
-                >
-                  <Play size={16} className="text-blue-500" /> Iniciar
-                </button>
-              )}
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onConclude(task.id);
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2"
-              >
-                <CheckCircle size={16} className="text-emerald-500" /> Concluir
-              </button>
-
-              <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStatusChange(task.id, TaskStatus.PENDENTE);
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-2"
-              >
-                <XCircle size={16} /> Cancelar
-              </button>
-            </>
-          )}
-
-          {task.status !== TaskStatus.CONCLUIDA && (
-            <>
-              <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(task);
-                  setIsOpen(false);
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
-              >
-                <Trash2 size={16} /> Excluir Tarefa
-              </button>
-            </>
-          )}
-        </div>,
-        document.body
-      )}
     </div>
   );
 };
@@ -3312,22 +3268,27 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
   };
 
   const handleAddPendingTask = () => {
-    if (!tempTask.taskName || !tempTask.responsible || !tempTask.competence) {
-      return alert('Preencha os campos obrigatórios da tarefa (Tarefa, Responsável e Competência)');
+    if (selectedClientIds.length === 0) {
+      return showNotify('Selecione pelo menos uma empresa no topo antes de adicionar a tarefa.', 'warning');
+    }
+    if (!tempTask.taskName || !tempTask.responsible || !tempTask.competence || !tempTask.vencimento) {
+      return showNotify('Preencha os campos obrigatórios (Tarefa, Responsável, Vencimento e Competência)', 'warning');
     }
     if (tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'personalizado' && tempTask.months.length === 0) {
-      return alert('Selecione pelo menos um mês para esta recorrência');
+      return showNotify('Selecione pelo menos um mês para esta recorrência', 'warning');
     }
+
+    const taskWithClients = { ...tempTask, targetClients: [...selectedClientIds] };
 
     if (editingTaskId) {
       // Update existing
       setPendingTasks(prev => prev.map(t =>
-        t.id === editingTaskId ? { ...tempTask, id: editingTaskId } : t
+        t.id === editingTaskId ? { ...taskWithClients, id: editingTaskId } : t
       ));
       setEditingTaskId(null);
     } else {
       // Add new
-      setPendingTasks([...pendingTasks, { ...tempTask, id: Date.now().toString() }]);
+      setPendingTasks([...pendingTasks, { ...taskWithClients, id: Date.now().toString() }]);
     }
 
     setTempTask({
@@ -3405,7 +3366,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
   const handleSaveAll = async () => {
     if (selectedClientIds.length === 0) return showNotify('Selecione pelo menos uma empresa.', 'warning');
-    if (pendingTasks.length === 0 && !tempTask.taskName) return showNotify('Adicione pelo menos uma tarefa.', 'warning');
+    if (pendingTasks.length === 0) return showNotify('Adicione pelo menos uma tarefa à lista clicando no botão (+).', 'warning');
 
     // Recurrence Check for Editing
     // We consider it recurring if it has a recurrence value other than common non-recurring terms
@@ -3423,21 +3384,36 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       if (!user) return showNotify('Usuário não autenticado.', 'error');
 
       let tasksToSave = [...pendingTasks];
-      if (tasksToSave.length === 0 && tempTask.taskName) {
-        tasksToSave.push({ ...tempTask, id: 'temp-' + Date.now() });
-      }
 
-      // We will iterate over EACH selected client
-      for (const clientName of selectedClientIds) {
+      // Build a set of ALL unique clients from all tasks
+      const allTargetClients = new Set<string>();
+      tasksToSave.forEach(t => {
+        const targets = t.targetClients && t.targetClients.length > 0 ? t.targetClients : selectedClientIds;
+        targets.forEach((c: string) => allTargetClients.add(c));
+      });
+
+      // We will iterate over EACH client
+      for (const clientName of Array.from(allTargetClients)) {
         const client = clients.find(c => c.companyName === clientName);
         if (!client) continue;
 
         const config = clientConfigs[clientName];
         if (!config) continue;
 
+        if (['simples', 'simples_iva'].includes(config.taxRegime)) {
+          if (!config.selectedAnnexes || config.selectedAnnexes.length === 0) {
+            setIsSaving(false);
+            setLoadingData(false);
+            return showNotify(`A empresa ${clientName} é optante pelo Simples Nacional. Selecione ao menos 1 anexo.`, 'warning');
+          }
+        }
+
         const allPayloadsForClient: any[] = [];
 
         for (const t of tasksToSave) {
+          const tTargets = t.targetClients && t.targetClients.length > 0 ? t.targetClients : selectedClientIds;
+          if (!tTargets.includes(clientName)) continue;
+
           // Recurrence logic: if it's a NEW task, we expand it. If editing, we only update the specific one.
           if (isEditing && t.id === initialData.id) {
             const adjustedDate = calculateAdjustedDate(t.vencimento, t.vencimentoVariavel, holidayDates);
@@ -4360,25 +4336,60 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                           )}
                         </div>
 
-                        {/* Seção 4: Responsável e Setor (Compacto) */}
-                        <div className="flex items-center justify-between gap-2 mb-4 relative z-10">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <div className="w-6 h-6 rounded-lg bg-indigo-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 shadow-sm shadow-indigo-500/20">
-                              {task.responsible.charAt(0)}
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate">{task.responsible}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter shrink-0 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
-                            <Layers size={10} className="opacity-50" />
-                            {task.sector}
-                          </div>
+                        {/* Seção 4: Empresas (Novo) */}
+                        <div className="mb-4 relative z-10">
+                          {(() => {
+                            const targets = task.targetClients && task.targetClients.length > 0 ? task.targetClients : selectedClientIds;
+                            if (targets.length === 1) {
+                              return (
+                                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50">
+                                  <div className="p-1.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm">
+                                    <Building2 size={12} className="text-slate-500 dark:text-slate-400" />
+                                  </div>
+                                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate flex-1">{targets[0]}</span>
+                                </div>
+                              );
+                            } else if (targets.length > 1) {
+                              return (
+                                <Tooltip content={
+                                  <div className="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar pr-2">
+                                    {targets.map((c: string, i: number) => (
+                                      <div key={i} className="flex items-center gap-1.5 text-[10px] text-slate-200">
+                                        <Building2 size={10} className="text-slate-400 shrink-0" />
+                                        <span className="truncate">{c}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                }>
+                                  <div className="flex items-center gap-2 p-2 rounded-xl bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-100/50 dark:border-indigo-500/20 cursor-help">
+                                    <div className="p-1.5 bg-white dark:bg-indigo-500/20 rounded-lg shadow-sm">
+                                      <Building2 size={12} className="text-indigo-500 dark:text-indigo-400" />
+                                    </div>
+                                    <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300">Lote: {targets.length} Empresas</span>
+                                  </div>
+                                </Tooltip>
+                              );
+                            } else {
+                              return (
+                                <div className="flex items-center gap-2 p-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20">
+                                  <AlertCircle size={12} className="text-rose-500" />
+                                  <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">Nenhuma empresa</span>
+                                </div>
+                              );
+                            }
+                          })()}
                         </div>
 
-                        {/* Seção 5: Ações */}
+                        {/* Seção 5: Ações e Info Minimalista */}
                         <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/50 relative z-10">
-                          <div className="flex items-center gap-1">
-                             <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                             <span className="text-[8px] text-slate-400 font-mono">#{task.id.toString().slice(-4)}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 truncate">
+                              <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 truncate max-w-[60px]">{task.responsible}</span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 shrink-0">
+                              <Layers size={8} className="opacity-50 text-slate-500" />
+                              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{task.sector}</span>
+                            </div>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <button

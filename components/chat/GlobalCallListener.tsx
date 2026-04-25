@@ -50,64 +50,40 @@ export const GlobalCallListener: React.FC<GlobalCallListenerProps> = ({ userId, 
         if (!userId) return;
 
         const sub = supabase
-            .channel(`global-call-listener-${userId}`)
+            .channel('global-calls-db')
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+                { 
+                    event: 'INSERT', 
+                    schema: 'public', 
+                    table: 'chat_calls' as any,
+                    filter: `target_id=eq.${userId}` 
+                },
                 async (payload) => {
-                    const newMsg = payload.new as any;
-                    if (!newMsg || newMsg.sender_id === userId) return;
+                    const newCall = payload.new as any;
+                    
+                    // Buscar nome do chamador para exibição
+                    let callerName = 'Alguém';
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('full_name')
+                        .eq('id', newCall.caller_id)
+                        .single();
+                    if (profile) callerName = profile.full_name;
 
-                    const isVideoCall = newMsg.text?.includes('📹 Iniciei uma chamada de vídeo');
-                    const isAudioCall = newMsg.text?.includes('📞 Iniciei uma chamada de áudio');
+                    setIncomingCall({
+                        channelId: newCall.channel_id,
+                        callerName: callerName,
+                        isVideoEnabled: newCall.is_video
+                    });
 
-                    if (isVideoCall || isAudioCall) {
-                        try {
-                            // Verify if it is for me
-                            const { data: memberData } = await supabase
-                                .from('chat_channel_members')
-                                .select('id')
-                                .eq('channel_id', newMsg.channel_id)
-                                .eq('user_id', userId)
-                                .single();
+                    // Tentar tocar áudio
+                    audioRef.current?.play().catch(e => console.log('Autoplay bloqueado pelo navegador:', e));
 
-                            if (memberData) {
-                                let callerName = 'Alguém';
-                                const { data: callerProfile } = await supabase
-                                    .from('profiles')
-                                    .select('full_name')
-                                    .eq('id', newMsg.sender_id)
-                                    .maybeSingle();
-
-                                if (callerProfile?.full_name) callerName = callerProfile.full_name;
-
-                                const { data: channelInfo } = await supabase
-                                    .from('chat_channels')
-                                    .select('type, name')
-                                    .eq('id', newMsg.channel_id)
-                                    .maybeSingle();
-
-                                if (channelInfo && channelInfo.type === 'group') {
-                                    callerName = channelInfo.name;
-                                }
-
-                                setIncomingCall({
-                                    channelId: newMsg.channel_id,
-                                    callerName: callerName,
-                                    isVideoEnabled: isVideoCall
-                                });
-
-                                audioRef.current?.play().catch(e => console.log('Autoplay bloqueado pelo navegador:', e));
-
-                                if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
-                                ringTimeoutRef.current = setTimeout(() => {
-                                    handleDeclineCall();
-                                }, 30000);
-                            }
-                        } catch (err) {
-                            console.error('Error verifying call target:', err);
-                        }
-                    }
+                    if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+                    ringTimeoutRef.current = setTimeout(() => {
+                        handleDeclineCall();
+                    }, 30000); // 30 segundos de toque antes de desistir
                 }
             )
             .subscribe();
@@ -156,7 +132,7 @@ export const GlobalCallListener: React.FC<GlobalCallListenerProps> = ({ userId, 
     return (
         <>
             {incomingCall && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md transition-all duration-300">
+                <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/70 backdrop-blur-md transition-all duration-300">
                     <div className="bg-slate-900 rounded-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center text-center shadow-2xl animate-in fade-in zoom-in duration-300 border border-slate-700">
                         <div className="w-24 h-24 bg-indigo-500/20 rounded-full flex items-center justify-center mb-6 relative">
                             <div className="absolute inset-0 rounded-full bg-indigo-500/20 animate-ping"></div>
