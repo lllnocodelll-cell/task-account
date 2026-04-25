@@ -11,6 +11,7 @@ import { Notifications } from './pages/Notifications';
 import { ClientPortal } from './pages/ClientPortal';
 import { Chat } from './pages/Chat';
 import { Notes } from './pages/Notes';
+import { LandingPage } from './pages/LandingPage';
 import { UserRole, Client } from './types';
 import { supabase } from './utils/supabaseClient';
 import { Loader2 } from 'lucide-react';
@@ -44,6 +45,7 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isTutorialsOpen, setIsTutorialsOpen] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
   const [clientsList, setClientsList] = useState<Client[]>([]);
 
   const handleNavigateToClient = (clientId: string) => {
@@ -102,6 +104,29 @@ function App() {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Demo Mode for Screenshots
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('demo') === 'true') {
+      console.log('--- MODO DEMONSTRAÇÃO ATIVO ---');
+      setSession({ user: { id: 'demo-id', email: 'demo@taskaccount.com' } });
+      setUserProfile({
+        id: 'demo-id',
+        full_name: 'Dr. Ricardo Santos',
+        role: 'gestor',
+        email: 'demo@taskaccount.com',
+        phone: '(11) 98888-7777',
+        location: 'São Paulo, SP',
+        avatar_url: null,
+        org_name: 'Santos & Associados Contabilidade',
+        job_title: 'Sócio Diretor',
+        org_id: 'demo-org'
+      });
+      setUserRole('gestor');
+      setLoading(false);
+    }
   }, []);
 
   // User Activity Tracker
@@ -316,13 +341,24 @@ function App() {
   }
 
   if (!session) {
-    return (
-      <Auth
-        onLogin={() => { }} // Handle by auth listener
-        isDarkMode={isDarkMode}
-        toggleTheme={toggleTheme}
-      />
-    );
+    if (showAuth) {
+      return (
+        <div className="relative">
+          <button 
+            onClick={() => setShowAuth(false)}
+            className="fixed top-6 left-6 z-[60] px-4 py-2 bg-slate-900/50 backdrop-blur-md border border-white/10 rounded-full text-xs font-bold text-slate-400 hover:text-white transition-all"
+          >
+            ← Voltar para Início
+          </button>
+          <Auth
+            onLogin={() => { }} // Handle by auth listener
+            isDarkMode={isDarkMode}
+            toggleTheme={toggleTheme}
+          />
+        </div>
+      );
+    }
+    return <LandingPage onLoginClick={() => setShowAuth(true)} />;
   }
 
   return (

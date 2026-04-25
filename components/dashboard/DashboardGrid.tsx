@@ -19,6 +19,7 @@ import { CollaboratorsByDeptWidget } from './widgets/CollaboratorsByDeptWidget';
 import { UncompletedTasksWidget } from './widgets/UncompletedTasksWidget';
 import { MonthlyEvolutionWidget } from './widgets/MonthlyEvolutionWidget';
 import { EconomicIndicesWidget } from './widgets/EconomicIndicesWidget';
+import { OperationsCalendarWidget } from './widgets/OperationsCalendarWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -88,6 +89,11 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'ÍNDICES ECONÔMICOS',
         component: EconomicIndicesWidget,
         defaultLayout: { i: 'economicIndices', x: 0, y: 39, w: 6, h: 7, minW: 4, minH: 5 }
+    },
+    operationsCalendar: {
+        name: 'CALENDÁRIO OPERACIONAL',
+        component: OperationsCalendarWidget,
+        defaultLayout: { i: 'operationsCalendar', x: 0, y: 46, w: 12, h: 14, minW: 6, minH: 10 }
     }
 };
 
@@ -95,7 +101,7 @@ const DEFAULT_ACTIVE_WIDGETS = [
     'topSegments', 'statusByUser', 'monthlyEvolution',
     'upcomingDeadlines', 'topTasks', 'documentAlerts',
     'clientStatus', 'taxRegimes', 'loggedUsers',
-    'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices'
+    'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices', 'operationsCalendar'
 ];
 
 interface DashboardGridProps {
@@ -114,7 +120,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     const OPERACIONAL_ALLOWED_WIDGETS = [
         'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
         'topTasks', 'uncompletedTasks', 'clientStatus', 
-        'notifiedExclusion', 'topSegments', 'monthlyEvolution', 'economicIndices'
+        'notifiedExclusion', 'topSegments', 'monthlyEvolution', 'economicIndices', 'operationsCalendar'
     ];
 
     const allWidgets = Object.keys(WIDGET_REGISTRY).filter(id => 
