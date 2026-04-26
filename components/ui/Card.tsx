@@ -35,9 +35,15 @@ export const Card: React.FC<CardProps> = ({ children, className = '', title, tit
           </div>
         </div>
       )}
-      {!isCollapsed && (
-        <div className="p-6 animate-in fade-in slide-in-from-top-1 duration-200">{children}</div>
-      )}
+      <div 
+        className={`overflow-hidden transition-all duration-500 ease-in-out ${
+          isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[5000px] opacity-100'
+        }`}
+      >
+        <div className="p-6">
+          {children}
+        </div>
+      </div>
     </div>
   );
 };

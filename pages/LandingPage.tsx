@@ -25,36 +25,36 @@ import {
 
 const tools = [
   {
-    title: 'Visão geral da sua operação',
+    title: 'Sua operação em tempo real',
     badge: 'Dashboard',
-    desc: 'Com todos os indicadores que você precisa para ter uma visão clara e controle total da sua operação. Tome decisões baseadas em dados em tempo real.',
+    desc: 'Indicadores claros para você ter controle total. Tome decisões baseadas em dados vivos e não em suposições.',
     image: '/app-dashboard.png',
     reverse: false,
-    icon: <BarChart3 className="text-indigo-400" size={24} />
+    icon: <BarChart3 className="text-blue-500" size={24} />
   },
   {
-    title: 'Controle Operacional Integrado',
+    title: 'Controle Operacional Inteligente',
     badge: 'Tarefas & Kanban',
-    desc: 'Controle todos os prazos em um painel interativo. Alterne entre a visão detalhada de tabela ou a gestão visual do Kanban para arrastar e soltar tarefas na sua esteira de produção.',
+    desc: 'Gerencie prazos e fluxos de trabalho visualmente. Arraste e solte tarefas e garanta que nada passe despercebido.',
     image: '/app-tasks.png',
     reverse: true,
-    icon: <Layout className="text-indigo-400" size={24} />
+    icon: <Layout className="text-blue-500" size={24} />
   },
   {
-    title: 'O cadastro mais completo do mercado',
-    badge: 'Gestão de Clientes',
-    desc: 'Mantenha todas as informações vitais da sua carteira em um só lugar. Tenha um controle unificado de documentos, licenças, certificados e dados cadastrais de forma inteligente.',
+    title: 'Gestão Completa de Clientes',
+    badge: 'CRM Contábil',
+    desc: 'Mantenha documentos, licenças e dados vitais da sua carteira unificados. O cadastro mais detalhado do mercado.',
     image: '/app-clients.png',
     reverse: false,
-    icon: <Users className="text-indigo-400" size={24} />
+    icon: <Users className="text-blue-500" size={24} />
   },
   {
-    title: 'Comunicação Centralizada',
-    badge: 'CHAT EQUIPE E ATENDIMENTO',
-    desc: 'Centralize a comunicação com o time e o atendimento. Envie documentos ao concluir cada tarefa, ganhe tempo e aumente a sua produtividade absurdamente.',
+    title: 'Comunicação e Entregas',
+    badge: 'Chat & Documentos',
+    desc: 'Centralize o atendimento e o envio de documentos. Conclua tarefas e já notifique seu cliente instantaneamente.',
     image: '/app-chat.png',
     reverse: true,
-    icon: <MessageSquare className="text-indigo-400" size={24} />
+    icon: <MessageSquare className="text-blue-500" size={24} />
   }
 ];
 
@@ -173,7 +173,7 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
       >
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25">
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
               <BarChart3 size={18} className="text-white" />
             </div>
             <span className="text-xl font-display font-bold tracking-tight text-white">
@@ -208,7 +208,7 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
             background: useMotionTemplate`
               radial-gradient(
                 800px circle at ${mouseX}px ${mouseY}px,
-                rgba(99, 102, 241, 0.12),
+                rgba(37, 99, 235, 0.15),
                 transparent 80%
               )
             `,
@@ -217,8 +217,8 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
 
         {/* Mesh gradient e Grid sutil para passar seriedade profissional */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-          <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] bg-sky-500/10 rounded-full blur-[100px]" />
+          <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[100px]" />
           <div
             className="absolute inset-0 opacity-[0.02]"
             style={{
@@ -233,28 +233,28 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-widest mb-8"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-8"
           >
             <Sparkles size={14} />
-            <span>Ferramenta Completa</span>
+            <span>Gestão Contábil Inteligente</span>
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15 }}
-            className="text-5xl sm:text-6xl md:text-8xl font-display font-bold tracking-tight leading-[0.95] mb-8 text-white"
+            className="text-4xl sm:text-5xl md:text-7xl font-display font-bold tracking-tight leading-[1.1] mb-8 text-white"
           >
-            O fim das planilhas no seu escritório contábil.
+            Sua contabilidade em um <span className="text-blue-500">novo patamar.</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="text-lg md:text-xl text-slate-400 max-w-3xl mx-auto mb-12 leading-relaxed"
+            className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed"
           >
-            Uma ferramenta completa para a rotina do seu escritório. Gestão de produtividade, controle de prazos rigoroso e comunicação centralizada em uma única plataforma.
+            Esqueça as planilhas e o controle manual. Uma plataforma inteligente para gerir prazos, equipe e clientes com precisão absoluta.
           </motion.p>
 
           <motion.div
@@ -265,7 +265,7 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
           >
             <button
               onClick={onLoginClick}
-              className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 rounded-full font-bold text-lg text-white flex items-center justify-center gap-2 transition-all group active:scale-95 shadow-xl shadow-indigo-500/25"
+              className="w-full sm:w-auto px-10 py-4 bg-orange-600 hover:bg-orange-500 rounded-full font-bold text-lg text-white flex items-center justify-center gap-2 transition-all group active:scale-95 shadow-xl shadow-orange-600/20"
             >
               Começar agora
               <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
@@ -279,18 +279,18 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-wrap justify-center md:justify-between items-center gap-8 md:gap-4 text-slate-400 text-sm md:text-base font-medium">
             <div className="flex items-center gap-3">
-              <ShieldCheck className="text-indigo-400" size={20} />
-              <span>Segurança Nível Bancário</span>
+              <ShieldCheck className="text-blue-500" size={20} />
+              <span>Segurança Certificada</span>
             </div>
             <div className="hidden md:block w-1 h-1 rounded-full bg-slate-700"></div>
             <div className="flex items-center gap-3">
-              <Clock className="text-sky-400" size={20} />
-              <span>Controle Rigoroso de Prazos</span>
+              <Clock className="text-orange-500" size={20} />
+              <span>Prazos Sob Controle</span>
             </div>
             <div className="hidden md:block w-1 h-1 rounded-full bg-slate-700"></div>
             <div className="flex items-center gap-3">
-              <Zap className="text-emerald-400" size={20} />
-              <span>Produtividade em Tempo Real</span>
+              <Zap className="text-orange-500" size={20} />
+              <span>Alta Performance</span>
             </div>
           </div>
         </div>
@@ -317,10 +317,10 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
                   </p>
                   <ul className="space-y-3">
                     <li className="flex items-center gap-3 text-slate-300">
-                      <CheckCircle2 size={18} className="text-indigo-400" /> Integração perfeita com a sua rotina.
+                      <CheckCircle2 size={18} className="text-blue-500" /> Integração perfeita com a sua rotina.
                     </li>
                     <li className="flex items-center gap-3 text-slate-300">
-                      <CheckCircle2 size={18} className="text-indigo-400" /> Adeus ao retrabalho manual.
+                      <CheckCircle2 size={18} className="text-blue-500" /> Adeus ao retrabalho manual.
                     </li>
                   </ul>
                 </motion.div>
@@ -335,12 +335,12 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
                   transition={{ duration: 0.8, ease: "easeOut" }}
                   className="relative group"
                 >
-                  <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/30 to-sky-500/30 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition duration-1000"></div>
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-orange-500/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition duration-1000"></div>
                   <div className="relative animate-float rounded-2xl border border-slate-800 shadow-2xl overflow-hidden bg-slate-900">
                     <div className="px-4 py-3 bg-slate-800/80 border-b border-slate-700/50 flex items-center gap-2">
                       <div className="flex gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-slate-600/50"></div>
-                        <div className="w-3 h-3 rounded-full bg-slate-600/50"></div>
+                        <div className="w-3 h-3 rounded-full bg-blue-500/30"></div>
+                        <div className="w-3 h-3 rounded-full bg-orange-500/30"></div>
                         <div className="w-3 h-3 rounded-full bg-slate-600/50"></div>
                       </div>
                       <span className="text-[10px] text-slate-500 font-mono ml-1 uppercase">{tool.badge}</span>
@@ -375,9 +375,9 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
               <motion.div
                 key={i}
                 {...stagger(i)}
-                className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 hover:border-indigo-500/30 transition-all duration-300 group"
+                className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 hover:bg-slate-800/60 hover:border-blue-500/30 transition-all duration-300 group"
               >
-                <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-indigo-400 mb-6 group-hover:scale-110 group-hover:bg-indigo-500/10 transition-transform">
+                <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-orange-500 mb-6 group-hover:scale-110 group-hover:bg-orange-500/10 transition-transform">
                   {diff.icon}
                 </div>
                 <h3 className="text-lg font-display font-bold mb-3 text-white">{diff.title}</h3>
@@ -407,12 +407,12 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
                 {...stagger(i)}
                 className={`relative p-8 rounded-3xl border flex flex-col justify-between transition-all duration-500 ${
                   plan.highlight
-                    ? 'bg-slate-900 border-indigo-500 shadow-[0_0_60px_-15px_rgba(99,102,241,0.2)] md:scale-105 z-10'
+                    ? 'bg-slate-900 border-orange-500 shadow-[0_0_60px_-15px_rgba(249,115,22,0.15)] md:scale-105 z-10'
                     : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
                 }`}
               >
                 {plan.highlight && (
-                   <div className="absolute -inset-[1px] bg-gradient-to-b from-indigo-500 to-sky-500 rounded-3xl z-[-1] opacity-50 blur-sm"></div>
+                   <div className="absolute -inset-[1px] bg-gradient-to-b from-orange-500 to-blue-500 rounded-3xl z-[-1] opacity-30 blur-sm"></div>
                 )}
                 <div>
                   <div className="flex justify-between items-start mb-6">
@@ -423,7 +423,7 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
                       <p className="text-xs text-slate-400">{plan.description}</p>
                     </div>
                     {plan.highlight && (
-                      <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full text-[10px] font-black uppercase border border-indigo-500/30">
+                      <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-[10px] font-black uppercase border border-orange-500/30">
                         Recomendado
                       </span>
                     )}
@@ -439,7 +439,7 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
                   <div className="space-y-4 mb-8">
                     {plan.features.map((f, j) => (
                       <div key={j} className="flex items-center gap-3 text-sm text-slate-300">
-                        <CheckCircle2 size={16} className={plan.highlight ? 'text-indigo-400' : 'text-slate-600'} />
+                        <CheckCircle2 size={16} className={plan.highlight ? 'text-orange-500' : 'text-slate-600'} />
                         {f}
                       </div>
                     ))}
@@ -449,7 +449,7 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
                   onClick={onLoginClick}
                   className={`w-full py-4 rounded-full font-bold transition-all active:scale-95 cursor-pointer ${
                     plan.highlight
-                      ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 border border-indigo-500'
+                      ? 'bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/20 border border-orange-500'
                       : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
                   }`}
                 >
@@ -473,7 +473,7 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
             </p>
             <button
               onClick={onLoginClick}
-              className="px-12 py-5 bg-gradient-to-r from-indigo-600 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white rounded-full font-bold text-xl transition-all active:scale-95 shadow-2xl shadow-indigo-500/20 cursor-pointer"
+              className="px-12 py-5 bg-orange-600 hover:bg-orange-500 text-white rounded-full font-bold text-xl transition-all active:scale-95 shadow-2xl shadow-orange-500/20 cursor-pointer"
             >
               Criar Conta Gratuitamente
             </button>

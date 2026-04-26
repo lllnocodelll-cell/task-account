@@ -93,7 +93,7 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
     operationsCalendar: {
         name: 'CALENDÁRIO OPERACIONAL',
         component: OperationsCalendarWidget,
-        defaultLayout: { i: 'operationsCalendar', x: 0, y: 46, w: 12, h: 14, minW: 6, minH: 10 }
+        defaultLayout: { i: 'operationsCalendar', x: 0, y: 46, w: 3, h: 10, minW: 3, minH: 7 }
     }
 };
 

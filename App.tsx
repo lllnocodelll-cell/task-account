@@ -390,8 +390,8 @@ function App() {
           userProfile={userProfile}
         />
 
-        <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
-          <div className="max-w-7xl mx-auto w-full">
+        <main className={`flex-1 overflow-x-hidden ${activeTab === 'tasks' ? 'px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4' : 'p-4 md:p-8'}`}>
+          <div className="max-w-[1600px] mx-auto w-full">
             {renderContent()}
           </div>
         </main>

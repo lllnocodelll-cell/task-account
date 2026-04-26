@@ -267,15 +267,17 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
         try {
             setIsSearchingCNPJ(true);
-            const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-            if (!response.ok) {
-                if (response.status === 404) {
+            const { data, error } = await supabase.functions.invoke('fetch-cnpj', {
+                body: { cnpj }
+            });
+
+            if (error) {
+                // Se a função retornar um erro (ex: 404 da Brasil API)
+                if (error.status === 404) {
                     throw new Error('CNPJ não encontrado.');
                 }
-                throw new Error('Erro ao buscar CNPJ.');
+                throw new Error('Erro ao buscar CNPJ via proxy.');
             }
-            
-            const data = await response.json();
             
             // Formatando o CEP se vier sem hífen
             const returnedCep = data.cep ? data.cep.replace(/^(\d{5})(\d{3})$/, '$1-$2') : formData.cep;
@@ -314,6 +316,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         }
         setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' });
         setOtherInscriptionType(false);
+        setIsFormExpanded(false);
     };
     const handleAddContact = () => {
         if (!tempContact.name) return showNotify('Preencha o nome do contato', 'warning');
@@ -331,7 +334,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         } else {
             setContacts([...contacts, newContact]);
         }
-        setTempContact({});
+        setTempContact({ name: '', email: '', phone_fixed: '', phone_mobile: '', is_main: false });
+        setIsFormExpanded(false);
     };
 
     const handleToggleMainContact = (index: number) => {
@@ -353,6 +357,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             setTaxRegimes([...taxRegimes, tempRegime as ClientTaxRegime]);
         }
         setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
+        setIsFormExpanded(false);
     };
     const handleAddActivity = () => {
         if (!tempActivity.cnae_code) return showNotify('Preencha o código CNAE', 'warning');
@@ -365,6 +370,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             setActivities([...activities, tempActivity as ClientActivity]);
         }
         setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' });
+        setIsFormExpanded(false);
     };
     const handleAddAccess = () => {
         if (!tempAccess.access_name) return showNotify('Preencha o nome do acesso', 'warning');
@@ -376,7 +382,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         } else {
             setAccesses([...accesses, tempAccess as ClientAccess]);
         }
-        setTempAccess({ sector: '' });
+        setTempAccess({ access_name: '', username: '', password: '', access_url: '', sector: '' });
+        setIsFormExpanded(false);
     };
     const handleAddCertificate = () => {
         if (!tempCertificate.model) return showNotify('Selecione o modelo', 'warning');
@@ -389,6 +396,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             setCertificates([...certificates, tempCertificate as ClientCertificate]);
         }
         setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' });
+        setCertFile(null);
+        const fileInput = document.getElementById('certFileInput') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+        setIsFormExpanded(false);
     };
 
     const handleExtractCertificate = async () => {
@@ -431,7 +442,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         } else {
             setLicenses([...licenses, tempLicense as ClientLicense]);
         }
-        setTempLicense({});
+        setTempLicense({ license_name: '', number: '', expiration_date: '', access_url: '' });
+        setIsFormExpanded(false);
     };
     const handleAddLegislation = () => {
         if (!tempLegislation.description) return showNotify('Preencha a descrição', 'warning');
@@ -444,6 +456,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             setLegislations([...legislations, tempLegislation as ClientLegislation]);
         }
         setTempLegislation({ status: 'vigente', description: '', access_url: '' });
+        setIsFormExpanded(false);
     };
 
     const handleAddDfeSerie = () => {
@@ -458,6 +471,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             setDfeSeries([...dfeSeries, tempDfeSerie as ClientDfeSeries]);
         }
         setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' });
+        setIsFormExpanded(false);
     };
 
     const handleRemoveItem = async (listSetter: any, list: any[], index: number, table: ClientTable) => {
@@ -991,14 +1005,17 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     setActiveTab(tab.id);
                                     setEditingIndex(null);
                                     setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' });
-                                    setTempContact({});
+                                    setTempContact({ name: '', email: '', phone_fixed: '', phone_mobile: '', is_main: false });
                                     setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
                                     setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' });
-                                    setTempAccess({ sector: '' });
+                                    setTempAccess({ access_name: '', username: '', password: '', access_url: '', sector: '' });
                                     setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' });
-                                    setTempLicense({});
+                                    setTempLicense({ license_name: '', number: '', expiration_date: '', access_url: '' });
                                     setTempLegislation({ status: 'vigente', description: '', access_url: '' });
+                                    setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' });
                                     setOtherInscriptionType(false);
+                                    setCertFile(null);
+                                    setIsFormExpanded(false);
                                 }}
                                 className={`px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-800/30' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
                                     }`}
@@ -1036,8 +1053,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="md:col-span-1">
                                         <Select
                                             label="Tipo de Inscrição"
@@ -1077,14 +1094,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     />
                                     <div className="md:col-span-3 flex justify-end gap-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' }); setOtherInscriptionType(false); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' }); setOtherInscriptionType(false); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddInscription}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Inscrição'}
                                         </Button>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {inscriptions.length > 0 ? (
                                 <div className="space-y-4">
@@ -1110,7 +1127,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                                 onClick={() => { 
                                                                     setTempInscription(item); 
                                                                     setOtherInscriptionType(!['Municipal', 'Estadual', 'Suframa', 'Nire'].includes(item.type)); 
-                                                                    setEditingIndex(index); 
+                                                                    setEditingIndex(index);
+                                                                    setIsFormExpanded(true);
                                                                 }} 
                                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                 title="Editar"
@@ -1194,8 +1212,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome do Contato"
                                         value={tempContact.name}
@@ -1219,14 +1237,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     />
                                     <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempContact({}); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempContact({ name: '', email: '', phone_fixed: '', phone_mobile: '', is_main: false }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddContact}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Contato'}
                                         </Button>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {contacts.length > 0 ? (
                                 <div className="space-y-4">
@@ -1261,7 +1279,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1">
                                                             <button 
-                                                                onClick={() => { setTempContact(item); setEditingIndex(index); }} 
+                                                                onClick={() => { setTempContact(item); setEditingIndex(index); setIsFormExpanded(true); }} 
                                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                 title="Editar"
                                                             >
@@ -1374,8 +1392,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Início em"
                                         type="date"
@@ -1403,14 +1421,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                     <div className="md:col-span-3 flex justify-end gap-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' }); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddRegime}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Histórico'}
                                         </Button>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {taxRegimes.length > 0 ? (
                                 <div className="space-y-4">
@@ -1433,7 +1451,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1">
                                                             <button 
-                                                                onClick={() => { setTempRegime(item); setEditingIndex(index); }} 
+                                                                onClick={() => { setTempRegime(item); setEditingIndex(index); setIsFormExpanded(true); }} 
                                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                 title="Editar"
                                                             >
@@ -1528,8 +1546,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="md:col-span-2">
                                         <Select
                                             label="Ordem"
@@ -1563,14 +1581,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     />
                                     <div className="md:col-span-12 flex justify-end gap-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' }); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddActivity}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar CNAE'}
                                         </Button>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {activities.length > 0 ? (
                                 <div className="space-y-4">
@@ -1598,7 +1616,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         {!readOnly && (
                                                             <div className="flex items-center gap-1">
                                                                 <button 
-                                                                    onClick={() => { setTempActivity(item); setEditingIndex(originalIndex); }} 
+                                                                    onClick={() => { setTempActivity(item); setEditingIndex(originalIndex); setIsFormExpanded(true); }} 
                                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                     title="Editar"
                                                                 >
@@ -1677,8 +1695,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome do Acesso"
                                         placeholder="Simples, NFS-e..."
@@ -1727,14 +1745,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                     <div className="lg:col-span-5 flex justify-end gap-2 mt-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempAccess({ sector: '' }); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempAccess({ access_name: '', username: '', password: '', access_url: '', sector: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddAccess}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Acesso'}
                                         </Button>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {accesses.length > 0 ? (
                                 <div className="space-y-4 mt-4">
@@ -1760,7 +1778,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1 shrink-0 ml-2">
                                                             <button 
-                                                                onClick={() => { setTempAccess(item); setEditingIndex(index); }} 
+                                                                onClick={() => { setTempAccess(item); setEditingIndex(index); setIsFormExpanded(true); }} 
                                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                 title="Editar"
                                                             >
@@ -1863,8 +1881,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="space-y-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="space-y-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="flex flex-col md:flex-row items-end gap-4 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-lg">
                                         <div className="flex-1 w-full">
                                             <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Autopreenchimento A1 (.pfx/.p12)</label>
@@ -1934,7 +1952,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         />
                                         <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
                                             {editingIndex !== null && (
-                                                <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expiration_date: '', expires_at: '', password: '' }); setCertFile(null); }}>Cancelar</Button>
+                                                <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expiration_date: '', expires_at: '', password: '' }); setCertFile(null); const fileInput = document.getElementById('certFileInput') as HTMLInputElement; if (fileInput) fileInput.value = ''; setIsFormExpanded(false); }}>Cancelar</Button>
                                             )}
                                             <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddCertificate}>
                                                 {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Certificado'}
@@ -1942,7 +1960,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         </div>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {certificates.length > 0 ? (
                                 <div className="space-y-4">
@@ -1978,7 +1996,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         {!readOnly && (
                                                             <div className="flex items-center gap-1">
                                                                 <button 
-                                                                    onClick={() => { setTempCertificate({ ...item, expiration_date: item.expiration_date || item.expires_at }); setEditingIndex(index); }} 
+                                                                    onClick={() => { setTempCertificate({ ...item, expiration_date: item.expiration_date || item.expires_at }); setEditingIndex(index); setIsFormExpanded(true); }} 
                                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                     title="Editar"
                                                                 >
@@ -2076,8 +2094,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome da Licença"
                                         placeholder="Alvará, Vigilância..."
@@ -2117,14 +2135,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                     <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLicense({}); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLicense({ license_name: '', number: '', expiration_date: '', access_url: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddLicense}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Licença'}
                                         </Button>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {licenses.length > 0 ? (
                                 <div className="space-y-4">
@@ -2158,7 +2176,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         {!readOnly && (
                                                             <div className="flex items-center gap-1 shrink-0 ml-2">
                                                                 <button 
-                                                                    onClick={() => { setTempLicense({ ...item, expiration_date: item.expiration_date || item.expiry_date, number: item.number || item.license_number }); setEditingIndex(index); }} 
+                                                                    onClick={() => { setTempLicense({ ...item, expiration_date: item.expiration_date || item.expiry_date, number: item.number || item.license_number }); setEditingIndex(index); setIsFormExpanded(true); }} 
                                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                     title="Editar"
                                                                 >
@@ -2257,8 +2275,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="md:col-span-1 lg:col-span-3">
                                         <Textarea
                                             label="Descrição da Legislação"
@@ -2288,14 +2306,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                     <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLegislation({ status: 'vigente', description: '', access_url: '' }); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLegislation({ status: 'vigente', description: '', access_url: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddLegislation}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Legislação'}
                                         </Button>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {legislations.length > 0 ? (
                                 <div className="space-y-4">
@@ -2324,7 +2342,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1 shrink-0 ml-2">
                                                             <button 
-                                                                onClick={() => { setTempLegislation(item); setEditingIndex(index); }} 
+                                                                onClick={() => { setTempLegislation(item); setEditingIndex(index); setIsFormExpanded(true); }} 
                                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                 title="Editar"
                                                             >
@@ -2410,8 +2428,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </button>
                                 )}
                             </div>
-                            {isFormExpanded && !readOnly && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="lg:col-span-12 mb-1">
                                         <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 block">Tipo de DF-e</label>
                                         <div className="flex flex-wrap gap-2">
@@ -2496,14 +2514,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     
                                     <div className="lg:col-span-7 flex justify-end gap-2 h-10 mt-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' }); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddDfeSerie}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar DF-e'}
                                         </Button>
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {dfeSeries.length > 0 ? (
                                 <div className="space-y-4">
@@ -2531,7 +2549,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1 shrink-0 ml-2">
                                                             <button 
-                                                                onClick={() => { setTempDfeSerie(item); setEditingIndex(index); }} 
+                                                                onClick={() => { setTempDfeSerie(item); setEditingIndex(index); setIsFormExpanded(true); }} 
                                                                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                 title="Editar"
                                                             >

@@ -151,16 +151,16 @@ export const OperationsCalendarWidget: React.FC<Props> = ({ orgId, onRemove }) =
         >
             <div className="flex flex-col h-full">
                 {/* Header do Calendário */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
                         <button onClick={prevMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-                            <ChevronLeft size={18} />
+                            <ChevronLeft size={16} />
                         </button>
-                        <h3 className="text-sm font-bold capitalize text-slate-700 dark:text-slate-200 min-w-[120px] text-center">
+                        <h3 className="text-xs font-bold capitalize text-slate-700 dark:text-slate-200 min-w-[100px] text-center">
                             {monthName} {year}
                         </h3>
                         <button onClick={nextMonth} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-                            <ChevronRight size={18} />
+                            <ChevronRight size={16} />
                         </button>
                     </div>
 
@@ -180,9 +180,9 @@ export const OperationsCalendarWidget: React.FC<Props> = ({ orgId, onRemove }) =
                 </div>
 
                 {/* Dias da Semana */}
-                <div className="grid grid-cols-7 mb-2">
+                <div className="grid grid-cols-7 mb-1">
                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-                        <div key={d} className="text-[10px] font-bold text-slate-400 text-center uppercase">
+                        <div key={d} className="text-[9px] font-bold text-slate-400 text-center uppercase">
                             {d}
                         </div>
                     ))}
@@ -232,18 +232,18 @@ export const OperationsCalendarWidget: React.FC<Props> = ({ orgId, onRemove }) =
                 </div>
 
                 {/* Legenda */}
-                <div className="flex justify-center gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                        <span className="text-[10px] text-slate-500">Tarefas</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                        <span className="text-[9px] text-slate-500">Tarefas</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                        <span className="text-[10px] text-slate-500">Licenças</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                        <span className="text-[9px] text-slate-500">Licenças</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                        <span className="text-[10px] text-slate-500">Certificados</span>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span className="text-[9px] text-slate-500">Certificados</span>
                     </div>
                 </div>
             </div>

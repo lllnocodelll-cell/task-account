@@ -347,7 +347,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
       </div>
 
       {/* Main Trigger Button */}
-      <Tooltip content={isOpen ? "Fechar Ações" : "Ações"} position="left">
+      <Tooltip content={isOpen ? "Fechar Ações" : "Ações"} position="bottom">
         <button
           onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
           className={`p-2 transition-all duration-300 rounded-lg ${isOpen
