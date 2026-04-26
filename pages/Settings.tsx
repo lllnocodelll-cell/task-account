@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -36,31 +36,31 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
         <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
           <button
             onClick={() => setActiveTab('credenciais')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'credenciais' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'credenciais' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
           >
-            <ShieldCheck size={18} /> Credenciais
+            <ShieldCheck size={16} /> Credenciais
           </button>
           <button
             onClick={() => setActiveTab('setores')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'setores' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'setores' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
           >
-            <Briefcase size={18} /> Setores
+            <Briefcase size={16} /> Setores
           </button>
           <button
             onClick={() => setActiveTab('tipos')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'tipos' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'tipos' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
           >
-            <List size={18} /> Tipos de Tarefa
+            <List size={16} /> Tipos de Tarefa
           </button>
           <button
             onClick={() => setActiveTab('feriados')}
-            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'feriados' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'feriados' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
           >
-            <Calendar size={18} /> Feriados
+            <Calendar size={16} /> Feriados
           </button>
         </div>
 
@@ -330,8 +330,8 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
             </div>
           </div>
-          <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
-            {isFormExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
+            {isFormExpanded ? <ChevronUp size={16} /> : <SquarePlus size={16} />}
           </div>
         </div>
         
@@ -977,8 +977,8 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             >
               {importing ? 'Cadastrando...' : 'Sugerir Setores Padrão'}
             </Button>
-            <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
-              {isFormExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
+              {isFormExpanded ? <ChevronUp size={16} /> : <SquarePlus size={16} />}
             </div>
           </div>
         </div>
@@ -1392,8 +1392,8 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
             </div>
           </div>
-          <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
-            {isFormExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
+            {isFormExpanded ? <ChevronUp size={16} /> : <SquarePlus size={16} />}
           </div>
         </div>
 
@@ -1763,8 +1763,8 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             >
               {importing ? 'Importando...' : `Importar Nacionais ${year}`}
             </Button>
-            <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
-              {isFormExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
+              {isFormExpanded ? <ChevronUp size={16} /> : <SquarePlus size={16} />}
             </div>
           </div>
         </div>

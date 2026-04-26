@@ -595,22 +595,26 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
                         <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
 
-                        <button
-                            onClick={() => setDisplayMode('table')}
-                            className={`p-1.5 rounded-md transition-all ${displayMode === 'table' 
-                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                        >
-                            <TableIcon size={18} />
-                        </button>
-                        <button
-                            onClick={() => setDisplayMode('cards')}
-                            className={`p-1.5 rounded-md transition-all ${displayMode === 'cards' 
-                                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                        >
-                            <LayoutGrid size={18} />
-                        </button>
+                        <Tooltip content="Tabela" position="top">
+                            <button
+                                onClick={() => setDisplayMode('table')}
+                                className={`p-1.5 rounded-md transition-all ${displayMode === 'table' 
+                                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                            >
+                                <TableIcon size={18} />
+                            </button>
+                        </Tooltip>
+                        <Tooltip content="Card" position="top">
+                            <button
+                                onClick={() => setDisplayMode('cards')}
+                                className={`p-1.5 rounded-md transition-all ${displayMode === 'cards' 
+                                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                            >
+                                <LayoutGrid size={18} />
+                            </button>
+                        </Tooltip>
                     </div>
 
                     <Button onClick={handleCreate} icon={<Plus size={18} />} className="hidden md:flex">Novo Cliente</Button>

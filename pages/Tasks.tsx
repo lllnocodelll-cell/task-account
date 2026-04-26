@@ -3095,7 +3095,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       : {}
   );
 
-  const [activeTab, setActiveTab] = useState(initialData?.taxRegime === 'simples' ? 'simples' : 'observacao');
+  const [activeTab, setActiveTab] = useState('simples');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Data State
