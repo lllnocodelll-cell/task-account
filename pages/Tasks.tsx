@@ -191,7 +191,10 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
         setIsOpen(false);
       }
     };
-    const handleScroll = () => setIsOpen(false);
+    const handleScroll = (e: Event) => {
+      if (panelRef.current && panelRef.current.contains(e.target as Node)) return;
+      setIsOpen(false);
+    };
 
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('scroll', handleScroll, true);
@@ -1317,6 +1320,28 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     return (filters.status === '' || task.status === filters.status);
   });
 
+  // Base de tarefas para o Kanban: ignora filtros de data/competência e status
+  // para permitir que os filtros internos de cada coluna funcionem sem conflito.
+  const kanbanBaseTasks = tasks.filter((task) => {
+    return (
+      task.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) &&
+      (filters.clientDocument === '' || (task.clientDocument ?? '').toLowerCase().includes(filters.clientDocument.toLowerCase())) &&
+      (filters.clientCity === '' || (task.clientCity ?? '').toLowerCase().includes(filters.clientCity.toLowerCase())) &&
+      (filters.clientState === '' || task.clientState === filters.clientState) &&
+      task.taskName.toLowerCase().includes(filters.taskName.toLowerCase()) &&
+      (!filters.noMovement || task.noMovement === true) &&
+      (filters.taxRegime === '' || task.taxRegime === filters.taxRegime) &&
+      (filters.selectedAnnex === '' || (task.selectedAnnexes ?? []).includes(filters.selectedAnnex)) &&
+      (!filters.exceededSublimit || task.exceededSublimit === true) &&
+      (!filters.notifiedExclusion || task.notifiedExclusion === true) &&
+      (filters.priority === '' || task.priority === filters.priority) &&
+      (filters.sector === '' || task.sector === filters.sector) &&
+      (filters.responsibleList.length > 0
+        ? filters.responsibleList.includes(task.responsible)
+        : task.responsible.toLowerCase().includes(filters.responsible.toLowerCase()))
+    );
+  });
+
   const totalTasks = cardsTasks.length;
   const pendingCount = cardsTasks.filter(t => t.status === TaskStatus.PENDENTE).length;
   const inProgressCount = cardsTasks.filter(t => t.status === TaskStatus.INICIADA).length;
@@ -1473,41 +1498,48 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
       const { data, error } = await supabase
         .from('clients')
-        .select('*')
+        .select('*, client_tax_regime_history(*)')
         .eq('org_id', userProfile.org_id);
 
       if (error) throw error;
 
       if (data) {
-        const mappedClients: Client[] = data.map((c: any) => ({
-          id: c.id,
-          code: c.code,
-          companyName: c.company_name,
-          tradeName: c.trade_name,
-          document: c.document,
-          contactName: c.contact_name,
-          phoneFixed: c.phone_fixed,
-          phoneMobile: c.phone_mobile,
-          email: c.email,
-          status: c.status,
-          segment: c.segment,
-          person_type: c.person_type,
-          constitution_date: c.constitution_date,
-          entry_date: c.entry_date,
-          exit_date: c.exit_date,
-          admin_partner_name: c.admin_partner_name,
-          admin_partner_cpf: c.admin_partner_cpf,
-          admin_partner_birthdate: c.admin_partner_birthdate,
-          establishment_type: c.establishment_type,
-          zip_code: c.zip_code,
-          street: c.street,
-          street_number: c.street_number,
-          complement: c.complement,
-          neighborhood: c.neighborhood,
-          city: c.city,
-          state: c.state,
-          updated_at: c.updated_at
-        }));
+        const mappedClients: Client[] = data.map((c: any) => {
+          const history = c.client_tax_regime_history || [];
+          const currentRegime = history.find((r: any) => !r.end_date) || 
+                                [...history].sort((a: any, b: any) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime())[0];
+
+          return {
+            id: c.id,
+            code: c.code,
+            companyName: c.company_name,
+            tradeName: c.trade_name,
+            document: c.document,
+            contactName: c.contact_name,
+            phoneFixed: c.phone_fixed,
+            phoneMobile: c.phone_mobile,
+            email: c.email,
+            status: c.status,
+            segment: c.segment,
+            person_type: c.person_type,
+            constitution_date: c.constitution_date,
+            entry_date: c.entry_date,
+            exit_date: c.exit_date,
+            admin_partner_name: c.admin_partner_name,
+            admin_partner_cpf: c.admin_partner_cpf,
+            admin_partner_birthdate: c.admin_partner_birthdate,
+            establishment_type: c.establishment_type,
+            zip_code: c.zip_code,
+            street: c.street,
+            street_number: c.street_number,
+            complement: c.complement,
+            neighborhood: c.neighborhood,
+            city: c.city,
+            state: c.state,
+            updated_at: c.updated_at,
+            tax_regime: currentRegime?.regime
+          };
+        });
         setClients(mappedClients);
       }
     } catch (error) {
@@ -2216,16 +2248,43 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Regime</span>
                             <TableColumnFilter label="Regime" isActive={regimeActive} activeCount={regimeCount}>
                               {/* Regime */}
-                              <div>
+                              <div className="space-y-2">
                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Regime Fiscal</label>
-                                <select className={headerInputClass} value={filters.taxRegime} onChange={e => { handleFilterChange('taxRegime', e.target.value); if (e.target.value !== 'simples') handleFilterChange('selectedAnnex', ''); }}>
-                                  <option value="">Todos</option>
+                                <div className="max-h-60 overflow-y-auto custom-scrollbar pr-1 space-y-3">
                                   {TAX_REGIME_GROUPS.map(group => (
-                                    <optgroup key={group.category} label={group.category}>
-                                      {group.options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                    </optgroup>
+                                    <div key={group.category} className="space-y-1">
+                                      <div className="px-2 py-0.5 text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-100 dark:border-slate-800/50">
+                                        {group.category}
+                                      </div>
+                                      <div className="space-y-1">
+                                        {group.options.map(opt => (
+                                          <button
+                                            key={opt.value}
+                                            onClick={() => {
+                                              const newVal = filters.taxRegime === opt.value ? '' : opt.value;
+                                              handleFilterChange('taxRegime', newVal);
+                                              if (newVal !== 'simples') handleFilterChange('selectedAnnex', '');
+                                            }}
+                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
+                                              filters.taxRegime === opt.value
+                                                ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-400'
+                                                : 'bg-white dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-800'
+                                            }`}
+                                          >
+                                            <span>{opt.label}</span>
+                                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+                                              filters.taxRegime === opt.value
+                                                ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/20'
+                                                : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                                            }`}>
+                                              {filters.taxRegime === opt.value ? '✓' : ''}
+                                            </span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
                                   ))}
-                                </select>
+                                </div>
                               </div>
                               {/* Anexo — só para Simples */}
                               {filters.taxRegime === 'simples' && (
@@ -2619,7 +2678,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                 <KanbanColumn
                   title="Pendente"
                   status={TaskStatus.PENDENTE}
-                  tasks={filteredTasks.filter(t => t.status === TaskStatus.PENDENTE)}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE)}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
@@ -2646,7 +2705,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                 <KanbanColumn
                   title="Iniciadas"
                   status={TaskStatus.INICIADA}
-                  tasks={filteredTasks.filter(t => t.status === TaskStatus.INICIADA)}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA)}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
@@ -2673,7 +2732,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                 <KanbanColumn
                   title="Atrasadas"
                   status={TaskStatus.ATRASADA}
-                  tasks={filteredTasks.filter(t => t.status === TaskStatus.ATRASADA)}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA)}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
@@ -2700,7 +2759,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                 <KanbanColumn
                   title="Concluídas"
                   status={TaskStatus.CONCLUIDA}
-                  tasks={filteredTasks.filter(t => t.status === TaskStatus.CONCLUIDA)}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA)}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
@@ -3075,23 +3134,34 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
   );
 
   // Default config for new clients
-  const createDefaultConfig = (data?: Task | null): ClientConfig => ({
-    taxRegime: data?.taxRegime || 'simples',
-    regimeRegistro: data?.registrationRegime || 'competencia',
-    semMovimento: data?.noMovement || false,
-    selectedAnnexes: data?.selectedAnnexes || [],
-    excedeuSublimite: data?.exceededSublimit || false,
-    fatorR: data?.factorR || false,
-    notifiedExclusion: data?.notifiedExclusion || false,
-    observation: data?.observation || '',
-    uploadedFiles: [],
-    existingAttachments: data?.attachments || []
-  });
+  const createDefaultConfig = (data?: Task | null, clientName?: string): ClientConfig => {
+    let defaultRegime = data?.taxRegime;
+    
+    if (!defaultRegime && clientName) {
+      const client = clients.find(c => c.companyName === clientName);
+      if (client?.tax_regime) {
+        defaultRegime = client.tax_regime;
+      }
+    }
+
+    return {
+      taxRegime: defaultRegime || 'simples',
+      regimeRegistro: data?.registrationRegime || 'competencia',
+      semMovimento: data?.noMovement || false,
+      selectedAnnexes: data?.selectedAnnexes || [],
+      excedeuSublimite: data?.exceededSublimit || false,
+      fatorR: data?.factorR || false,
+      notifiedExclusion: data?.notifiedExclusion || false,
+      observation: data?.observation || '',
+      uploadedFiles: [],
+      existingAttachments: data?.attachments || []
+    };
+  };
 
   // Client Configurations Map
   const [clientConfigs, setClientConfigs] = useState<Record<string, ClientConfig>>(
     initialData?.clientName
-      ? { [initialData.clientName]: createDefaultConfig(initialData) }
+      ? { [initialData.clientName]: createDefaultConfig(initialData, initialData.clientName) }
       : {}
   );
 
@@ -3128,7 +3198,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       competence: initialData.competence,
       vencimento: initialData.dueDate || '',
       vencimentoVariavel: initialData.variableAdjustment || 'nao_aplica',
-      recurrence: initialData.recurrence || 'mensal',
+      recurrence: initialData.recurrence || '',
       months: initialData.recurrenceMonths || [],
       priority: initialData.priority || Priority.MEDIA
     }] : []
@@ -3143,7 +3213,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     competence: new Date().toISOString().substring(0, 7), // YYYY-MM
     vencimento: '',
     vencimentoVariavel: 'nao_aplica',
-    recurrence: 'mensal',
+    recurrence: '',
     months: [] as number[],
     repetitions: 1,
   });
@@ -3271,14 +3341,14 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     if (selectedClientIds.length === 0) {
       return showNotify('Selecione pelo menos uma empresa no topo antes de adicionar a tarefa.', 'warning');
     }
-    if (!tempTask.taskName || !tempTask.responsible || !tempTask.competence || !tempTask.vencimento) {
-      return showNotify('Preencha os campos obrigatórios (Tarefa, Responsável, Vencimento e Competência)', 'warning');
+    if (!tempTask.taskName || !tempTask.responsible || !tempTask.competence || !tempTask.vencimento || !tempTask.recurrence) {
+      return showNotify('Preencha os campos obrigatórios (Tarefa, Responsável, Vencimento, Competência e Recorrência)', 'warning');
     }
     if (tempTask.recurrence !== 'mensal' && tempTask.recurrence !== 'personalizado' && tempTask.months.length === 0) {
       return showNotify('Selecione pelo menos um mês para esta recorrência', 'warning');
     }
 
-    const taskWithClients = { ...tempTask, targetClients: [...selectedClientIds] };
+    const taskWithClients = { ...tempTask, targetClients: null };
 
     if (editingTaskId) {
       // Update existing
@@ -3300,7 +3370,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       competence: new Date().toISOString().substring(0, 7),
       vencimento: '',
       vencimentoVariavel: 'nao_aplica',
-      recurrence: 'mensal',
+      recurrence: '',
       months: [],
       repetitions: 1,
     });
@@ -3334,7 +3404,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       competence: new Date().toISOString().substring(0, 7),
       vencimento: '',
       vencimentoVariavel: 'nao_aplica',
-      recurrence: 'mensal',
+      recurrence: '',
       months: [],
       repetitions: 1,
     });
@@ -3366,10 +3436,10 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
   const handleSaveAll = async () => {
     if (selectedClientIds.length === 0) return showNotify('Selecione pelo menos uma empresa.', 'warning');
+    if (selectedClientIds.length > 100) return showNotify('O limite máximo de 100 empresas por lote foi excedido.', 'warning');
     if (pendingTasks.length === 0) return showNotify('Adicione pelo menos uma tarefa à lista clicando no botão (+).', 'warning');
 
     // Recurrence Check for Editing
-    // We consider it recurring if it has a recurrence value other than common non-recurring terms
     const isRecurring = initialData?.recurrence && !['unico', 'nao_recorre', 'none'].includes(initialData.recurrence);
 
     if (isEditing && isRecurring && updateFutureTasks === null) {
@@ -3383,14 +3453,16 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return showNotify('Usuário não autenticado.', 'error');
 
-      let tasksToSave = [...pendingTasks];
-
-      // Build a set of ALL unique clients from all tasks
+      const tasksToSave = [...pendingTasks];
       const allTargetClients = new Set<string>();
       tasksToSave.forEach(t => {
         const targets = t.targetClients && t.targetClients.length > 0 ? t.targetClients : selectedClientIds;
         targets.forEach((c: string) => allTargetClients.add(c));
       });
+
+      const finalTasksToInsert: any[] = [];
+      const updateTasksToExecute: any[] = [];
+      const clientAttachmentsMap: Record<string, File[]> = {};
 
       // We will iterate over EACH client
       for (const clientName of Array.from(allTargetClients)) {
@@ -3400,6 +3472,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
         const config = clientConfigs[clientName];
         if (!config) continue;
 
+        // Validação de Anexos para Simples Nacional
         if (['simples', 'simples_iva'].includes(config.taxRegime)) {
           if (!config.selectedAnnexes || config.selectedAnnexes.length === 0) {
             setIsSaving(false);
@@ -3408,16 +3481,18 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
           }
         }
 
-        const allPayloadsForClient: any[] = [];
+        // Mapeia arquivos para este cliente para inserção em lote posterior
+        if (config.uploadedFiles && config.uploadedFiles.length > 0) {
+          clientAttachmentsMap[clientName] = config.uploadedFiles;
+        }
 
         for (const t of tasksToSave) {
           const tTargets = t.targetClients && t.targetClients.length > 0 ? t.targetClients : selectedClientIds;
           if (!tTargets.includes(clientName)) continue;
 
-          // Recurrence logic: if it's a NEW task, we expand it. If editing, we only update the specific one.
           if (isEditing && t.id === initialData.id) {
             const adjustedDate = calculateAdjustedDate(t.vencimento, t.vencimentoVariavel, holidayDates);
-            allPayloadsForClient.push({
+            updateTasksToExecute.push({
               id: t.id,
               client_id: client.id,
               client_name: client.companyName,
@@ -3442,7 +3517,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
               org_id: user.id
             });
           } else {
-            // Expansion logic for creation
+            // Lógica de expansão para CRIAÇÃO
             const [startYear, startMonth] = t.competence.split('-').map(Number);
             let monthOffset = 0;
             let baseDay = 10;
@@ -3491,12 +3566,11 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
             };
 
             if (t.recurrence === 'mensal') {
-              // Create 12 monthly iterations starting from startMonth
               for (let i = 0; i < 12; i++) {
                 let m = startMonth + i;
                 let y = startYear;
                 while (m > 12) { m -= 12; y++; }
-                allPayloadsForClient.push(createIterationPayload(m, y));
+                finalTasksToInsert.push(createIterationPayload(m, y));
               }
             } else if (t.recurrence === 'personalizado') {
               for (let i = 0; i < (t.repetitions || 1); i++) {
@@ -3506,141 +3580,106 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                   currentMonth -= 12;
                   currentYear++;
                 }
-                allPayloadsForClient.push(createIterationPayload(currentMonth, currentYear));
+                finalTasksToInsert.push(createIterationPayload(currentMonth, currentYear));
               }
             } else {
-              // bimestral, trimestral, semestral, anual
-              // Scan 12 months from startMonth and create tasks for selected months
               const selectedMonths = t.months || [];
               for (let i = 0; i < 12; i++) {
                 let m = startMonth + i;
                 let y = startYear;
                 while (m > 12) { m -= 12; y++; }
                 if (selectedMonths.includes(m)) {
-                  allPayloadsForClient.push(createIterationPayload(m, y));
+                  finalTasksToInsert.push(createIterationPayload(m, y));
                 }
               }
             }
           }
         }
+      }
 
-        // Insert/Update tasks for THIS client
-        for (const payload of allPayloadsForClient) {
-          let taskData;
-          let taskError;
+      // EXECUÇÃO DAS ATUALIZAÇÕES (Edição)
+      if (updateTasksToExecute.length > 0) {
+        for (const payload of updateTasksToExecute) {
+          const { data: taskData, error: taskError } = await (supabase.from('tasks') as any)
+            .update(payload)
+            .eq('id', payload.id)
+            .select().single();
 
-          if (payload.id) {
-            const { data: taskData, error: taskError } = await (supabase
-              .from('tasks') as any)
-              .update(payload)
-              .eq('id', payload.id)
-              .select()
-              .single();
+          if (taskError) throw taskError;
 
-            if (taskError) throw taskError;
+          // Atualizar tarefas futuras se solicitado
+          if (updateFutureTasks && taskData) {
+            const { data: futureTasks, error: fetchFutureError } = await (supabase.from('tasks') as any)
+              .select('id, competence')
+              .eq('client_id', payload.client_id)
+              .eq('org_id', userProfile.org_id)
+              .eq('task_name', initialData.taskName)
+              .gt('competence', initialData.competence);
 
-            // Update Future Tasks if requested
-            if (isEditing && updateFutureTasks && taskData) {
-              const { data: futureTasks, error: fetchFutureError } = await (supabase
-                .from('tasks') as any)
-                .select('id, competence')
-                .eq('client_id', payload.client_id)
-                .eq('org_id', userProfile.org_id)
-                .eq('task_name', initialData.taskName) // Use original name to find buddies
-                .gt('competence', initialData.competence);
-
-              const { data: futureAttachments, error: attachmentsError } = await (supabase
-                .from('task_attachments') as any)
-                .select('*')
-                .in('task_id', futureTasks.map(t => t.id));
-
-              if (fetchFutureError) throw fetchFutureError;
-
-              if (futureTasks && futureTasks.length > 0) {
-                // Calculate the month offset between the edited task's competence and its due date
-                const typeDef = taskTypes.find(tt => tt.name === payload.task_name);
-                const newDueDate = new Date(payload.due_date + 'T12:00:00');
-                const baseDay = typeDef?.due_day || newDueDate.getDate();
-                
-                const [editCompYear, editCompMonth] = payload.competence.split('-').map(Number);
-                const dueDateYear = newDueDate.getFullYear();
-                const dueDateMonth = newDueDate.getMonth() + 1;
-                // monthOffset = how many months ahead the due date is from the competence
-                const monthOffset = (dueDateYear - editCompYear) * 12 + (dueDateMonth - editCompMonth);
-
-                for (const ft of futureTasks) {
-                  const [fYear, fMonth] = ft.competence.split('-').map(Number);
-
-                  // Apply the same month offset to the future task's competence
-                  let targetMonth = fMonth + monthOffset;
-                  let targetYear = fYear;
-                  while (targetMonth > 12) { targetMonth -= 12; targetYear++; }
-                  while (targetMonth < 1) { targetMonth += 12; targetYear--; }
-
-                  // Handle months with fewer days (e.g., day 31 in a month with 30 days)
-                  const lastDayOfMonth = new Date(targetYear, targetMonth, 0).getDate();
-                  const safeDay = Math.min(baseDay, lastDayOfMonth);
-
-                  const rawDueStr = `${targetYear}-${targetMonth.toString().padStart(2, '0')}-${safeDay.toString().padStart(2, '0')}`;
-                  const finalDate = calculateAdjustedDate(rawDueStr, payload.variable_adjustment, holidayDates);
-
-                  const { error: futureUpdateError } = await (supabase
-                    .from('tasks') as any)
-                    .update({
-                      task_name: payload.task_name,
-                      sector: payload.sector,
-                      responsible: payload.responsible,
-                      due_date: finalDate,
-                      variable_adjustment: payload.variable_adjustment,
-                      priority: payload.priority,
-                      observation: payload.observation,
-                      tax_regime: payload.tax_regime,
-                      registration_regime: payload.registration_regime,
-                      no_movement: payload.no_movement,
-                      exceeded_sublimit: payload.exceeded_sublimit,
-                      factor_r: payload.factor_r,
-                      selected_annexes: payload.selected_annexes
-                    })
-                    .eq('id', ft.id);
-
-                  if (futureUpdateError) throw futureUpdateError;
-                }
+            if (futureTasks && futureTasks.length > 0) {
+              for (const ft of futureTasks) {
+                const { error: futureUpdateError } = await (supabase.from('tasks') as any)
+                  .update({
+                    responsible: payload.responsible,
+                    priority: payload.priority,
+                    tax_regime: payload.tax_regime,
+                    registration_regime: payload.registration_regime,
+                    no_movement: payload.no_movement,
+                    exceeded_sublimit: payload.exceeded_sublimit,
+                    factor_r: payload.factor_r,
+                    notified_exclusion: payload.notified_exclusion,
+                    selected_annexes: payload.selected_annexes
+                  })
+                  .eq('id', ft.id);
+                if (futureUpdateError) throw futureUpdateError;
               }
             }
+          }
 
-            // Upload and Link Files for THIS task
-            if (config.uploadedFiles.length > 0 && taskData) {
-              for (const file of config.uploadedFiles) {
-                await (supabase.from('task_attachments') as any).insert({
-                  task_id: (taskData as any).id,
+          // Arquivos para edição
+          const files = clientAttachmentsMap[payload.client_name];
+          if (files && files.length > 0) {
+            for (const file of files) {
+              await (supabase.from('task_attachments') as any).insert({
+                task_id: taskData.id,
+                file_name: file.name,
+                file_size: file.size,
+                storage_path: `tasks/${taskData.id}/${file.name}`,
+                is_conclude_attachment: false
+              });
+            }
+          }
+        }
+      }
+
+      // EXECUÇÃO DAS INSERÇÕES EM LOTE (Criação)
+      if (finalTasksToInsert.length > 0) {
+        const { data: insertedTasks, error: insertError } = await (supabase.from('tasks') as any)
+          .insert(finalTasksToInsert)
+          .select();
+
+        if (insertError) throw insertError;
+
+        if (insertedTasks && insertedTasks.length > 0) {
+          const finalAttachmentsToInsert: any[] = [];
+          for (const task of insertedTasks) {
+            const files = clientAttachmentsMap[task.client_name];
+            if (files && files.length > 0) {
+              for (const file of files) {
+                finalAttachmentsToInsert.push({
+                  task_id: task.id,
                   file_name: file.name,
                   file_size: file.size,
-                  storage_path: `tasks/${(taskData as any).id}/${file.name}`,
+                  storage_path: `tasks/${task.id}/${file.name}`,
                   is_conclude_attachment: false
                 });
               }
             }
-          } else {
-            const { data: taskData, error: taskError } = await (supabase
-              .from('tasks') as any)
-              .insert(payload)
-              .select()
-              .single();
-
-            if (taskError) throw taskError;
-
-            // Upload and Link Files for THIS task
-            if (config.uploadedFiles.length > 0 && taskData) {
-              for (const file of config.uploadedFiles) {
-                await (supabase.from('task_attachments') as any).insert({
-                  task_id: (taskData as any).id,
-                  file_name: file.name,
-                  file_size: file.size,
-                  storage_path: `tasks/${(taskData as any).id}/${file.name}`,
-                  is_conclude_attachment: false
-                });
-              }
-            }
+          }
+          if (finalAttachmentsToInsert.length > 0) {
+            const { error: attError } = await (supabase.from('task_attachments') as any)
+              .insert(finalAttachmentsToInsert);
+            if (attError) throw attError;
           }
         }
       }
@@ -3755,12 +3794,15 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                   value=""
                   onChange={(val) => {
                     if (val && !selectedClientIds.includes(val)) {
+                      if (selectedClientIds.length >= 100) {
+                        return showNotify('Você atingiu o limite máximo de 100 empresas selecionadas.', 'warning');
+                      }
                       const newIds = [...selectedClientIds, val];
                       setSelectedClientIds(newIds);
                       if (!activeClientId) setActiveClientId(val);
                       setClientConfigs(prev => ({
                         ...prev,
-                        [val]: createDefaultConfig()
+                        [val]: createDefaultConfig(null, val)
                       }));
                     }
                   }}
@@ -3769,7 +3811,12 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
                 {selectedClientIds.length > 0 && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresas Selecionadas</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresas Selecionadas</label>
+                      <span className={`text-[10px] font-bold ${selectedClientIds.length >= 100 ? 'text-rose-500' : 'text-slate-400'}`}>
+                        {selectedClientIds.length}/100
+                      </span>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {selectedClientIds.map(id => (
                         <div
@@ -4133,6 +4180,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                       label="Recorrência"
                       className="text-[11px]"
                       options={[
+                        { value: '', label: 'Selecione' },
                         { value: 'personalizado', label: 'Personalizado' },
                         { value: 'mensal', label: 'Mensal' },
                         { value: 'bimestral', label: 'Bimestral' },

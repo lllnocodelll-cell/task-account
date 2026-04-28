@@ -135,6 +135,7 @@ export interface Client {
   neighborhood?: string;
   city?: string;
   state?: string;
+  tax_regime?: string;
 }
 
 export interface Member {
