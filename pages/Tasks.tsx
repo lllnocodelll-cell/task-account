@@ -45,7 +45,8 @@ import {
   ScanEye,
   Eye,
   SlidersHorizontal,
-  Building2
+  Building2,
+  Scale
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -57,6 +58,7 @@ import { calculateAdjustedDate } from '../utils/dateUtils';
 import { ClientForm } from '../components/ClientForm';
 import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
 import { TutorialsModal } from '../components/tutorials/TutorialsModal';
+import { TaskTagEditor } from '../components/TaskTagEditor';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Notification, NotificationType } from '../components/ui/Notification';
 import { TaskInfoDrawer } from '../components/TaskInfoDrawer';
@@ -495,6 +497,7 @@ interface KanbanColumnProps {
   onStatusChange: (id: string, status: TaskStatus) => void;
   clients: Client[];
   userProfile: any;
+  onUpdateTag: (taskId: string, tag: string | null) => Promise<void>;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -514,30 +517,52 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onViewTaskInfo,
   onStatusChange,
   clients,
-  userProfile
+  userProfile,
+  onUpdateTag
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [colFilter, setColFilter] = useState<KanbanColFilter>(EMPTY_COL_FILTER);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterCoords, setFilterCoords] = useState<{ top: number; left: number; maxPanelH: number }>({ top: 0, left: 0, maxPanelH: 400 });
   const [expandedFilterSections, setExpandedFilterSections] = useState<Record<string, boolean>>({
     tarefa: true,
     cliente: false,
     fiscal: false
   });
-  const filterContainerRef = useRef<HTMLDivElement>(null);
+  const filterBtnRef = useRef<HTMLButtonElement>(null);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
 
   const toggleFilterSection = (section: string) => {
     setExpandedFilterSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
+  const openFilterPanel = () => {
+    if (!filterBtnRef.current) return;
+    const rect = filterBtnRef.current.getBoundingClientRect();
+    const panelW = 288;
+    let left = rect.left;
+    const top = rect.bottom + 6;
+    // Ajuste horizontal: não sai da borda direita
+    if (left + panelW > window.innerWidth - 8) left = window.innerWidth - panelW - 8;
+    if (left < 8) left = 8;
+    // Altura máxima disponível abaixo do botão (com margem de 16px da borda)
+    const maxPanelH = Math.max(200, window.innerHeight - top - 16);
+    setFilterCoords({ top, left, maxPanelH });
+    setIsFilterOpen(true);
+  };
+
   // click outside fecha o painel
   useEffect(() => {
+    if (!isFilterOpen) return;
     const handler = (e: MouseEvent) => {
-      if (filterContainerRef.current && !filterContainerRef.current.contains(e.target as Node)) {
+      if (
+        filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node) &&
+        filterBtnRef.current && !filterBtnRef.current.contains(e.target as Node)
+      ) {
         setIsFilterOpen(false);
       }
     };
-    if (isFilterOpen) document.addEventListener('mousedown', handler);
+    document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [isFilterOpen]);
 
@@ -640,8 +665,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       onDrop={handleDrop}
     >
 
-      {/* Cabeçalho da Coluna + Painel de Filtro — wrapper com ref para click-outside */}
-      <div ref={filterContainerRef} className="relative mb-3">
+      {/* Cabeçalho da Coluna */}
+      <div className="relative mb-3">
 
         {/* Linha do cabeçalho */}
         <div className={`flex items-center justify-between px-1 pb-2 border-b-2 ${color}`}>
@@ -655,16 +680,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
             {/* Botão de Filtro */}
             <button
-              onClick={(e) => { e.stopPropagation(); setIsFilterOpen(p => !p); }}
+              ref={filterBtnRef}
+              onClick={(e) => { e.stopPropagation(); isFilterOpen ? setIsFilterOpen(false) : openFilterPanel(); }}
               className={`relative p-1.5 rounded-lg border transition-all duration-200 ${
-                isFilterActive
+                isFilterActive || isFilterOpen
                   ? accent.btn
                   : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
               }`}
               title="Filtrar coluna"
             >
               <SlidersHorizontal size={12} strokeWidth={2.5} />
-              {/* Badge de contagem */}
               {isFilterActive && (
                 <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 ${accent.badge}`}>
                   {activeFilterCount}
@@ -674,11 +699,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
           </div>
         </div>
 
-        {/* Painel de Filtro — posicionado relativo ao container da coluna, left-0 right-0 = alinhado à coluna */}
-        {isFilterOpen && (
+        {/* Painel de Filtro — via portal no document.body para evitar clipping por overflow */}
+        {isFilterOpen && typeof document !== 'undefined' && createPortal(
           <div
-            className="absolute top-full left-0 right-0 mt-2 z-[200] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
-            onClick={(e) => e.stopPropagation()}
+            ref={filterPanelRef}
+            style={{ top: filterCoords.top, left: filterCoords.left, width: 288 }}
+            className="fixed z-[9999] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
+            onClick={e => e.stopPropagation()}
           >
             <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
 
@@ -699,20 +726,31 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </div>
 
               {/* Campos de filtro */}
-              <div className="px-3.5 py-3 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
-                
+              <div className="px-3.5 py-3 space-y-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: filterCoords.maxPanelH - 120 }}>
+
                 {/* GRUPO: TAREFA */}
-                <div className="space-y-2">
-                  <button 
+                <div>
+                  <button
                     onClick={() => toggleFilterSection('tarefa')}
-                    className="w-full flex items-center justify-between text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1 py-1 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-150 group ${
+                      expandedFilterSections.tarefa
+                        ? 'bg-indigo-50 dark:bg-indigo-500/10'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    }`}
                   >
-                    <span>Tarefa</span>
-                    <ChevronDown size={10} className={`transition-transform duration-200 ${expandedFilterSections.tarefa ? 'rotate-0' : '-rotate-90'}`} />
+                    <FileText size={11} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
+                    <span className="flex-1 text-left text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">Tarefa</span>
+                    {(colFilter.taskName || colFilter.responsible || colFilter.priority) && (
+                      <span className={`w-1.5 h-1.5 rounded-full ${accent.dot} shrink-0`} />
+                    )}
+                    {expandedFilterSections.tarefa
+                      ? <ChevronDown size={11} className="text-slate-400 shrink-0" />
+                      : <ChevronRight size={11} className="text-slate-400 shrink-0" />
+                    }
                   </button>
-                  
+
                   {expandedFilterSections.tarefa && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="space-y-2 mt-2 px-1 pb-2 animate-in fade-in slide-in-from-top-1 duration-200">
                       <input
                         type="text"
                         placeholder="Nome da tarefa..."
@@ -741,18 +779,32 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   )}
                 </div>
 
+                {/* Separador */}
+                <div className="border-t border-slate-100 dark:border-slate-800/60" />
+
                 {/* GRUPO: CLIENTE */}
-                <div className="space-y-2">
-                  <button 
+                <div>
+                  <button
                     onClick={() => toggleFilterSection('cliente')}
-                    className="w-full flex items-center justify-between text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1 py-1 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-150 ${
+                      expandedFilterSections.cliente
+                        ? 'bg-blue-50 dark:bg-blue-500/10'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    }`}
                   >
-                    <span>Cliente</span>
-                    <ChevronDown size={10} className={`transition-transform duration-200 ${expandedFilterSections.cliente ? 'rotate-0' : '-rotate-90'}`} />
+                    <Building2 size={11} className="text-blue-500 dark:text-blue-400 shrink-0" />
+                    <span className="flex-1 text-left text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">Cliente</span>
+                    {(colFilter.clientName || colFilter.clientDocument || colFilter.clientCity || colFilter.clientState) && (
+                      <span className={`w-1.5 h-1.5 rounded-full ${accent.dot} shrink-0`} />
+                    )}
+                    {expandedFilterSections.cliente
+                      ? <ChevronDown size={11} className="text-slate-400 shrink-0" />
+                      : <ChevronRight size={11} className="text-slate-400 shrink-0" />
+                    }
                   </button>
 
                   {expandedFilterSections.cliente && (
-                    <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="space-y-2 mt-2 px-1 pb-2 animate-in fade-in slide-in-from-top-1 duration-200">
                       <input
                         type="text"
                         placeholder="Nome do cliente..."
@@ -790,18 +842,32 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   )}
                 </div>
 
+                {/* Separador */}
+                <div className="border-t border-slate-100 dark:border-slate-800/60" />
+
                 {/* GRUPO: FISCAL E STATUS */}
-                <div className="space-y-2">
-                  <button 
+                <div>
+                  <button
                     onClick={() => toggleFilterSection('fiscal')}
-                    className="w-full flex items-center justify-between text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1 py-1 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-150 ${
+                      expandedFilterSections.fiscal
+                        ? 'bg-amber-50 dark:bg-amber-500/10'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    }`}
                   >
-                    <span>Fiscal e Status</span>
-                    <ChevronDown size={10} className={`transition-transform duration-200 ${expandedFilterSections.fiscal ? 'rotate-0' : '-rotate-90'}`} />
+                    <Scale size={11} className="text-amber-500 dark:text-amber-400 shrink-0" />
+                    <span className="flex-1 text-left text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider">Fiscal e Status</span>
+                    {(colFilter.taxRegime || colFilter.competence !== DEFAULT_COL_COMPETENCE || colFilter.dueDate || colFilter.noMovement || colFilter.exceededSublimit || colFilter.notifiedExclusion) && (
+                      <span className={`w-1.5 h-1.5 rounded-full ${accent.dot} shrink-0`} />
+                    )}
+                    {expandedFilterSections.fiscal
+                      ? <ChevronDown size={11} className="text-slate-400 shrink-0" />
+                      : <ChevronRight size={11} className="text-slate-400 shrink-0" />
+                    }
                   </button>
 
                   {expandedFilterSections.fiscal && (
-                    <div className="space-y-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="space-y-2 mt-2 px-1 pb-2 animate-in fade-in slide-in-from-top-1 duration-200">
                       <select
                         className={inputBase}
                         value={colFilter.taxRegime}
@@ -816,14 +882,14 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           </optgroup>
                         ))}
                       </select>
-                      
+
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="relative group">
-                          <input 
-                            type="month" 
-                            className={`${inputBase} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`} 
-                            value={colFilter.competence} 
-                            onChange={e => setColFilter(p => ({ ...p, competence: e.target.value }))} 
+                        <div className="relative">
+                          <input
+                            type="month"
+                            className={`${inputBase} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`}
+                            value={colFilter.competence}
+                            onChange={e => setColFilter(p => ({ ...p, competence: e.target.value }))}
                           />
                           <div className="absolute inset-y-0 left-0 flex items-center px-2.5 pointer-events-none text-[9.5px] font-bold text-slate-700 dark:text-slate-200 uppercase">
                             {colFilter.competence ? colFilter.competence.split('-').reverse().join('/') : 'Competência'}
@@ -887,7 +953,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
 
@@ -943,6 +1010,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                     Sem Movimento
                   </span>
                 )}
+
+                <TaskTagEditor
+                  taskId={task.id}
+                  initialTag={task.temporary_tag}
+                  onSave={onUpdateTag}
+                  isKanban={true}
+                />
 
                 <Tooltip content="Dados da Tarefa">
                   <button
@@ -1473,6 +1547,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             clientDfes: t.clients?.client_dfe_series || [],
             clientAccesses: t.clients?.client_accesses || [],
             clientLegislations: t.clients?.client_legislations || [],
+            temporary_tag: t.temporary_tag,
             attachments: t.attachments?.map((a: any) => ({
               id: a.id,
               name: a.file_name,
@@ -1553,6 +1628,20 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   }, []);
 
   // CRUD Handlers
+  const handleUpdateTaskTag = async (taskId: string, tag: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ temporary_tag: tag } as any)
+        .eq('id', taskId);
+      if (error) throw error;
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, temporary_tag: tag || undefined } : t));
+    } catch (err) {
+      console.error(err);
+      // fallback if showNotify is not yet initialized in scope
+    }
+  };
+
   const handleEdit = (task: Task) => {
     setSelectedTask(task);
     setViewState('edit');
@@ -2539,7 +2628,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             </span>
                             
                             {/* Pilha de Ações/Badges */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center flex-wrap gap-2">
                               <Tooltip content="Dados da Tarefa">
                                 <button
                                   onClick={() => {
@@ -2557,6 +2646,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                   Sem Movimento
                                 </span>
                               )}
+
+                              <TaskTagEditor
+                                taskId={task.id}
+                                initialTag={task.temporary_tag}
+                                onSave={handleUpdateTaskTag}
+                              />
                             </div>
                           </div>
                         </td>
@@ -2676,6 +2771,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             <div className="flex gap-4 h-full min-w-[1000px] pb-2">
               <div className="flex-1 min-w-[250px]">
                 <KanbanColumn
+                  onUpdateTag={handleUpdateTaskTag}
                   title="Pendente"
                   status={TaskStatus.PENDENTE}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE)}
@@ -2703,6 +2799,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               </div>
               <div className="flex-1 min-w-[250px]">
                 <KanbanColumn
+                  onUpdateTag={handleUpdateTaskTag}
                   title="Iniciadas"
                   status={TaskStatus.INICIADA}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA)}
@@ -2730,6 +2827,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               </div>
               <div className="flex-1 min-w-[250px]">
                 <KanbanColumn
+                  onUpdateTag={handleUpdateTaskTag}
                   title="Atrasadas"
                   status={TaskStatus.ATRASADA}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA)}
@@ -2757,6 +2855,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               </div>
               <div className="flex-1 min-w-[250px]">
                 <KanbanColumn
+                  onUpdateTag={handleUpdateTaskTag}
                   title="Concluídas"
                   status={TaskStatus.CONCLUIDA}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA)}

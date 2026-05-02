@@ -19,6 +19,7 @@ import { GlobalCallListener } from './components/chat/GlobalCallListener';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ui/Toast';
 import { TutorialsModal } from './components/tutorials/TutorialsModal';
+import { ProfileDrawer } from './components/ProfileDrawer';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -45,6 +46,7 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isTutorialsOpen, setIsTutorialsOpen] = useState(false);
+  const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [clientsList, setClientsList] = useState<Client[]>([]);
 
@@ -382,7 +384,7 @@ function App() {
         <Header
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
-          onProfileClick={() => setActiveTab('profile')}
+          onProfileClick={() => setIsProfileDrawerOpen(true)}
           onNavigateToTab={(tab) => setActiveTab(tab)}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           onOpenTutorials={() => setIsTutorialsOpen(true)}
@@ -415,6 +417,13 @@ function App() {
       )}
 
       <ToastContainer />
+
+      <ProfileDrawer 
+        isOpen={isProfileDrawerOpen} 
+        onClose={() => setIsProfileDrawerOpen(false)} 
+        userProfile={userProfile} 
+        onEditProfile={() => setActiveTab('profile')}
+      />
       </div>
     </ToastProvider>
   );

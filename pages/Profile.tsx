@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { User, Mail, Phone, MapPin, Camera, Shield, Key, Bell, Save, LogOut, Loader2, Briefcase, ScanFace } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Shield, Key, Save, LogOut, Loader2, Briefcase, ScanFace } from 'lucide-react';
 import { UserRole } from '../types';
 import { supabase } from '../utils/supabaseClient';
 
@@ -337,12 +337,6 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                      >
                         <Shield size={18} /> Segurança
                      </button>
-                     <button
-                        onClick={() => setActiveTab('notifications')}
-                        className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'notifications' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                     >
-                        <Bell size={18} /> Notificações
-                     </button>
                   </div>
 
                   <div className="p-6">
@@ -468,31 +462,6 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                               >
                                  {updatingPassword ? 'Atualizando...' : 'Atualizar Segurança'}
                               </Button>
-                           </div>
-                        </div>
-                     )}
-
-                     {activeTab === 'notifications' && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                           <div className="space-y-4">
-                              {[
-                                 { title: "Novas tarefas atribuídas", desc: "Receba um e-mail quando uma tarefa for atribuída a você." },
-                                 { title: "Prazos de vencimento", desc: "Alertas sobre tarefas próximas do vencimento." },
-                                 { title: "Atualizações de sistema", desc: "Novidades sobre funcionalidades do Task Account." },
-                              ].map((item, idx) => (
-                                 <div key={idx} className="flex items-start justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
-                                    <div>
-                                       <p className="font-medium text-slate-900 dark:text-white">{item.title}</p>
-                                       <p className="text-xs text-slate-500">{item.desc}</p>
-                                    </div>
-                                    <div className="relative inline-block w-11 h-6 transition duration-200 ease-in-out rounded-full bg-indigo-600 cursor-pointer">
-                                       <span className="translate-x-5 absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out shadow-sm"></span>
-                                    </div>
-                                 </div>
-                              ))}
-                           </div>
-                           <div className="flex justify-end pt-4">
-                              <Button icon={<Save size={18} />}>Salvar Preferências</Button>
                            </div>
                         </div>
                      )}

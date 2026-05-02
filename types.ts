@@ -104,6 +104,7 @@ export interface Task {
   clientAccesses?: { id: string; access_name: string; username?: string; password?: string; access_url?: string; sector?: string; }[];
   clientLegislations?: { id: string; description: string; status?: string; access_url?: string; }[];
   attachments?: { id?: string; name: string; size: number; url?: string; storage_path?: string }[];
+  temporary_tag?: string;
 }
 
 export interface Client {
