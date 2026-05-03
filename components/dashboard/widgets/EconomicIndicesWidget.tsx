@@ -92,9 +92,8 @@ export const EconomicIndicesWidget: React.FC<{ onRemove?: () => void; orgId?: st
             
             if (needsSync && (data as EconomicIndex[]).length > 0) {
                 await syncWithBCB(data as EconomicIndex[]);
-            } else {
-                setLoading(false);
             }
+            setLoading(false);
         };
         load();
     }, []);

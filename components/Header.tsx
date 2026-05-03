@@ -15,6 +15,7 @@ interface UserProfile {
   avatar_url: string | null;
   org_name: string | null;
   job_title?: string | null;
+  org_id?: string;
 }
 
 interface HeaderProps {
@@ -64,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <span className="tooltip-content">Links Úteis</span>
         </div>
-        <UsefulLinksDrawer isOpen={isLinksOpen} onClose={() => setIsLinksOpen(false)} />
+        <UsefulLinksDrawer isOpen={isLinksOpen} onClose={() => setIsLinksOpen(false)} orgId={userProfile?.org_id || ''} />
 
         <div className="tooltip-container tooltip-bottom">
           <button

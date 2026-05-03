@@ -8,9 +8,10 @@ import { useToast } from '../contexts/ToastContext';
 interface UsefulLinksDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  orgId: string;
 }
 
-export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, onClose }) => {
+export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, onClose, orgId }) => {
   const [links, setLinks] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +62,7 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
     try {
       setLoading(true);
       const [linksRes, sectorsRes] = await Promise.all([
-        supabase.from('useful_links').select('*').order('created_at', { ascending: false }),
+        supabase.from('useful_links').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
         supabase.from('sectors').select('id, name').order('name')
       ]);
 
@@ -114,7 +115,8 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
         url: formattedUrl,
         description,
         sector_id: sectorId || null,
-        icon_name: iconName || null
+        icon_name: iconName || null,
+        org_id: orgId
       }]);
 
       if (error) throw error;
@@ -150,7 +152,8 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
           url: formattedUrl,
           description: editDescription,
           sector_id: editSectorId || null,
-          icon_name: editIconName || null
+          icon_name: editIconName || null,
+          org_id: orgId
         })
         .eq('id', id);
 

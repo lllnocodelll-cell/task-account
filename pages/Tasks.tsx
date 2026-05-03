@@ -4530,9 +4530,6 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                         {/* Seção 5: Ações e Info Minimalista */}
                         <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/50 relative z-10">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 truncate">
-                              <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 truncate max-w-[60px]">{task.responsible}</span>
-                            </div>
                             <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 shrink-0">
                               <Layers size={8} className="opacity-50 text-slate-500" />
                               <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{task.sector}</span>
@@ -4550,13 +4547,14 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                               <Pencil size={11} />
                               Editar
                             </button>
-                            <button
-                              onClick={() => removePendingTask(task.id)}
-                              className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all active:scale-90"
-                              title="Remover da fila"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            <Tooltip content="Remover da fila" position="top">
+                              <button
+                                onClick={() => removePendingTask(task.id)}
+                                className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all active:scale-90"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </Tooltip>
                           </div>
                         </div>
                         

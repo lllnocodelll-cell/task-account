@@ -51,6 +51,11 @@ import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
 // --- Clients List Components ---
 const NotificationPlaceholder = () => null; // Placeholder for state insertion
 
+const isAllUppercase = (str: string) => {
+    if (!str) return false;
+    return str === str.toUpperCase() && /[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(str);
+};
+
 // --- TABLE COLUMN FILTER PANEL ---
 interface TableColumnFilterProps {
   label: string;
@@ -312,6 +317,16 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         created_at: c.created_at
                     };
                 });
+                
+                mappedData.sort((a, b) => {
+                    const numA = parseInt(a.code || '0', 10);
+                    const numB = parseInt(b.code || '0', 10);
+                    if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+                        return numA - numB;
+                    }
+                    return (a.code || '').localeCompare(b.code || '');
+                });
+
                 setClients(mappedData);
             }
 
@@ -886,7 +901,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 <td className="px-6 py-4 font-mono text-slate-500">{client.code}</td>
                                                 <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                                                     <div className="flex flex-col">
-                                                        <span>{client.companyName}</span>
+                                                        <span className={isAllUppercase(client.companyName || '') ? "text-[11px] tracking-wide" : ""}>{client.companyName}</span>
                                                         {(client.city || client.state) && (
                                                             <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">
                                                                 <MapPin size={10} className="text-slate-400" />
@@ -964,7 +979,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             </span>
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <h3 className="font-extrabold text-slate-800 dark:text-white line-clamp-2 leading-tight text-[13px]">
+                                            <h3 className={`font-extrabold text-slate-800 dark:text-white line-clamp-2 leading-tight ${isAllUppercase(client.companyName || '') ? 'text-[11px] tracking-wide' : 'text-[13px]'}`}>
                                                 {client.companyName}
                                             </h3>
                                             <div className="flex items-center gap-2 mt-1">

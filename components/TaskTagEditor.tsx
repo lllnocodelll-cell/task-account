@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Tag, Check, X, Edit2 } from 'lucide-react';
+import { Tooltip } from './ui/Tooltip';
 
 interface TaskTagEditorProps {
   taskId: string;
@@ -128,29 +129,31 @@ export const TaskTagEditor: React.FC<TaskTagEditorProps> = ({
       >
         <Tag size={9} className="opacity-70" />
         <span className="truncate max-w-[100px]">{initialTag}</span>
-        <button
-          onClick={handleClear}
-          className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"
-          title="Remover Tag"
-        >
-          <X size={10} />
-        </button>
+        <Tooltip content="Remover Tag" position="top">
+          <button
+            onClick={handleClear}
+            className="ml-1 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"
+          >
+            <X size={10} />
+          </button>
+        </Tooltip>
       </div>
     );
   }
 
   // Not editing, no tag
   return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        setIsEditing(true);
-      }}
-      className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-dashed border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all text-[9px] font-bold ${isKanban ? 'opacity-0 group-hover:opacity-100' : ''}`}
-      title="Adicionar Tag"
-    >
-      <Tag size={9} />
-      <span>+ Tag</span>
-    </button>
+    <Tooltip content="Adicionar Tag" position="top">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsEditing(true);
+        }}
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-dashed border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all text-[9px] font-bold"
+      >
+        <Tag size={9} />
+        <span>+ Tag</span>
+      </button>
+    </Tooltip>
   );
 };
