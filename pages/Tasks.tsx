@@ -46,7 +46,8 @@ import {
   Eye,
   SlidersHorizontal,
   Building2,
-  Scale
+  Scale,
+  CheckCircle2
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -1018,6 +1019,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   isKanban={true}
                 />
 
+                {task.workflows && task.workflows.length > 0 && (
+                  <div className="flex items-center gap-1 text-[10px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700" title="Workflow (Checklist)">
+                    <CheckCircle2 size={10} className={task.workflows.every(w => w.is_completed) ? "text-emerald-500" : "text-indigo-500"} />
+                    <span>{task.workflows.filter(w => w.is_completed).length}/{task.workflows.length}</span>
+                  </div>
+                )}
+
                 <Tooltip content="Dados da Tarefa">
                   <button
                     onClick={(e) => {
@@ -1502,7 +1510,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         .select(`
           *,
           clients(city, state, document, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
-          attachments:task_attachments(*)
+          attachments:task_attachments(*),
+          workflows:task_workflows(*)
         `)
         .order('created_at', { ascending: false });
 
@@ -1554,7 +1563,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               size: a.file_size,
               url: a.download_url,
               storage_path: a.storage_path
-            }))
+            })),
+            workflows: t.workflows?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)) || []
           };
         });
         setTasks(mappedTasks);
@@ -1639,6 +1649,32 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     } catch (err) {
       console.error(err);
       // fallback if showNotify is not yet initialized in scope
+    }
+  };
+
+  const handleToggleWorkflow = (taskId: string, workflowId: string, isCompleted: boolean) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          workflows: task.workflows?.map(wf => 
+            wf.id === workflowId ? { ...wf, is_completed: isCompleted } : wf
+          )
+        };
+      }
+      return task;
+    }));
+    
+    if (selectedTaskForDetails?.id === taskId) {
+      setSelectedTaskForDetails(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          workflows: prev.workflows?.map(wf => 
+            wf.id === workflowId ? { ...wf, is_completed: isCompleted } : wf
+          )
+        };
+      });
     }
   };
 
@@ -2030,6 +2066,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           handleEdit(task);
           setIsTaskDetailsDrawerOpen(false);
         }}
+        onWorkflowToggle={handleToggleWorkflow}
         registrationRegimeLabels={REGISTRATION_REGIME_LABELS}
       />
 
@@ -2652,6 +2689,13 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                 initialTag={task.temporary_tag}
                                 onSave={handleUpdateTaskTag}
                               />
+
+                              {task.workflows && task.workflows.length > 0 && (
+                                <div className="flex items-center gap-1 text-[10px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700" title="Workflow (Checklist)">
+                                  <CheckCircle2 size={10} className={task.workflows.every(w => w.is_completed) ? "text-emerald-500" : "text-indigo-500"} />
+                                  <span>{task.workflows.filter(w => w.is_completed).length}/{task.workflows.length}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -3219,6 +3263,7 @@ interface ClientConfig {
   observation: string;
   uploadedFiles: File[];
   existingAttachments: { name: string; size: number; url?: string }[];
+  workflows: any[];
 }
 
 function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () => void; initialData?: Task | null; clients: Client[]; userProfile: any }) {
@@ -3253,7 +3298,8 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
       notifiedExclusion: data?.notifiedExclusion || false,
       observation: data?.observation || '',
       uploadedFiles: [],
-      existingAttachments: data?.attachments || []
+      existingAttachments: data?.attachments || [],
+      workflows: data?.workflows || []
     };
   };
 
@@ -3748,19 +3794,37 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
               });
             }
           }
+
+          // Workflows para edição
+          const wfs = clientConfigs[payload.client_name]?.workflows;
+          if (wfs) {
+            await (supabase as any).from('task_workflows').delete().eq('task_id', taskData.id);
+            if (wfs.length > 0) {
+              const wfsToInsert = wfs.map((wf: any, idx: number) => ({
+                task_id: taskData.id,
+                description: wf.description,
+                is_completed: wf.is_completed || false,
+                order_index: idx
+              }));
+              await (supabase as any).from('task_workflows').insert(wfsToInsert);
+            }
+          }
         }
       }
 
       // EXECUÇÃO DAS INSERÇÕES EM LOTE (Criação)
       if (finalTasksToInsert.length > 0) {
-        const { data: insertedTasks, error: insertError } = await (supabase.from('tasks') as any)
+        const { data, error: insertError } = await (supabase as any).from('tasks')
           .insert(finalTasksToInsert)
           .select();
+
+        const insertedTasks = data as any[];
 
         if (insertError) throw insertError;
 
         if (insertedTasks && insertedTasks.length > 0) {
           const finalAttachmentsToInsert: any[] = [];
+          const finalWorkflowsToInsert: any[] = [];
           for (const task of insertedTasks) {
             const files = clientAttachmentsMap[task.client_name];
             if (files && files.length > 0) {
@@ -3774,11 +3838,28 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                 });
               }
             }
+            
+            const wfs = clientConfigs[task.client_name]?.workflows;
+            if (wfs && wfs.length > 0) {
+              wfs.forEach((wf: any, idx: number) => {
+                finalWorkflowsToInsert.push({
+                  task_id: task.id,
+                  description: wf.description,
+                  is_completed: wf.is_completed || false,
+                  order_index: idx
+                });
+              });
+            }
           }
           if (finalAttachmentsToInsert.length > 0) {
-            const { error: attError } = await (supabase.from('task_attachments') as any)
+            const { error: attError } = await (supabase as any).from('task_attachments')
               .insert(finalAttachmentsToInsert);
             if (attError) throw attError;
+          }
+          if (finalWorkflowsToInsert.length > 0) {
+            const { error: wfError } = await (supabase as any).from('task_workflows')
+              .insert(finalWorkflowsToInsert);
+            if (wfError) throw wfError;
           }
         }
       }
@@ -3802,6 +3883,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     { id: 'simples', label: 'Simples Nacional' },
     { id: 'observacao', label: 'Observação' },
     { id: 'arquivos', label: 'Arquivos' },
+    { id: 'workflow', label: 'Workflow' },
   ];
 
   return (
@@ -4156,6 +4238,97 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                             <button
                               onClick={() => removeFile(idx)}
                               className="text-slate-400 hover:text-red-500 p-1"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'workflow' && activeClientId && (
+                <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      id={`workflow-input-${activeClientId}`}
+                      placeholder="Adicione um item de checklist e aperte Enter..."
+                      className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const val = e.currentTarget.value.trim();
+                          if (val) {
+                            setClientConfigs(prev => {
+                              const config = prev[activeClientId];
+                              return {
+                                ...prev,
+                                [activeClientId]: {
+                                  ...config,
+                                  workflows: [...(config.workflows || []), { id: crypto.randomUUID(), description: val, is_completed: false }]
+                                }
+                              };
+                            });
+                            e.currentTarget.value = '';
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.getElementById(`workflow-input-${activeClientId}`) as HTMLInputElement;
+                        const val = input?.value.trim();
+                        if (val) {
+                          setClientConfigs(prev => {
+                            const config = prev[activeClientId];
+                            return {
+                              ...prev,
+                              [activeClientId]: {
+                                ...config,
+                                workflows: [...(config.workflows || []), { id: crypto.randomUUID(), description: val, is_completed: false }]
+                              }
+                            };
+                          });
+                          if(input) input.value = '';
+                        }
+                      }}
+                      className="px-4 py-2 bg-indigo-600 text-white font-bold text-xs rounded-lg hover:bg-indigo-500 transition-colors"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    {(clientConfigs[activeClientId].workflows?.length === 0) ? (
+                      <div className="text-center py-4 text-xs text-slate-400 italic bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                        Nenhum item no workflow.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
+                        {clientConfigs[activeClientId].workflows?.map((wf: any, idx: number) => (
+                          <div key={wf.id || idx} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center gap-3">
+                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{wf.description}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClientConfigs(prev => {
+                                  const config = prev[activeClientId];
+                                  const newWfs = [...(config.workflows || [])];
+                                  newWfs.splice(idx, 1);
+                                  return {
+                                    ...prev,
+                                    [activeClientId]: { ...config, workflows: newWfs }
+                                  };
+                                });
+                              }}
+                              className="text-slate-400 hover:text-red-500 transition-colors p-1.5"
                             >
                               <X size={14} />
                             </button>

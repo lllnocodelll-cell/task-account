@@ -73,6 +73,16 @@ export enum Priority {
 
 export type UserRole = 'gestor' | 'operacional' | 'cliente';
 
+export interface TaskWorkflow {
+  id: string;
+  task_id?: string;
+  description: string;
+  is_completed: boolean;
+  completed_by?: string;
+  completed_at?: string;
+  order_index?: number;
+}
+
 export interface Task {
   id: string;
   clientId?: string;
@@ -105,6 +115,7 @@ export interface Task {
   clientLegislations?: { id: string; description: string; status?: string; access_url?: string; }[];
   attachments?: { id?: string; name: string; size: number; url?: string; storage_path?: string }[];
   temporary_tag?: string;
+  workflows?: TaskWorkflow[];
 }
 
 export interface Client {
