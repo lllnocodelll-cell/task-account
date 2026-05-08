@@ -368,6 +368,132 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
   );
 };
 
+interface TaskWorkflowPopoverProps {
+  task: Task;
+  onToggleWorkflow: (taskId: string, workflowId: string, currentStatus: boolean) => Promise<void>;
+}
+
+const TaskWorkflowPopover: React.FC<TaskWorkflowPopoverProps> = ({ task, onToggleWorkflow }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  const toggleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isOpen) {
+      setIsOpen(false);
+    } else {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (rect) {
+        // Ajuste para não sair da tela
+        const panelWidth = 250;
+        let left = rect.left;
+        if (left + panelWidth > window.innerWidth - 20) {
+          left = window.innerWidth - panelWidth - 20;
+        }
+        setCoords({ top: rect.top - 8, left });
+        setIsOpen(true);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const completedCount = task.workflows?.filter(w => w.is_completed).length || 0;
+  const totalCount = task.workflows?.length || 0;
+  const isFullyCompleted = totalCount > 0 && completedCount === totalCount;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        onClick={toggleOpen}
+        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all duration-200 active:scale-95 group/wf ${
+          isFullyCompleted 
+            ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400' 
+            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:shadow-sm'
+        }`}
+        title="Workflow (Checklist)"
+      >
+        <CheckCircle2 
+          size={12} 
+          className={`transition-colors ${isFullyCompleted ? "text-emerald-500" : "text-indigo-500 dark:text-indigo-400 group-hover/wf:text-indigo-600"}`} 
+        />
+        <span className="text-[10px] font-bold tracking-tight">{completedCount}/{totalCount}</span>
+      </button>
+
+      {isOpen && createPortal(
+        <div
+          ref={panelRef}
+          style={{ 
+            top: coords.top, 
+            left: coords.left,
+            width: 250,
+            height: 208,
+            transform: 'translateY(-100%)' // Move para cima do ponto de referência
+          }}
+          className="fixed z-[9999] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden flex flex-col h-full">
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${isFullyCompleted ? 'bg-emerald-500' : 'bg-indigo-500'} animate-pulse`} />
+                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Workflow</span>
+              </div>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                isFullyCompleted 
+                  ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30' 
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+              }`}>
+                {completedCount}/{totalCount}
+              </span>
+            </div>
+            <div className="p-2 overflow-y-auto custom-scrollbar space-y-1 flex-1">
+              {task.workflows?.map((wf) => (
+                <button
+                  key={wf.id}
+                  onClick={() => onToggleWorkflow(task.id, wf.id, wf.is_completed)}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all text-left group/item ${
+                    wf.is_completed 
+                      ? 'bg-emerald-50/30 dark:bg-emerald-500/5 opacity-70 hover:opacity-100' 
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
+                    wf.is_completed 
+                      ? 'bg-emerald-500 border-emerald-500 text-white shadow-sm shadow-emerald-500/20' 
+                      : 'border-slate-300 dark:border-slate-600 bg-transparent group-hover/item:border-indigo-400'
+                  }`}>
+                    {wf.is_completed && <CheckCircle2 size={12} strokeWidth={3} />}
+                  </div>
+                  <span className={`text-xs font-semibold transition-colors ${
+                    wf.is_completed ? 'text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400'
+                  }`}>
+                    {wf.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
 // --- RESPONSIBLE FILTER PANEL ---
 interface ResponsibleFilterPanelProps {
   tasks: Task[];
@@ -496,6 +622,7 @@ interface KanbanColumnProps {
   onViewClient: (client: Client) => void;
   onViewTaskInfo: (task: Task) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
+  onToggleWorkflow: (taskId: string, workflowId: string, currentStatus: boolean) => Promise<void>;
   clients: Client[];
   userProfile: any;
   onUpdateTag: (taskId: string, tag: string | null) => Promise<void>;
@@ -517,6 +644,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onViewClient,
   onViewTaskInfo,
   onStatusChange,
+  onToggleWorkflow,
   clients,
   userProfile,
   onUpdateTag
@@ -1020,10 +1148,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 />
 
                 {task.workflows && task.workflows.length > 0 && (
-                  <div className="flex items-center gap-1 text-[10px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700" title="Workflow (Checklist)">
-                    <CheckCircle2 size={10} className={task.workflows.every(w => w.is_completed) ? "text-emerald-500" : "text-indigo-500"} />
-                    <span>{task.workflows.filter(w => w.is_completed).length}/{task.workflows.length}</span>
-                  </div>
+                  <TaskWorkflowPopover 
+                    task={task} 
+                    onToggleWorkflow={onToggleWorkflow} 
+                  />
                 )}
 
                 <Tooltip content="Dados da Tarefa">
@@ -1652,29 +1780,57 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     }
   };
 
-  const handleToggleWorkflow = (taskId: string, workflowId: string, isCompleted: boolean) => {
-    setTasks(prev => prev.map(task => {
-      if (task.id === taskId) {
-        return {
-          ...task,
-          workflows: task.workflows?.map(wf => 
-            wf.id === workflowId ? { ...wf, is_completed: isCompleted } : wf
-          )
-        };
-      }
-      return task;
-    }));
+  const handleToggleWorkflow = async (taskId: string, workflowId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
     
-    if (selectedTaskForDetails?.id === taskId) {
-      setSelectedTaskForDetails(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          workflows: prev.workflows?.map(wf => 
-            wf.id === workflowId ? { ...wf, is_completed: isCompleted } : wf
-          )
-        };
-      });
+    // 1. Atualização Otimista - Imediata para o usuário
+    const updateLocalState = (status: boolean) => {
+      setTasks(prev => prev.map(task => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            workflows: task.workflows?.map(wf => 
+              wf.id === workflowId ? { ...wf, is_completed: status } : wf
+            )
+          };
+        }
+        return task;
+      }));
+      
+      if (selectedTaskForDetails?.id === taskId) {
+        setSelectedTaskForDetails(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            workflows: prev.workflows?.map(wf => 
+              wf.id === workflowId ? { ...wf, is_completed: status } : wf
+            )
+          };
+        });
+      }
+    };
+
+    updateLocalState(newStatus);
+
+    // 2. Persistência no Supabase
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await (supabase as any)
+        .from('task_workflows')
+        .update({ 
+          is_completed: newStatus,
+          completed_by: newStatus ? user?.id : null,
+          completed_at: newStatus ? new Date().toISOString() : null
+        })
+        .eq('id', workflowId);
+
+      if (error) throw error;
+      
+    } catch (error) {
+      console.error('Erro ao atualizar workflow:', error);
+      // Reverter estado local em caso de erro real
+      updateLocalState(currentStatus);
     }
   };
 
@@ -2066,7 +2222,6 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           handleEdit(task);
           setIsTaskDetailsDrawerOpen(false);
         }}
-        onWorkflowToggle={handleToggleWorkflow}
         registrationRegimeLabels={REGISTRATION_REGIME_LABELS}
       />
 
@@ -2691,10 +2846,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                               />
 
                               {task.workflows && task.workflows.length > 0 && (
-                                <div className="flex items-center gap-1 text-[10px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700" title="Workflow (Checklist)">
-                                  <CheckCircle2 size={10} className={task.workflows.every(w => w.is_completed) ? "text-emerald-500" : "text-indigo-500"} />
-                                  <span>{task.workflows.filter(w => w.is_completed).length}/{task.workflows.length}</span>
-                                </div>
+                                <TaskWorkflowPopover 
+                                  task={task} 
+                                  onToggleWorkflow={handleToggleWorkflow} 
+                                />
                               )}
                             </div>
                           </div>
@@ -2837,6 +2992,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
                   onStatusChange={handleStatusChange}
+                  onToggleWorkflow={handleToggleWorkflow}
                   clients={clients}
                   userProfile={userProfile}
                 />
@@ -2865,6 +3021,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
                   onStatusChange={handleStatusChange}
+                  onToggleWorkflow={handleToggleWorkflow}
                   clients={clients}
                   userProfile={userProfile}
                 />
@@ -2893,6 +3050,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
                   onStatusChange={handleStatusChange}
+                  onToggleWorkflow={handleToggleWorkflow}
                   clients={clients}
                   userProfile={userProfile}
                 />
@@ -2921,6 +3079,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   }}
                   onViewTaskInfo={handleViewTaskInfo}
                   onStatusChange={handleStatusChange}
+                  onToggleWorkflow={handleToggleWorkflow}
                   clients={clients}
                   userProfile={userProfile}
                 />

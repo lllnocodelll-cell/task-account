@@ -34,7 +34,6 @@ interface TaskDetailsDrawerProps {
   onClose: () => void;
   task: Task | null;
   onEdit: (task: Task) => void;
-  onWorkflowToggle?: (taskId: string, workflowId: string, isCompleted: boolean) => void;
   registrationRegimeLabels: Record<string, string>;
 }
 
@@ -43,7 +42,6 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
   onClose, 
   task, 
   onEdit,
-  onWorkflowToggle,
   registrationRegimeLabels
 }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -57,8 +55,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     simples: true,
     obs: true,
     legis: true,
-    files: true,
-    workflow: true
+    files: true
   });
 
   useEffect(() => {
@@ -116,50 +113,6 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     }
   };
 
-  const toggleWorkflowItem = async (wfId: string, currentStatus: boolean) => {
-    const newStatus = !currentStatus;
-    
-    // Otimista - Imediato
-    if (localTask?.workflows) {
-      setLocalTask(prev => prev ? ({
-        ...prev,
-        workflows: prev.workflows?.map(wf => wf.id === wfId ? { 
-          ...wf, 
-          is_completed: newStatus
-        } : wf)
-      }) : prev);
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await (supabase as any)
-        .from('task_workflows')
-        .update({ 
-          is_completed: newStatus,
-          completed_by: newStatus ? user?.id : null,
-          completed_at: newStatus ? new Date().toISOString() : null
-        })
-        .eq('id', wfId);
-
-      if (error) throw error;
-      
-      // Notifica o pai para sincronizar o estado global
-      if (localTask?.id) {
-        onWorkflowToggle?.(localTask.id, wfId, newStatus);
-      }
-      
-    } catch (error) {
-      console.error('Erro ao atualizar workflow:', error);
-      // Reverter estado em caso de erro real
-      if (localTask?.workflows) {
-        setLocalTask(prev => prev ? ({
-          ...prev,
-          workflows: prev.workflows?.map(wf => wf.id === wfId ? { ...wf, is_completed: currentStatus } : wf)
-        }) : prev);
-      }
-    }
-  };
 
   if (!shouldRender || !localTask) return null;
 
@@ -570,50 +523,6 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
             </div>
           </div>
 
-          {/* Seção 06: Workflow (Checklist) */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
-            <button 
-              onClick={() => toggleSection('workflow')}
-              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 06</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Workflow de Execução</span>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
-                  <CheckCircle2 size={10} className="text-emerald-500" />
-                  <span className="text-[10px] font-black text-slate-600 dark:text-slate-300">
-                    {localTask.workflows?.filter(w => w.is_completed).length || 0}/{localTask.workflows?.length || 0}
-                  </span>
-                </div>
-              </div>
-              <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.workflow ? 'rotate-180' : ''}`} size={16} />
-            </button>
-            <div className={`grid transition-all duration-300 ease-in-out ${openSections.workflow ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
-              <div className="overflow-hidden">
-                <div className="p-4 pt-0 space-y-2">
-                  {localTask.workflows && localTask.workflows.length > 0 ? (
-                    localTask.workflows.map((wf, idx) => (
-                      <button 
-                        key={wf.id || idx}
-                        type="button"
-                        onClick={() => toggleWorkflowItem(wf.id, wf.is_completed)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${wf.is_completed ? 'bg-emerald-50/30 dark:bg-emerald-500/5 border-emerald-100 dark:border-emerald-500/20 opacity-70' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm hover:shadow-md'}`}
-                      >
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${wf.is_completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600 bg-transparent text-transparent'}`}>
-                          <CheckCircle2 size={12} className={wf.is_completed ? "block" : "hidden"} />
-                        </div>
-                        <span className={`text-sm font-medium ${wf.is_completed ? 'text-slate-500 dark:text-slate-400 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
-                          {wf.description}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="text-center py-4 text-slate-400 text-xs italic">Nenhum item de workflow</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Seção 07: Arquivos */}
           <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
@@ -622,7 +531,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 07</span>
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 06</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Arquivos</span>
                 <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
                   <FileStack size={10} className="text-indigo-500" />
