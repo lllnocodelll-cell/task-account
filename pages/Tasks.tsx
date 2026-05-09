@@ -1316,11 +1316,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                     </Tooltip>
                   )}
                   {status === TaskStatus.CONCLUIDA && (
-                    <Tooltip content="Mover para Iniciadas (Reabrir)" position="top">
+                    <Tooltip content="Reabrir Tarefa" position="top">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onStatusChange(task.id, TaskStatus.INICIADA);
+                          onStatusChange(task.id, TaskStatus.PENDENTE);
                         }}
                         className="text-slate-600 bg-slate-200/60 hover:bg-slate-300/80 dark:bg-slate-800 dark:text-slate-400 p-1.5 rounded-lg transition-all shadow-sm"
                       >
@@ -2531,7 +2531,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                               {/* Regime */}
                               <div className="space-y-2">
                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Regime Fiscal</label>
-                                <div className="max-h-60 overflow-y-auto custom-scrollbar pr-1 space-y-3">
+                                <div style={{ height: '160px' }} className="overflow-y-auto custom-scrollbar pr-1 space-y-3">
                                   {TAX_REGIME_GROUPS.map(group => (
                                     <div key={group.category} className="space-y-1">
                                       <div className="px-2 py-0.5 text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-100 dark:border-slate-800/50">
@@ -2820,37 +2820,43 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             </span>
                             
                             {/* Pilha de Ações/Badges */}
-                            <div className="flex items-center flex-wrap gap-2">
-                              <Tooltip content="Dados da Tarefa">
-                                <button
-                                  onClick={() => {
-                                    setSelectedTaskForDetails(task);
-                                    setIsTaskDetailsDrawerOpen(true);
-                                  }}
-                                  className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
-                                >
-                                  <Eye size={14} />
-                                </button>
-                              </Tooltip>
-                              
-                              {task.noMovement && (
-                                <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-black whitespace-nowrap border border-red-100 dark:border-red-900/30 rounded-md shadow-sm">
-                                  Sem Movimento
-                                </span>
-                              )}
+                            <div className="flex flex-col gap-2">
+                              {/* Linha 1: Ações e Status */}
+                              <div className="flex items-center gap-2">
+                                <Tooltip content="Dados da Tarefa">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedTaskForDetails(task);
+                                      setIsTaskDetailsDrawerOpen(true);
+                                    }}
+                                    className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                                  >
+                                    <Eye size={14} />
+                                  </button>
+                                </Tooltip>
 
-                              <TaskTagEditor
-                                taskId={task.id}
-                                initialTag={task.temporary_tag}
-                                onSave={handleUpdateTaskTag}
-                              />
+                                {task.workflows && task.workflows.length > 0 && (
+                                  <TaskWorkflowPopover 
+                                    task={task} 
+                                    onToggleWorkflow={handleToggleWorkflow} 
+                                  />
+                                )}
+                                
+                                {task.noMovement && (
+                                  <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-black whitespace-nowrap border border-red-100 dark:border-red-900/30 rounded-md shadow-sm">
+                                    Sem Movimento
+                                  </span>
+                                )}
+                              </div>
 
-                              {task.workflows && task.workflows.length > 0 && (
-                                <TaskWorkflowPopover 
-                                  task={task} 
-                                  onToggleWorkflow={handleToggleWorkflow} 
+                              {/* Linha 2: Tags */}
+                              <div className="flex items-center">
+                                <TaskTagEditor
+                                  taskId={task.id}
+                                  initialTag={task.temporary_tag}
+                                  onSave={handleUpdateTaskTag}
                                 />
-                              )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -2967,8 +2973,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           </Card>
         ) : (
           <div className="flex-1 overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-4 h-full min-w-[1000px] pb-2">
-              <div className="flex-1 min-w-[250px]">
+            <div className="flex gap-4 h-full min-w-[1400px] lg:min-w-[1000px] pb-2">
+              <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
                 <KanbanColumn
                   onUpdateTag={handleUpdateTaskTag}
                   title="Pendente"
@@ -2997,7 +3003,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   userProfile={userProfile}
                 />
               </div>
-              <div className="flex-1 min-w-[250px]">
+              <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
                 <KanbanColumn
                   onUpdateTag={handleUpdateTaskTag}
                   title="Iniciadas"
@@ -3026,7 +3032,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   userProfile={userProfile}
                 />
               </div>
-              <div className="flex-1 min-w-[250px]">
+              <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
                 <KanbanColumn
                   onUpdateTag={handleUpdateTaskTag}
                   title="Atrasadas"
@@ -3055,7 +3061,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   userProfile={userProfile}
                 />
               </div>
-              <div className="flex-1 min-w-[250px]">
+              <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
                 <KanbanColumn
                   onUpdateTag={handleUpdateTaskTag}
                   title="Concluídas"
@@ -4421,15 +4427,21 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                           e.preventDefault();
                           const val = e.currentTarget.value.trim();
                           if (val) {
+                            const newWfItem = { id: crypto.randomUUID(), description: val, is_completed: false };
                             setClientConfigs(prev => {
-                              const config = prev[activeClientId];
-                              return {
-                                ...prev,
-                                [activeClientId]: {
-                                  ...config,
-                                  workflows: [...(config.workflows || []), { id: crypto.randomUUID(), description: val, is_completed: false }]
+                              const nextConfigs = { ...prev };
+                              // Se estiver em modo de criação em lote, aplicar a todas as empresas selecionadas
+                              const targets = !isEditing ? selectedClientIds : [activeClientId];
+                              
+                              targets.forEach(cid => {
+                                if (nextConfigs[cid]) {
+                                  nextConfigs[cid] = {
+                                    ...nextConfigs[cid],
+                                    workflows: [...(nextConfigs[cid].workflows || []), { ...newWfItem, id: crypto.randomUUID() }]
+                                  };
                                 }
-                              };
+                              });
+                              return nextConfigs;
                             });
                             e.currentTarget.value = '';
                           }
@@ -4442,15 +4454,20 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                         const input = document.getElementById(`workflow-input-${activeClientId}`) as HTMLInputElement;
                         const val = input?.value.trim();
                         if (val) {
+                          const newWfItem = { id: crypto.randomUUID(), description: val, is_completed: false };
                           setClientConfigs(prev => {
-                            const config = prev[activeClientId];
-                            return {
-                              ...prev,
-                              [activeClientId]: {
-                                ...config,
-                                workflows: [...(config.workflows || []), { id: crypto.randomUUID(), description: val, is_completed: false }]
+                            const nextConfigs = { ...prev };
+                            const targets = !isEditing ? selectedClientIds : [activeClientId];
+                            
+                            targets.forEach(cid => {
+                              if (nextConfigs[cid]) {
+                                nextConfigs[cid] = {
+                                  ...nextConfigs[cid],
+                                  workflows: [...(nextConfigs[cid].workflows || []), { ...newWfItem, id: crypto.randomUUID() }]
+                                };
                               }
-                            };
+                            });
+                            return nextConfigs;
                           });
                           if(input) input.value = '';
                         }
@@ -4477,14 +4494,20 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                             <button
                               type="button"
                               onClick={() => {
+                                const descToRemove = wf.description;
                                 setClientConfigs(prev => {
-                                  const config = prev[activeClientId];
-                                  const newWfs = [...(config.workflows || [])];
-                                  newWfs.splice(idx, 1);
-                                  return {
-                                    ...prev,
-                                    [activeClientId]: { ...config, workflows: newWfs }
-                                  };
+                                  const nextConfigs = { ...prev };
+                                  const targets = !isEditing ? selectedClientIds : [activeClientId];
+                                  
+                                  targets.forEach(cid => {
+                                    if (nextConfigs[cid]) {
+                                      nextConfigs[cid] = {
+                                        ...nextConfigs[cid],
+                                        workflows: (nextConfigs[cid].workflows || []).filter((w: any) => w.description !== descToRemove)
+                                      };
+                                    }
+                                  });
+                                  return nextConfigs;
                                 });
                               }}
                               className="text-slate-400 hover:text-red-500 transition-colors p-1.5"

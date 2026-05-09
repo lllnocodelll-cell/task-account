@@ -1036,7 +1036,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <FileText className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Inscrições</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Centralize e gerencie as inscrições fiscais da empresa em todas as esferas (Municipal, Estadual, Federal, Conselho de Classe e outros).</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Centralize e gerencie as inscrições fiscais da empresa em todas as esferas (Municipal, Estadual, Federal, Conselho de Classe e outros).</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1195,7 +1195,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Users className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Contatos</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie os principais contatos da empresa.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Gerencie os principais contatos da empresa.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1375,7 +1375,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Landmark className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Regime Tributário</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Controle e monitore o histórico de enquadramentos tributários e garanta a conformidade fiscal ao longo dos anos.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Controle e monitore o histórico de enquadramentos tributários e garanta a conformidade fiscal ao longo dos anos.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1529,7 +1529,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Activity className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Atividades</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Registre as atividades econômicas (CNAE principal e secundárias).</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Registre as atividades econômicas (CNAE principal e secundárias).</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1678,7 +1678,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Key className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Acessos</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Centralize os acessos dos principais portais, como: empregador web, sistemas de gestão, portais de serviços do contribuinte e muito mais.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Centralize os acessos dos principais portais, como: empregador web, sistemas de gestão, portais de serviços do contribuinte e muito mais.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1864,7 +1864,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Shield className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Certificado Digital</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Gerencie modelos, senhas e signatários com alertas automáticos de vencimento para evitar interrupções.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Gerencie modelos, senhas e signatários com alertas automáticos de vencimento para evitar interrupções.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -2077,7 +2077,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <FileCheck className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Licenças</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Controle o ciclo de vida de alvarás de funcionamento, licenças ambientais (Cetesb) e sanitárias.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Controle o ciclo de vida de alvarás de funcionamento, licenças ambientais (Cetesb) e sanitárias.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -2258,7 +2258,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <BookOpen className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Base Legal</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Documente as leis, normas tributárias e convenções sindicais que regem a operação do cliente.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Documente as leis, normas tributárias e convenções sindicais que regem a operação do cliente.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -2411,7 +2411,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Receipt className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Séries DF-e</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">Organize os modelos e séries de Documentos Fiscais Eletrônicos vinculados aos seus respectivos emissores.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Organize os modelos e séries de Documentos Fiscais Eletrônicos vinculados aos seus respectivos emissores.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (

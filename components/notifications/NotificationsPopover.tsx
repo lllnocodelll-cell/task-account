@@ -201,7 +201,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
   return (
     <div 
       ref={popoverRef}
-      className={`absolute top-14 right-[-75px] w-72 sm:w-80 max-h-96 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl flex flex-col z-50 overflow-hidden ${!isOpen ? 'hidden' : ''}`}
+      className={`absolute top-14 right-[-75px] w-72 sm:w-80 h-[450px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl flex flex-col z-50 overflow-hidden ${!isOpen ? 'hidden' : ''}`}
     >
       <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
         <div className="flex flex-col text-left">
