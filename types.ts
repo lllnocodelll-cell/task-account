@@ -81,6 +81,7 @@ export interface TaskWorkflow {
   completed_by?: string;
   completed_at?: string;
   order_index?: number;
+  is_mandatory?: boolean;
 }
 
 export interface Task {
@@ -156,6 +157,8 @@ export interface Member {
   lastName: string;
   sector: string;
   email: string;
+  client_id?: string;
+  client_ids?: string[];
 }
 
 export interface Sector {

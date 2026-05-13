@@ -47,7 +47,8 @@ import {
   SlidersHorizontal,
   Building2,
   Scale,
-  CheckCircle2
+  CheckCircle2,
+  SquarePlus
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -464,12 +465,13 @@ const TaskWorkflowPopover: React.FC<TaskWorkflowPopoverProps> = ({ task, onToggl
               {task.workflows?.map((wf) => (
                 <button
                   key={wf.id}
+                  disabled={task.status === TaskStatus.CONCLUIDA}
                   onClick={() => onToggleWorkflow(task.id, wf.id, wf.is_completed)}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all text-left group/item ${
                     wf.is_completed 
                       ? 'bg-emerald-50/30 dark:bg-emerald-500/5 opacity-70 hover:opacity-100' 
                       : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                  }`}
+                  } ${task.status === TaskStatus.CONCLUIDA ? 'cursor-not-allowed opacity-60' : ''}`}
                 >
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
                     wf.is_completed 
@@ -478,11 +480,18 @@ const TaskWorkflowPopover: React.FC<TaskWorkflowPopoverProps> = ({ task, onToggl
                   }`}>
                     {wf.is_completed && <CheckCircle2 size={12} strokeWidth={3} />}
                   </div>
-                  <span className={`text-xs font-semibold transition-colors ${
-                    wf.is_completed ? 'text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400'
-                  }`}>
-                    {wf.description}
-                  </span>
+                  <div className="flex flex-col items-start gap-1">
+                    <span className={`text-xs font-semibold transition-colors ${
+                      wf.is_completed ? 'text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400'
+                    }`}>
+                      {wf.description}
+                    </span>
+                    {wf.is_mandatory && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 uppercase tracking-widest">
+                        Obrigatório
+                      </span>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>
@@ -1431,6 +1440,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const [selectedTaskForInfo, setSelectedTaskForInfo] = useState<Task | null>(null);
   const [tutorialsModalOpen, setTutorialsModalOpen] = useState(false);
   const [showMetrics, setShowMetrics] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
+  const [notification, setNotification] = useState<{ show: boolean; message: string; type: NotificationType }>({ show: false, message: '', type: 'info' });
+
+  const showNotify = (message: string, type: NotificationType = 'info') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 3000);
+  };
 
   // Filter Values State
   const [filters, setFilters] = useState(() => {
@@ -1835,6 +1850,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   };
 
   const handleEdit = (task: Task) => {
+    if (task.status === TaskStatus.CONCLUIDA) {
+      showNotify('Tarefas concluídas não podem ser editadas.', 'warning');
+      return;
+    }
     setSelectedTask(task);
     setViewState('edit');
   };
@@ -1849,6 +1868,16 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     try {
       // Find current status to check for reopen confirmation
       const currentTask = tasks.find(t => t.id === id);
+      
+      // Validação de workflow obrigatório
+      if (newStatus === TaskStatus.CONCLUIDA && currentTask) {
+        const hasUncompletedMandatory = currentTask.workflows?.some(wf => wf.is_mandatory && !wf.is_completed);
+        if (hasUncompletedMandatory) {
+          showNotify('Não é possível concluir a tarefa. Existem workflows obrigatórios pendentes.', 'error');
+          return;
+        }
+      }
+
       if (currentTask?.status === TaskStatus.CONCLUIDA && newStatus !== TaskStatus.CONCLUIDA) {
         if (currentTask.attachments && currentTask.attachments.length > 0) {
           try {
@@ -2079,6 +2108,14 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
         const taskToConclude = tasks.find(t => t.id === selectedTaskForConclude);
         if (!taskToConclude) throw new Error('Tarefa não encontrada');
+
+        // Validação de workflow obrigatório
+        const hasUncompletedMandatory = taskToConclude.workflows?.some(wf => wf.is_mandatory && !wf.is_completed);
+        if (hasUncompletedMandatory) {
+          showNotify('Não é possível concluir a tarefa. Existem workflows obrigatórios pendentes.', 'error');
+          setLoading(false);
+          return;
+        }
 
         // 1. Update Status
         const { error: statusError } = await (supabase
@@ -3403,6 +3440,17 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           clients={clients}
         />
       )}
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <Notification
+          show={notification.show}
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(prev => ({ ...prev, show: false }))}
+        />
+      )}
+
       {/* FAB: Nova Tarefa (Mobile) */}
       <button
         onClick={handleCreate}
@@ -3482,6 +3530,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  const [isMandatoryWf, setIsMandatoryWf] = useState(true);
   const [holidayDates, setHolidayDates] = useState<string[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -3750,7 +3799,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
     if (pendingTasks.length === 0) return showNotify('Adicione pelo menos uma tarefa à lista clicando no botão (+).', 'warning');
 
     // Recurrence Check for Editing
-    const isRecurring = initialData?.recurrence && !['unico', 'nao_recorre', 'none'].includes(initialData.recurrence);
+    const isRecurring = initialData?.recurrence && !['', 'unico', 'unica', 'única', 'nao_recorre', 'none'].includes(initialData.recurrence.toLowerCase());
 
     if (isEditing && isRecurring && updateFutureTasks === null) {
       setShowRecurrenceModal(true);
@@ -3969,6 +4018,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                 task_id: taskData.id,
                 description: wf.description,
                 is_completed: wf.is_completed || false,
+                is_mandatory: wf.is_mandatory || false,
                 order_index: idx
               }));
               await (supabase as any).from('task_workflows').insert(wfsToInsert);
@@ -4011,6 +4061,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                   task_id: task.id,
                   description: wf.description,
                   is_completed: wf.is_completed || false,
+                  is_mandatory: wf.is_mandatory || false,
                   order_index: idx
                 });
               });
@@ -4046,9 +4097,9 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
   const tabs = [
     { id: 'recorrencia', label: 'Recorrência' },
     { id: 'simples', label: 'Simples Nacional' },
+    { id: 'workflow', label: 'Workflow' },
     { id: 'observacao', label: 'Observação' },
     { id: 'arquivos', label: 'Arquivos' },
-    { id: 'workflow', label: 'Workflow' },
   ];
 
   return (
@@ -4273,7 +4324,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
             <div className="p-4 max-h-[400px] overflow-auto custom-scrollbar">
               {activeTab === 'simples' && activeClientId && (
                 <div className="space-y-6">
-                  <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                     <Toggle
                       label="Exclusão Notificada"
                       value={clientConfigs[activeClientId].notifiedExclusion}
@@ -4416,66 +4467,48 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
               {activeTab === 'workflow' && activeClientId && (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      id={`workflow-input-${activeClientId}`}
-                      placeholder="Adicione um item de checklist e aperte Enter..."
-                      className="flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const val = e.currentTarget.value.trim();
-                          if (val) {
-                            const newWfItem = { id: crypto.randomUUID(), description: val, is_completed: false };
-                            setClientConfigs(prev => {
-                              const nextConfigs = { ...prev };
-                              // Se estiver em modo de criação em lote, aplicar a todas as empresas selecionadas
-                              const targets = !isEditing ? selectedClientIds : [activeClientId];
-                              
-                              targets.forEach(cid => {
-                                if (nextConfigs[cid]) {
-                                  nextConfigs[cid] = {
-                                    ...nextConfigs[cid],
-                                    workflows: [...(nextConfigs[cid].workflows || []), { ...newWfItem, id: crypto.randomUUID() }]
-                                  };
-                                }
+                  <div className="flex items-end gap-3 bg-slate-50/50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div className="flex-1">
+                      <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Novo Checklist</label>
+                      <input
+                        type="text"
+                        id={`workflow-input-${activeClientId}`}
+                        placeholder="Digite e aperte Enter..."
+                        className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = e.currentTarget.value.trim();
+                            if (val) {
+                              const newWfItem = { id: crypto.randomUUID(), description: val, is_completed: false, is_mandatory: isMandatoryWf };
+                              setClientConfigs(prev => {
+                                const nextConfigs = { ...prev };
+                                // Se estiver em modo de criação em lote, aplicar a todas as empresas selecionadas
+                                const targets = !isEditing ? selectedClientIds : [activeClientId];
+                                
+                                targets.forEach(cid => {
+                                  if (nextConfigs[cid]) {
+                                    nextConfigs[cid] = {
+                                      ...nextConfigs[cid],
+                                      workflows: [...(nextConfigs[cid].workflows || []), { ...newWfItem, id: crypto.randomUUID() }]
+                                    };
+                                  }
+                                });
+                                return nextConfigs;
                               });
-                              return nextConfigs;
-                            });
-                            e.currentTarget.value = '';
+                              e.currentTarget.value = '';
+                            }
                           }
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const input = document.getElementById(`workflow-input-${activeClientId}`) as HTMLInputElement;
-                        const val = input?.value.trim();
-                        if (val) {
-                          const newWfItem = { id: crypto.randomUUID(), description: val, is_completed: false };
-                          setClientConfigs(prev => {
-                            const nextConfigs = { ...prev };
-                            const targets = !isEditing ? selectedClientIds : [activeClientId];
-                            
-                            targets.forEach(cid => {
-                              if (nextConfigs[cid]) {
-                                nextConfigs[cid] = {
-                                  ...nextConfigs[cid],
-                                  workflows: [...(nextConfigs[cid].workflows || []), { ...newWfItem, id: crypto.randomUUID() }]
-                                };
-                              }
-                            });
-                            return nextConfigs;
-                          });
-                          if(input) input.value = '';
-                        }
-                      }}
-                      className="px-4 py-2 bg-indigo-600 text-white font-bold text-xs rounded-lg hover:bg-indigo-500 transition-colors"
-                    >
-                      Adicionar
-                    </button>
+                        }}
+                      />
+                    </div>
+                    <div className="shrink-0 mb-0.5">
+                      <Toggle
+                        label="Obrigatório"
+                        value={isMandatoryWf}
+                        onChange={(val) => setIsMandatoryWf(val)}
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2 mt-4">
@@ -4490,6 +4523,11 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                             <div className="flex items-center gap-3">
                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
                               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{wf.description}</span>
+                              {wf.is_mandatory && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30">
+                                  Obrigatório
+                                </span>
+                              )}
                             </div>
                             <button
                               type="button"

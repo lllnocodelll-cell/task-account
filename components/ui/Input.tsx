@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, Check, Search, ChevronDown, Info } from 'lucide-react';
+import { Copy, Check, Search, ChevronDown, Info, X } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 
 interface CopyButtonProps {
@@ -680,6 +680,214 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
               {selectedOption ? selectedOption.label : placeholder}
             </span>
             <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {typeof document !== 'undefined' && createPortal(dropdownContent, document.body)}
+        </div>
+      )}
+      {error && <span className="text-xs text-red-500">{error}</span>}
+    </div>
+  );
+};
+
+export interface MultiSelectProps {
+  label?: string;
+  tooltip?: string;
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange: (value: string[]) => void;
+  placeholder?: string;
+  error?: string;
+  className?: string;
+  disabled?: boolean;
+}
+
+export const MultiSelect: React.FC<MultiSelectProps> = ({
+  label,
+  options,
+  value,
+  onChange,
+  placeholder = 'Selecione...',
+  error,
+  tooltip,
+  className = '',
+  disabled
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const selectedOptions = options.filter(opt => value.includes(String(opt.value)));
+  const displayValue = selectedOptions.length > 0 
+    ? (selectedOptions.length === 1 ? selectedOptions[0].label : `${selectedOptions.length} selecionados`) 
+    : '-';
+
+  const filteredOptions = options.filter(opt =>
+    opt.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const updateDropdownPosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const dropdownH = 280;
+    const DROPDOWN_MIN_W = 320;
+    const width = Math.max(rect.width, DROPDOWN_MIN_W);
+
+    const spaceBelow = viewportHeight - rect.bottom;
+    const openUpward = spaceBelow < dropdownH && rect.top > dropdownH;
+
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) {
+      left = window.innerWidth - width - 8;
+    }
+
+    setDropdownStyle({
+      position: 'fixed',
+      top: openUpward ? rect.top - dropdownH : rect.bottom + 4,
+      left,
+      width,
+      zIndex: 9999,
+    });
+  };
+
+  const handleOpen = () => {
+    updateDropdownPosition();
+    setIsOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        !(document.getElementById('multi-select-portal')?.contains(target))
+      ) {
+        setIsOpen(false);
+        setSearch('');
+      }
+    };
+    const handleScroll = () => {
+      updateDropdownPosition();
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', updateDropdownPosition);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', updateDropdownPosition);
+    };
+  }, [isOpen]);
+
+  const toggleOption = (optValue: string) => {
+    if (value.includes(optValue)) {
+      onChange(value.filter(v => v !== optValue));
+    } else {
+      onChange([...value, optValue]);
+    }
+  };
+
+  const dropdownContent = isOpen ? (
+    <div
+      id="multi-select-portal"
+      style={dropdownStyle}
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden"
+    >
+      <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            className="w-full h-8 pl-9 pr-3 text-sm bg-slate-50 dark:bg-slate-800 border-none rounded-md focus:ring-1 focus:ring-indigo-500 outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-500"
+            placeholder="Buscar..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+        </div>
+      </div>
+
+      <div className="max-h-52 overflow-y-auto py-1 custom-scrollbar">
+        {filteredOptions.length > 0 ? (
+          filteredOptions.map((opt) => {
+            const isSelected = value.includes(String(opt.value));
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  toggleOption(String(opt.value));
+                }}
+                className={`w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors
+                  ${isSelected
+                    ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/5 font-medium'
+                    : 'text-slate-700 dark:text-slate-200'
+                  }`}
+              >
+                <span>{opt.label}</span>
+                {isSelected && <Check size={14} className="text-indigo-600 dark:text-indigo-400" />}
+              </button>
+            );
+          })
+        ) : (
+          <div className="px-4 py-3 text-sm text-slate-500 text-center">Nenhum resultado</div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <div className={`flex flex-col gap-1.5 ${className}`} ref={containerRef}>
+      {label && (
+        <div className="flex items-center gap-1.5 h-5">
+          <label className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-none">{label}</label>
+          {tooltip && (
+            <Tooltip content={tooltip} position="top">
+              <Info size={12} className="text-slate-400 hover:text-indigo-500 cursor-help transition-colors" />
+            </Tooltip>
+          )}
+        </div>
+      )}
+      {disabled ? (
+        <div className="relative group flex items-center min-h-[40px] px-3 py-2 bg-slate-50/50 dark:bg-slate-800/30 rounded-lg border border-slate-100 dark:border-slate-800/50">
+          <span className="text-sm font-medium text-slate-900 dark:text-slate-100 break-all">
+            {displayValue}
+          </span>
+        </div>
+      ) : (
+        <div className="relative">
+          <button
+            ref={buttonRef}
+            type="button"
+            onClick={() => isOpen ? (setIsOpen(false), setSearch('')) : handleOpen()}
+            className={`w-full min-h-[40px] rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-left flex items-center justify-between transition-all
+              ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}
+              ${isOpen ? 'ring-2 ring-indigo-500 border-transparent' : ''}
+            `}
+          >
+            <div className="flex flex-wrap gap-1 pr-6 flex-1 max-h-24 overflow-y-auto custom-scrollbar">
+              {selectedOptions.length > 0 ? (
+                selectedOptions.map(opt => (
+                  <span key={opt.value} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded text-[11px] font-medium truncate max-w-[150px]">
+                    <span className="truncate">{opt.label}</span>
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); toggleOption(String(opt.value)); }}
+                      className="hover:text-indigo-900 dark:hover:text-indigo-100 p-0.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-500/30 transition-colors shrink-0"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))
+              ) : (
+                <span className="text-slate-400">{placeholder}</span>
+              )}
+            </div>
+            <ChevronDown size={16} className={`text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </button>
           {typeof document !== 'undefined' && createPortal(dropdownContent, document.body)}
         </div>

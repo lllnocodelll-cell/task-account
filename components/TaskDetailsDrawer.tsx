@@ -183,8 +183,17 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onEdit(localTask)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-full transition-all shadow-lg active:scale-95 shadow-indigo-600/20"
+              onClick={() => {
+                if (localTask.status === TaskStatus.CONCLUIDA) return;
+                onEdit(localTask);
+              }}
+              disabled={localTask.status === TaskStatus.CONCLUIDA}
+              className={`flex items-center gap-2 px-4 py-2 text-white text-xs font-bold rounded-full transition-all shadow-lg ${
+                localTask.status === TaskStatus.CONCLUIDA
+                  ? 'bg-slate-400 cursor-not-allowed opacity-50 shadow-none'
+                  : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-indigo-600/20'
+              }`}
+              title={localTask.status === TaskStatus.CONCLUIDA ? "Tarefas concluídas não podem ser editadas" : "Editar Tarefa"}
             >
               <Pencil size={14} />
               Editar

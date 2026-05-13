@@ -141,16 +141,16 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
   useEffect(() => {
     fetchDocuments();
     fetchSectors();
-  }, [userProfile?.client_id]);
+  }, [userProfile?.client_ids]);
 
   const fetchDocuments = async () => {
-    if (!userProfile?.client_id) return;
+    if (!userProfile?.client_ids || userProfile.client_ids.length === 0) return;
     try {
       setLoading(true);
       const { data, error } = await (supabase as any)
         .from('client_documents')
         .select(`*, sectors(name)`)
-        .eq('client_id', userProfile.client_id)
+        .in('client_id', userProfile.client_ids)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -268,7 +268,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
 
     try {
       setIsUploading(true);
-      const filePath = `client-uploads/${userProfile.client_id}/${Date.now()}-${uploadFile.name}`;
+      const targetClientId = userProfile?.client_ids?.[0];
+      
+      if (!targetClientId) {
+        throw new Error('Nenhuma empresa vinculada ao perfil.');
+      }
+      
+      const filePath = `client-uploads/${targetClientId}/${Date.now()}-${uploadFile.name}`;
 
       const { error: uploadError } = await supabase.storage
         .from('client-documents')
@@ -278,7 +284,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
 
       const { error: dbError } = await (supabase as any).from('client_documents').insert({
         org_id: userProfile.org_id,
-        client_id: userProfile.client_id,
+        client_id: targetClientId,
         name: uploadFile.name,
         storage_path: filePath,
         sector_id: uploadSector,

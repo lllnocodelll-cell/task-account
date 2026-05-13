@@ -12,7 +12,9 @@ import {
   MessageSquareMore,
   ListTodo,
   StickyNote,
-  UserCircle
+  UserCircle,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -25,6 +27,8 @@ interface SidebarProps {
   onCloseMobile: () => void;
   onLogout?: () => void;
   userRole: UserRole;
+  isDarkMode?: boolean;
+  toggleTheme?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -35,7 +39,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   onCloseMobile,
   onLogout,
-  userRole
+  userRole,
+  isDarkMode,
+  toggleTheme
 }) => {
   const [notesCount, setNotesCount] = useState<number>(0);
   const [chatsCount, setChatsCount] = useState<number>(0);
@@ -234,7 +240,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'chat',
-          label: 'Chat Equipe',
+          label: 'Chat',
           icon: <MessageSquareMore size={20} />,
           badge: chatsCount > 0 ? chatsCount : undefined
         },
@@ -242,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const bottomMenuItems = [
     { id: 'settings', label: 'Configurações', icon: <Settings size={20} />, restrictedTo: ['gestor'] },
-    { id: 'support', label: 'Suporte', icon: <HelpCircle size={20} /> },
+    ...(userRole !== 'cliente' ? [{ id: 'support', label: 'Suporte', icon: <HelpCircle size={20} /> }] : [])
   ];
 
   const renderMenuItem = (item: { id: string; label: string; icon: React.ReactNode; restrictedTo?: string[]; badge?: number }) => {
@@ -304,7 +310,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className={`h-16 flex items-center border-b border-slate-200 dark:border-slate-800 ${isCollapsed ? 'justify-center' : 'px-6'}`}>
         <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-500 overflow-hidden whitespace-nowrap">
           <Hexagon size={28} strokeWidth={2.5} className="shrink-0" />
-          <span className={`text-xl font-bold tracking-tight text-slate-900 dark:text-white transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
+          <span className={`text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none mt-1 transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
             Task Account
           </span>
         </div>
@@ -325,20 +331,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Bottom Navigation & Logout */}
       <div className="px-3 pb-4 space-y-1">
         <div className="border-t border-slate-200 dark:border-slate-800 my-2 mx-2" />
+
+        <button
+          onClick={toggleTheme}
+          className={`group w-full flex justify-between items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 ${isCollapsed ? 'justify-center' : ''}`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="shrink-0 relative">
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </div>
+            <span className={`transition-all duration-300 truncate ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
+              {isDarkMode ? "Modo Claro" : "Modo Escuro"}
+            </span>
+          </div>
+
+          {/* Tooltip */}
+          {isCollapsed && (
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
+              {isDarkMode ? "Modo Claro" : "Modo Escuro"}
+            </div>
+          )}
+        </button>
+
         {bottomMenuItems.map(renderMenuItem)}
 
         <button
           onClick={onLogout}
-          className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 w-full transition-colors overflow-hidden whitespace-nowrap relative ${isCollapsed ? 'justify-center' : ''}`}
+          className={`group w-full flex justify-between items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 ${isCollapsed ? 'justify-center' : ''}`}
         >
-          <div className="shrink-0"><LogOut size={20} /></div>
-          <span className={`transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
-            Sair
-          </span>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="shrink-0 relative">
+              <LogOut size={20} />
+            </div>
+            <span className={`transition-all duration-300 truncate ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
+              Sair
+            </span>
+          </div>
 
           {/* Tooltip Logout */}
           {isCollapsed && (
-            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
               Sair
             </div>
           )}

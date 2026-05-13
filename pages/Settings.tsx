@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input, Select } from '../components/ui/Input';
+import { Input, Select, MultiSelect } from '../components/ui/Input';
 import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
@@ -105,8 +105,8 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [deleteModalState, setDeleteModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
 
   const [clients, setClients] = useState<any[]>([]);
-  const [clientId, setClientId] = useState('');
-  const [editClientId, setEditClientId] = useState('');
+  const [clientIds, setClientIds] = useState<string[]>([]);
+  const [editClientIds, setEditClientIds] = useState<string[]>([]);
 
   // Accordion state
   const [isMembersExpanded, setIsMembersExpanded] = useState(false);
@@ -147,8 +147,8 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
     setAdding(true);
     try {
-      if (role === 'cliente' && !clientId) {
-        addToast('error', 'Erro', 'Selecione uma empresa para vincular o cliente');
+      if (role === 'cliente' && clientIds.length === 0) {
+        addToast('error', 'Erro', 'Selecione pelo menos uma empresa para vincular o cliente');
         setAdding(false);
         return;
       }
@@ -159,7 +159,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         last_name: lastName,
         email,
         sector_id: role !== 'cliente' ? (sectorId || null) : null,
-        client_id: role === 'cliente' ? clientId : null,
+        client_ids: role === 'cliente' ? clientIds : [],
         role: role
       }).select('*, sectors(name), clients(company_name)');
 
@@ -171,7 +171,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setLastName('');
         setEmail('');
         setSectorId('');
-        setClientId('');
+        setClientIds([]);
         setRole('operacional');
         addToast('success', 'Sucesso', 'Membro cadastrado com sucesso!');
       }
@@ -212,7 +212,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditEmail(member.email || '');
     setEditSectorId(member.sector_id || '');
     setEditRole(member.role || 'operacional');
-    setEditClientId(member.client_id || '');
+    setEditClientIds(member.client_ids || []);
   };
 
   const cancelEditingMember = () => {
@@ -222,7 +222,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditEmail('');
     setEditSectorId('');
     setEditRole('operacional');
-    setEditClientId('');
+    setEditClientIds([]);
   };
 
   const handleUpdateMember = async (id: string) => {
@@ -231,7 +231,6 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     // Otimista parcial
     const originalMembers = [...members];
     const sectorName = sectors.find(s => s.id === editSectorId)?.name || '';
-    const clientName = clients.find(c => c.id === editClientId)?.company_name || '';
 
     setMembers(prev => prev.map(m => m.id === id ? {
       ...m,
@@ -239,10 +238,9 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       last_name: editLastName,
       email: editEmail,
       sector_id: editRole !== 'cliente' ? (editSectorId || null) : null,
-      client_id: editRole === 'cliente' ? (editClientId || null) : null,
+      client_ids: editRole === 'cliente' ? editClientIds : [],
       role: editRole,
-      sectors: sectorName ? { name: sectorName } : null,
-      clients: clientName ? { company_name: clientName } : null
+      sectors: sectorName ? { name: sectorName } : null
     } : m));
 
     try {
@@ -253,7 +251,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           last_name: editLastName,
           email: editEmail,
           sector_id: editRole !== 'cliente' ? (editSectorId || null) : null,
-          client_id: editRole === 'cliente' ? (editClientId || null) : null,
+          client_ids: editRole === 'cliente' ? editClientIds : [],
           role: editRole
         })
         .eq('id', id);
@@ -352,14 +350,11 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 ]}
               />
               {role === 'cliente' ? (
-                <Select
-                  label="Empresa Vinculada"
-                  value={clientId}
-                  onChange={e => setClientId(e.target.value)}
-                  options={[
-                    { value: '', label: 'Selecione a empresa' },
-                    ...clients.map(c => ({ value: c.id, label: c.company_name }))
-                  ]}
+                <MultiSelect
+                  label="Empresas Vinculadas"
+                  value={clientIds}
+                  onChange={setClientIds}
+                  options={clients.map(c => ({ value: c.id, label: c.company_name }))}
                 />
               ) : (
                 <Select
@@ -429,7 +424,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                       editEmail, setEditEmail,
                       editRole, setEditRole,
                       editSectorId, setEditSectorId,
-                      editClientId, setEditClientId
+                      editClientIds, setEditClientIds
                     }}
                     sectors={sectors}
                     clients={clients}
@@ -492,7 +487,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                       editEmail, setEditEmail,
                       editRole, setEditRole,
                       editSectorId, setEditSectorId,
-                      editClientId, setEditClientId
+                      editClientIds, setEditClientIds
                     }}
                     sectors={sectors}
                     clients={clients}
@@ -607,7 +602,7 @@ const MemberCard: React.FC<any> = ({
     editEmail, setEditEmail,
     editRole, setEditRole,
     editSectorId, setEditSectorId,
-    editClientId, setEditClientId
+    editClientIds, setEditClientIds
   } = editStates;
 
   if (isEditing) {
@@ -629,14 +624,11 @@ const MemberCard: React.FC<any> = ({
           ]}
         />
         {editRole === 'cliente' ? (
-          <Select
-            label="Empresa"
-            value={editClientId}
-            onChange={e => setEditClientId(e.target.value)}
-            options={[
-              { value: '', label: 'Selecione' },
-              ...clients.map((c: any) => ({ value: c.id, label: c.company_name }))
-            ]}
+          <MultiSelect
+            label="Empresas Vinculadas"
+            value={editClientIds}
+            onChange={setEditClientIds}
+            options={clients.map((c: any) => ({ value: c.id, label: c.company_name }))}
           />
         ) : (
           <Select
@@ -678,9 +670,21 @@ const MemberCard: React.FC<any> = ({
             <div className="flex flex-col gap-0.5">
               <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate"><Mail size={12} /> {member.email}</span>
               {member.role === 'cliente' ? (
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                  🏢 {member.clients?.company_name || 'Nenhuma empresa vinculada'}
-                </span>
+                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center mr-1">🏢</span>
+                  {member.client_ids && member.client_ids.length > 0 ? (
+                    member.client_ids.map((cid: string) => {
+                      const clientName = clients.find((c: any) => c.id === cid)?.company_name || 'Desconhecida';
+                      return (
+                        <span key={cid} className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 truncate max-w-[120px]">
+                          {clientName}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Nenhuma empresa vinculada</span>
+                  )}
+                </div>
               ) : member.sectors?.name && (
                 <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
                   📁 {member.sectors.name}

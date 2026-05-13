@@ -1623,7 +1623,7 @@ export const Chat: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          {activeTab === 'chats' ? (
+          {activeTab === 'chats' && currentUser?.role !== 'cliente' ? (
             teamItems.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">Nenhum membro ou grupo encontrado.</div>
             ) : teamItems.map(item => (
@@ -1676,7 +1676,7 @@ export const Chat: React.FC = () => {
                 </div>
               </button>
             ))
-          ) : activeTab === 'support' || activeTab === 'closed' ? (
+          ) : (activeTab === 'support' || activeTab === 'closed' || (activeTab === 'chats' && currentUser?.role === 'cliente')) ? (
             filteredChannels.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">Nenhuma conversa encontrada.</div>
             ) : filteredChannels.map(channel => (
