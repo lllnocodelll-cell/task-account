@@ -109,22 +109,23 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ label, isActive, 
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        onClick={() => isOpen ? setIsOpen(false) : openPanel()}
-        className={`relative p-1 rounded-md transition-colors ${isActive || isOpen
-          ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
-          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        title={`Filtrar por ${label}`}
-      >
-        <ListFilter size={14} strokeWidth={isActive ? 2.5 : 2} />
-        {isActive && activeCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 bg-indigo-600 text-white">
-            {activeCount}
-          </span>
-        )}
-      </button>
+      <Tooltip content={`Filtrar por ${label}`} position="top">
+        <button
+          ref={buttonRef}
+          onClick={() => isOpen ? setIsOpen(false) : openPanel()}
+          className={`relative p-1 rounded-md transition-colors ${isActive || isOpen
+            ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
+            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+        >
+          <ListFilter size={14} strokeWidth={isActive ? 2.5 : 2} />
+          {isActive && activeCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 bg-indigo-600 text-white">
+              {activeCount}
+            </span>
+          )}
+        </button>
+      </Tooltip>
 
       {isOpen && typeof document !== 'undefined' && createPortal(
         <div

@@ -211,22 +211,23 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
   return (
     <>
       {/* Botão trigger */}
-      <button
-        ref={buttonRef}
-        onClick={() => isOpen ? setIsOpen(false) : openPanel()}
-        className={`relative p-1 rounded-md transition-colors ${isActive || isOpen
-          ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
-          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        title={`Filtrar por ${label}`}
-      >
-        <ListFilter size={14} strokeWidth={isActive ? 2.5 : 2} />
-        {isActive && activeCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 bg-indigo-600 text-white">
-            {activeCount}
-          </span>
-        )}
-      </button>
+      <Tooltip content={`Filtrar por ${label}`} position="top">
+        <button
+          ref={buttonRef}
+          onClick={() => isOpen ? setIsOpen(false) : openPanel()}
+          className={`relative p-1 rounded-md transition-colors ${isActive || isOpen
+            ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
+            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+        >
+          <ListFilter size={14} strokeWidth={isActive ? 2.5 : 2} />
+          {isActive && activeCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 bg-indigo-600 text-white">
+              {activeCount}
+            </span>
+          )}
+        </button>
+      </Tooltip>
 
       {/* Painel via portal — renderizado no document.body, fora do overflow */}
       {isOpen && typeof document !== 'undefined' && createPortal(
@@ -817,23 +818,24 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             </span>
 
             {/* Botão de Filtro */}
-            <button
-              ref={filterBtnRef}
-              onClick={(e) => { e.stopPropagation(); isFilterOpen ? setIsFilterOpen(false) : openFilterPanel(); }}
-              className={`relative p-1.5 rounded-lg border transition-all duration-200 ${
-                isFilterActive || isFilterOpen
-                  ? accent.btn
-                  : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-              }`}
-              title="Filtrar coluna"
-            >
-              <SlidersHorizontal size={12} strokeWidth={2.5} />
-              {isFilterActive && (
-                <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 ${accent.badge}`}>
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
+            <Tooltip content="Filtrar coluna" position="top">
+              <button
+                ref={filterBtnRef}
+                onClick={(e) => { e.stopPropagation(); isFilterOpen ? setIsFilterOpen(false) : openFilterPanel(); }}
+                className={`relative p-1.5 rounded-lg border transition-all duration-200 ${
+                  isFilterActive || isFilterOpen
+                    ? accent.btn
+                    : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <SlidersHorizontal size={12} strokeWidth={2.5} />
+                {isFilterActive && (
+                  <span className={`absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full text-[8px] font-black px-0.5 ring-2 ring-white dark:ring-slate-900 ${accent.badge}`}>
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </Tooltip>
           </div>
         </div>
 
@@ -3014,7 +3016,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
                 <KanbanColumn
                   onUpdateTag={handleUpdateTaskTag}
-                  title="Pendente"
+                  title="Pendentes"
                   status={TaskStatus.PENDENTE}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE)}
                   onEdit={handleEdit}
