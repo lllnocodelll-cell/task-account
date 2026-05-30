@@ -419,19 +419,23 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </div>
                       </div>
                     </div>
-                    {localTask.selectedAnnexes && localTask.selectedAnnexes.length > 0 && (
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
-                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Anexos Vinculados</span>
-                        <div className="flex flex-wrap gap-2">
-                          {localTask.selectedAnnexes.map(annex => (
-                            <span key={annex} className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                              <Layers size={10} className="text-indigo-500" />
-                              {annex}
-                            </span>
-                          ))}
+                    {(() => {
+                      const drawerVisibleAnnexes = localTask.selectedAnnexes?.filter(a => a !== 'Nulo' && a !== 'Sem Anexo') || [];
+                      if (drawerVisibleAnnexes.length === 0) return null;
+                      return (
+                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
+                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Anexos Vinculados</span>
+                          <div className="flex flex-wrap gap-2">
+                            {drawerVisibleAnnexes.map(annex => (
+                              <span key={annex} className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                                <Layers size={10} className="text-indigo-500" />
+                                {annex}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

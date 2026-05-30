@@ -84,7 +84,7 @@ const DF_MODELS = [
   { id: 'nfgas', label: 'NFGAS', desc: 'Nota Fiscal de Gás Canalizado' },
 ];
 
-const SIMPLES_ANNEXES = ['Anexo I', 'Anexo II', 'Anexo III', 'Anexo IV', 'Anexo V'];
+const SIMPLES_ANNEXES = ['Anexo I', 'Anexo II', 'Anexo III', 'Anexo IV', 'Anexo V', 'Nulo'];
 
 const REGISTRATION_REGIME_LABELS: Record<string, string> = {
   'competencia': 'Competência',
@@ -736,6 +736,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       sublimitMatch &&
       exclusionMatch
     );
+  }).sort((a, b) => {
+    const compCompare = (a.competence || '').localeCompare(b.competence || '');
+    if (compCompare !== 0) return compCompare;
+    return (a.dueDate || '').localeCompare(b.dueDate || '');
   });
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -1101,8 +1105,9 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 min-h-[100px]">
         {localFilteredTasks.map(task => {
           const clientData = clients.find(c => c.id === task.clientId);
-          const hasSimplesBadges = task.taxRegime === 'simples' && (
-            (task.selectedAnnexes && task.selectedAnnexes.length > 0) || task.factorR || task.exceededSublimit || task.notifiedExclusion
+          const visibleAnnexes = task.selectedAnnexes?.filter(a => a !== 'Nulo' && a !== 'Sem Anexo') || [];
+          const hasSimplesBadges = ['simples', 'simples_iva'].includes(task.taxRegime) && (
+            visibleAnnexes.length > 0 || task.factorR || task.exceededSublimit || task.notifiedExclusion
           );
           const hasExtraInfo = (task.clientDfes && task.clientDfes.length > 0) || 
                               (task.clientAccesses && task.clientAccesses.length > 0) || 
@@ -1194,11 +1199,15 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   </div>
                   {hasSimplesBadges && (
                     <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-700/50">
-                      {task.selectedAnnexes && task.selectedAnnexes.length > 0 && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-[9px] text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-500/20">
-                          <Layers size={8} /> Anexo: {task.selectedAnnexes.map(a => a.replace('Anexo ', '')).join(', ')}
-                        </span>
-                      )}
+                      {(() => {
+                        const cardVisibleAnnexes = task.selectedAnnexes?.filter(a => a !== 'Nulo' && a !== 'Sem Anexo') || [];
+                        if (cardVisibleAnnexes.length === 0) return null;
+                        return (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-[9px] text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-200 dark:border-emerald-500/20">
+                            <Layers size={8} /> Anexo: {cardVisibleAnnexes.map(a => a.replace('Anexo ', '')).join(', ')}
+                          </span>
+                        );
+                      })()}
                       {task.factorR && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-500/10 text-[9px] text-indigo-700 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-500/20">
                           <Zap size={8} fill="currentColor" /> Fator R
@@ -1410,6 +1419,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 };
 // --- MAIN TASKS PAGE ---
 
+const MAX_RENDER_TABLE = 150;
+const MAX_RENDER_KANBAN = 100;
 
 // --- MAIN TASKS PAGE ---
 
@@ -1545,6 +1556,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   // Derived filtered tasks
   const filteredTasks = cardsTasks.filter((task) => {
     return (filters.status === '' || task.status === filters.status);
+  }).sort((a, b) => {
+    const compCompare = (a.competence || '').localeCompare(b.competence || '');
+    if (compCompare !== 0) return compCompare;
+    return (a.dueDate || '').localeCompare(b.dueDate || '');
   });
 
   // Base de tarefas para o Kanban: ignora filtros de data/competência e status
@@ -1567,6 +1582,10 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         ? filters.responsibleList.includes(task.responsible)
         : task.responsible.toLowerCase().includes(filters.responsible.toLowerCase()))
     );
+  }).sort((a, b) => {
+    const compCompare = (a.competence || '').localeCompare(b.competence || '');
+    if (compCompare !== 0) return compCompare;
+    return (a.dueDate || '').localeCompare(b.dueDate || '');
   });
 
   const totalTasks = cardsTasks.length;
@@ -2371,9 +2390,30 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               <p className="text-sm text-slate-500">Carregando tarefas...</p>
             </div>
           </div>
-        ) : layoutMode === 'list' ? (
-          <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
-            <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+        ) : (
+          <>
+            {/* Banner de Aviso de Limite de Exibição */}
+            {((layoutMode === 'list' && filteredTasks.length > MAX_RENDER_TABLE) ||
+              (layoutMode === 'kanban' && 
+                (kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE).length > MAX_RENDER_KANBAN ||
+                 kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA).length > MAX_RENDER_KANBAN ||
+                 kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA).length > MAX_RENDER_KANBAN ||
+                 kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA).length > MAX_RENDER_KANBAN)
+              )) && (
+              <div className="flex items-center gap-3 p-4 mb-4 bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl text-xs text-indigo-700 dark:text-indigo-300">
+                <Info size={16} className="text-indigo-500 shrink-0" />
+                <span>
+                  <strong>Filtro amplo detectado:</strong> Para otimizar a performance da página, exibimos no máximo 
+                  {layoutMode === 'list' ? ` os primeiros ${MAX_RENDER_TABLE} resultados` : ` os primeiros ${MAX_RENDER_KANBAN} cartões por coluna`} de um total de 
+                  <strong> {layoutMode === 'list' ? filteredTasks.length : tasks.length}</strong> tarefas. 
+                  Utilize os filtros acima para refinar sua pesquisa.
+                </span>
+              </div>
+            )}
+
+            {layoutMode === 'list' ? (
+              <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
+                <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
               <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-collapse">
                 <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
                   <tr>
@@ -2583,7 +2623,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                             onClick={() => {
                                               const newVal = filters.taxRegime === opt.value ? '' : opt.value;
                                               handleFilterChange('taxRegime', newVal);
-                                              if (newVal !== 'simples') handleFilterChange('selectedAnnex', '');
+                                              if (!['simples', 'simples_iva'].includes(newVal)) handleFilterChange('selectedAnnex', '');
                                             }}
                                             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
                                               filters.taxRegime === opt.value
@@ -2607,7 +2647,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                 </div>
                               </div>
                               {/* Anexo — só para Simples */}
-                              {filters.taxRegime === 'simples' && (
+                              {['simples', 'simples_iva'].includes(filters.taxRegime) && (
                                 <div>
                                   <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Anexo do Simples</label>
                                   <select className={headerInputClass} value={filters.selectedAnnex} onChange={e => handleFilterChange('selectedAnnex', e.target.value)}>
@@ -2771,7 +2811,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       </td>
                     </tr>
                   ) : (
-                    filteredTasks.map((task) => (
+                    filteredTasks.slice(0, MAX_RENDER_TABLE).map((task) => (
                       <tr key={task.id} className="group relative border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
@@ -2932,34 +2972,38 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                               </div>
                             )}
 
-                            {task.taxRegime === 'simples' && (
-                              <div className="flex flex-col gap-0.5 mt-0.5">
-                                {task.selectedAnnexes && task.selectedAnnexes.length > 0 && (
-                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                                    <Layers size={10} className="text-slate-300" />
-                                    <span>Anexos: {task.selectedAnnexes.map(a => a.replace('Anexo ', '')).join(', ')}</span>
-                                  </div>
-                                )}
-                                {task.factorR && (
-                                  <div className="flex items-center gap-1.5 text-[10px] text-indigo-500 font-bold">
-                                    <Zap size={10} fill="currentColor" />
-                                    <span>Fator R</span>
-                                  </div>
-                                )}
-                                {task.exceededSublimit && (
-                                  <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-bold">
-                                    <AlertTriangle size={10} />
-                                    <span>Excedeu Sublimite</span>
-                                  </div>
-                                )}
-                                {task.notifiedExclusion && (
-                                  <div className="flex items-center gap-1.5 text-[10px] text-rose-500 font-bold">
-                                    <AlertTriangle size={10} />
-                                    <span>Exclusão Notificada</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                            {['simples', 'simples_iva'].includes(task.taxRegime) && (() => {
+                              const tblVisibleAnnexes = task.selectedAnnexes?.filter(a => a !== 'Nulo' && a !== 'Sem Anexo') || [];
+                              if (tblVisibleAnnexes.length === 0 && !task.factorR && !task.exceededSublimit && !task.notifiedExclusion) return null;
+                              return (
+                                <div className="flex flex-col gap-0.5 mt-0.5">
+                                  {tblVisibleAnnexes.length > 0 && (
+                                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                                      <Layers size={10} className="text-slate-300" />
+                                      <span>Anexos: {tblVisibleAnnexes.map(a => a.replace('Anexo ', '')).join(', ')}</span>
+                                    </div>
+                                  )}
+                                  {task.factorR && (
+                                    <div className="flex items-center gap-1.5 text-[10px] text-indigo-500 font-bold">
+                                      <Zap size={10} fill="currentColor" />
+                                      <span>Fator R</span>
+                                    </div>
+                                  )}
+                                  {task.exceededSublimit && (
+                                    <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-bold">
+                                      <AlertTriangle size={10} />
+                                      <span>Excedeu Sublimite</span>
+                                    </div>
+                                  )}
+                                  {task.notifiedExclusion && (
+                                    <div className="flex items-center gap-1.5 text-[10px] text-rose-500 font-bold">
+                                      <AlertTriangle size={10} />
+                                      <span>Exclusão Notificada</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -3018,7 +3062,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onUpdateTag={handleUpdateTaskTag}
                   title="Pendentes"
                   status={TaskStatus.PENDENTE}
-                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE)}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE).slice(0, MAX_RENDER_KANBAN)}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
@@ -3047,7 +3091,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onUpdateTag={handleUpdateTaskTag}
                   title="Iniciadas"
                   status={TaskStatus.INICIADA}
-                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA)}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA).slice(0, MAX_RENDER_KANBAN)}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
@@ -3076,7 +3120,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onUpdateTag={handleUpdateTaskTag}
                   title="Atrasadas"
                   status={TaskStatus.ATRASADA}
-                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA)}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA).slice(0, MAX_RENDER_KANBAN)}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
@@ -3105,7 +3149,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onUpdateTag={handleUpdateTaskTag}
                   title="Concluídas"
                   status={TaskStatus.CONCLUIDA}
-                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA)}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA).slice(0, MAX_RENDER_KANBAN)}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}
@@ -3131,10 +3175,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               </div>
             </div>
           </div>
-        )
-      }
+        )}
+      </>
+    )
+  }
 
-      {/* Reopen Task Modal */}
+  {/* Reopen Task Modal */}
       <Modal
         isOpen={reopenModalOpen}
         onClose={() => {
@@ -3968,31 +4014,83 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
 
           if (taskError) throw taskError;
 
+          const wfs = clientConfigs[payload.client_name]?.workflows;
+
           // Atualizar tarefas futuras se solicitado
           if (updateFutureTasks && taskData) {
             const { data: futureTasks, error: fetchFutureError } = await (supabase.from('tasks') as any)
-              .select('id, competence')
-              .eq('client_id', payload.client_id)
-              .eq('org_id', userProfile.org_id)
-              .eq('task_name', initialData.taskName)
-              .gt('competence', initialData.competence);
+               .select('id, competence')
+               .eq('client_id', payload.client_id)
+               .eq('org_id', userProfile.org_id)
+               .eq('task_name', initialData.taskName)
+               .gt('competence', initialData.competence);
 
             if (futureTasks && futureTasks.length > 0) {
+              const t = tasksToSave.find(x => x.id === payload.id);
               for (const ft of futureTasks) {
+                let updatedFields: any = {
+                  responsible: payload.responsible,
+                  priority: payload.priority,
+                  tax_regime: payload.tax_regime,
+                  registration_regime: payload.registration_regime,
+                  no_movement: payload.no_movement,
+                  exceeded_sublimit: payload.exceeded_sublimit,
+                  factor_r: payload.factor_r,
+                  notified_exclusion: payload.notified_exclusion,
+                  selected_annexes: payload.selected_annexes,
+                  observation: payload.observation
+                };
+
+                if (t && t.vencimento) {
+                  const [startYear, startMonth] = t.competence.split('-').map(Number);
+                  const dDate = new Date(t.vencimento + 'T12:00:00');
+                  const dYear = dDate.getFullYear();
+                  const dMonth = dDate.getMonth() + 1;
+                  const baseDay = dDate.getDate();
+                  const monthOffset = (dYear - startYear) * 12 + (dMonth - startMonth);
+
+                  const [fYear, fMonth] = ft.competence.split('-').map(Number);
+                  const targetMonthIndex = (fMonth - 1) + monthOffset;
+                  const tempDate = new Date(fYear, targetMonthIndex, 1);
+                  const resYear = tempDate.getFullYear();
+                  const resMonth = tempDate.getMonth();
+                  const daysInResMonth = new Date(resYear, resMonth + 1, 0).getDate();
+                  const finalDay = Math.min(baseDay, daysInResMonth);
+                  const rawFutureDueStr = `${resYear}-${(resMonth + 1).toString().padStart(2, '0')}-${finalDay.toString().padStart(2, '0')}`;
+
+                  const adjustedDueDate = calculateAdjustedDate(rawFutureDueStr, payload.variable_adjustment, holidayDates);
+
+                  updatedFields.due_date = adjustedDueDate;
+                  updatedFields.variable_adjustment = payload.variable_adjustment;
+                }
+
                 const { error: futureUpdateError } = await (supabase.from('tasks') as any)
-                  .update({
-                    responsible: payload.responsible,
-                    priority: payload.priority,
-                    tax_regime: payload.tax_regime,
-                    registration_regime: payload.registration_regime,
-                    no_movement: payload.no_movement,
-                    exceeded_sublimit: payload.exceeded_sublimit,
-                    factor_r: payload.factor_r,
-                    notified_exclusion: payload.notified_exclusion,
-                    selected_annexes: payload.selected_annexes
-                  })
+                  .update(updatedFields)
                   .eq('id', ft.id);
                 if (futureUpdateError) throw futureUpdateError;
+
+                // Replicar os workflows em cascata para a tarefa futura
+                if (wfs) {
+                  const { error: deleteWfError } = await (supabase as any)
+                    .from('task_workflows')
+                    .delete()
+                    .eq('task_id', ft.id);
+                  if (deleteWfError) throw deleteWfError;
+
+                  if (wfs.length > 0) {
+                    const futureWfsToInsert = wfs.map((wf: any, idx: number) => ({
+                      task_id: ft.id,
+                      description: wf.description,
+                      is_completed: false, // Tarefas futuras iniciam pendentes
+                      is_mandatory: wf.is_mandatory || false,
+                      order_index: idx
+                    }));
+                    const { error: insertWfError } = await (supabase as any)
+                      .from('task_workflows')
+                      .insert(futureWfsToInsert);
+                    if (insertWfError) throw insertWfError;
+                  }
+                }
               }
             }
           }
@@ -4012,7 +4110,6 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
           }
 
           // Workflows para edição
-          const wfs = clientConfigs[payload.client_name]?.workflows;
           if (wfs) {
             await (supabase as any).from('task_workflows').delete().eq('task_id', taskData.id);
             if (wfs.length > 0) {
@@ -4184,13 +4281,14 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
               <div className="space-y-4">
                 <SearchableSelect
                   label="Empresa"
+                  disabled={isEditing}
                   options={clients
                     .filter(c => !selectedClientIds.includes(c.companyName))
                     .map(c => ({
                       value: c.companyName,
                       label: c.companyName
                     }))}
-                  value=""
+                  value={isEditing ? (activeClientId || "") : ""}
                   onChange={(val) => {
                     if (val && !selectedClientIds.includes(val)) {
                       if (selectedClientIds.length >= 100) {
@@ -4576,6 +4674,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                     <Select
                       label="Tarefa"
                       className="text-[11px]"
+                      disabled={isEditing}
                       options={taskTypes.map(t => ({ value: t.name, label: t.name }))}
                       value={tempTask.taskName}
                       onChange={(e) => {
@@ -4673,6 +4772,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                     <Select
                       label="Recorrência"
                       className="text-[11px]"
+                      disabled={isEditing}
                       options={[
                         { value: '', label: 'Selecione' },
                         { value: 'personalizado', label: 'Personalizado' },
@@ -4774,6 +4874,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                           <button
                             key={month}
                             type="button"
+                            disabled={isEditing}
                             onClick={() => {
                               setTempTask(prev => ({
                                 ...prev,
@@ -4782,7 +4883,7 @@ function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () =>
                                   : [...prev.months, monthNum]
                               }));
                             }}
-                            className={`py-2 px-1 rounded-lg border text-xs font-bold transition-all ${tempTask.months.includes(monthNum)
+                            className={`py-2 px-1 rounded-lg border text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${tempTask.months.includes(monthNum)
                               ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
                               : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-indigo-300'
                               }`}

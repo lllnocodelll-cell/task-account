@@ -302,7 +302,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = options.find(opt => opt.value === value);
-  const displayValue = selectedOption ? selectedOption.label : '-';
+  const displayValue = selectedOption ? selectedOption.label : (value ? String(value) : '-');
 
   const handleCopy = (e: React.MouseEvent, text: string) => {
     e.preventDefault();
