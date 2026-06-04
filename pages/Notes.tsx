@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Pin, Calendar, Save, Loader2, StickyNote, Sticker } from 'lucide-react';
+import { Plus, Search, Trash2, Pin, Calendar, Save, Loader2, StickyNote, Sticker, SaveOff } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
@@ -331,7 +331,7 @@ export const Notes: React.FC = () => {
                         onClick={(e) => toggleArchive(note.id, note.is_archived, e)}
                         className="text-slate-400 hover:text-indigo-500 p-1 rounded transition-colors"
                       >
-                        {note.is_archived ? <Plus size={16} className="rotate-45" /> : <Save size={16} />}
+                        {note.is_archived ? <SaveOff size={16} /> : <Save size={16} />}
                       </button>
                       <span className="tooltip-content">{note.is_archived ? "Desarquivar" : "Arquivar"}</span>
                     </div>
@@ -378,17 +378,15 @@ export const Notes: React.FC = () => {
                   onClick={(e) => triggerDelete(currentNote.id!, e as any)}
                   icon={<Trash2 size={16} />}
                   disabled={saving || isDeleting}
-                >
-                  Excluir
-                </Button>
+                  title="Excluir nota"
+                />
                 <Button
                   variant="secondary"
                   onClick={(e) => toggleArchive(currentNote.id!, currentNote.is_archived, e as any)}
-                  icon={currentNote.is_archived ? <Plus size={16} className="rotate-45" /> : <Save size={16} />}
+                  icon={currentNote.is_archived ? <SaveOff size={16} /> : <Save size={16} />}
                   disabled={saving}
-                >
-                  {currentNote.is_archived ? 'Desarquivar' : 'Arquivar'}
-                </Button>
+                  title={currentNote.is_archived ? 'Desarquivar nota' : 'Arquivar nota'}
+                />
               </div>
             )}
             <div className="flex gap-2 ml-auto">
