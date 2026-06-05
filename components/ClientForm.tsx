@@ -505,6 +505,51 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Usuário não autenticado');
 
+            // Validação de duplicidade do código
+            if (formData.code) {
+                let query = supabase
+                    .from('clients')
+                    .select('id')
+                    .eq('code', formData.code);
+                
+                if (initialData?.id) {
+                    query = query.neq('id', initialData.id);
+                }
+                
+                const { data: duplicateClients, error: duplicateError } = await query;
+                
+                if (duplicateError) throw duplicateError;
+                
+                if (duplicateClients && duplicateClients.length > 0) {
+                    showNotify(`O código "${formData.code}" já está em uso por outro cliente.`, 'error');
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Validação de duplicidade do CPF/CNPJ
+            if (formData.document) {
+                let query = supabase
+                    .from('clients')
+                    .select('id')
+                    .eq('document', formData.document);
+                
+                if (initialData?.id) {
+                    query = query.neq('id', initialData.id);
+                }
+                
+                const { data: duplicateDocs, error: duplicateDocError } = await query;
+                
+                if (duplicateDocError) throw duplicateDocError;
+                
+                if (duplicateDocs && duplicateDocs.length > 0) {
+                    const label = personType === 'fisica' ? 'CPF' : personType === 'juridica' ? 'CNPJ' : 'Documento';
+                    showNotify(`Este ${label} já está cadastrado para outro cliente.`, 'error');
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const clientData = {
                 org_id: userProfile.org_id,
                 code: formData.code,
@@ -658,25 +703,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         { id: 'dfe', label: 'Séries DF-e' },
     ];
 
-    // Agrupa segmentos por categoria preservando a ordem dos sort_order
-    const groupedSegments = segments.reduce((acc, seg) => {
-        const cat = seg.category || 'Outros';
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(seg);
-        return acc;
-    }, {} as Record<string, ClientSegment[]>);
-
     // Filtra segmentos com base na busca
-    const filteredGroupedSegments = segmentSearch.trim()
-        ? Object.entries(groupedSegments).reduce((acc, [cat, segs]) => {
-            const q = segmentSearch.toLowerCase();
-            const matching = segs.filter(s =>
-                s.name.toLowerCase().includes(q) || cat.toLowerCase().includes(q)
-            );
-            if (matching.length > 0) acc[cat] = matching;
-            return acc;
-          }, {} as Record<string, ClientSegment[]>)
-        : groupedSegments;
+    const filteredSegments = segmentSearch.trim()
+        ? segments.filter(s => s.name.toLowerCase().includes(segmentSearch.toLowerCase()))
+        : segments;
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -719,7 +749,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             label="Código"
                             placeholder="000000"
                             value={formData.code}
-                            onChange={e => setFormData({ ...formData, code: e.target.value })}
+                            onChange={e => {
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                setFormData({ ...formData, code: val });
+                            }}
                             disabled={readOnly}
                         />
                     </div>
@@ -733,7 +766,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 { value: 'fisica', label: 'Física' },
                                 { value: 'exterior', label: 'Exterior' },
                             ]}
-                            disabled={readOnly}
+                            disabled={readOnly || isEditing}
                         />
                     </div>
                     <div className="flex items-end gap-2 md:col-span-4">
@@ -743,9 +776,9 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             containerClassName="flex-1"
                             value={formData.document}
                             onChange={handleDocumentChange}
-                            disabled={readOnly}
+                            disabled={readOnly || isEditing}
                         />
-                        {!readOnly && personType === 'juridica' && (
+                        {!readOnly && !isEditing && personType === 'juridica' && (
                                 <Tooltip content="Buscar dados na Receita Federal" position="bottom">
                                     <button 
                                         type="button"
@@ -873,36 +906,29 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                     {/* Options list */}
                                     <div className="max-h-64 overflow-y-auto">
-                                        {Object.keys(filteredGroupedSegments).length === 0 ? (
+                                        {filteredSegments.length === 0 ? (
                                             <div className="px-4 py-6 text-center text-sm text-slate-400 dark:text-slate-500">
                                                 Nenhum segmento encontrado para &quot;{segmentSearch}&quot;
                                             </div>
                                         ) : (
-                                            Object.entries(filteredGroupedSegments).map(([cat, segs]) => (
-                                                <div key={cat}>
-                                                    <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-200 dark:bg-slate-800 sticky top-0">
-                                                        {cat}
-                                                    </div>
-                                                    {segs.map(s => (
-                                                        <button
-                                                            key={s.id}
-                                                            type="button"
-                                                            onMouseDown={e => {
-                                                                e.preventDefault();
-                                                                setFormData(prev => ({ ...prev, segment: s.name }));
-                                                                setSegmentOpen(false);
-                                                                setSegmentSearch('');
-                                                            }}
-                                                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                                                                formData.segment === s.name
-                                                                    ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium'
-                                                                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                                                            }`}
-                                                        >
-                                                            {s.name}
-                                                        </button>
-                                                    ))}
-                                                </div>
+                                            filteredSegments.map(s => (
+                                                <button
+                                                    key={s.id}
+                                                    type="button"
+                                                    onMouseDown={e => {
+                                                        e.preventDefault();
+                                                        setFormData(prev => ({ ...prev, segment: s.name }));
+                                                        setSegmentOpen(false);
+                                                        setSegmentSearch('');
+                                                    }}
+                                                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                                                        formData.segment === s.name
+                                                            ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium'
+                                                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                                    }`}
+                                                >
+                                                    {s.name}
+                                                </button>
                                             ))
                                         )}
                                     </div>
@@ -1036,7 +1062,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <FileText className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Inscrições</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Centralize e gerencie as inscrições fiscais da empresa em todas as esferas (Municipal, Estadual, Federal, Conselho de Classe e outros).</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Registre as inscrições da empresa: municipal, estadual, conselho de classe e outros.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1195,7 +1221,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Users className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Contatos</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Gerencie os principais contatos da empresa.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Adicione a lista os principais contatos da empresa.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1375,7 +1401,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Landmark className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Regime Tributário</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Controle e monitore o histórico de enquadramentos tributários e garanta a conformidade fiscal ao longo dos anos.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Registre e monitore o histórico de enquadramentos tributários para garantir a conformidade fiscal.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1529,7 +1555,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Activity className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Atividades</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Registre as atividades econômicas (CNAE principal e secundárias).</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Adicione a lista as atividades econômicas da empresa.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1678,7 +1704,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Key className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Acessos</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Centralize os acessos dos principais portais, como: empregador web, sistemas de gestão, portais de serviços do contribuinte e muito mais.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Registre os acessos aos principais sites e portais do contribuinte: empregador web, sistema de gestão, portais de serviços e muito mais.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (
@@ -1699,7 +1725,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome do Acesso"
-                                        placeholder="Simples, NFS-e..."
+                                        placeholder="Empregador web"
                                         containerClassName="lg:col-span-1"
                                         value={tempAccess.access_name}
                                         onChange={e => setTempAccess({ ...tempAccess, access_name: e.target.value })}
@@ -1719,7 +1745,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                         onChange={e => setTempAccess({ ...tempAccess, username: e.target.value })}
                                     />
                                     <Input
-                                        label="Senha (Visível)"
+                                        label="Senha"
                                         value={tempAccess.password}
                                         onChange={e => setTempAccess({ ...tempAccess, password: e.target.value })}
                                     />
@@ -2411,7 +2437,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Receipt className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
                                         <h4 className="text-sm font-medium text-slate-900 dark:text-white">Séries DF-e</h4>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Organize os modelos e séries de Documentos Fiscais Eletrônicos vinculados aos seus respectivos emissores.</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 hidden md:block">Gerencie os acessos aos emissores de DF-e com seus respectivos modelos e séries.</p>
                                     </div>
                                 </div>
                                 {!readOnly && (

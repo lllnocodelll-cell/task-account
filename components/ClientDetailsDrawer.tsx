@@ -23,6 +23,17 @@ import {
 import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '---';
+  const datePart = dateString.split('T')[0];
+  const parts = datePart.split('-');
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+  }
+  return dateString;
+};
+
 interface ClientDetailsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -263,7 +274,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Constituição</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {client.constitution_date ? new Date(client.constitution_date).toLocaleDateString('pt-BR') : '---'}
+                        {formatDate(client.constitution_date)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
@@ -272,7 +283,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Entrada</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {client.entry_date ? new Date(client.entry_date).toLocaleDateString('pt-BR') : '---'}
+                        {formatDate(client.entry_date)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
@@ -281,7 +292,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Saída</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {client.exit_date ? new Date(client.exit_date).toLocaleDateString('pt-BR') : '---'}
+                        {formatDate(client.exit_date)}
                       </span>
                     </div>
                   </div>
@@ -357,7 +368,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Data de Nasc.</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {client.admin_partner_birthdate ? new Date(client.admin_partner_birthdate).toLocaleDateString('pt-BR') : '---'}
+                        {formatDate(client.admin_partner_birthdate)}
                       </span>
                     </div>
                   </div>
@@ -513,7 +524,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                             <div className="flex items-center gap-2">
                               <Calendar size={12} className={`shrink-0 ${new Date(cert.expires_at || cert.expiration_date) < new Date() ? 'text-rose-500' : 'text-indigo-400'}`} />
                               <span className={`text-[12px] font-bold leading-none ${new Date(cert.expires_at || cert.expiration_date) < new Date() ? 'text-rose-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                                {cert.expires_at || cert.expiration_date ? new Date(cert.expires_at || cert.expiration_date).toLocaleDateString('pt-BR') : '---'}
+                                {formatDate(cert.expires_at || cert.expiration_date)}
                               </span>
                             </div>
                           </div>

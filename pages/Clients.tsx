@@ -160,6 +160,22 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ label, isActive, 
   );
 };
 
+const formatPhone = (v: string, type: 'fixed' | 'mobile') => {
+    if (!v) return '';
+    v = v.replace(/\D/g, "");
+    if (type === 'fixed') {
+        if (v.length > 10) v = v.substring(0, 10);
+        if (v.length <= 2) return v;
+        if (v.length <= 6) return `(${v.substring(0, 2)}) ${v.substring(2)}`;
+        return `(${v.substring(0, 2)}) ${v.substring(2, 6)}-${v.substring(6)}`;
+    } else {
+        if (v.length > 11) v = v.substring(0, 11);
+        if (v.length <= 2) return v;
+        if (v.length <= 7) return `(${v.substring(0, 2)}) ${v.substring(2)}`;
+        return `(${v.substring(0, 2)}) ${v.substring(2, 7)}-${v.substring(7)}`;
+    }
+};
+
 export const Clients: React.FC<{ userProfile: any, initialClientId?: string | null, onClearInitialClientId?: () => void }> = ({ userProfile, initialClientId, onClearInitialClientId }) => {
     const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
     const [displayMode, setDisplayMode] = useState<'table' | 'cards'>(() => typeof window !== 'undefined' && window.innerWidth < 1024 ? 'cards' : 'table');
@@ -528,7 +544,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Código</label>
-                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.code} onChange={e => handleFilterChange('code', e.target.value)} placeholder="000" />
+                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.code} onChange={e => handleFilterChange('code', e.target.value)} placeholder="000000" />
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Empresa / Local</label>
@@ -540,16 +556,16 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Contato</label>
-                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.contactName} onChange={e => handleFilterChange('contactName', e.target.value)} placeholder="Nome do representante" />
+                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.contactName} onChange={e => handleFilterChange('contactName', e.target.value)} placeholder="nome do contato" />
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Fixo</label>
-                                                <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.phoneFixed} onChange={e => handleFilterChange('phoneFixed', e.target.value)} placeholder="(00) ..." />
+                                                <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.phoneFixed} onChange={e => handleFilterChange('phoneFixed', formatPhone(e.target.value, 'fixed'))} placeholder="(00) ..." />
                                             </div>
                                             <div>
                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Celular</label>
-                                                <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.phoneMobile} onChange={e => handleFilterChange('phoneMobile', e.target.value)} placeholder="(00) 9 ..." />
+                                                <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.phoneMobile} onChange={e => handleFilterChange('phoneMobile', formatPhone(e.target.value, 'mobile'))} placeholder="(00) 9 ..." />
                                             </div>
                                         </div>
                                         <div>
@@ -703,7 +719,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         <TableColumnFilter label="Código" isActive={codeActive} activeCount={codeCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Código</label>
-                                                                <input type="text" className={headerInputClass} value={filters.code} onChange={e => handleFilterChange('code', e.target.value)} autoFocus placeholder="000..." />
+                                                                <input type="text" className={headerInputClass} value={filters.code} onChange={e => handleFilterChange('code', e.target.value)} autoFocus placeholder="000000" />
                                                             </div>
                                                             {codeActive && (
                                                                 <button onClick={() => handleFilterChange('code', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
@@ -766,7 +782,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         <TableColumnFilter label="Contato" isActive={contactActive} activeCount={contactCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Contato</label>
-                                                                <input type="text" className={headerInputClass} value={filters.contactName} onChange={e => handleFilterChange('contactName', e.target.value)} autoFocus placeholder="Nome contato..." />
+                                                                <input type="text" className={headerInputClass} value={filters.contactName} onChange={e => handleFilterChange('contactName', e.target.value)} autoFocus placeholder="nome do contato" />
                                                             </div>
                                                             {contactActive && (
                                                                 <button onClick={() => handleFilterChange('contactName', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
@@ -787,7 +803,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         <TableColumnFilter label="Fixo" isActive={fixedActive} activeCount={fixedCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Fixo</label>
-                                                                <input type="text" className={headerInputClass} value={filters.phoneFixed} onChange={e => handleFilterChange('phoneFixed', e.target.value)} autoFocus placeholder="Telefone..." />
+                                                                <input type="text" className={headerInputClass} value={filters.phoneFixed} onChange={e => handleFilterChange('phoneFixed', formatPhone(e.target.value, 'fixed'))} autoFocus placeholder="(00) ..." />
                                                             </div>
                                                             {fixedActive && (
                                                                 <button onClick={() => handleFilterChange('phoneFixed', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
@@ -808,7 +824,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         <TableColumnFilter label="Celular" isActive={mobileActive} activeCount={mobileCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Celular</label>
-                                                                <input type="text" className={headerInputClass} value={filters.phoneMobile} onChange={e => handleFilterChange('phoneMobile', e.target.value)} autoFocus placeholder="Celular..." />
+                                                                <input type="text" className={headerInputClass} value={filters.phoneMobile} onChange={e => handleFilterChange('phoneMobile', formatPhone(e.target.value, 'mobile'))} autoFocus placeholder="(00) 9 ..." />
                                                             </div>
                                                             {mobileActive && (
                                                                 <button onClick={() => handleFilterChange('phoneMobile', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>

@@ -62,8 +62,8 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
     try {
       setLoading(true);
       const [linksRes, sectorsRes] = await Promise.all([
-        supabase.from('useful_links').select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
-        supabase.from('sectors').select('id, name').order('name')
+        (supabase.from('useful_links') as any).select('*').eq('org_id', orgId).order('created_at', { ascending: false }),
+        (supabase.from('sectors') as any).select('id, name').order('name')
       ]);
 
       if (linksRes.error) throw linksRes.error;

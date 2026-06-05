@@ -1465,8 +1465,9 @@ export const Chat: React.FC = () => {
     <div className="flex h-[calc(100vh-6.5rem)] md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-x border-b md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative -mx-4 -mb-4 md:mx-0 md:mb-0">
 
       {/* Sidebar - Contact List */}
-      <div className={`w-full md:w-80 border-r border-slate-200 dark:border-slate-800 flex-col bg-slate-50/50 dark:bg-slate-950/30 absolute md:relative z-10 h-full ${showSidebarOnMobile ? 'flex' : 'hidden'} ${isSidebarCollapsed ? 'md:hidden' : 'md:flex'}`}>
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden h-full flex-col bg-slate-50/50 dark:bg-slate-950/30 absolute md:relative z-10 ${showSidebarOnMobile ? 'w-full flex' : 'w-0 hidden md:flex'} ${isSidebarCollapsed ? 'md:w-0 md:opacity-0 border-r border-transparent pointer-events-none' : 'md:w-80 md:opacity-100 border-r border-slate-200 dark:border-slate-800'}`}>
+        <div className="w-80 h-full flex flex-col shrink-0">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <div className="tooltip-container tooltip-bottom">
@@ -1773,6 +1774,7 @@ export const Chat: React.FC = () => {
           )}
         </div>
       </div>
+    </div>
 
       {/* Main Chat Area */}
       {selectedChannel ? (
