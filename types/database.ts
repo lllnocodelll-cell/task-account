@@ -56,6 +56,10 @@ export type Database = {
           id: string
           name: string
           type: string
+          status: string | null
+          sector_id: string | null
+          assigned_to: string | null
+          support_status: string | null
         }
         Insert: {
           created_at?: string
@@ -63,6 +67,10 @@ export type Database = {
           id?: string
           name: string
           type: string
+          status?: string | null
+          sector_id?: string | null
+          assigned_to?: string | null
+          support_status?: string | null
         }
         Update: {
           created_at?: string
@@ -70,6 +78,10 @@ export type Database = {
           id?: string
           name?: string
           type?: string
+          status?: string | null
+          sector_id?: string | null
+          assigned_to?: string | null
+          support_status?: string | null
         }
         Relationships: []
       }
@@ -165,6 +177,7 @@ export type Database = {
           sender_id: string
           status: string | null
           text: string
+          is_system: boolean | null
         }
         Insert: {
           attachment_url?: string | null
@@ -180,6 +193,7 @@ export type Database = {
           sender_id: string
           status?: string | null
           text: string
+          is_system?: boolean | null
         }
         Update: {
           attachment_url?: string | null
@@ -195,6 +209,7 @@ export type Database = {
           sender_id?: string
           status?: string | null
           text?: string
+          is_system?: boolean | null
         }
         Relationships: [
           {
