@@ -126,7 +126,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       const [membersRes, sectorsRes, clientsRes] = await Promise.all([
         supabase.from('members').select('*, sectors(name), clients(company_name)').eq('org_id', userProfile.org_id),
         supabase.from('sectors').select('*').eq('org_id', userProfile.org_id),
-        supabase.from('clients').select('id, company_name').eq('status', 'Ativo')
+        supabase.from('clients').select('id, company_name, status')
       ]);
 
       if (membersRes.data) setMembers(membersRes.data);
@@ -354,7 +354,12 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   label="Empresas Vinculadas"
                   value={clientIds}
                   onChange={setClientIds}
-                  options={clients.map(c => ({ value: c.id, label: c.company_name }))}
+                  options={clients
+                    .filter((c: any) => c.status === 'Ativo' || clientIds.includes(c.id))
+                    .map((c: any) => ({ 
+                      value: c.id, 
+                      label: c.status === 'Ativo' ? c.company_name : `${c.company_name} (Inativa)` 
+                    }))}
                 />
               ) : (
                 <Select
@@ -628,7 +633,12 @@ const MemberCard: React.FC<any> = ({
             label="Empresas Vinculadas"
             value={editClientIds}
             onChange={setEditClientIds}
-            options={clients.map((c: any) => ({ value: c.id, label: c.company_name }))}
+            options={clients
+              .filter((c: any) => c.status === 'Ativo' || editClientIds.includes(c.id))
+              .map((c: any) => ({ 
+                value: c.id, 
+                label: c.status === 'Ativo' ? c.company_name : `${c.company_name} (Inativa)` 
+              }))}
           />
         ) : (
           <Select
@@ -674,10 +684,19 @@ const MemberCard: React.FC<any> = ({
                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center mr-1">🏢</span>
                   {member.client_ids && member.client_ids.length > 0 ? (
                     member.client_ids.map((cid: string) => {
-                      const clientName = clients.find((c: any) => c.id === cid)?.company_name || 'Desconhecida';
+                      const foundClient = clients.find((c: any) => c.id === cid);
+                      const isInactive = foundClient && foundClient.status !== 'Ativo';
+                      const clientName = foundClient ? foundClient.company_name : 'Desconhecida';
                       return (
-                        <span key={cid} className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 truncate max-w-[120px]">
-                          {clientName}
+                        <span 
+                          key={cid} 
+                          className={`text-[9px] px-1.5 py-0.5 rounded font-bold border truncate max-w-[120px] ${
+                            isInactive 
+                              ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-100 dark:border-rose-500/20' 
+                              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20'
+                          }`}
+                        >
+                          {clientName}{isInactive && ' (Inativa)'}
                         </span>
                       );
                     })
@@ -747,12 +766,14 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [name, setName] = useState('');
   const [leader, setLeader] = useState('');
   const [costCenter, setCostCenter] = useState('');
+  const [chatAvailable, setChatAvailable] = useState(true);
 
   // Edit Form
   const [editingSectorId, setEditingSectorId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editLeader, setEditLeader] = useState('');
   const [editCostCenter, setEditCostCenter] = useState('');
+  const [editChatAvailable, setEditChatAvailable] = useState(true);
 
   // Deletion Modal State
   const [sectorToDelete, setSectorToDelete] = useState<any>(null);
@@ -786,7 +807,8 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         org_id: userProfile.org_id,
         name,
         leader,
-        cost_center: costCenter
+        cost_center: costCenter,
+        chat_available: chatAvailable
       }).select();
 
       if (error) throw error;
@@ -795,6 +817,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setName('');
         setLeader('');
         setCostCenter('');
+        setChatAvailable(true);
       }
     } catch (error: any) {
       addToast('error', 'Erro', 'Erro: ' + error.message);
@@ -864,11 +887,33 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
   };
 
+  const handleToggleSectorChatAvailability = async (id: string, currentChatAvailable: boolean) => {
+    const newChatAvailable = !currentChatAvailable;
+
+    // Otimista
+    setSectors(prev => prev.map(s => s.id === id ? { ...s, chat_available: newChatAvailable } : s));
+
+    try {
+      const { error } = await supabase
+        .from('sectors')
+        .update({ chat_available: newChatAvailable })
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Erro ao atualizar disponibilidade de chat do setor:', error);
+      // Reverte se der erro
+      setSectors(prev => prev.map(s => s.id === id ? { ...s, chat_available: currentChatAvailable } : s));
+      alert('Erro ao atualizar disponibilidade de chat do setor: ' + (error.message || 'Erro desconhecido'));
+    }
+  };
+
   const startEditing = (sector: any) => {
     setEditingSectorId(sector.id);
     setEditName(sector.name);
     setEditLeader(sector.leader || '');
     setEditCostCenter(sector.cost_center || '');
+    setEditChatAvailable(sector.chat_available !== false);
   };
 
   const cancelEditing = () => {
@@ -876,6 +921,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditName('');
     setEditLeader('');
     setEditCostCenter('');
+    setEditChatAvailable(true);
   };
 
   const handleUpdateSector = async (id: string) => {
@@ -883,7 +929,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
     // Otimista
     const originalSectors = [...sectors];
-    setSectors(prev => prev.map(s => s.id === id ? { ...s, name: editName, leader: editLeader, cost_center: editCostCenter } : s));
+    setSectors(prev => prev.map(s => s.id === id ? { ...s, name: editName, leader: editLeader, cost_center: editCostCenter, chat_available: editChatAvailable } : s));
 
     try {
       const { error } = await supabase
@@ -891,7 +937,8 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         .update({
           name: editName,
           leader: editLeader,
-          cost_center: editCostCenter
+          cost_center: editCostCenter,
+          chat_available: editChatAvailable
         })
         .eq('id', id);
 
@@ -990,10 +1037,14 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
           <div className="overflow-hidden">
             <div className="pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <Input label="Nome do Setor" value={name} onChange={e => setName(e.target.value)} />
                 <Input label="Líder" value={leader} onChange={e => setLeader(e.target.value)} />
                 <Input label="Centro de Custo" value={costCenter} onChange={e => setCostCenter(e.target.value)} />
+                <div className="flex items-center gap-2 h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+                  <Toggle checked={chatAvailable} onChange={() => setChatAvailable(!chatAvailable)} />
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Disponível no Chat</span>
+                </div>
               </div>
               <div className="mt-4 flex justify-end">
                 <Button onClick={handleAddSector} disabled={adding}>{adding ? 'Salvando...' : 'Salvar Setor'}</Button>
@@ -1027,6 +1078,10 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   <div className="grid grid-cols-2 gap-3">
                     <Input label="Líder" value={editLeader} onChange={e => setEditLeader(e.target.value)} placeholder="Nome do responsável" />
                     <Input label="C. Custo" value={editCostCenter} onChange={e => setEditCostCenter(e.target.value)} placeholder="001.01" />
+                  </div>
+                  <div className="flex items-center gap-2 h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <Toggle checked={editChatAvailable} onChange={() => setEditChatAvailable(!editChatAvailable)} />
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Disponível no Chat</span>
                   </div>
                 </div>
 
@@ -1119,22 +1174,37 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 </div>
 
                 {/* Rodapé do Card */}
-                <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      checked={sector.status !== 'Inativo'}
-                      onChange={() => handleToggleSectorStatus(sector.id, sector.status || 'Ativo')}
-                    />
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {sector.status === 'Inativo' ? 'Habilitar' : 'Ativo'}
-                    </span>
+                <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Toggle
+                        checked={sector.status !== 'Inativo'}
+                        onChange={() => handleToggleSectorStatus(sector.id, sector.status || 'Ativo')}
+                      />
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {sector.status === 'Inativo' ? 'Inativo' : 'Ativo'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Toggle
+                        checked={sector.chat_available !== false}
+                        onChange={() => handleToggleSectorChatAvailability(sector.id, sector.chat_available !== false)}
+                      />
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        Chat
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="h-6 w-px bg-slate-100 dark:bg-slate-800 mx-2" />
-                  
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-slate-300 dark:text-slate-600 group-hover:text-indigo-500/50 transition-colors">
-                    <Blocks size={12} />
-                    #{sector.id.slice(0, 4)}
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-300 dark:text-slate-600 border-t border-slate-100/50 dark:border-slate-800/30 pt-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      {sector.chat_available !== false ? 'Disponível no Chat' : 'Indisponível no Chat'}
+                    </span>
+                    <div className="flex items-center gap-1 group-hover:text-indigo-500/50 transition-colors">
+                      <Blocks size={12} />
+                      #{sector.id.slice(0, 4)}
+                    </div>
                   </div>
                 </div>
               </div>

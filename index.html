@@ -125,6 +125,39 @@
         bottom: 100%;
         border-color: transparent transparent #1e293b transparent;
       }
+
+      /* Alinhamentos horizontais para evitar cortes nas bordas */
+      .tooltip-left .tooltip-content {
+        left: 0;
+        transform: translateY(8px);
+      }
+      .tooltip-left.tooltip-bottom:hover .tooltip-content {
+        transform: translateY(12px);
+      }
+      .tooltip-left:not(.tooltip-bottom):hover .tooltip-content {
+        transform: translateY(-12px);
+      }
+      .tooltip-left .tooltip-content::after {
+        left: 16px;
+        transform: none;
+      }
+
+      .tooltip-right .tooltip-content {
+        left: auto;
+        right: 0;
+        transform: translateY(8px);
+      }
+      .tooltip-right.tooltip-bottom:hover .tooltip-content {
+        transform: translateY(12px);
+      }
+      .tooltip-right:not(.tooltip-bottom):hover .tooltip-content {
+        transform: translateY(-12px);
+      }
+      .tooltip-right .tooltip-content::after {
+        left: auto;
+        right: 16px;
+        transform: none;
+      }
       /* Animações Premium sugeridas */
       @keyframes float {
           0%, 100% { transform: translateY(0); }

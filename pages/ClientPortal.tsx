@@ -144,7 +144,10 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
   }, [userProfile?.client_ids]);
 
   const fetchDocuments = async () => {
-    if (!userProfile?.client_ids || userProfile.client_ids.length === 0) return;
+    if (!userProfile?.client_ids || userProfile.client_ids.length === 0) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const { data, error } = await (supabase as any)

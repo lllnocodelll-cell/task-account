@@ -3,7 +3,7 @@ import { supabase } from '../../utils/supabaseClient';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Loader2, Users, Trash2, UserPlus, UserMinus, Pencil, AlertTriangle } from 'lucide-react';
+import { Loader2, Users, Trash2, UserPlus, UserMinus, Pencil, AlertTriangle, UserCog } from 'lucide-react';
 
 interface Profile {
     id: string;
@@ -237,7 +237,19 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Configurações do Grupo"
+            title={
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                        <UserCog size={18} className="text-slate-500 dark:text-slate-400" />
+                    </div>
+                    <div className="flex flex-col text-left">
+                        <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                            Configurações do Grupo
+                        </h1>
+                        <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+                    </div>
+                </div>
+            }
             size="md"
         >
             {loading ? (

@@ -233,7 +233,20 @@ function App() {
         let finalProfile = {
           ...(data as any),
           email: session.user.email,
+          client_ids: [] // Inicializar vazio por padrão
         };
+
+        // Buscar informações complementares na tabela members (como client_ids e sector_id) usando o email
+        const { data: memberInfo } = await supabase
+          .from('members')
+          .select('client_ids, sector_id')
+          .eq('email', session.user.email)
+          .maybeSingle();
+
+        if (memberInfo) {
+          finalProfile.client_ids = memberInfo.client_ids || [];
+          finalProfile.sector_id = memberInfo.sector_id;
+        }
 
         // Auto-fix for NULL org_id (Owner Migration Fallback)
         if (!data.org_id && data.role === 'gestor') {
