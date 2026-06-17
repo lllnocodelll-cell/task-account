@@ -901,8 +901,6 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 </th>
                                             );
                                         })()}
-
-                                        <th className="px-6 py-4 w-[80px]"></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">

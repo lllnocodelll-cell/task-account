@@ -170,10 +170,12 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const initialAnchorPos = useRef({ top: 0, left: 0 });
 
   const openPanel = () => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
+    initialAnchorPos.current = { top: rect.top, left: rect.left };
 
     // Ajuste de borda: se o painel ultrapassar a janela, ancora pela direita
     const rawLeft = rect.left;
@@ -198,6 +200,18 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
     };
     const handleScroll = (e: Event) => {
       if (panelRef.current && panelRef.current.contains(e.target as Node)) return;
+      
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const diffTop = Math.abs(rect.top - initialAnchorPos.current.top);
+        const diffLeft = Math.abs(rect.left - initialAnchorPos.current.left);
+        
+        // Se o botão não se moveu significativamente, ignora o evento de scroll/layout
+        if (diffTop < 2 && diffLeft < 2) {
+          return;
+        }
+      }
+      
       setIsOpen(false);
     };
 

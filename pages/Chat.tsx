@@ -3059,9 +3059,9 @@ export const Chat: React.FC = () => {
                     iconColor = "text-purple-500 dark:text-purple-400";
                   } else if (textLower.includes('finalizado') || textLower.includes('concluído')) {
                     // Finalização
-                    bgClass = "bg-emerald-50/75 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300 shadow-sm shadow-emerald-100/10";
+                    bgClass = "bg-rose-50/75 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 shadow-sm shadow-rose-100/10";
                     IconComponent = CheckCheck;
-                    iconColor = "text-emerald-500 dark:text-emerald-400";
+                    iconColor = "text-rose-500 dark:text-rose-400";
                   }
 
                   return (
