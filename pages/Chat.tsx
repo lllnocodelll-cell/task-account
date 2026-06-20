@@ -240,6 +240,27 @@ const isUserAvailableForTransfer = (profile: any): boolean => {
   return true;
 };
 
+const formatDateLabel = (isoString?: string) => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const dDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+
+  if (dDate.getTime() === dToday.getTime()) return 'Hoje';
+  if (dDate.getTime() === dYesterday.getTime()) return 'Ontem';
+  
+  return date.toLocaleDateString('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+};
+
 export const Chat: React.FC = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -936,7 +957,8 @@ export const Chat: React.FC = () => {
               file_name: newMsg.file_name,
               file_type: newMsg.file_type,
               reply_to_id: newMsg.reply_to_id,
-              is_system: newMsg.is_system
+              is_system: newMsg.is_system,
+              rawCreatedAt: newMsg.created_at
             };
 
             // Se sou EU que enviei, substituir a msg otimista (temp-xxx) pela versão real
@@ -2042,7 +2064,8 @@ export const Chat: React.FC = () => {
       created_at: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       isMe: true,
       status: 'sent',
-      reply_to_id: replyingTo ? replyingTo.id : undefined
+      reply_to_id: replyingTo ? replyingTo.id : undefined,
+      rawCreatedAt: new Date().toISOString()
     };
 
     setReplyingTo(null);
@@ -3023,219 +3046,231 @@ export const Chat: React.FC = () => {
               <div className="flex flex-col items-center justify-center h-full text-slate-400">
                 <p className="text-sm">{currentMessages.length === 0 ? `Inicie a conversa em ${selectedChannel.name}` : 'Nenhuma mensagem encontrada.'}</p>
               </div>
-            ) : (
-              displayedMessages.map((msg) => {
+            ) : (() => {
+              let lastDateStr = '';
+              return displayedMessages.map((msg) => {
                 const senderProfile = !msg.isMe ? profiles.find(p => p.id === msg.sender_id) : null;
                 const senderName = msg.isMe ? (currentUser?.full_name || 'Eu') : (senderProfile?.full_name || (selectedChannel.type === 'group' ? 'Membro' : selectedChannel.name));
                 const senderInitials = senderName.substring(0, 2).toUpperCase();
 
-                if (msg.is_system) {
-                  // Limpar o prefixo [Atendimento] caso exista (útil para retrocompatibilidade com registros antigos)
-                  let cleanText = msg.text;
-                  if (cleanText.startsWith('[Atendimento]')) {
-                    cleanText = cleanText.replace(/^\[Atendimento\]\s*/, '');
-                  }
-
-                  // Determinar o tipo de checkpoint baseado nas palavras-chave do texto para aplicar cores e ícones premium
-                  let bgClass = "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400";
-                  let IconComponent = MessageSquare;
-                  let iconColor = "text-slate-500 dark:text-slate-400";
-
-                  const textLower = cleanText.toLowerCase();
-                  if (textLower.includes('iniciou') || textLower.includes('iniciado')) {
-                    // Início do atendimento
-                    bgClass = "bg-blue-50/75 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/40 text-blue-700 dark:text-blue-300 shadow-sm shadow-blue-100/10";
-                    IconComponent = MessageSquare;
-                    iconColor = "text-blue-500 dark:text-blue-400";
-                  } else if (textLower.includes('reaberto') || textLower.includes('retomado') || textLower.includes('assumido')) {
-                    // Reabertura / Retomada / Assumido
-                    bgClass = "bg-amber-50/75 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/40 text-amber-700 dark:text-amber-300 shadow-sm shadow-amber-100/10";
-                    IconComponent = RotateCcw;
-                    iconColor = "text-amber-500 dark:text-amber-400";
-                  } else if (textLower.includes('transferido') || textLower.includes('transferência')) {
-                    // Transferência
-                    bgClass = "bg-purple-50/75 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/40 text-purple-700 dark:text-purple-300 shadow-sm shadow-purple-100/10";
-                    IconComponent = Shuffle;
-                    iconColor = "text-purple-500 dark:text-purple-400";
-                  } else if (textLower.includes('finalizado') || textLower.includes('concluído')) {
-                    // Finalização
-                    bgClass = "bg-rose-50/75 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 shadow-sm shadow-rose-100/10";
-                    IconComponent = CheckCheck;
-                    iconColor = "text-rose-500 dark:text-rose-400";
-                  }
-
-                  return (
-                    <div
-                      key={msg.id}
-                      className="flex justify-center w-full my-3.5 animate-in fade-in zoom-in-95 duration-200"
-                    >
-                      <div className={`flex items-center gap-2 px-3.5 py-1.5 border rounded-full text-xs font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] max-w-[90%] text-center ${bgClass}`}>
-                        <IconComponent size={13} className={`${iconColor} shrink-0`} />
-                        <span>{cleanText}</span>
-                        <span className="text-[10px] opacity-50 shrink-0 font-normal ml-1 border-l border-current/20 pl-1.5">{msg.created_at}</span>
-                      </div>
-                    </div>
-                  );
+                const msgDate = msg.rawCreatedAt ? new Date(msg.rawCreatedAt) : new Date();
+                const msgDateStr = msgDate.toDateString();
+                const showDateDivider = msgDateStr !== lastDateStr;
+                if (showDateDivider) {
+                  lastDateStr = msgDateStr;
                 }
 
                 return (
-                  <div
-                    key={msg.id}
-                    className={`flex gap-3 max-w-[80%] ${msg.isMe ? 'ml-auto flex-row-reverse' : ''}`}
-                  >
-                    <div className={`hidden md:flex shrink-0 w-8 h-8 rounded-full items-center justify-center text-[10px] font-bold ${msg.isMe
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300'
-                      }`}>
-                      {senderInitials}
-                    </div>
-
-                    <div className={`group relative p-3 rounded-2xl shadow-sm text-sm flex flex-col ${msg.isMe
-                      ? 'bg-indigo-600 text-white rounded-tr-none'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-tl-none'
-                      }`}>
-
-                      {(selectedChannel.type === 'group' || selectedChannel.type === 'support') && (
-                        <span className={`text-[10px] font-bold mb-1 ${msg.isMe ? 'text-indigo-100/90' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                          {senderName}
+                  <React.Fragment key={msg.id}>
+                    {showDateDivider && (
+                      <div className="sticky top-0 z-10 flex justify-center my-4 py-2 pointer-events-none select-none">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 px-3.5 py-1.5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md shadow-[0_2px_8px_rgba(0,0,0,0.04)] rounded-full border border-slate-200/50 dark:border-slate-800/50 pointer-events-auto select-text transition-all duration-300">
+                          {formatDateLabel(msg.rawCreatedAt || new Date().toISOString())}
                         </span>
-                      )}
-
-                      {/* Msg Reply Render */}
-                      {msg.reply_to_id && (
-                        <div className={`mb-2 p-2.5 rounded-r-lg shadow-sm text-xs flex flex-col gap-0.5 border-l-4 ${msg.isMe ? 'bg-indigo-700/50 border-indigo-300 text-indigo-50' : 'bg-slate-100 dark:bg-slate-900/50 border-indigo-500 text-slate-600 dark:text-slate-300'}`}>
-                          {(() => {
-                            const repliedMsg = currentMessages.find(m => m.id === msg.reply_to_id);
-                            if (!repliedMsg) return <span className="opacity-70 italic">Mensagem original não encontrada</span>;
-                            const repliedSenderProfile = profiles.find(p => p.id === repliedMsg.sender_id);
-                            const repliedSenderName = repliedMsg.isMe ? 'Você' : (repliedSenderProfile?.full_name || 'Usuário');
-
-                            return (
-                              <>
-                                <span className={`font-bold ${msg.isMe ? 'text-indigo-200' : 'text-indigo-600 dark:text-indigo-400'}`}>{repliedSenderName}</span>
-                                <span className="line-clamp-2 leading-relaxed opacity-90">{repliedMsg.text || 'Anexo'}</span>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      {/* Botões flutuantes Hover */}
-                      <div className={`absolute -top-3 ${msg.isMe ? '-left-8' : '-right-8'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20`}>
-                        <button
-                          onClick={() => setReactionMessageId(reactionMessageId === msg.id ? null : msg.id)}
-                          title="Reagir"
-                          className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
-                        >
-                          <Smile size={14} className="text-slate-400 hover:text-indigo-500" />
-                        </button>
-                        <button
-                          onClick={() => setReplyingTo(msg)}
-                          title="Responder"
-                          className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
-                        >
-                          <Reply size={14} className="text-slate-400 hover:text-indigo-500" />
-                        </button>
-                        <button
-                          onClick={() => markMessageAsUnread(msg.id, selectedChannelId!)}
-                          title="Marcar como não lido"
-                          className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
-                        >
-                          <EyeOff size={14} className="text-slate-400 hover:text-indigo-500" />
-                        </button>
-                        <button
-                          onClick={() => toggleFavorite(msg.id)}
-                          title={favoritedMessages.includes(msg.id) ? "Remover dos Favoritos" : "Adicionar aos Favoritos"}
-                          className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
-                        >
-                          <Star size={14} className={favoritedMessages.includes(msg.id) ? 'text-yellow-500' : 'text-slate-400 hover:text-yellow-500'} fill={favoritedMessages.includes(msg.id) ? 'currentColor' : 'none'} />
-                        </button>
                       </div>
+                    )}
 
-                      {/* Emoji Picker Popover */}
-                      {reactionMessageId === msg.id && (
-                        <div 
-                          ref={reactionPickerRef}
-                          className={`absolute z-50 ${msg.isMe ? 'right-0 -top-12' : 'left-0 -top-12'} shadow-xl rounded-xl custom-scrollbar overflow-hidden border border-slate-200 dark:border-slate-800 scale-75 origin-bottom`}
-                        >
-                          <EmojiPicker
-                            onEmojiClick={(emojiData) => {
-                              toggleReaction(msg.id, emojiData.emoji);
-                              setReactionMessageId(null);
-                            }}
-                            autoFocusSearch={false}
-                            theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
-                            searchDisabled
-                            skinTonesDisabled
-                            defaultSkinTone={selectedSkinTone}
-                            onSkinToneChange={(skinTone) => {
-                              setSelectedSkinTone(skinTone);
-                              localStorage.setItem('chat_emoji_skin_tone', skinTone);
-                            }}
-                            width={250}
-                            height={300}
-                          />
+                    {msg.is_system ? (
+                      (() => {
+                        let cleanText = msg.text;
+                        if (cleanText.startsWith('[Atendimento]')) {
+                          cleanText = cleanText.replace(/^\[Atendimento\]\s*/, '');
+                        }
+
+                        let bgClass = "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400";
+                        let IconComponent = MessageSquare;
+                        let iconColor = "text-slate-500 dark:text-slate-400";
+
+                        const textLower = cleanText.toLowerCase();
+                        if (textLower.includes('iniciou') || textLower.includes('iniciado')) {
+                          bgClass = "bg-blue-50/75 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/40 text-blue-700 dark:text-blue-300 shadow-sm shadow-blue-100/10";
+                          IconComponent = MessageSquare;
+                          iconColor = "text-blue-500 dark:text-blue-400";
+                        } else if (textLower.includes('reaberto') || textLower.includes('retomado') || textLower.includes('assumido')) {
+                          bgClass = "bg-amber-50/75 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/40 text-amber-700 dark:text-amber-300 shadow-sm shadow-amber-100/10";
+                          IconComponent = RotateCcw;
+                          iconColor = "text-amber-500 dark:text-amber-400";
+                        } else if (textLower.includes('transferido') || textLower.includes('transferência')) {
+                          bgClass = "bg-purple-50/75 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/40 text-purple-700 dark:text-purple-300 shadow-sm shadow-purple-100/10";
+                          IconComponent = Shuffle;
+                          iconColor = "text-purple-500 dark:text-purple-400";
+                        } else if (textLower.includes('finalizado') || textLower.includes('concluído')) {
+                          bgClass = "bg-rose-50/75 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 shadow-sm shadow-rose-100/10";
+                          IconComponent = CheckCheck;
+                          iconColor = "text-rose-500 dark:text-rose-400";
+                        }
+
+                        return (
+                          <div
+                            className="flex justify-center w-full my-3.5 animate-in fade-in zoom-in-95 duration-200"
+                          >
+                            <div className={`flex items-center gap-2 px-3.5 py-1.5 border rounded-full text-xs font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.02)] max-w-[90%] text-center ${bgClass}`}>
+                              <IconComponent size={13} className={`${iconColor} shrink-0`} />
+                              <span>{cleanText}</span>
+                              <span className="text-[10px] opacity-50 shrink-0 font-normal ml-1 border-l border-current/20 pl-1.5">{msg.created_at}</span>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div
+                        className={`flex gap-3 max-w-[80%] ${msg.isMe ? 'ml-auto flex-row-reverse' : ''}`}
+                      >
+                        <div className={`hidden md:flex shrink-0 w-8 h-8 rounded-full items-center justify-center text-[10px] font-bold ${msg.isMe
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300'
+                          }`}>
+                          {senderInitials}
                         </div>
-                      )}
 
-                      {msg.attachment_url && (
-                        <div className="mb-2">
-                          {msg.file_type?.startsWith('image/') ? (
-                            <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
-                              <img src={msg.attachment_url} alt="Anexo" className="rounded-lg max-w-full max-h-60 object-contain cursor-pointer hover:opacity-90 transition-opacity" />
-                            </a>
-                          ) : (
-                            <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
-                              <Paperclip size={16} />
-                              <span className="truncate max-w-[150px] text-xs underline">{msg.file_name || 'Anexo'}</span>
-                            </a>
+                        <div className={`group relative p-3 rounded-2xl shadow-sm text-sm flex flex-col ${msg.isMe
+                          ? 'bg-indigo-600 text-white rounded-tr-none'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-tl-none'
+                          }`}>
+
+                          {(selectedChannel.type === 'group' || selectedChannel.type === 'support') && (
+                            <span className={`text-[10px] font-bold mb-1 ${msg.isMe ? 'text-indigo-100/90' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                              {senderName}
+                            </span>
+                          )}
+
+                          {/* Msg Reply Render */}
+                          {msg.reply_to_id && (
+                            <div className={`mb-2 p-2.5 rounded-r-lg shadow-sm text-xs flex flex-col gap-0.5 border-l-4 ${msg.isMe ? 'bg-indigo-700/50 border-indigo-300 text-indigo-50' : 'bg-slate-100 dark:bg-slate-900/50 border-indigo-500 text-slate-600 dark:text-slate-300'}`}>
+                              {(() => {
+                                const repliedMsg = currentMessages.find(m => m.id === msg.reply_to_id);
+                                if (!repliedMsg) return <span className="opacity-70 italic">Mensagem original não encontrada</span>;
+                                const repliedSenderProfile = profiles.find(p => p.id === repliedMsg.sender_id);
+                                const repliedSenderName = repliedMsg.isMe ? 'Você' : (repliedSenderProfile?.full_name || 'Usuário');
+
+                                return (
+                                  <>
+                                    <span className={`font-bold ${msg.isMe ? 'text-indigo-200' : 'text-indigo-600 dark:text-indigo-400'}`}>{repliedSenderName}</span>
+                                    <span className="line-clamp-2 leading-relaxed opacity-90">{repliedMsg.text || 'Anexo'}</span>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          )}
+
+                          {/* Botões flutuantes Hover */}
+                          <div className={`absolute -top-3 ${msg.isMe ? '-left-8' : '-right-8'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20`}>
+                            <button
+                              onClick={() => setReactionMessageId(reactionMessageId === msg.id ? null : msg.id)}
+                              title="Reagir"
+                              className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                            >
+                              <Smile size={14} className="text-slate-400 hover:text-indigo-500" />
+                            </button>
+                            <button
+                              onClick={() => setReplyingTo(msg)}
+                              title="Responder"
+                              className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                            >
+                              <Reply size={14} className="text-slate-400 hover:text-indigo-500" />
+                            </button>
+                            <button
+                              onClick={() => markMessageAsUnread(msg.id, selectedChannelId!)}
+                              title="Marcar como não lido"
+                              className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                            >
+                              <EyeOff size={14} className="text-slate-400 hover:text-indigo-500" />
+                            </button>
+                            <button
+                              onClick={() => toggleFavorite(msg.id)}
+                              title={favoritedMessages.includes(msg.id) ? "Remover dos Favoritos" : "Adicionar aos Favoritos"}
+                              className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                            >
+                              <Star size={14} className={favoritedMessages.includes(msg.id) ? 'text-yellow-500' : 'text-slate-400 hover:text-yellow-500'} fill={favoritedMessages.includes(msg.id) ? 'currentColor' : 'none'} />
+                            </button>
+                          </div>
+
+                          {/* Emoji Picker Popover */}
+                          {reactionMessageId === msg.id && (
+                            <div 
+                              ref={reactionPickerRef}
+                              className={`absolute z-50 ${msg.isMe ? 'right-0 -top-12' : 'left-0 -top-12'} shadow-xl rounded-xl custom-scrollbar overflow-hidden border border-slate-200 dark:border-slate-800 scale-75 origin-bottom`}
+                            >
+                              <EmojiPicker
+                                onEmojiClick={(emojiData) => {
+                                  toggleReaction(msg.id, emojiData.emoji);
+                                  setReactionMessageId(null);
+                                }}
+                                autoFocusSearch={false}
+                                theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
+                                searchDisabled
+                                skinTonesDisabled
+                                defaultSkinTone={selectedSkinTone}
+                                onSkinToneChange={(skinTone) => {
+                                  setSelectedSkinTone(skinTone);
+                                  localStorage.setItem('chat_emoji_skin_tone', skinTone);
+                                }}
+                                width={250}
+                                height={300}
+                              />
+                            </div>
+                          )}
+
+                          {msg.attachment_url && (
+                            <div className="mb-2">
+                              {msg.file_type?.startsWith('image/') ? (
+                                <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
+                                  <img src={msg.attachment_url} alt="Anexo" className="rounded-lg max-w-full max-h-60 object-contain cursor-pointer hover:opacity-90 transition-opacity" />
+                                </a>
+                              ) : (
+                                <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
+                                  <Paperclip size={16} />
+                                  <span className="truncate max-w-[150px] text-xs underline">{msg.file_name || 'Anexo'}</span>
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
+                          <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
+                            <span>{msg.created_at}</span>
+                            {msg.isMe && (
+                              <span>
+                                {msg.status === 'sent' && <Check size={12} />}
+                                {msg.status === 'delivered' && <CheckCheck size={12} />}
+                                {msg.status === 'read' && <CheckCheck size={12} className="text-blue-300" />}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Msg Reactions Render */}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1 -mb-1 z-10">
+                              {Object.entries(
+                                msg.reactions.reduce((acc, r) => {
+                                  acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                                  return acc;
+                                }, {} as Record<string, number>)
+                              ).map(([emoji, count]) => {
+                                const iReacted = msg.reactions!.some(r => r.emoji === emoji && r.user_id === userId);
+                                return (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => toggleReaction(msg.id, emoji)}
+                                    className={`px-1.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 shadow-sm border ${iReacted
+                                      ? 'bg-indigo-100 dark:bg-indigo-900/50 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
+                                      : 'bg-white/90 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                      }`}
+                                  >
+                                    <span>{emoji}</span>
+                                    <span className={iReacted ? 'opacity-90' : 'opacity-70'}>{count}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
-                      )}
-
-                      {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
-                      <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
-                        <span>{msg.created_at}</span>
-                        {msg.isMe && (
-                          <span>
-                            {msg.status === 'sent' && <Check size={12} />}
-                            {msg.status === 'delivered' && <CheckCheck size={12} />}
-                            {msg.status === 'read' && <CheckCheck size={12} className="text-blue-300" />}
-                          </span>
-                        )}
                       </div>
-
-                      {/* Msg Reactions Render */}
-                      {msg.reactions && msg.reactions.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1 -mb-1 z-10">
-                          {Object.entries(
-                            msg.reactions.reduce((acc, r) => {
-                              acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                              return acc;
-                            }, {} as Record<string, number>)
-                          ).map(([emoji, count]) => {
-                            const iReacted = msg.reactions!.some(r => r.emoji === emoji && r.user_id === userId);
-                            return (
-                              <button
-                                key={emoji}
-                                onClick={() => toggleReaction(msg.id, emoji)}
-                                className={`px-1.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 shadow-sm border ${iReacted
-                                  ? 'bg-indigo-100 dark:bg-indigo-900/50 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
-                                  : 'bg-white/90 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                                  }`}
-                              >
-                                <span>{emoji}</span>
-                                <span className={iReacted ? 'opacity-90' : 'opacity-70'}>{count}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            )}
+                    )}
+                  </React.Fragment>
+                );
+              });
+            })()}
             <div ref={messagesEndRef} />
           </div>
 

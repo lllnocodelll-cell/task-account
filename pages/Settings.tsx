@@ -14,7 +14,7 @@ interface SettingsProps {
 }
 
 export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
-  const [activeTab, setActiveTab] = useState<'credenciais' | 'setores' | 'tipos' | 'feriados'>('credenciais');
+  const [activeTab, setActiveTab] = useState<'credenciais' | 'setores' | 'tipos' | 'feriados' | 'templates'>('credenciais');
 
   const contentProps = { userProfile };
 
@@ -62,6 +62,13 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
           >
             <Calendar size={16} /> Feriados
           </button>
+          <button
+            onClick={() => setActiveTab('templates')}
+            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'templates' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+          >
+            <Mail size={16} /> Modelos de Mensagem
+          </button>
         </div>
 
         <div className="p-6">
@@ -69,6 +76,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
           {activeTab === 'setores' && <SectorSettings {...contentProps} />}
           {activeTab === 'tipos' && <TaskTypeSettings {...contentProps} />}
           {activeTab === 'feriados' && <CalendarSettings {...contentProps} />}
+          {activeTab === 'templates' && <MessageTemplateSettings {...contentProps} />}
         </div>
       </div>
     </div>
@@ -1952,6 +1960,1016 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           <p className="text-slate-600 dark:text-slate-400">
             Tem certeza que deseja remover o feriado <span className="font-bold text-slate-900 dark:text-white">"{holidayToDelete?.name}"</span>?
           </p>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+// ------------------- MESSAGE TEMPLATE SETTINGS -------------------
+
+interface MessageTemplate {
+  id: string;
+  org_id: string;
+  title: string;
+  content: string;
+  target_tax_regimes: string[];
+  target_sectors: string[];
+  target_segments: string[];
+  target_client_ids: string[];
+  reference_task_type_id: string | null;
+  is_automated: boolean;
+  trigger_type: 'day_of_month' | 'days_before_due' | 'manual';
+  trigger_value: number | null;
+  trigger_time?: string;
+  send_email_copy: boolean;
+  email_subject: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
+  const { addToast } = useToast();
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [taskTypes, setTaskTypes] = useState<any[]>([]);
+  const [sectors, setSectors] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [isFormExpanded, setIsFormExpanded] = useState(false);
+
+  // Form states
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [targetTaxRegimes, setTargetTaxRegimes] = useState<string[]>([]);
+  const [targetSectors, setTargetSectors] = useState<string[]>([]);
+  const [targetClientIds, setTargetClientIds] = useState<string[]>([]);
+  const [referenceTaskTypeId, setReferenceTaskTypeId] = useState('');
+  const [isAutomated, setIsAutomated] = useState(false);
+  const [triggerType, setTriggerType] = useState<'day_of_month' | 'days_before_due' | 'manual'>('manual');
+  const [triggerValue, setTriggerValue] = useState<string>('');
+  const [triggerTime, setTriggerTime] = useState('09:00');
+  const [sendEmailCopy, setSendEmailCopy] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+
+  // Bulk send modal state
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendProgress, setSendProgress] = useState(0);
+  const [sendTotal, setSendTotal] = useState(0);
+  const [sendCurrentIndex, setSendCurrentIndex] = useState(0);
+  const [sendLogs, setSendLogs] = useState<string[]>([]);
+  const [sendTemplate, setSendTemplate] = useState<MessageTemplate | null>(null);
+
+  // Delete modal state
+  const [templateToDelete, setTemplateToDelete] = useState<MessageTemplate | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const [templatesRes, taskTypesRes, sectorsRes, clientsRes] = await Promise.all([
+        supabase.from('chat_message_templates').select('*').eq('org_id', userProfile.org_id).order('created_at', { ascending: false }),
+        supabase.from('task_types').select('*').eq('org_id', userProfile.org_id).order('name'),
+        supabase.from('sectors').select('*').eq('org_id', userProfile.org_id).order('name'),
+        supabase.from('clients').select('id, company_name, trade_name, status, client_tax_regime_history(*)').order('company_name')
+      ]);
+
+      if (templatesRes.data) setTemplates(templatesRes.data as MessageTemplate[]);
+      if (taskTypesRes.data) setTaskTypes(taskTypesRes.data);
+      if (sectorsRes.data) setSectors(sectorsRes.data);
+      if (clientsRes.data) {
+        const mappedClients = (clientsRes.data as any[]).map(c => {
+          const history = c.client_tax_regime_history || [];
+          const currentRegime = history.find((h: any) => !h.end_date);
+          return {
+            ...c,
+            tax_regime: currentRegime?.regime || null
+          };
+        });
+        setClients(mappedClients);
+      }
+
+    } catch (error) {
+      console.error('Erro ao buscar dados de templates:', error);
+      addToast('error', 'Erro', 'Falha ao carregar configurações de templates.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const insertPlaceholder = (tag: string) => {
+    const textarea = document.getElementById('template-content-textarea') as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const newText = text.substring(0, start) + tag + text.substring(end);
+      setContent(newText);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + tag.length, start + tag.length);
+      }, 0);
+    } else {
+      setContent(prev => prev + tag);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!title.trim() || !content.trim()) {
+      addToast('error', 'Erro', 'Título e Conteúdo da Mensagem são obrigatórios');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const tValue = triggerValue ? parseInt(triggerValue) : null;
+
+      const templateData = {
+        org_id: userProfile.org_id,
+        title: title.trim(),
+        content: content.trim(),
+        target_tax_regimes: targetTaxRegimes,
+        target_sectors: targetSectors,
+        target_client_ids: targetClientIds,
+        reference_task_type_id: referenceTaskTypeId || null,
+        is_automated: isAutomated,
+        trigger_type: isAutomated ? triggerType : 'manual',
+        trigger_value: isAutomated ? tValue : null,
+        trigger_time: isAutomated ? (triggerTime + ':00') : '09:00:00',
+        send_email_copy: sendEmailCopy,
+        email_subject: sendEmailCopy ? emailSubject.trim() : null,
+        created_by: user.id
+      };
+
+      if (editingId) {
+        const { error } = await supabase
+          .from('chat_message_templates')
+          .update(templateData)
+          .eq('id', editingId);
+
+        if (error) throw error;
+        addToast('success', 'Sucesso', 'Modelo de mensagem atualizado!');
+      } else {
+        const { error } = await supabase
+          .from('chat_message_templates')
+          .insert([templateData]);
+
+        if (error) throw error;
+        addToast('success', 'Sucesso', 'Modelo de mensagem criado!');
+      }
+
+      // Reset form
+      clearForm();
+      fetchData();
+    } catch (error: any) {
+      console.error('Erro ao salvar template:', error);
+      addToast('error', 'Erro', 'Falha ao salvar modelo: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startEditing = (template: MessageTemplate) => {
+    setEditingId(template.id);
+    setTitle(template.title);
+    setContent(template.content);
+    setTargetTaxRegimes(template.target_tax_regimes || []);
+    setTargetSectors(template.target_sectors || []);
+    setTargetClientIds(template.target_client_ids || []);
+    setReferenceTaskTypeId(template.reference_task_type_id || '');
+    setIsAutomated(template.is_automated);
+    setTriggerType(template.trigger_type || 'manual');
+    setTriggerValue(template.trigger_value ? template.trigger_value.toString() : '');
+    setTriggerTime(template.trigger_time ? template.trigger_time.substring(0, 5) : '09:00');
+    setSendEmailCopy(template.send_email_copy);
+    setEmailSubject(template.email_subject || '');
+    setIsFormExpanded(true);
+  };
+
+  const clearForm = () => {
+    setEditingId(null);
+    setTitle('');
+    setContent('');
+    setTargetTaxRegimes([]);
+    setTargetSectors([]);
+    setTargetClientIds([]);
+    setReferenceTaskTypeId('');
+    setIsAutomated(false);
+    setTriggerType('manual');
+    setTriggerValue('');
+    setTriggerTime('09:00');
+    setSendEmailCopy(false);
+    setEmailSubject('');
+    setIsFormExpanded(false);
+  };
+
+  const initDelete = (template: MessageTemplate) => {
+    setTemplateToDelete(template);
+  };
+
+  const confirmDelete = async () => {
+    if (!templateToDelete) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('chat_message_templates')
+        .delete()
+        .eq('id', templateToDelete.id);
+
+      if (error) throw error;
+      addToast('success', 'Sucesso', 'Modelo de mensagem excluído!');
+      setTemplateToDelete(null);
+      fetchData();
+    } catch (error: any) {
+      console.error('Erro ao excluir template:', error);
+      addToast('error', 'Erro', 'Erro ao excluir modelo: ' + error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkSend = async (template: MessageTemplate) => {
+    setSendTemplate(template);
+    setSendProgress(0);
+    setSendLogs([]);
+    setSending(true);
+    setIsSendModalOpen(true);
+
+    try {
+      let targets: any[] = [];
+
+      // 1. Obter os IDs de clientes associados à tarefa de referência, se houver
+      let allowedClientIdsByTask: Set<string> | null = null;
+      if (template.reference_task_type_id) {
+        const taskTypeName = taskTypes.find(t => t.id === template.reference_task_type_id)?.name;
+        if (taskTypeName) {
+          const { data: tasksOfType } = await supabase
+            .from('tasks')
+            .select('client_id')
+            .eq('task_name', taskTypeName);
+          
+          if (tasksOfType) {
+            allowedClientIdsByTask = new Set(
+              tasksOfType
+                .map(t => t.client_id)
+                .filter((id): id is string => !!id)
+            );
+          }
+        }
+      }
+
+      // A. Filtro por clientes específicos
+      if (template.target_client_ids && template.target_client_ids.length > 0) {
+        const { data } = await supabase
+          .from('clients')
+          .select('*, client_tax_regime_history(*)')
+          .in('id', template.target_client_ids);
+        if (data) {
+          targets = data
+            .filter(c => c.status === 'Ativo')
+            .map(c => {
+              const history = c.client_tax_regime_history || [];
+              const currentRegime = history.find((h: any) => !h.end_date);
+              return {
+                ...c,
+                tax_regime: currentRegime?.regime || null
+              };
+            });
+        }
+      } else {
+        // Filtro amplo
+        let query: any = supabase.from('clients').select('*, client_tax_regime_history(*)').eq('status', 'Ativo');
+
+        const { data } = await query;
+        if (data) {
+          let mapped = data.map((c: any) => {
+            const history = c.client_tax_regime_history || [];
+            const currentRegime = history.find((h: any) => !h.end_date);
+            return {
+              ...c,
+              tax_regime: currentRegime?.regime || null
+            };
+          });
+
+          // Filtro por regime (Removido da lógica ativa - apenas informativo)
+          /*
+          if (template.target_tax_regimes && template.target_tax_regimes.length > 0) {
+            mapped = mapped.filter((c: any) => template.target_tax_regimes.includes(c.tax_regime));
+          }
+          */
+
+          // Filtro cruzado por setor (Removido da lógica ativa - apenas informativo)
+          /*
+          if (template.target_sectors && template.target_sectors.length > 0) {
+            const { data: membersInSectors } = await supabase
+              .from('members')
+              .select('client_ids, client_id')
+              .in('sector_id', template.target_sectors);
+
+            if (membersInSectors) {
+              const allowedClientIds = new Set<string>();
+              membersInSectors.forEach(m => {
+                if (m.client_id) allowedClientIds.add(m.client_id);
+                if (m.client_ids && Array.isArray(m.client_ids)) {
+                  m.client_ids.forEach(cid => allowedClientIds.add(cid));
+                }
+              });
+              mapped = mapped.filter(t => allowedClientIds.has(t.id));
+            }
+          }
+          */
+
+          targets = mapped;
+        }
+      }
+
+      // Filtrar targets finais pela tarefa de referência, se houver
+      if (allowedClientIdsByTask) {
+        targets = targets.filter(t => allowedClientIdsByTask!.has(t.id));
+      }
+
+      if (targets.length === 0) {
+        setSendLogs(prev => [...prev, "⚠️ Nenhum cliente ativo atende aos critérios deste modelo."]);
+        setSending(false);
+        return;
+      }
+
+      setSendTotal(targets.length);
+      setSendLogs(prev => [...prev, `🚀 Iniciando disparo de lote contendo ${targets.length} cliente(s)...`]);
+
+      // Iterar pelos destinatários com controle de vazão (Throttling)
+      for (let i = 0; i < targets.length; i++) {
+        const client = targets[i];
+        setSendCurrentIndex(i + 1);
+        setSendProgress(Math.round(((i + 1) / targets.length) * 100));
+
+        try {
+          // 1. Localizar os perfis de login do cliente e seus cadastros de membros (contemplando arrays client_ids)
+          const [profilesRes, membersRes] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('id, full_name')
+              .eq('role', 'cliente')
+              .or(`client_id.eq.${client.id},client_ids.cs.{"${client.id}"}`),
+            supabase
+              .from('members')
+              .select('email, first_name, last_name')
+              .eq('role', 'cliente')
+              .or(`client_id.eq.${client.id},client_ids.cs.{"${client.id}"}`)
+          ]);
+
+          const profilesList = profilesRes.data || [];
+          const membersList = membersRes.data || [];
+
+          // Pega o e-mail do primeiro membro localizado (fallback para e-mail geral de envio)
+          let clientEmail = membersList.find(m => m.email)?.email || '';
+
+          if (profilesList.length > 0) {
+            for (const prof of profilesList) {
+              const profileId = prof.id;
+
+              // Localizar o cadastro de membro associado ao e-mail ou perfil
+              const memberForProfile = membersList.find(m => m.first_name && prof.full_name?.includes(m.first_name)) || membersList[0];
+
+              let contactName = memberForProfile 
+                ? `${memberForProfile.first_name} ${memberForProfile.last_name}` 
+                : (prof.full_name || client.admin_partner_name || client.company_name);
+
+              // 2. Personalizar placeholders da mensagem padrão
+              let personalizedText = template.content
+                .replace(/{nome_contato}/g, contactName)
+                .replace(/{razao_social}/g, client.company_name)
+                .replace(/{nome_fantasia}/g, client.trade_name || client.company_name)
+                .replace(/{mes_competencia}/g, new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }));
+
+              // 3. Placeholders da tarefa vinculada
+              if (template.reference_task_type_id) {
+                const taskTypeName = taskTypes.find(t => t.id === template.reference_task_type_id)?.name;
+                let taskQuery = (supabase.from('tasks') as any)
+                  .select('due_date, task_name')
+                  .eq('client_id', client.id);
+
+                if (taskTypeName) {
+                  taskQuery = taskQuery.eq('task_name', taskTypeName);
+                }
+
+                const { data: taskData } = await taskQuery
+                  .order('due_date', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+
+                if (taskData) {
+                  const dueDateStr = taskData.due_date ? new Date(taskData.due_date).toLocaleDateString('pt-BR') : 'Data não definida';
+                  personalizedText = personalizedText
+                    .replace(/{nome_tarefa}/g, taskData.task_name || 'Obrigação Fiscal')
+                    .replace(/{vencimento_tarefa}/g, dueDateStr);
+                } else {
+                  const taskTypeNameFallback = taskTypeName || 'Imposto';
+                  personalizedText = personalizedText
+                    .replace(/{nome_tarefa}/g, taskTypeNameFallback)
+                    .replace(/{vencimento_tarefa}/g, 'Data limite');
+                }
+              }
+
+              // 4. Enviar para o Chat se o cliente tiver acesso
+              let channelId = null;
+
+              const { data: memberships } = await supabase
+                .from('chat_channel_members')
+                .select('channel_id')
+                .eq('user_id', profileId);
+
+              const targetSectorId = template.target_sectors && template.target_sectors.length > 0 
+                ? template.target_sectors[0] 
+                : null;
+
+              if (memberships && memberships.length > 0) {
+                const channelIds = memberships.map(m => m.channel_id);
+                
+                // Priorizar canais de suporte vinculados ao setor do template, se houver
+                let queryCh = supabase
+                  .from('chat_channels')
+                  .select('id, sector_id')
+                  .eq('type', 'support')
+                  .in('id', channelIds);
+                
+                if (targetSectorId) {
+                  queryCh = queryCh.eq('sector_id', targetSectorId);
+                }
+
+                const { data: existingChannels } = await queryCh;
+                
+                if (existingChannels && existingChannels.length > 0) {
+                  channelId = existingChannels[0].id;
+                } else if (!targetSectorId) {
+                  // Fallback: pega o primeiro canal de suporte encontrado para o cliente
+                  const { data: fallbackCh } = await supabase
+                    .from('chat_channels')
+                    .select('id')
+                    .eq('type', 'support')
+                    .in('id', channelIds)
+                    .limit(1)
+                    .maybeSingle();
+                  
+                  if (fallbackCh) channelId = fallbackCh.id;
+                }
+              }
+
+              // Criar canal de suporte se não houver
+              if (!channelId) {
+                const sectorName = template.target_sectors && template.target_sectors.length > 0
+                  ? (sectors.find(s => s.id === template.target_sectors[0])?.name || 'Geral')
+                  : 'Geral';
+                
+                const channelName = `Atendimento - ${contactName} (${sectorName})`;
+
+                const { data: newCh, error: chErr } = await supabase
+                  .from('chat_channels')
+                  .insert({
+                    name: channelName,
+                    type: 'support',
+                    created_by: userProfile.id,
+                    status: 'open',
+                    support_status: 'pending',
+                    sector_id: targetSectorId
+                  } as any)
+                  .select()
+                  .single();
+
+                if (chErr) throw chErr;
+                channelId = newCh.id;
+
+                // Vincular membros (cliente + operador)
+                await supabase.from('chat_channel_members').insert([
+                  { channel_id: channelId, user_id: profileId, role: 'member' },
+                  { channel_id: channelId, user_id: userProfile.id, role: 'admin' }
+                ]);
+              }
+
+              // Inserir mensagem de chat
+              const { error: msgErr } = await supabase
+                .from('chat_messages')
+                .insert({
+                  channel_id: channelId,
+                  sender_id: userProfile.id,
+                  text: personalizedText,
+                  status: 'sent'
+                });
+
+              if (msgErr) throw msgErr;
+              setSendLogs(prev => [...prev, `✅ Chat enviado para ${contactName} (${client.company_name})`]);
+            }
+          } else {
+            setSendLogs(prev => [...prev, `ℹ️ Pulei Chat: ${client.company_name} sem usuários vinculados.`]);
+          }
+
+          // 5. Enviar cópia por e-mail (Simulação / Auditoria)
+          if (template.send_email_copy && clientEmail) {
+            setSendLogs(prev => [...prev, `✉️ E-mail disparado para <${clientEmail}> (Assunto: ${template.email_subject || 'Aviso Contábil'})`]);
+          }
+
+        } catch (itemErr: any) {
+          setSendLogs(prev => [...prev, `❌ Falha em ${client.company_name}: ${itemErr.message}`]);
+        }
+
+        // Delay Throttling de 200ms
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+
+      setSendLogs(prev => [...prev, "🎉 Envio em massa finalizado com sucesso!"]);
+
+    } catch (err: any) {
+      console.error(err);
+      setSendLogs(prev => [...prev, `🚨 Falha geral: ${err.message}`]);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const getTaxRegimeLabel = (regime: string) => {
+    const labels: Record<string, string> = {
+      'simples': 'Simples',
+      'simples_iva': 'Simples IVA Dual',
+      'presumido': 'Presumido',
+      'presumido_imune': 'Presumido Imune-Isento',
+      'real_trimestral': 'Real Trimestral',
+      'real_anual': 'Real Anual',
+      'real_imune': 'Real Imune-Isento',
+      'arbitrado': 'Arbitrado',
+      'mei': 'MEI',
+      'nanoempreendedor': 'Nanoempreendedor',
+      'irpf': 'IRPF'
+    };
+    return labels[regime] || regime;
+  };
+
+  if (loading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
+
+  return (
+    <div className="space-y-8">
+      {/* 1. Cadastrar / Editar Template */}
+      <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div 
+          className="flex items-center justify-between mb-4 cursor-pointer group/header"
+          onClick={() => setIsFormExpanded(!isFormExpanded)}
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+              <Mail size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                {editingId ? 'Editar Modelo' : 'Novo Modelo de Mensagem'}
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
+          </div>
+          <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
+            {isFormExpanded ? <ChevronUp size={16} /> : <SquarePlus size={16} />}
+          </div>
+        </div>
+
+        <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+          <div className="overflow-hidden">
+            <div className="space-y-6 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input 
+                  label="Nome do Modelo (Identificação)" 
+                  value={title} 
+                  onChange={e => setTitle(e.target.value)} 
+                  placeholder="Lembrete de PIS/COFINS" 
+                />
+                
+                <Select
+                  label="Tipo de Tarefa de Referência (Opcional)"
+                  value={referenceTaskTypeId}
+                  onChange={e => setReferenceTaskTypeId(e.target.value)}
+                  options={[
+                    { value: '', label: 'Sem vinculação de tarefa' },
+                    ...taskTypes.map(t => ({ value: t.id, label: t.name }))
+                  ]}
+                />
+              </div>
+
+              {/* Editor de Mensagem e Placeholders */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Mensagem Padrão Customizável
+                  </label>
+                  
+                  {/* Placeholders Rápidos */}
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      onClick={() => insertPlaceholder('{nome_contato}')}
+                      className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-md border border-indigo-200/55"
+                      title="Primeiro nome do contato principal"
+                    >
+                      {`{nome_contato}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertPlaceholder('{razao_social}')}
+                      className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-md border border-indigo-200/55"
+                      title="Razão Social da Empresa"
+                    >
+                      {`{razao_social}`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertPlaceholder('{mes_competencia}')}
+                      className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-md border border-indigo-200/55"
+                      title="Mês corrente (MM/AAAA)"
+                    >
+                      {`{mes_competencia}`}
+                    </button>
+                    {referenceTaskTypeId && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => insertPlaceholder('{nome_tarefa}')}
+                          className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded-md border border-emerald-200/50"
+                        >
+                          {`{nome_tarefa}`}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => insertPlaceholder('{vencimento_tarefa}')}
+                          className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded-md border border-emerald-200/50"
+                        >
+                          {`{vencimento_tarefa}`}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <textarea
+                  id="template-content-textarea"
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  placeholder="Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} vence em {vencimento_tarefa}."
+                  className="w-full h-32 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-slate-400 dark:text-white"
+                />
+              </div>
+
+              {/* Segmentação & Destinatários */}
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Target size={14} /> Público-Alvo e Filtros de Entrega
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <MultiSelect
+                    label="Clientes Específicos (Alertas direcionados)"
+                    value={targetClientIds}
+                    onChange={setTargetClientIds}
+                    options={clients.map(c => ({ value: c.id, label: c.company_name }))}
+                  />
+
+                  {targetClientIds.length === 0 ? (
+                    <>
+                      <MultiSelect
+                        label="Filtrar por Regimes Tributários"
+                        value={targetTaxRegimes}
+                        onChange={setTargetTaxRegimes}
+                        options={[
+                          { value: 'simples', label: 'Simples Nacional' },
+                          { value: 'simples_iva', label: 'Simples IVA Dual' },
+                          { value: 'presumido', label: 'Lucro Presumido' },
+                          { value: 'presumido_imune', label: 'Presumido Imune-Isento' },
+                          { value: 'real_trimestral', label: 'Lucro Real Trimestral' },
+                          { value: 'real_anual', label: 'Lucro Real Anual' },
+                          { value: 'real_imune', label: 'Lucro Real Imune-Isento' },
+                          { value: 'arbitrado', label: 'Lucro Arbitrado' },
+                          { value: 'mei', label: 'Microempreendedor (MEI)' }
+                        ]}
+                      />
+                      <MultiSelect
+                        label="Filtrar por Setores Atendidos"
+                        value={targetSectors}
+                        onChange={setTargetSectors}
+                        options={sectors.map(s => ({ value: s.id, label: s.name }))}
+                      />
+                    </>
+                  ) : (
+                    <div className="md:col-span-1 flex items-center bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-lg text-xs text-indigo-700 dark:text-indigo-300">
+                      <AlertCircle size={16} className="mr-2 text-indigo-500 shrink-0" />
+                      <span>Filtros genéricos ocultados. O envio será feito <strong>apenas</strong> para os clientes selecionados individualmente acima.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Agendamento Automático */}
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Clock size={14} /> Agendamento e Disparo Automático (pg_cron)
+                  </h3>
+                  <Toggle checked={isAutomated} onChange={(checked) => {
+                    setIsAutomated(checked);
+                    if (checked && triggerType === 'manual') {
+                      setTriggerType('day_of_month');
+                    }
+                  }} />
+                </div>
+
+                {isAutomated && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <Select
+                      label="Tipo de Agendamento"
+                      value={triggerType}
+                      onChange={e => {
+                        setTriggerType(e.target.value as any);
+                        setTriggerValue('');
+                      }}
+                      options={[
+                        { value: 'day_of_month', label: 'Dia Fixo do Mês' },
+                        { value: 'days_before_due', label: 'Dias de Antecedência do Vencimento' }
+                      ]}
+                    />
+                    
+                    {triggerType === 'day_of_month' ? (
+                      <Input
+                        label="Dia do Disparo (1 a 31)"
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={triggerValue}
+                        onChange={e => setTriggerValue(e.target.value)}
+                        placeholder="Ex: 20"
+                      />
+                    ) : (
+                      <Input
+                        label="Dias Antes do Vencimento"
+                        type="number"
+                        min="1"
+                        value={triggerValue}
+                        onChange={e => setTriggerValue(e.target.value)}
+                        placeholder="Ex: 5"
+                        disabled={!referenceTaskTypeId}
+                        required={triggerType === 'days_before_due'}
+                      />
+                    )}
+
+                    <Input
+                      label="Horário do Disparo"
+                      type="time"
+                      value={triggerTime}
+                      onChange={e => setTriggerTime(e.target.value)}
+                      required={isAutomated}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Cópia Multicanal */}
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Mail size={14} /> Enviar também cópia por E-mail
+                  </h3>
+                  <Toggle checked={sendEmailCopy} onChange={setSendEmailCopy} />
+                </div>
+
+                {sendEmailCopy && (
+                  <div className="pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <Input
+                      label="Assunto do E-mail"
+                      value={emailSubject}
+                      onChange={e => setEmailSubject(e.target.value)}
+                      placeholder="Ex: Guia do Simples Nacional - Santos & Associados"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <Button variant="secondary" onClick={clearForm}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveTemplate} disabled={saving} icon={<Save size={16} />}>
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : 'Salvar Modelo'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Listagem de Templates Existentes */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
+          </div>
+          <div className="flex flex-col">
+            <h3 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+              Modelos Salvos
+            </h3>
+            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {templates.map(tmpl => (
+            <div
+              key={tmpl.id}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex justify-between items-start gap-4 mb-2">
+                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                    {tmpl.title}
+                  </h4>
+                  <div className="flex items-center gap-1">
+                    {tmpl.is_automated && (
+                      <span className="text-[9px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-indigo-200/50">
+                        <CalendarClock size={11} /> Automático {tmpl.trigger_time ? `(${tmpl.trigger_time.substring(0, 5)})` : ''}
+                      </span>
+                    )}
+                    {tmpl.send_email_copy && (
+                      <span className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-emerald-200/50">
+                        <Mail size={11} /> Multicanal
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 mb-4 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/50 font-medium">
+                  {tmpl.content}
+                </p>
+
+                {/* Tags de Filtro */}
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {tmpl.target_client_ids && tmpl.target_client_ids.length > 0 ? (
+                    <span className="text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100/50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">
+                      Direcionado ({tmpl.target_client_ids.length} cl.)
+                    </span>
+                  ) : (
+                    <>
+                      {tmpl.target_tax_regimes && tmpl.target_tax_regimes.map(reg => (
+                        <span key={reg} className="text-[9px] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200/30">
+                          {getTaxRegimeLabel(reg)}
+                        </span>
+                      ))}
+                      {tmpl.target_sectors && tmpl.target_sectors.map(secId => (
+                        <span key={secId} className="text-[9px] font-semibold bg-blue-50 text-blue-600 border border-blue-100/50 dark:bg-blue-950/20 px-1.5 py-0.5 rounded">
+                          📁 {sectors.find(s => s.id === secId)?.name || 'Setor'}
+                        </span>
+                      ))}
+                    </>
+                  )}
+                  {tmpl.reference_task_type_id && (
+                    <span className="text-[9px] font-semibold bg-purple-50 text-purple-600 border border-purple-100/50 dark:bg-purple-950/20 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                      <Target size={10} /> {taskTypes.find(t => t.id === tmpl.reference_task_type_id)?.name || 'Tarefa'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                <Button
+                  size="sm"
+                  onClick={() => handleBulkSend(tmpl)}
+                  icon={<Send size={14} />}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-1.5 px-3 rounded-lg"
+                >
+                  Disparar Agora
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => startEditing(tmpl)}
+                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"
+                    title="Editar modelo"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                  <button
+                    onClick={() => initDelete(tmpl)}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                    title="Remover modelo"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {templates.length === 0 && (
+            <div className="col-span-2 text-center py-12 bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+              <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum modelo de mensagem padrão cadastrado.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Modal de Exclusão de Template */}
+      <Modal
+        isOpen={!!templateToDelete}
+        onClose={() => setTemplateToDelete(null)}
+        title="Confirmar Exclusão"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setTemplateToDelete(null)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={confirmDelete} disabled={deleting} className="bg-red-600 hover:bg-red-700 text-white">
+              {deleting ? <Loader2 size={16} className="animate-spin" /> : 'Excluir Modelo'}
+            </Button>
+          </>
+        }
+      >
+        <div className="py-2 space-y-2 text-slate-700 dark:text-slate-300">
+          <p>Tem certeza que deseja excluir permanentemente o modelo de mensagem <strong className="text-slate-900 dark:text-white">"{templateToDelete?.title}"</strong>?</p>
+          <p className="text-xs text-slate-500">Esta ação não poderá ser desfeita.</p>
+        </div>
+      </Modal>
+
+      {/* 4. Modal de Progresso do Envio em Massa */}
+      <Modal
+        isOpen={isSendModalOpen}
+        onClose={() => {
+          if (!sending) setIsSendModalOpen(false);
+        }}
+        title="Disparo de Mensagens em Massa"
+        size="lg"
+        footer={
+          <Button variant="secondary" onClick={() => setIsSendModalOpen(false)} disabled={sending}>
+            {sending ? 'Aguarde o envio...' : 'Fechar'}
+          </Button>
+        }
+      >
+        <div className="py-4 space-y-5">
+          <div className="space-y-2 text-left">
+            <h4 className="font-bold text-slate-900 dark:text-white text-base">
+              Disparando: <span className="text-indigo-600">{sendTemplate?.title}</span>
+            </h4>
+            <p className="text-xs text-slate-500">
+              Processando envio em lotes sequenciais de 200ms para evitar sobrecargas de banco de dados e tráfego de rede.
+            </p>
+          </div>
+
+          {/* Barra de Progresso */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <span>{sending ? 'Progresso de Envio' : 'Envio Concluído'}</span>
+              <span>{sendCurrentIndex} / {sendTotal} ({sendProgress}%)</span>
+            </div>
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-200/50 dark:border-slate-700/50">
+              <div 
+                className="bg-indigo-600 h-full rounded-full transition-all duration-300 shadow-sm"
+                style={{ width: `${sendProgress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Logs do Disparo */}
+          <div className="space-y-1.5 text-left">
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Histórico do Lote
+            </label>
+            <div className="w-full h-48 bg-slate-950 text-slate-300 font-mono text-[11px] p-4 rounded-xl overflow-y-auto border border-slate-800/80 space-y-1 custom-scrollbar">
+              {sendLogs.map((log, idx) => (
+                <div 
+                  key={idx} 
+                  className={`py-0.5 border-b border-white/5 last:border-b-0 ${
+                    log.includes('✅') ? 'text-emerald-400' :
+                    log.includes('❌') ? 'text-rose-400 font-bold' :
+                    log.includes('⚠️') ? 'text-amber-400 font-bold' :
+                    log.includes('🚀') ? 'text-indigo-400 font-bold' : 'text-slate-300'
+                  }`}
+                >
+                  {log}
+                </div>
+              ))}
+              {sending && (
+                <div className="flex items-center gap-1.5 py-1 text-slate-400 animate-pulse">
+                  <Loader2 size={12} className="animate-spin text-indigo-400" />
+                  <span>Enviando mensagens...</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </Modal>
     </div>
