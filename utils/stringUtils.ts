@@ -54,3 +54,53 @@ export const formatCNPJData = (data: any) => {
 
   return result;
 };
+
+/**
+ * Converte marcações simples de formatação (Markdown-like) para tags HTML seguras.
+ * - **negrito** -> <strong>negrito</strong>
+ * - *itálico* -> <em>itálico</em>
+ * - _sublinhado_ -> <u>sublinhado</u>
+ * - ~tachado~ -> <del>tachado</del>
+ * - Quebras de linha -> <br />
+ * Escapa caracteres HTML perigosos para evitar XSS.
+ */
+export const formatMessageText = (text: string): string => {
+  if (!text) return '';
+
+  // 1. Escapar caracteres HTML para evitar XSS
+  let escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  // 2. Aplicar formatações básicas
+  // Negrito: **texto**
+  escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Itálico: *texto* (usando regex que não interfira no negrito)
+  escaped = escaped.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  // Sublinhado: _texto_
+  escaped = escaped.replace(/_(.*?)_/g, '<u>$1</u>');
+  // Tachado: ~texto~
+  escaped = escaped.replace(/~(.*?)~/g, '<del>$1</del>');
+  
+  // 3. Substituir quebras de linha por <br />
+  escaped = escaped.replace(/\n/g, '<br />');
+
+  return escaped;
+};
+
+/**
+ * Remove marcações simples de formatação (Markdown-like) do texto.
+ * Utilizado para visualizações resumidas onde tags HTML não são desejáveis.
+ */
+export const stripFormatting = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/~(.*?)~/g, '$1');
+};
+

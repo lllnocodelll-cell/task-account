@@ -39,6 +39,7 @@ import { GroupSettingsModal } from '../components/chat/GroupSettingsModal';
 import { VideoCallModal } from '../components/chat/VideoCallModal';
 import { getOrCreateDailyRoom } from '../utils/dailyApi';
 import EmojiPicker, { EmojiClickData, Theme, SkinTones } from 'emoji-picker-react';
+import { formatMessageText, stripFormatting } from '../utils/stringUtils';
 
 interface Channel {
   id: string;
@@ -56,6 +57,7 @@ interface Channel {
   support_status?: string | null;
   created_by?: string | null;
   created_at?: string;
+  is_notification?: boolean;
 }
 
 interface Profile {
@@ -283,7 +285,7 @@ export const Chat: React.FC = () => {
   const [supportSectorId, setSupportSectorId] = useState('');
   const [isCreatingSupport, setIsCreatingSupport] = useState(false);
   const [sectors, setSectors] = useState<any[]>([]);
-  const [supportSubTab, setSupportSubTab] = useState<'queue' | 'mine' | 'all'>('queue');
+  const [supportSubTab, setSupportSubTab] = useState<'queue' | 'mine' | 'alerts' | 'all'>('queue');
 
   // Atendimento iniciado pelo escritório
   const [isStaffSupportModalOpen, setIsStaffSupportModalOpen] = useState(false);
@@ -1408,7 +1410,8 @@ export const Chat: React.FC = () => {
             assigned_to: c.assigned_to,
             support_status: c.support_status,
             created_by: c.created_by,
-            created_at: c.created_at
+            created_at: c.created_at,
+            is_notification: c.is_notification
           };
         })
       );
@@ -1793,6 +1796,101 @@ export const Chat: React.FC = () => {
       alert('Falha ao iniciar atendimento.');
     } finally {
       setIsCreatingStaffSupport(false);
+    }
+  };
+
+  const handleInitiateSupportFromNotification = async (activeChannel: Channel) => {
+    if (!userId || !currentUser || !activeChannel.sector_id) return;
+
+    try {
+      // 1. Procurar nas conversas existentes do cliente um canal de suporte humano (!is_notification) para este setor
+      const existingHumanChannel = channels.find(c => 
+        c.type === 'support' && 
+        !c.is_notification && 
+        c.sector_id === activeChannel.sector_id
+      );
+
+      if (existingHumanChannel) {
+        // Se existir, redireciona o cliente para lá
+        setSelectedChannelId(existingHumanChannel.id);
+        
+        // Se estiver resolvido/fechado, reabre o canal para o cliente
+        const isClosed = existingHumanChannel.support_status === 'resolved' || existingHumanChannel.status === 'closed';
+        if (isClosed) {
+          await supabase
+            .from('chat_channels')
+            .update({
+              status: 'open',
+              support_status: 'pending',
+              assigned_to: null
+            } as any)
+            .eq('id', existingHumanChannel.id);
+
+          await supabase
+            .from('chat_messages')
+            .insert({
+              channel_id: existingHumanChannel.id,
+              sender_id: userId,
+              text: `Atendimento retomado pelo cliente via canal de notificação.`,
+              status: 'sent',
+              is_system: true
+            } as any);
+
+          await fetchChannels(userId);
+        }
+      } else {
+        // 2. Se não existir, criar um novo atendimento de suporte para esse setor
+        const sector = sectors.find(s => s.id === activeChannel.sector_id);
+        const channelName = `Atendimento - ${currentUser.full_name} (${sector?.name || 'Geral'})`;
+
+        // INSERT apenas com as colunas originais para evitar erro 400 de cache do PostgREST
+        const { data: newChannel, error: createError } = await supabase
+          .from('chat_channels')
+          .insert([{
+            name: channelName,
+            type: 'support',
+            created_by: userId
+          }])
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        const channelId = newChannel.id;
+
+        // UPDATE separado para as colunas novas (sector_id e status) 
+        await supabase
+          .from('chat_channels')
+          .update({ sector_id: activeChannel.sector_id, status: 'open', is_notification: false } as any)
+          .eq('id', channelId);
+
+        // Pegar todos os usuários do escritório (não-clientes)
+        const { data: staffMembers } = await supabase
+          .from('profiles')
+          .select('id')
+          .neq('role', 'cliente');
+
+        const membersToInsert = [
+          { channel_id: channelId, user_id: userId, role: 'admin' }
+        ];
+
+        if (staffMembers) {
+          staffMembers.forEach(staff => {
+            membersToInsert.push({ channel_id: channelId, user_id: staff.id, role: 'member' });
+          });
+        }
+
+        const { error: membersError } = await supabase
+          .from('chat_channel_members')
+          .insert(membersToInsert);
+
+        if (membersError) throw membersError;
+
+        await fetchChannels(userId);
+        setSelectedChannelId(channelId);
+      }
+    } catch (error) {
+      console.error('Error initiating support from notification:', error);
+      alert('Falha ao direcionar para o atendimento.');
     }
   };
 
@@ -2282,28 +2380,50 @@ export const Chat: React.FC = () => {
     });
   }, [enrichedChannels, profiles, contactSearchTerm, currentUser, userId]);
 
+  // Função para verificar se o canal foi criado por um cliente
+  const isChannelCreatedByClient = React.useCallback((ch: Channel) => {
+    if (!ch.created_by) return false;
+    if (ch.created_by === userId) {
+      return currentUser?.role === 'cliente';
+    }
+    const creatorProfile = profiles.find(p => p.id === ch.created_by);
+    return creatorProfile?.role === 'cliente';
+  }, [userId, currentUser, profiles]);
+
   const supportCounts = React.useMemo(() => {
     let queue = 0;
     let mine = 0;
+    let alerts = 0;
     let all = 0;
 
     channels.forEach(c => {
       if (c.type === 'support') {
         const isClosed = c.support_status === 'resolved' || c.status === 'closed';
         if (!isClosed) {
-          all++;
-          if (!c.assigned_to) {
-            queue++;
-          }
-          if (c.assigned_to === userId) {
-            mine++;
+          const createdByClient = isChannelCreatedByClient(c);
+          
+          if (c.is_notification) {
+            alerts++;
+          } else {
+            all++;
+            if (createdByClient) {
+              if (!c.assigned_to) {
+                queue++;
+              }
+            } else {
+              alerts++;
+            }
+
+            if (c.assigned_to === userId) {
+              mine++;
+            }
           }
         }
       }
     });
 
-    return { queue, mine, all };
-  }, [channels, userId]);
+    return { queue, mine, alerts, all };
+  }, [channels, userId, isChannelCreatedByClient, selectedSectorFilterId]);
 
   const filteredChannels = enrichedChannels.filter(channel => {
     if (!channel.name?.toLowerCase().includes(contactSearchTerm.toLowerCase())) return false;
@@ -2324,13 +2444,25 @@ export const Chat: React.FC = () => {
         }
         // Sub-filtros de atendimento para staff
         if (supportSubTab === 'queue') {
-          return !channel.assigned_to && channel.support_status !== 'resolved' && channel.status !== 'closed';
+          return !channel.assigned_to && 
+                 channel.support_status !== 'resolved' && 
+                 channel.status !== 'closed' &&
+                 !channel.is_notification &&
+                 isChannelCreatedByClient(channel);
         }
         if (supportSubTab === 'mine') {
-          return channel.assigned_to === userId && channel.support_status !== 'resolved' && channel.status !== 'closed';
+          return channel.assigned_to === userId && 
+                 channel.support_status !== 'resolved' && 
+                 channel.status !== 'closed' &&
+                 !channel.is_notification;
+        }
+        if (supportSubTab === 'alerts') {
+          return (channel.is_notification || !isChannelCreatedByClient(channel)) && 
+                 channel.support_status !== 'resolved' && 
+                 channel.status !== 'closed';
         }
         // 'all' (Todos - mostra ativos e encerrados/resolvidos)
-        return true;
+        return !channel.is_notification;
       }
       return false;
     }
@@ -2550,6 +2682,26 @@ export const Chat: React.FC = () => {
               </button>
               <button
                 type="button"
+                onClick={() => setSupportSubTab('alerts')}
+                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                  supportSubTab === 'alerts'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <span>Alertas</span>
+                {supportCounts.alerts > 0 && (
+                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full transition-colors ${
+                    supportSubTab === 'alerts'
+                      ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                      : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                  }`}>
+                    {supportCounts.alerts}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
                 onClick={() => setSupportSubTab('all')}
                 className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
                   supportSubTab === 'all'
@@ -2709,7 +2861,7 @@ export const Chat: React.FC = () => {
                               : (profiles.find(p => p.id === channel.assigned_to)?.full_name?.split(' ')[0] || 'Atendente')}
                           </span>
                         ) : (
-                          channel.support_status !== 'resolved' && (
+                          channel.support_status !== 'resolved' && !channel.is_notification && (
                             <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-indigo-100/50 dark:border-indigo-900/30">
                               Fila
                             </span>
@@ -2725,7 +2877,11 @@ export const Chat: React.FC = () => {
                       )}
 
                       {/* Badge de Status (para todos: equipe e cliente) */}
-                      {channel.support_status === 'resolved' ? (
+                      {channel.is_notification ? (
+                        <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-semibold border border-indigo-100/50 dark:border-indigo-900/30 animate-pulse">
+                          Notificação
+                        </span>
+                      ) : channel.support_status === 'resolved' ? (
                         <span className="text-[9px] bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded font-semibold border border-rose-100/50 dark:border-rose-900/30">
                           Fechado
                         </span>
@@ -2885,42 +3041,44 @@ export const Chat: React.FC = () => {
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
               {/* Menu de Chamada de Áudio e Vídeo */}
-              <div className="relative" ref={callMenuRef}>
-                <div className="tooltip-container tooltip-bottom tooltip-right">
-                  <button
-                    onClick={() => setShowCallMenu(!showCallMenu)}
-                    className={`p-2 rounded-lg transition-colors ${showCallMenu ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                  >
-                    <PhoneOutgoing size={20} />
-                  </button>
-                  <span className="tooltip-content">Chamada</span>
-                </div>
-
-                {showCallMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              {!selectedChannel.is_notification && (
+                <div className="relative" ref={callMenuRef}>
+                  <div className="tooltip-container tooltip-bottom tooltip-right">
                     <button
-                      onClick={() => {
-                        startCall(false);
-                        setShowCallMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
+                      onClick={() => setShowCallMenu(!showCallMenu)}
+                      className={`p-2 rounded-lg transition-colors ${showCallMenu ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                     >
-                      <Phone size={16} className="text-emerald-500" />
-                      <span>Chamada de Áudio</span>
+                      <PhoneOutgoing size={20} />
                     </button>
-                    <button
-                      onClick={() => {
-                        startCall(true);
-                        setShowCallMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
-                    >
-                      <Video size={16} className="text-indigo-500" />
-                      <span>Chamada de Vídeo</span>
-                    </button>
+                    <span className="tooltip-content">Chamada</span>
                   </div>
-                )}
-              </div>
+
+                  {showCallMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button
+                        onClick={() => {
+                          startCall(false);
+                          setShowCallMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
+                      >
+                        <Phone size={16} className="text-emerald-500" />
+                        <span>Chamada de Áudio</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          startCall(true);
+                          setShowCallMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
+                      >
+                        <Video size={16} className="text-indigo-500" />
+                        <span>Chamada de Vídeo</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedChannel.type === 'group' && (
                 <div className="tooltip-container tooltip-bottom tooltip-right">
@@ -2935,7 +3093,7 @@ export const Chat: React.FC = () => {
               )}
 
               {/* Menu de Ações de Atendimento (Assumir, Transferir, Concluir) */}
-              {selectedChannel.type === 'support' && currentUser?.role !== 'cliente' && (
+              {selectedChannel.type === 'support' && currentUser?.role !== 'cliente' && !selectedChannel.is_notification && (
                 <div className="relative animate-in fade-in duration-200" ref={supportActionsMenuRef}>
                   <div className="tooltip-container tooltip-bottom tooltip-right">
                     <button
@@ -3146,7 +3304,7 @@ export const Chat: React.FC = () => {
                                 return (
                                   <>
                                     <span className={`font-bold ${msg.isMe ? 'text-indigo-200' : 'text-indigo-600 dark:text-indigo-400'}`}>{repliedSenderName}</span>
-                                    <span className="line-clamp-2 leading-relaxed opacity-90">{repliedMsg.text || 'Anexo'}</span>
+                                    <span className="line-clamp-2 leading-relaxed opacity-90">{repliedMsg.text ? stripFormatting(repliedMsg.text) : 'Anexo'}</span>
                                   </>
                                 );
                               })()}
@@ -3162,13 +3320,15 @@ export const Chat: React.FC = () => {
                             >
                               <Smile size={14} className="text-slate-400 hover:text-indigo-500" />
                             </button>
-                            <button
-                              onClick={() => setReplyingTo(msg)}
-                              title="Responder"
-                              className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
-                            >
-                              <Reply size={14} className="text-slate-400 hover:text-indigo-500" />
-                            </button>
+                            {!selectedChannel?.is_notification && (
+                              <button
+                                onClick={() => setReplyingTo(msg)}
+                                title="Responder"
+                                className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                              >
+                                <Reply size={14} className="text-slate-400 hover:text-indigo-500" />
+                              </button>
+                            )}
                             <button
                               onClick={() => markMessageAsUnread(msg.id, selectedChannelId!)}
                               title="Marcar como não lido"
@@ -3226,7 +3386,12 @@ export const Chat: React.FC = () => {
                             </div>
                           )}
 
-                          {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
+                          {msg.text && (
+                             <p 
+                               className="whitespace-pre-wrap break-words" 
+                               dangerouslySetInnerHTML={{ __html: formatMessageText(msg.text) }} 
+                             />
+                           )}
                           <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
                             <span>{msg.created_at}</span>
                             {msg.isMe && (
@@ -3339,9 +3504,56 @@ export const Chat: React.FC = () => {
             )}
 
             {(() => {
-              const isInputBlockedForStaff = selectedChannel?.type === 'support' && 
-                                             selectedChannel?.support_status === 'resolved' && 
-                                             currentUser?.role !== 'cliente';
+              const isClient = currentUser?.role === 'cliente';
+              const isNotification = selectedChannel?.is_notification === true;
+              const isResolvedSupportForStaff = selectedChannel?.type === 'support' && 
+                                                selectedChannel?.support_status === 'resolved' && 
+                                                !isClient;
+
+              if (isNotification) {
+                if (isClient) {
+                  return (
+                    <div className="flex flex-col items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-4 text-center animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2 mb-3 text-indigo-700 dark:text-indigo-400 font-semibold text-sm">
+                        <AlertCircle size={18} className="shrink-0" />
+                        <span>Este canal é apenas para envio de notificações. Não é possível responder diretamente aqui.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleInitiateSupportFromNotification(selectedChannel)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-md hover:shadow-lg transition-all animate-bounce"
+                      >
+                        <MessageSquare size={16} />
+                        <span>Tirar Dúvidas com o Setor {sectors.find(s => s.id === selectedChannel.sector_id)?.name || 'Responsável'}</span>
+                      </button>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="flex items-center justify-center bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-800 rounded-xl py-3 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 select-none animate-in fade-in duration-200 text-center">
+                      <AlertCircle size={14} className="mr-2 text-slate-400 shrink-0" />
+                      <span>Este canal é exclusivo para envio de notificações. Não é possível enviar mensagens diretas aqui.</span>
+                    </div>
+                  );
+                }
+              }
+
+              if (isResolvedSupportForStaff) {
+                return (
+                  <div className="flex flex-col">
+                    <div className="flex items-center justify-center bg-rose-50/60 dark:bg-rose-950/15 border border-rose-100 dark:border-rose-900/40 rounded-lg py-2.5 px-4 text-xs font-semibold text-rose-700 dark:text-rose-400 select-none animate-in fade-in duration-200 w-full text-center">
+                      <RotateCcw size={14} className="mr-2 animate-pulse text-rose-500 shrink-0" />
+                      <span>Atendimento Finalizado! Utilize a opção <strong className="bg-rose-100 dark:bg-rose-900/40 px-1.5 py-0.5 rounded text-rose-800 dark:text-rose-300 font-bold">[reabrir e assumir]</strong> disponível no menu de ações do chat.</span>
+                    </div>
+                    <div className="text-center mt-2">
+                      <p className="text-[10px] text-slate-400">
+                        Para interagir, clique no botão 'Reabrir e Assumir' nas Ações do cabeçalho
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <form onSubmit={handleSendMessage} className="flex flex-col">
                   <input
@@ -3350,85 +3562,70 @@ export const Chat: React.FC = () => {
                     onChange={handleFileSelect}
                     className="hidden"
                     accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip"
-                    disabled={isInputBlockedForStaff}
                   />
                   <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950/50 p-2 rounded-xl border border-transparent transition-all">
-                    {!isInputBlockedForStaff && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                        >
-                          <Paperclip size={20} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (fileInputRef.current) {
-                              fileInputRef.current.accept = "image/*";
-                              fileInputRef.current.click();
-                              setTimeout(() => {
-                                if (fileInputRef.current) fileInputRef.current.accept = "image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip";
-                              }, 100);
-                            }
-                          }}
-                          className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors hidden sm:block"
-                        >
-                          <ImageIcon size={20} />
-                        </button>
-                      </>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                    >
+                      <Paperclip size={20} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (fileInputRef.current) {
+                          fileInputRef.current.accept = "image/*";
+                          fileInputRef.current.click();
+                          setTimeout(() => {
+                            if (fileInputRef.current) fileInputRef.current.accept = "image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip";
+                          }, 100);
+                        }
+                      }}
+                      className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors hidden sm:block"
+                    >
+                      <ImageIcon size={20} />
+                    </button>
+                    <textarea
+                      ref={textareaRef}
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      placeholder="Digite sua mensagem..."
+                      className="flex-1 bg-transparent border-0 focus:ring-0 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none py-2.5 max-h-32 min-h-[44px]"
+                      rows={1}
+                    />
 
-                    {isInputBlockedForStaff ? (
-                      <div className="flex-1 flex items-center justify-center bg-rose-50/60 dark:bg-rose-950/15 border border-rose-100 dark:border-rose-900/40 rounded-lg py-2.5 px-4 text-xs font-semibold text-rose-700 dark:text-rose-400 select-none animate-in fade-in duration-200 w-full text-center">
-                        <RotateCcw size={14} className="mr-2 animate-pulse text-rose-500 shrink-0" />
-                        <span>Atendimento Finalizado! Utilize a opção <strong className="bg-rose-100 dark:bg-rose-900/40 px-1.5 py-0.5 rounded text-rose-800 dark:text-rose-300 font-bold">[reabrir e assumir]</strong> disponível no menu de ações do chat.</span>
-                      </div>
-                    ) : (
-                      <>
-                        <textarea
-                          ref={textareaRef}
-                          value={messageInput}
-                          onChange={(e) => setMessageInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSendMessage(e);
-                            }
-                          }}
-                          placeholder="Digite sua mensagem..."
-                          className="flex-1 bg-transparent border-0 focus:ring-0 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none py-2.5 max-h-32 min-h-[44px]"
-                          rows={1}
+                    <button
+                      ref={emojiButtonRef}
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className={`p-2 rounded-lg transition-colors hidden sm:block ${showEmojiPicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                    >
+                      <Smile size={20} />
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={(!messageInput.trim() && !selectedFile)}
+                      className="relative p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm overflow-hidden shrink-0"
+                    >
+                      {uploadProgress > 0 && uploadProgress < 100 && (
+                        <div
+                          className="absolute inset-0 bg-indigo-800 opacity-50 transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
                         />
-
-                        <button
-                          ref={emojiButtonRef}
-                          type="button"
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          className={`p-2 rounded-lg transition-colors hidden sm:block ${showEmojiPicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-                        >
-                          <Smile size={20} />
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={(!messageInput.trim() && !selectedFile)}
-                          className="relative p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm overflow-hidden shrink-0"
-                        >
-                          {uploadProgress > 0 && uploadProgress < 100 && (
-                            <div
-                              className="absolute inset-0 bg-indigo-800 opacity-50 transition-all duration-300"
-                              style={{ width: `${uploadProgress}%` }}
-                            />
-                          )}
-                          <Send size={18} className="relative z-10" />
-                        </button>
-                      </>
-                    )}
+                      )}
+                      <Send size={18} className="relative z-10" />
+                    </button>
                   </div>
                   <div className="text-center mt-2">
-                    <p className="text-[10px] text-slate-400">
-                      {isInputBlockedForStaff ? "Para interagir, clique no botão 'Reabrir e Assumir' nas Ações do cabeçalho" : "Pressione Enter para enviar"}
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      Pressione Enter para enviar
                     </p>
                   </div>
                 </form>

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect } from '../components/ui/Input';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -2027,6 +2028,63 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   // Delete modal state
   const [templateToDelete, setTemplateToDelete] = useState<MessageTemplate | null>(null);
 
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        emojiPickerRef.current && 
+        !emojiPickerRef.current.contains(event.target as Node) &&
+        emojiButtonRef.current &&
+        !emojiButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const insertMarkdownFormatting = (prefix: string, suffix: string = prefix) => {
+    const textarea = document.getElementById('template-content-textarea') as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const selectedText = text.substring(start, end);
+      const newText = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
+      setContent(newText);
+      setTimeout(() => {
+        textarea.focus();
+        const offset = prefix.length + selectedText.length + suffix.length;
+        textarea.setSelectionRange(start + offset, start + offset);
+      }, 0);
+    }
+  };
+
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    const textarea = document.getElementById('template-content-textarea') as HTMLTextAreaElement;
+    const emoji = emojiData.emoji;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const newText = text.substring(0, start) + emoji + text.substring(end);
+      setContent(newText);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+      }, 0);
+    } else {
+      setContent(prev => prev + emoji);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -2348,15 +2406,42 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 ? `${memberForProfile.first_name} ${memberForProfile.last_name}` 
                 : (prof.full_name || client.admin_partner_name || client.company_name);
 
+              const regimeLabel = client.tax_regime ? getTaxRegimeLabel(client.tax_regime) : 'Não Definido';
+              const portalLink = typeof window !== 'undefined' ? window.location.origin : 'https://portal.taskaccount.com.br';
+
+              const lastMonthDate = new Date();
+              lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+              const competenceLabel = lastMonthDate.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+
               // 2. Personalizar placeholders da mensagem padrão
               let personalizedText = template.content
                 .replace(/{nome_contato}/g, contactName)
                 .replace(/{razao_social}/g, client.company_name)
                 .replace(/{nome_fantasia}/g, client.trade_name || client.company_name)
-                .replace(/{mes_competencia}/g, new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }));
+                .replace(/{mes_competencia}/g, competenceLabel)
+                .replace(/{cnpj_empresa}/g, client.document || 'Não Informado')
+                .replace(/{regime_tributario}/g, regimeLabel)
+                .replace(/{link_portal}/g, portalLink)
+                .replace(/{codigo_cliente}/g, client.code || 'Não Informado')
+                .replace(/{cidade_empresa}/g, client.city || 'Não Informado')
+                .replace(/{estado_empresa}/g, client.state || 'Não Informado')
+                .replace(/{segmento_empresa}/g, client.segment || 'Não Informado');
 
               // 3. Placeholders da tarefa vinculada
+              let vencimentoPadraoStr = 'Não Definido';
               if (template.reference_task_type_id) {
+                const taskTypeObj = taskTypes.find(t => t.id === template.reference_task_type_id);
+                const dueDay = taskTypeObj?.due_day;
+                if (dueDay) {
+                  const today = new Date();
+                  const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+                  vencimentoPadraoStr = dueDate.toLocaleDateString('pt-BR');
+                } else {
+                  const today = new Date();
+                  const dueDate = new Date(today.getFullYear(), today.getMonth(), 20);
+                  vencimentoPadraoStr = dueDate.toLocaleDateString('pt-BR');
+                }
+
                 const taskTypeName = taskTypes.find(t => t.id === template.reference_task_type_id)?.name;
                 let taskQuery = (supabase.from('tasks') as any)
                   .select('due_date, task_name')
@@ -2383,6 +2468,9 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     .replace(/{vencimento_tarefa}/g, 'Data limite');
                 }
               }
+              personalizedText = personalizedText
+                .replace(/{vencimento_padrao}/g, vencimentoPadraoStr)
+                .replace(/{vencimento_competencia}/g, vencimentoPadraoStr);
 
               // 4. Enviar para o Chat se o cliente tiver acesso
               let channelId = null;
@@ -2444,7 +2532,8 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     created_by: userProfile.id,
                     status: 'open',
                     support_status: 'pending',
-                    sector_id: targetSectorId
+                    sector_id: targetSectorId,
+                    is_notification: true
                   } as any)
                   .select()
                   .single();
@@ -2562,116 +2651,250 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     ...taskTypes.map(t => ({ value: t.id, label: t.name }))
                   ]}
                 />
+
+                <Select
+                  label="Regime Tributário"
+                  value={targetTaxRegimes[0] || ''}
+                  onChange={e => setTargetTaxRegimes(e.target.value ? [e.target.value] : [])}
+                  options={[
+                    { value: '', label: 'Selecione um Regime' },
+                    { value: 'simples', label: 'Simples Nacional' },
+                    { value: 'simples_iva', label: 'Simples IVA Dual' },
+                    { value: 'presumido', label: 'Lucro Presumido' },
+                    { value: 'presumido_imune', label: 'Presumido Imune-Isento' },
+                    { value: 'real_trimestral', label: 'Lucro Real Trimestral' },
+                    { value: 'real_anual', label: 'Lucro Real Anual' },
+                    { value: 'real_imune', label: 'Lucro Real Imune-Isento' },
+                    { value: 'arbitrado', label: 'Lucro Arbitrado' },
+                    { value: 'mei', label: 'Microempreendedor (MEI)' }
+                  ]}
+                />
+
+                <Select
+                  label="Setor"
+                  value={targetSectors[0] || ''}
+                  onChange={e => setTargetSectors(e.target.value ? [e.target.value] : [])}
+                  options={[
+                    { value: '', label: 'Selecione um Setor' },
+                    ...sectors.map(s => ({ value: s.id, label: s.name }))
+                  ]}
+                />
               </div>
 
               {/* Editor de Mensagem e Placeholders */}
               <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Mensagem Padrão Customizável
-                  </label>
-                  
-                  {/* Placeholders Rápidos */}
-                  <div className="flex flex-wrap gap-1">
-                    <button
-                      type="button"
-                      onClick={() => insertPlaceholder('{nome_contato}')}
-                      className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-md border border-indigo-200/55"
-                      title="Primeiro nome do contato principal"
-                    >
-                      {`{nome_contato}`}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertPlaceholder('{razao_social}')}
-                      className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-md border border-indigo-200/55"
-                      title="Razão Social da Empresa"
-                    >
-                      {`{razao_social}`}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertPlaceholder('{mes_competencia}')}
-                      className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded-md border border-indigo-200/55"
-                      title="Mês corrente (MM/AAAA)"
-                    >
-                      {`{mes_competencia}`}
-                    </button>
-                    {referenceTaskTypeId && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => insertPlaceholder('{nome_tarefa}')}
-                          className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded-md border border-emerald-200/50"
-                        >
-                          {`{nome_tarefa}`}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => insertPlaceholder('{vencimento_tarefa}')}
-                          className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded-md border border-emerald-200/50"
-                        >
-                          {`{vencimento_tarefa}`}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Mensagem Padrão Customizável
+                </label>
 
-                <textarea
-                  id="template-content-textarea"
-                  value={content}
-                  onChange={e => setContent(e.target.value)}
-                  placeholder="Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} vence em {vencimento_tarefa}."
-                  className="w-full h-32 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-slate-400 dark:text-white"
-                />
+                <div className="space-y-0 relative">
+                  {/* Barra de Ferramentas de Formatação e Placeholders */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 dark:bg-slate-800/60 p-2 rounded-t-xl border-t border-x border-slate-200 dark:border-slate-700/50">
+                    {/* Botões de Formatação */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdownFormatting('**')}
+                        className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                        title="Negrito"
+                      >
+                        <strong>B</strong>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdownFormatting('*')}
+                        className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 italic flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                        title="Itálico"
+                      >
+                        <em>I</em>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdownFormatting('_')}
+                        className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 underline flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                        title="Sublinhado"
+                      >
+                        <u>U</u>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdownFormatting('~')}
+                        className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 line-through flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                        title="Tachado"
+                      >
+                        <s>S</s>
+                      </button>
+                      
+                      <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                      
+                      <div className="relative">
+                        <button
+                          ref={emojiButtonRef}
+                          type="button"
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className={`px-2 py-1 text-xs bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center h-[28px] gap-1 transition-colors shadow-sm ${showEmojiPicker ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400' : ''}`}
+                          title="Inserir Emoji"
+                        >
+                          <Smile size={14} className={showEmojiPicker ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'} />
+                          <span className="text-[10px] font-bold">Emoji</span>
+                        </button>
+
+                        {/* Emoji Picker Popover */}
+                        {showEmojiPicker && (
+                          <div 
+                            ref={emojiPickerRef}
+                            className="absolute top-full left-0 mt-1 z-50 shadow-xl rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                          >
+                            <EmojiPicker
+                              onEmojiClick={onEmojiClick}
+                              autoFocusSearch={false}
+                              theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
+                              height={280}
+                              width={240}
+                              searchDisabled
+                              skinTonesDisabled
+                              previewConfig={{ showPreview: false }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Placeholders Rápidos */}
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{nome_contato}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Primeiro nome do contato principal"
+                      >
+                        {`{nome_contato}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{razao_social}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Razão Social da Empresa"
+                      >
+                        {`{razao_social}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{cnpj_empresa}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="CNPJ/CPF do Cliente"
+                      >
+                        {`{cnpj_empresa}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{regime_tributario}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Regime Tributário do Cliente"
+                      >
+                        {`{regime_tributario}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{link_portal}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Link de Acesso ao Portal"
+                      >
+                        {`{link_portal}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{mes_competencia}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Mês corrente (MM/AAAA)"
+                      >
+                        {`{mes_competencia}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{codigo_cliente}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Código do Cliente"
+                      >
+                        {`{codigo_cliente}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{cidade_empresa}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Cidade da Empresa"
+                      >
+                        {`{cidade_empresa}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{estado_empresa}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Estado da Empresa"
+                      >
+                        {`{estado_empresa}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertPlaceholder('{segmento_empresa}')}
+                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        title="Segmento da Empresa"
+                      >
+                        {`{segmento_empresa}`}
+                      </button>
+                      {referenceTaskTypeId && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => insertPlaceholder('{nome_tarefa}')}
+                            className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                          >
+                            {`{nome_tarefa}`}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => insertPlaceholder('{vencimento_tarefa}')}
+                            className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                            title="Vencimento Físico da Tarefa Cadastrada"
+                          >
+                            {`{vencimento_tarefa}`}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => insertPlaceholder('{vencimento_padrao}')}
+                            className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                            title="Vencimento Padrão do Tipo de Tarefa"
+                          >
+                            {`{vencimento_padrao}`}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <textarea
+                    id="template-content-textarea"
+                    value={content}
+                    onChange={e => setContent(e.target.value)}
+                    placeholder="Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} vence em {vencimento_tarefa}."
+                    className="w-full h-32 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-b-xl border-t-0 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-slate-400 dark:text-white"
+                  />
+                </div>
               </div>
 
               {/* Segmentação & Destinatários */}
               <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
                 <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Target size={14} /> Público-Alvo e Filtros de Entrega
+                  <Target size={14} /> Mensagem Direcionada
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="w-full">
                   <MultiSelect
                     label="Clientes Específicos (Alertas direcionados)"
                     value={targetClientIds}
                     onChange={setTargetClientIds}
                     options={clients.map(c => ({ value: c.id, label: c.company_name }))}
                   />
-
-                  {targetClientIds.length === 0 ? (
-                    <>
-                      <MultiSelect
-                        label="Filtrar por Regimes Tributários"
-                        value={targetTaxRegimes}
-                        onChange={setTargetTaxRegimes}
-                        options={[
-                          { value: 'simples', label: 'Simples Nacional' },
-                          { value: 'simples_iva', label: 'Simples IVA Dual' },
-                          { value: 'presumido', label: 'Lucro Presumido' },
-                          { value: 'presumido_imune', label: 'Presumido Imune-Isento' },
-                          { value: 'real_trimestral', label: 'Lucro Real Trimestral' },
-                          { value: 'real_anual', label: 'Lucro Real Anual' },
-                          { value: 'real_imune', label: 'Lucro Real Imune-Isento' },
-                          { value: 'arbitrado', label: 'Lucro Arbitrado' },
-                          { value: 'mei', label: 'Microempreendedor (MEI)' }
-                        ]}
-                      />
-                      <MultiSelect
-                        label="Filtrar por Setores Atendidos"
-                        value={targetSectors}
-                        onChange={setTargetSectors}
-                        options={sectors.map(s => ({ value: s.id, label: s.name }))}
-                      />
-                    </>
-                  ) : (
-                    <div className="md:col-span-1 flex items-center bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-lg text-xs text-indigo-700 dark:text-indigo-300">
-                      <AlertCircle size={16} className="mr-2 text-indigo-500 shrink-0" />
-                      <span>Filtros genéricos ocultados. O envio será feito <strong>apenas</strong> para os clientes selecionados individualmente acima.</span>
-                    </div>
-                  )}
                 </div>
               </div>
 
