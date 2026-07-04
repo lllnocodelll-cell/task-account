@@ -29,7 +29,8 @@ import {
   SlidersHorizontal,
   Building2,
   MousePointerClick,
-  UserCog
+  UserCog,
+  Zap
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -72,7 +73,9 @@ interface Profile {
   sector?: string;
   client_id?: string | null;
   client_ids?: string[] | null;
+  org_id?: string | null;
 }
+
 
 const STATUS_COLORS: Record<string, string> = {
   'disponível': 'bg-emerald-500',
@@ -364,11 +367,17 @@ export const Chat: React.FC = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState<Record<string, boolean>>({});
   const [loadingMore, setLoadingMore] = useState(false);
   const [activeChannelCompanies, setActiveChannelCompanies] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [templateSearchTerm, setTemplateSearchTerm] = useState('');
   const PAGE_LIMIT = 40;
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const reactionPickerRef = useRef<HTMLDivElement>(null);
+  const templatePickerRef = useRef<HTMLDivElement>(null);
+  const templateButtonRef = useRef<HTMLButtonElement>(null);
+
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -441,6 +450,9 @@ export const Chat: React.FC = () => {
       if (showEmojiPicker && emojiPickerRef.current && !emojiPickerRef.current.contains(target) && emojiButtonRef.current && !emojiButtonRef.current.contains(target)) {
         setShowEmojiPicker(false);
       }
+      if (showTemplatePicker && templatePickerRef.current && !templatePickerRef.current.contains(target) && templateButtonRef.current && !templateButtonRef.current.contains(target)) {
+        setShowTemplatePicker(false);
+      }
       if (reactionMessageId && reactionPickerRef.current && !reactionPickerRef.current.contains(target)) {
         const isReactButtonClick = (target as HTMLElement).closest('button[title="Reagir"]');
         if (!isReactButtonClick) {
@@ -453,7 +465,7 @@ export const Chat: React.FC = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showCallMenu, showSupportActionsMenu, showStatusMenu, showEmojiPicker, reactionMessageId]);
+  }, [showCallMenu, showSupportActionsMenu, showStatusMenu, showEmojiPicker, showTemplatePicker, reactionMessageId]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -626,11 +638,26 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const fetchTemplates = async (orgId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_message_templates')
+        .select('*')
+        .eq('org_id', orgId)
+        .order('title');
+      if (error) throw error;
+      if (data) setTemplates(data);
+    } catch (e) {
+      console.error('Error fetching templates:', e);
+    }
+  };
+
   useEffect(() => {
     fetchSession();
     fetchSectors();
     fetchClients();
   }, []);
+
 
   useEffect(() => {
     const isNewChannel = selectedChannelIdRef.current !== selectedChannelId;
@@ -903,7 +930,7 @@ export const Chat: React.FC = () => {
       try {
         const { data, error } = await supabase
           .from('clients')
-          .select('company_name, status')
+          .select('*')
           .in('id', clientIds);
 
         if (error) throw error;
@@ -1211,6 +1238,9 @@ export const Chat: React.FC = () => {
         .single();
       if (profile) {
         setCurrentUser(profile);
+        if (profile.org_id) {
+          fetchTemplates(profile.org_id);
+        }
       }
     }
   };
@@ -2137,6 +2167,105 @@ export const Chat: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const replaceTemplatePlaceholders = (text: string) => {
+    if (!text) return '';
+
+    // Tentar pegar o cliente ativo
+    const client = activeChannelCompanies && activeChannelCompanies.length > 0 
+      ? activeChannelCompanies[0] 
+      : null;
+
+    // Tentar pegar o nome do contato
+    let contactName = '';
+    if (selectedChannelId) {
+      const activeChannel = channels.find(c => c.id === selectedChannelId);
+      if (activeChannel) {
+        if (activeChannel.type === 'support') {
+          const match = activeChannel.rawName ? activeChannel.rawName.match(/^Atendimento - (.+?)(?:\s*\(|$)/) : null;
+          contactName = match ? match[1].trim() : activeChannel.name;
+        } else if (activeChannel.type === 'direct') {
+          contactName = activeChannel.name;
+        }
+      }
+    }
+
+    // Garantir que a palavra "Atendimento" e hifens soltos sejam limpos
+    if (contactName) {
+      contactName = contactName
+        .replace(/Atendimento/gi, '')
+        .replace(/^\s*-\s*/, '')
+        .trim();
+    }
+
+    // Mapeamento de Regimes Tributários para exibição amigável
+    const TAX_REGIME_LABELS: Record<string, string> = {
+      'simples': 'Simples',
+      'simples_iva': 'Simples IVA Dual',
+      'presumido': 'Presumido',
+      'presumido_imune': 'Presumido Imune-Isento',
+      'real_trimestral': 'Real Trimestral',
+      'real_anual': 'Real Anual',
+      'real_imune': 'Real Imune-Isento',
+      'arbitrado': 'Arbitrado',
+      'mei': 'Microempreendedor',
+      'nanoempreendedor': 'Nanoempreendedor',
+      'irpf': 'IRPF Progressivo',
+      'lp': 'Lucro Presumido (Legado)',
+      'lr': 'Lucro Real (Legado)'
+    };
+
+    const regimeLabel = client?.tax_regime ? (TAX_REGIME_LABELS[client.tax_regime] || client.tax_regime) : '';
+    
+    const d = new Date();
+    // Mês anterior como competência padrão (MM/AAAA)
+    const prevMonthDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    const mesCompetencia = prevMonthDate.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
+
+    let textProcessed = text
+      .replace(/{nome_contato}/g, contactName || '')
+      .replace(/{razao_social}/g, client?.company_name || '')
+      .replace(/{cnpj_empresa}/g, client?.document || '')
+      .replace(/{regime_tributario}/g, regimeLabel || '')
+      .replace(/{link_portal}/g, window.location.origin)
+      .replace(/{mes_competencia}/g, mesCompetencia)
+      .replace(/{codigo_cliente}/g, client?.code || '')
+      .replace(/{cidade_empresa}/g, client?.city || '')
+      .replace(/{estado_empresa}/g, client?.state || '')
+      .replace(/{segmento_empresa}/g, client?.segment || '')
+      .replace(/{nome_tarefa}/g, '')
+      .replace(/{vencimento_tarefa}/g, '')
+      .replace(/{vencimento_padrao}/g, '');
+
+    // Adicionar a assinatura do setor no final da mensagem se houver setor associado ao canal ativo
+    if (selectedChannelId) {
+      const activeChannel = channels.find(c => c.id === selectedChannelId);
+      if (activeChannel?.sector_id) {
+        const sector = sectors.find(s => s.id === activeChannel.sector_id);
+        if (sector) {
+          textProcessed += `\n\n(${sector.name})`;
+        }
+      }
+    }
+
+    return textProcessed;
+  };
+
+  const handleSelectTemplate = (template: any) => {
+    const textProcessed = replaceTemplatePlaceholders(template.content);
+    setMessageInput(textProcessed);
+    setShowTemplatePicker(false);
+    setTemplateSearchTerm('');
+    
+    // Focar no textarea e ajustar a altura dele
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      }
+    }, 50);
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -3441,6 +3570,75 @@ export const Chat: React.FC = () => {
 
           {/* Input Area */}
           <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 relative">
+            {showTemplatePicker && (
+              <div 
+                ref={templatePickerRef}
+                className="absolute bottom-[calc(100%+0.5rem)] right-4 sm:right-16 z-50 shadow-2xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 w-80 p-3.5 flex flex-col gap-3 animate-in slide-in-from-bottom-2 duration-200 animate-out duration-150"
+              >
+                {/* Cabeçalho do Picker */}
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                    <Zap size={14} className="text-amber-500 fill-amber-500" />
+                    <span>Mensagens Modelos</span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setShowTemplatePicker(false)}
+                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+
+                {/* Input de Pesquisa */}
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar modelo..."
+                    value={templateSearchTerm}
+                    onChange={(e) => setTemplateSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Lista de Templates */}
+                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-0.5 custom-scrollbar">
+                  {(() => {
+                    const filtered = templates.filter(t => 
+                      t.title.toLowerCase().includes(templateSearchTerm.toLowerCase()) ||
+                      t.content.toLowerCase().includes(templateSearchTerm.toLowerCase())
+                    );
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-500 font-medium">
+                          Nenhum modelo encontrado
+                        </div>
+                      );
+                    }
+
+                    return filtered.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleSelectTemplate(t)}
+                        title="Clique para usar este modelo"
+                        className="w-full text-left p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/50 hover:bg-indigo-50/40 dark:bg-slate-950/20 dark:hover:bg-indigo-950/15 hover:border-indigo-200 dark:hover:border-indigo-900/50 group transition-all"
+                      >
+                        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate mb-1">
+                          {t.title}
+                        </p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-2 leading-relaxed">
+                          {t.content}
+                        </p>
+                      </button>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+
             {showEmojiPicker && (
               <div 
                 ref={emojiPickerRef}
@@ -3601,10 +3799,28 @@ export const Chat: React.FC = () => {
                       rows={1}
                     />
 
+                    {currentUser?.role !== 'cliente' && (
+                      <button
+                        ref={templateButtonRef}
+                        type="button"
+                        onClick={() => {
+                          setShowTemplatePicker(!showTemplatePicker);
+                          setShowEmojiPicker(false);
+                        }}
+                        className={`p-2 rounded-lg transition-colors hidden sm:block ${showTemplatePicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                        title="Mensagens Modelos (Envio Rápido)"
+                      >
+                        <Zap size={20} className={showTemplatePicker ? 'text-indigo-500 fill-indigo-500' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'} />
+                      </button>
+                    )}
+
                     <button
                       ref={emojiButtonRef}
                       type="button"
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      onClick={() => {
+                        setShowEmojiPicker(!showEmojiPicker);
+                        setShowTemplatePicker(false);
+                      }}
                       className={`p-2 rounded-lg transition-colors hidden sm:block ${showEmojiPicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
                     >
                       <Smile size={20} />
