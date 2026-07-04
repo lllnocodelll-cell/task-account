@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input, Select, MultiSelect } from '../components/ui/Input';
+import { Input, Select, MultiSelect, GroupedSelect } from '../components/ui/Input';
+import { TAX_REGIME_GROUPS } from '../types';
 import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
@@ -2010,7 +2011,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const [targetClientIds, setTargetClientIds] = useState<string[]>([]);
   const [referenceTaskTypeId, setReferenceTaskTypeId] = useState('');
   const [isAutomated, setIsAutomated] = useState(false);
-  const [triggerType, setTriggerType] = useState<'day_of_month' | 'days_before_due' | 'manual'>('manual');
+  const [triggerType, setTriggerType] = useState<'day_of_month' | 'days_before_due' | 'manual' | ''>('');
   const [triggerValue, setTriggerValue] = useState<string>('');
   const [triggerTime, setTriggerTime] = useState('09:00');
   const [sendEmailCopy, setSendEmailCopy] = useState(false);
@@ -2145,6 +2146,11 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const handleSaveTemplate = async () => {
     if (!title.trim() || !content.trim()) {
       addToast('error', 'Erro', 'Título e Conteúdo da Mensagem são obrigatórios');
+      return;
+    }
+
+    if (isAutomated && !triggerType) {
+      addToast('error', 'Erro', 'Selecione o Tipo de Agendamento para disparos automáticos.');
       return;
     }
 
@@ -2636,14 +2642,15 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
             <div className="space-y-6 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input 
-                  label="Nome do Modelo (Identificação)" 
+                  label="Nome do Modelo" 
                   value={title} 
                   onChange={e => setTitle(e.target.value)} 
-                  placeholder="Lembrete de PIS/COFINS" 
+                  placeholder="DAS Simples Nacional" 
                 />
                 
                 <Select
-                  label="Tipo de Tarefa de Referência (Opcional)"
+                  label="Tarefa de Referência"
+                  badge="Opcional"
                   value={referenceTaskTypeId}
                   onChange={e => setReferenceTaskTypeId(e.target.value)}
                   options={[
@@ -2652,22 +2659,12 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   ]}
                 />
 
-                <Select
+                <GroupedSelect
                   label="Regime Tributário"
+                  groups={TAX_REGIME_GROUPS}
                   value={targetTaxRegimes[0] || ''}
-                  onChange={e => setTargetTaxRegimes(e.target.value ? [e.target.value] : [])}
-                  options={[
-                    { value: '', label: 'Selecione um Regime' },
-                    { value: 'simples', label: 'Simples Nacional' },
-                    { value: 'simples_iva', label: 'Simples IVA Dual' },
-                    { value: 'presumido', label: 'Lucro Presumido' },
-                    { value: 'presumido_imune', label: 'Presumido Imune-Isento' },
-                    { value: 'real_trimestral', label: 'Lucro Real Trimestral' },
-                    { value: 'real_anual', label: 'Lucro Real Anual' },
-                    { value: 'real_imune', label: 'Lucro Real Imune-Isento' },
-                    { value: 'arbitrado', label: 'Lucro Arbitrado' },
-                    { value: 'mei', label: 'Microempreendedor (MEI)' }
-                  ]}
+                  onChange={(value) => setTargetTaxRegimes(value ? [value] : [])}
+                  placeholder="Selecione um Regime"
                 />
 
                 <Select
@@ -2796,51 +2793,11 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                       </button>
                       <button
                         type="button"
-                        onClick={() => insertPlaceholder('{link_portal}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Link de Acesso ao Portal"
-                      >
-                        {`{link_portal}`}
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => insertPlaceholder('{mes_competencia}')}
                         className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
                         title="Mês corrente (MM/AAAA)"
                       >
                         {`{mes_competencia}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{codigo_cliente}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Código do Cliente"
-                      >
-                        {`{codigo_cliente}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{cidade_empresa}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Cidade da Empresa"
-                      >
-                        {`{cidade_empresa}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{estado_empresa}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Estado da Empresa"
-                      >
-                        {`{estado_empresa}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{segmento_empresa}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Segmento da Empresa"
-                      >
-                        {`{segmento_empresa}`}
                       </button>
                       {referenceTaskTypeId && (
                         <>
@@ -2850,14 +2807,6 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                             className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
                           >
                             {`{nome_tarefa}`}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => insertPlaceholder('{vencimento_tarefa}')}
-                            className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
-                            title="Vencimento Físico da Tarefa Cadastrada"
-                          >
-                            {`{vencimento_tarefa}`}
                           </button>
                           <button
                             type="button"
@@ -2876,7 +2825,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     id="template-content-textarea"
                     value={content}
                     onChange={e => setContent(e.target.value)}
-                    placeholder="Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} vence em {vencimento_tarefa}."
+                    placeholder="Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} já está disponível no portal."
                     className="w-full h-32 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-b-xl border-t-0 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-slate-400 dark:text-white"
                   />
                 </div>
@@ -2890,7 +2839,8 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 
                 <div className="w-full">
                   <MultiSelect
-                    label="Clientes Específicos (Alertas direcionados)"
+                    label="Lista de clientes"
+                    tooltip="As mensagens serão direcionadas apenas para os clientes adicionados a lista."
                     value={targetClientIds}
                     onChange={setTargetClientIds}
                     options={clients.map(c => ({ value: c.id, label: c.company_name }))}
@@ -2906,8 +2856,8 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   </h3>
                   <Toggle checked={isAutomated} onChange={(checked) => {
                     setIsAutomated(checked);
-                    if (checked && triggerType === 'manual') {
-                      setTriggerType('day_of_month');
+                    if (checked && (triggerType === 'manual' || triggerType === '')) {
+                      setTriggerType('');
                     }
                   }} />
                 </div>
@@ -3024,7 +2974,13 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   <div className="flex items-center gap-1">
                     {tmpl.is_automated && (
                       <span className="text-[9px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-indigo-200/50">
-                        <CalendarClock size={11} /> Automático {tmpl.trigger_time ? `(${tmpl.trigger_time.substring(0, 5)})` : ''}
+                        <CalendarClock size={11} /> Automático {
+                          tmpl.trigger_type === 'day_of_month'
+                            ? `(Dia ${tmpl.trigger_value} às ${tmpl.trigger_time?.substring(0, 5)})`
+                            : tmpl.trigger_type === 'days_before_due'
+                              ? `(${tmpl.trigger_value} dias antes às ${tmpl.trigger_time?.substring(0, 5)})`
+                              : tmpl.trigger_time ? `(${tmpl.trigger_time.substring(0, 5)})` : ''
+                        }
                       </span>
                     )}
                     {tmpl.send_email_copy && (

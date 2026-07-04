@@ -288,6 +288,8 @@ export const Chat: React.FC = () => {
   const [supportSectorId, setSupportSectorId] = useState('');
   const [isCreatingSupport, setIsCreatingSupport] = useState(false);
   const [sectors, setSectors] = useState<any[]>([]);
+  const [taskTypes, setTaskTypes] = useState<any[]>([]);
+  const [clientSubTab, setClientSubTab] = useState<'atendimento' | 'notificacao'>('atendimento');
   const [supportSubTab, setSupportSubTab] = useState<'queue' | 'mine' | 'alerts' | 'all'>('queue');
 
   // Atendimento iniciado pelo escritório
@@ -556,6 +558,43 @@ export const Chat: React.FC = () => {
     };
   });
 
+  const { unreadSupportCount, unreadNotificationCount, staffUnreadNotificationCount } = React.useMemo(() => {
+    let support = 0;
+    let notif = 0;
+    let staffNotif = 0;
+    
+    const localIsChannelCreatedByClient = (ch: any) => {
+      if (!ch.created_by) return false;
+      if (ch.created_by === userId) {
+        return currentUser?.role === 'cliente';
+      }
+      const creatorProfile = profiles.find(p => p.id === ch.created_by);
+      return creatorProfile?.role === 'cliente';
+    };
+
+    enrichedChannels.forEach(c => {
+      if (c.type === 'support') {
+        if (currentUser?.role === 'cliente') {
+          if (c.is_notification) {
+            notif += (c.unreadCount || 0);
+          } else {
+            support += (c.unreadCount || 0);
+          }
+        } else {
+          const isClosed = c.support_status === 'resolved' || c.status === 'closed';
+          if (!isClosed) {
+            const isNotificationTab = c.is_notification || !localIsChannelCreatedByClient(c);
+            if (isNotificationTab) {
+              staffNotif += (c.unreadCount || 0);
+            }
+          }
+        }
+      }
+    });
+    
+    return { unreadSupportCount: support, unreadNotificationCount: notif, staffUnreadNotificationCount: staffNotif };
+  }, [enrichedChannels, currentUser, userId, profiles]);
+
   const selectedChannel = enrichedChannels.find(c => c.id === selectedChannelId);
   const currentMessages = selectedChannelId ? (messages[selectedChannelId] || []) : [];
 
@@ -649,6 +688,19 @@ export const Chat: React.FC = () => {
       if (data) setTemplates(data);
     } catch (e) {
       console.error('Error fetching templates:', e);
+    }
+  };
+
+  const fetchTaskTypes = async (orgId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('task_types')
+        .select('*')
+        .eq('org_id', orgId);
+      if (error) throw error;
+      if (data) setTaskTypes(data);
+    } catch (e) {
+      console.error('Error fetching task types:', e);
     }
   };
 
@@ -1240,6 +1292,7 @@ export const Chat: React.FC = () => {
         setCurrentUser(profile);
         if (profile.org_id) {
           fetchTemplates(profile.org_id);
+          fetchTaskTypes(profile.org_id);
         }
       }
     }
@@ -1471,6 +1524,54 @@ export const Chat: React.FC = () => {
       }
     } catch (error) {
       console.error('Error marking channel as read:', error);
+    }
+  };
+
+  const handleMarkAllNotificationsAsRead = async () => {
+    if (!userId) return;
+    try {
+      const localIsChannelCreatedByClient = (ch: any) => {
+        if (!ch.created_by) return false;
+        if (ch.created_by === userId) {
+          return currentUser?.role === 'cliente';
+        }
+        const creatorProfile = profiles.find(p => p.id === ch.created_by);
+        return creatorProfile?.role === 'cliente';
+      };
+
+      const unreadNotifications = channels.filter(c => {
+        if (c.type !== 'support') return false;
+        if ((c.unreadCount || 0) <= 0) return false;
+        
+        if (currentUser?.role === 'cliente') {
+          return !!c.is_notification;
+        } else {
+          const isClosed = c.support_status === 'resolved' || c.status === 'closed';
+          if (isClosed) return false;
+          return !!c.is_notification || !localIsChannelCreatedByClient(c);
+        }
+      });
+
+      if (unreadNotifications.length === 0) return;
+
+      const channelIds = unreadNotifications.map(c => c.id);
+      
+      const { error } = await supabase
+        .from('chat_channel_members')
+        .update({ last_read_at: new Date().toISOString() } as any)
+        .in('channel_id', channelIds)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      // Zerar contadores no estado local de canais
+      setChannels(prev => 
+        prev.map(ch => 
+          channelIds.includes(ch.id) ? { ...ch, unreadCount: 0 } : ch
+        )
+      );
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
     }
   };
 
@@ -1843,6 +1944,7 @@ export const Chat: React.FC = () => {
       if (existingHumanChannel) {
         // Se existir, redireciona o cliente para lá
         setSelectedChannelId(existingHumanChannel.id);
+        setClientSubTab('atendimento');
         
         // Se estiver resolvido/fechado, reabre o canal para o cliente
         const isClosed = existingHumanChannel.support_status === 'resolved' || existingHumanChannel.status === 'closed';
@@ -1917,6 +2019,7 @@ export const Chat: React.FC = () => {
 
         await fetchChannels(userId);
         setSelectedChannelId(channelId);
+        setClientSubTab('atendimento');
       }
     } catch (error) {
       console.error('Error initiating support from notification:', error);
@@ -2169,7 +2272,7 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const replaceTemplatePlaceholders = (text: string) => {
+  const replaceTemplatePlaceholders = async (text: string, template?: any) => {
     if (!text) return '';
 
     // Tentar pegar o cliente ativo
@@ -2223,6 +2326,46 @@ export const Chat: React.FC = () => {
     const prevMonthDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
     const mesCompetencia = prevMonthDate.toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' });
 
+    // Placeholders da tarefa vinculada
+    let vencimentoPadraoStr = 'Não Definido';
+    let taskTypeName = 'Obrigação';
+    
+    if (template?.reference_task_type_id && taskTypes.length > 0) {
+      const taskTypeObj = taskTypes.find(t => t.id === template.reference_task_type_id);
+      if (taskTypeObj) {
+        taskTypeName = taskTypeObj.name;
+        const dueDay = taskTypeObj.due_day;
+        const today = new Date();
+        const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay || 20);
+        vencimentoPadraoStr = dueDate.toLocaleDateString('pt-BR');
+      }
+    }
+
+    let nomeTarefaStr = taskTypeName;
+    let vencimentoTarefaStr = 'Data limite';
+
+    if (template?.reference_task_type_id && client?.id) {
+      try {
+        const { data: taskData } = await supabase
+          .from('tasks')
+          .select('due_date, task_name')
+          .eq('client_id', client.id)
+          .eq('task_name', taskTypeName)
+          .order('due_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (taskData) {
+          nomeTarefaStr = taskData.task_name || taskTypeName;
+          vencimentoTarefaStr = taskData.due_date 
+            ? new Date(taskData.due_date).toLocaleDateString('pt-BR') 
+            : 'Data não definida';
+        }
+      } catch (err) {
+        console.error('Error fetching task details for placeholder:', err);
+      }
+    }
+
     let textProcessed = text
       .replace(/{nome_contato}/g, contactName || '')
       .replace(/{razao_social}/g, client?.company_name || '')
@@ -2234,9 +2377,9 @@ export const Chat: React.FC = () => {
       .replace(/{cidade_empresa}/g, client?.city || '')
       .replace(/{estado_empresa}/g, client?.state || '')
       .replace(/{segmento_empresa}/g, client?.segment || '')
-      .replace(/{nome_tarefa}/g, '')
-      .replace(/{vencimento_tarefa}/g, '')
-      .replace(/{vencimento_padrao}/g, '');
+      .replace(/{nome_tarefa}/g, nomeTarefaStr)
+      .replace(/{vencimento_tarefa}/g, vencimentoTarefaStr)
+      .replace(/{vencimento_padrao}/g, vencimentoPadraoStr);
 
     // Adicionar a assinatura do setor no final da mensagem se houver setor associado ao canal ativo
     if (selectedChannelId) {
@@ -2252,8 +2395,8 @@ export const Chat: React.FC = () => {
     return textProcessed;
   };
 
-  const handleSelectTemplate = (template: any) => {
-    const textProcessed = replaceTemplatePlaceholders(template.content);
+  const handleSelectTemplate = async (template: any) => {
+    const textProcessed = await replaceTemplatePlaceholders(template.content, template);
     setMessageInput(textProcessed);
     setShowTemplatePicker(false);
     setTemplateSearchTerm('');
@@ -2563,7 +2706,12 @@ export const Chat: React.FC = () => {
     }
     
     if (currentUser?.role === 'cliente') {
-      return channel.type === 'support';
+      if (channel.type !== 'support') return false;
+      if (clientSubTab === 'notificacao') {
+        return !!channel.is_notification;
+      } else {
+        return !channel.is_notification;
+      }
     } else {
       // Para o escritório, a aba 'chats' (Equipe) agora é handled pelo teamItems
       if (activeTab === 'chats') return false; 
@@ -2748,6 +2896,58 @@ export const Chat: React.FC = () => {
             )}
           </div>
 
+          {currentUser?.role === 'cliente' && (
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
+              <button
+                type="button"
+                onClick={() => { setClientSubTab('atendimento'); setSelectedChannelId(null); }}
+                className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                  clientSubTab === 'atendimento'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <MessageSquare size={14} />
+                <span>Atendimento</span>
+                {unreadSupportCount > 0 && (
+                  <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                    {unreadSupportCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setClientSubTab('notificacao'); setSelectedChannelId(null); }}
+                className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                  clientSubTab === 'notificacao'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <AlertCircle size={14} />
+                <span>Notificações</span>
+                {unreadNotificationCount > 0 && (
+                  <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                    {unreadNotificationCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+
+          {currentUser?.role === 'cliente' && clientSubTab === 'notificacao' && (
+            <div className="px-1 pt-1 pb-1 animate-in fade-in slide-in-from-top-1 duration-200">
+              <button
+                type="button"
+                onClick={handleMarkAllNotificationsAsRead}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-semibold border border-indigo-100/50 dark:border-indigo-900/30 transition-all shadow-sm"
+              >
+                <CheckCheck size={14} />
+                <span>Marcar todas como lidas</span>
+              </button>
+            </div>
+          )}
+
           {activeTab === 'support' && currentUser?.role !== 'cliente' && showSectorFilter && (
             <div className="flex flex-col gap-1.5 px-1 animate-in fade-in slide-in-from-top-2 duration-200">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
@@ -2768,17 +2968,17 @@ export const Chat: React.FC = () => {
           )}
 
           {activeTab === 'support' && currentUser?.role !== 'cliente' && (
-            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
               <button
                 type="button"
                 onClick={() => setSupportSubTab('queue')}
-                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1.5 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
                   supportSubTab === 'queue'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
-                <span>Fila</span>
+                <span>Em fila</span>
                 {supportCounts.queue > 0 && (
                   <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full transition-colors ${
                     supportSubTab === 'queue'
@@ -2792,9 +2992,9 @@ export const Chat: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSupportSubTab('mine')}
-                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1.5 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
                   supportSubTab === 'mine'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -2811,30 +3011,10 @@ export const Chat: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setSupportSubTab('alerts')}
-                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
-                  supportSubTab === 'alerts'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
-              >
-                <span>Alertas</span>
-                {supportCounts.alerts > 0 && (
-                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full transition-colors ${
-                    supportSubTab === 'alerts'
-                      ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                      : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                  }`}>
-                    {supportCounts.alerts}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
                 onClick={() => setSupportSubTab('all')}
-                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1.5 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
                   supportSubTab === 'all'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -2848,6 +3028,39 @@ export const Chat: React.FC = () => {
                     {supportCounts.all}
                   </span>
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSupportSubTab('alerts')}
+                className={`py-1.5 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                  supportSubTab === 'alerts'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <span>Notificação</span>
+                {supportCounts.alerts > 0 && (
+                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full transition-colors ${
+                    supportSubTab === 'alerts'
+                      ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                      : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                  }`}>
+                    {supportCounts.alerts}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+
+          {currentUser?.role !== 'cliente' && activeTab === 'support' && supportSubTab === 'alerts' && (
+            <div className="px-1 pt-1 pb-1 animate-in fade-in slide-in-from-top-1 duration-200">
+              <button
+                type="button"
+                onClick={handleMarkAllNotificationsAsRead}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-semibold border border-indigo-100/50 dark:border-indigo-900/30 transition-all shadow-sm"
+              >
+                <CheckCheck size={14} />
+                <span>Marcar todas como lidas</span>
               </button>
             </div>
           )}

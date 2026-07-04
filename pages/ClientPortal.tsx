@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card } from '../components/ui/Card';
+import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import {
   FileText,
@@ -59,18 +59,18 @@ const COMPETENCE_MONTHS = () => {
 const getSectorStyle = (sectorName: string | undefined | null) => {
   const name = (sectorName || 'geral').toLowerCase();
   if (name.includes('fiscal') || name.includes('tributário') || name.includes('tributario')) {
-    return { bar: 'bg-purple-500', badge: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800', icon: <FileText size={11} /> };
+    return { bar: 'bg-purple-500', nameBg: 'bg-purple-50 dark:bg-purple-950/30', badge: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800', icon: <FileText size={11} /> };
   }
   if (name.includes('contábil') || name.includes('contabil')) {
-    return { bar: 'bg-blue-500', badge: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800', icon: <Calculator size={11} /> };
+    return { bar: 'bg-blue-500', nameBg: 'bg-blue-50 dark:bg-blue-950/30', badge: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800', icon: <Calculator size={11} /> };
   }
   if (name.includes('dp') || name.includes('pessoal') || name.includes('rh')) {
-    return { bar: 'bg-orange-500', badge: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800', icon: <Users size={11} /> };
+    return { bar: 'bg-orange-500', nameBg: 'bg-orange-50 dark:bg-orange-950/30', badge: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800', icon: <Users size={11} /> };
   }
   if (name.includes('societário') || name.includes('societario') || name.includes('legalização') || name.includes('legalizacao')) {
-    return { bar: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800', icon: <Briefcase size={11} /> };
+    return { bar: 'bg-emerald-500', nameBg: 'bg-emerald-50 dark:bg-emerald-950/30', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800', icon: <Briefcase size={11} /> };
   }
-  return { bar: 'bg-slate-400', badge: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', icon: <File size={11} /> };
+  return { bar: 'bg-slate-400', nameBg: 'bg-slate-50 dark:bg-slate-900/50', badge: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', icon: <File size={11} /> };
 };
 
 const getDueDateStatus = (dueDateStr: string | null | undefined): { label: string; className: string; daysLeft: number } | null => {
@@ -404,95 +404,30 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
         </Button>
       </header>
 
-      {/* ── Banner de Alerta (aparece só quando há pendentes) ── */}
-      {pendingDocs.length > 0 && (
-        <div className="flex items-center gap-3 p-3.5 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-xl shrink-0">
-            <Zap size={16} className="text-amber-600 dark:text-amber-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
-              {pendingDocs.length === 1
-                ? '1 documento aguardando sua confirmação'
-                : `${pendingDocs.length} documentos aguardando sua confirmação`}
-            </p>
-            <p className="text-xs text-amber-600 dark:text-amber-400">Abra e leia para protocolar automaticamente.</p>
-          </div>
-          <button
-            onClick={() => setActiveTab('pending')}
-            className="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black rounded-xl transition-all active:scale-95"
-          >
-            Ver
-          </button>
-        </div>
-      )}
-
       {/* ── Dashboard Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Card Hero: Total + Progresso */}
-        <div className="col-span-2 lg:col-span-2 p-4 bg-gradient-to-br from-indigo-600 to-indigo-700 dark:from-indigo-700 dark:to-indigo-900 rounded-2xl shadow-lg shadow-indigo-500/20 flex flex-col gap-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Total de Guias</p>
-              <span className="text-4xl font-black text-white leading-none tracking-tighter">{documents.length}</span>
-            </div>
-            <div className="p-2.5 bg-white/10 rounded-xl">
-              <LayoutList size={20} className="text-white" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold text-indigo-200">Progresso de Leitura</span>
-              <span className="text-[10px] font-black text-white">{readPercent}%</span>
-            </div>
-            <div className="w-full bg-white/20 rounded-full h-2">
-              <div
-                className="bg-white rounded-full h-2 transition-all duration-700 ease-out"
-                style={{ width: `${readPercent}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-indigo-200 mt-1.5">
-              {readDocs.length} protocolados · {pendingDocs.length} pendentes
-            </p>
-          </div>
-        </div>
-
         {/* Card Pendentes */}
-        <div
-          className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-amber-400/50 dark:hover:border-amber-500/30 transition-all shadow-sm cursor-pointer group"
-          onClick={() => setActiveTab('pending')}
-        >
-          <div className="flex justify-between items-start">
-            <div className="p-2 bg-amber-50 dark:bg-amber-500/10 rounded-xl">
-              <Clock size={16} className="text-amber-600 dark:text-amber-400" />
-            </div>
-            {pendingDocs.length > 0 && (
-              <span className="flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-              </span>
-            )}
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-slate-900 dark:text-white leading-none">{pendingDocs.length}</span>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mt-0.5">Pendentes</p>
-          </div>
+        <div className="col-span-1 lg:col-span-2">
+          <MetricCard
+            title="Pendentes"
+            value={pendingDocs.length}
+            icon={<Clock size={20} />}
+            color="amber"
+            variant="horizontal"
+            onClick={() => setActiveTab('pending')}
+          />
         </div>
 
         {/* Card Protocolados */}
-        <div
-          className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col justify-between hover:border-emerald-400/50 dark:hover:border-emerald-500/30 transition-all shadow-sm cursor-pointer"
-          onClick={() => setActiveTab('read')}
-        >
-          <div className="flex justify-between items-start">
-            <div className="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
-              <BadgeCheck size={16} className="text-emerald-600 dark:text-emerald-400" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-slate-900 dark:text-white leading-none">{readDocs.length}</span>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mt-0.5">Protocolados</p>
-          </div>
+        <div className="col-span-1 lg:col-span-2">
+          <MetricCard
+            title="Protocolados"
+            value={readDocs.length}
+            icon={<BadgeCheck size={20} />}
+            color="emerald"
+            variant="horizontal"
+            onClick={() => setActiveTab('read')}
+          />
         </div>
 
         {/* Card Próximo Vencimento — full width em mobile, 4 colunas no desktop */}
@@ -682,95 +617,70 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
                         key={doc.id}
                         className={`flex gap-0 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all group border-b border-slate-100 dark:border-slate-800 last:border-b-0 ${isUrgent ? 'bg-red-50/30 dark:bg-red-500/5' : ''}`}
                       >
-                        {/* Barra lateral colorida */}
-                        <div className={`w-1 shrink-0 ${sectorStyle.bar} rounded-none first:rounded-tl-none`} />
+                        {/* Faixa lateral com Setor na Vertical (90º) */}
+                        <div className={`w-8 shrink-0 flex items-center justify-center ${sectorStyle.bar} relative`}>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-white/90 [writing-mode:vertical-lr] rotate-180 whitespace-nowrap py-3 select-none">
+                            {doc.sectors?.name || 'Geral'}
+                          </span>
+                        </div>
 
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 flex-1 min-w-0">
-                          {/* Info do documento */}
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            {/* Ícone de status — apenas md+ */}
-                            <div className={`hidden md:flex shrink-0 p-3 rounded-xl transition-all group-hover:scale-105 ${
-                              doc.status === 'Pendente'
-                                ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                : doc.status === 'Excluído'
-                                  ? 'bg-red-50 dark:bg-red-500/10 text-red-500'
-                                  : 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            }`}>
-                              {doc.status === 'Pendente' ? (
-                                <div className="relative">
-                                  <FileText size={22} />
-                                  <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
-                                  </span>
-                                </div>
-                              ) : doc.status === 'Excluído' ? (
-                                <Trash2 size={22} />
-                              ) : (
-                                <CheckCircle2 size={22} />
-                              )}
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              {/* Nome + badges */}
-                              <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                                <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
-                                  {doc.name}
-                                </h4>
-                                {doc.status === 'Pendente' && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-500 text-white uppercase tracking-tighter shrink-0">
-                                    NÃO LIDO
-                                  </span>
-                                )}
-                                {doc.status === 'Lido' && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black bg-emerald-500 text-white uppercase tracking-tighter shrink-0">
-                                    LIDO
-                                  </span>
-                                )}
-                                {doc.is_paid && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black bg-emerald-600 text-white uppercase tracking-tighter shrink-0 shadow-sm">
-                                    PAGO
-                                  </span>
-                                )}
-                                {isUrgent && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black bg-red-500 text-white uppercase tracking-tighter shrink-0 animate-pulse">
-                                    <TriangleAlert size={9} /> URGENTE
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Metadata */}
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${sectorStyle.badge}`}>
-                                  {sectorStyle.icon}
-                                  {doc.sectors?.name || 'Geral'}
-                                </span>
-                                {dueDateStatus && (
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${dueDateStatus.className}`}>
-                                    <Calendar size={10} />
-                                    {dueDateStatus.label}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                        <div className="flex flex-col sm:flex-row sm:items-stretch flex-1 min-w-0">
+                          {/* Coluna 2: Nome da Tarefa (centralizado verticalmente) */}
+                          <div className={`flex items-center min-w-0 sm:max-w-[240px] p-3 sm:p-4 sm:border-r border-slate-100 dark:border-slate-800 ${sectorStyle.nameBg}`}>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40 shadow-sm truncate">
+                              {doc.name}
+                            </span>
                           </div>
 
-                          {/* Botões de ação */}
-                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
-                            {/* Toggle pago (discreto) */}
+                          {/* Coluna 3: Vencimento (topo) / Competência (baixo) */}
+                          <div className="flex flex-col justify-center gap-1 shrink-0 sm:w-44 px-3 sm:px-4 py-1.5 sm:py-3 sm:border-r border-slate-100 dark:border-slate-800">
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${dueDateStatus ? dueDateStatus.className : 'text-slate-400 dark:text-slate-500'}`}>
+                              <Calendar size={10} />
+                              {dueDateStatus ? dueDateStatus.label : 'Sem vencimento'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
+                              {doc.competence_month ? formatCompetenceLabel(doc.competence_month) : 'Sem competência'}
+                            </span>
+                          </div>
+
+                          {/* Coluna 4: Status Leitura / Status Pagamento / Alerta Urgência */}
+                          <div className="flex flex-row sm:flex-col justify-start items-start gap-1 shrink-0 sm:w-28 px-3 sm:px-4 py-1.5 sm:py-3 flex-wrap">
+                            {doc.status === 'Pendente' && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black bg-amber-500 text-white uppercase tracking-widest">
+                                NÃO LIDO
+                              </span>
+                            )}
+                            {doc.status === 'Lido' && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black bg-emerald-500 text-white uppercase tracking-widest">
+                                LIDO
+                              </span>
+                            )}
+                            {doc.is_paid && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black bg-emerald-600 text-white uppercase tracking-widest shadow-sm">
+                                PAGO
+                              </span>
+                            )}
+                            {isUrgent && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-black bg-red-500 text-white uppercase tracking-widest animate-pulse">
+                                <TriangleAlert size={8} /> URGENTE
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Botões de Ação */}
+                          <div className="flex items-center gap-1.5 shrink-0 ml-auto px-3 sm:px-4 py-2 sm:py-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
                             <button
                               onClick={() => handlePaymentToggle(doc)}
                               title={doc.is_paid ? 'Marcar como não pago' : 'Marcar como pago'}
-                              className={`p-2 rounded-xl border transition-all active:scale-95 ${
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all active:scale-95 ${
                                 doc.is_paid
-                                  ? 'bg-emerald-100 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200'
-                                  : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200'
+                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20'
+                                  : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
                               }`}
                             >
                               <DollarSign size={14} />
+                              <span>{doc.is_paid ? 'PAGO' : 'MARCAR PAGO'}</span>
                             </button>
-
-                            {/* Protocolo (só se lido) */}
                             {doc.status === 'Lido' && (
                               <button
                                 onClick={() => handleViewProtocol(doc)}
@@ -780,8 +690,6 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
                                 <span className="hidden sm:inline">Protocolo</span>
                               </button>
                             )}
-
-                            {/* Botão principal: Abrir */}
                             <button
                               onClick={() => handleDownload(doc)}
                               disabled={doc.status === 'Excluído'}

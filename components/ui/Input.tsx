@@ -196,6 +196,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   tooltip?: string;
   error?: string;
+  badge?: string;
   options: { value: string | number; label: string }[];
 }
 
@@ -203,6 +204,7 @@ export const Select: React.FC<SelectProps> = ({
   label,
   error,
   options,
+  badge,
   className = '',
   ...props
 }) => {
@@ -225,6 +227,11 @@ export const Select: React.FC<SelectProps> = ({
       {label && (
         <div className="flex items-center gap-1.5 h-5">
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-none">{label}</label>
+          {badge && (
+            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded uppercase tracking-wider">
+              {badge}
+            </span>
+          )}
           {props.tooltip && (
             <Tooltip content={props.tooltip} position="top">
               <Info size={12} className="text-slate-400 hover:text-indigo-500 cursor-help transition-colors" />
@@ -258,7 +265,9 @@ export const Select: React.FC<SelectProps> = ({
         `}
           {...props}
         >
-          <option value="" disabled>Selecione...</option>
+          {!options.some(opt => opt.value === '') && (
+            <option value="" disabled>Selecione...</option>
+          )}
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
@@ -323,8 +332,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     const rect = buttonRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const dropdownH = 280; // altura estimada máxima
-    const DROPDOWN_MIN_W = 320;
-    const width = Math.max(rect.width, DROPDOWN_MIN_W);
+    const DROPDOWN_MIN_W = 260;
+    const width = Math.min(Math.max(rect.width, DROPDOWN_MIN_W), window.innerWidth - 16);
 
     // Decide se abre para baixo ou para cima
     const spaceBelow = viewportHeight - rect.bottom;
@@ -334,6 +343,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     let left = rect.left;
     if (left + width > window.innerWidth - 8) {
       left = window.innerWidth - width - 8;
+    }
+    if (left < 8) {
+      left = 8;
     }
 
     setDropdownStyle({
@@ -568,8 +580,8 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
     const rect = buttonRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const dropdownH = 280;
-    const DROPDOWN_MIN_W = 320;
-    const width = Math.max(rect.width, DROPDOWN_MIN_W);
+    const DROPDOWN_MIN_W = 260;
+    const width = Math.min(Math.max(rect.width, DROPDOWN_MIN_W), window.innerWidth - 16);
 
     const spaceBelow = viewportHeight - rect.bottom;
     const openUpward = spaceBelow < dropdownH && rect.top > dropdownH;
@@ -577,6 +589,9 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
     let left = rect.left;
     if (left + width > window.innerWidth - 8) {
       left = window.innerWidth - width - 8;
+    }
+    if (left < 8) {
+      left = 8;
     }
 
     setDropdownStyle({
@@ -732,8 +747,8 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
     const rect = buttonRef.current.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const dropdownH = 280;
-    const DROPDOWN_MIN_W = 320;
-    const width = Math.max(rect.width, DROPDOWN_MIN_W);
+    const DROPDOWN_MIN_W = 260;
+    const width = Math.min(Math.max(rect.width, DROPDOWN_MIN_W), window.innerWidth - 16);
 
     const spaceBelow = viewportHeight - rect.bottom;
     const openUpward = spaceBelow < dropdownH && rect.top > dropdownH;
@@ -741,6 +756,9 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
     let left = rect.left;
     if (left + width > window.innerWidth - 8) {
       left = window.innerWidth - width - 8;
+    }
+    if (left < 8) {
+      left = 8;
     }
 
     setDropdownStyle({
