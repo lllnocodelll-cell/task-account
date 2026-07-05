@@ -10,8 +10,10 @@ import {
   User,
   Building2,
   ScanFace,
-  Copy
+  Copy,
+  Loader2
 } from 'lucide-react';
+import { supabase } from '../utils/supabaseClient';
 
 interface UserProfile {
   id: string;
@@ -23,6 +25,7 @@ interface UserProfile {
   avatar_url: string | null;
   org_name: string | null;
   job_title?: string | null;
+  client_ids?: string[];
 }
 
 interface ProfileDrawerProps {
@@ -41,6 +44,30 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && userProfile?.role === 'cliente' && userProfile.client_ids && userProfile.client_ids.length > 0) {
+      const fetchDrawerCompanies = async () => {
+        try {
+          setLoadingCompanies(true);
+          const { data, error } = await supabase
+            .from('clients')
+            .select('id, company_name, trade_name, document, city, state, establishment_type, status')
+            .in('id', userProfile.client_ids || []);
+          
+          if (error) throw error;
+          setCompanies(data || []);
+        } catch (err) {
+          console.error('Erro ao buscar empresas no drawer:', err);
+        } finally {
+          setLoadingCompanies(false);
+        }
+      };
+      fetchDrawerCompanies();
+    }
+  }, [isOpen, userProfile]);
 
   useEffect(() => {
     if (isOpen) {
@@ -204,37 +231,79 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
               />
             </div>
 
-            <div className="mt-4 mb-2">
-              <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Organização & Permissões</span>
-            </div>
 
-            <InfoField 
-              label="Organização" 
-              value={userProfile.org_name} 
-              id="org" 
-              icon={Building2}
-            />
 
-            <div className="flex flex-col gap-1.5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50">
-              <div className="flex items-center gap-1.5">
-                <Briefcase size={12} className="text-indigo-400" />
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Nível de Acesso</span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200 capitalize">
-                  {userProfile.role}
-                </span>
-                {userProfile.role === 'gestor' ? (
-                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/20 px-2 py-0.5 rounded uppercase tracking-widest">
-                    Acesso Total
+            {userProfile.role === 'cliente' && (
+              <div className="mt-4">
+                <div className="mb-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-5">
+                  <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Minhas Empresas</span>
+                  <span className="text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    {companies.length}
                   </span>
+                </div>
+
+                {loadingCompanies ? (
+                  <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                    <Loader2 size={18} className="animate-spin mb-1 text-indigo-500" />
+                    <span className="text-[9px] font-bold uppercase tracking-wider">Buscando empresas...</span>
+                  </div>
+                ) : companies.length === 0 ? (
+                  <div className="py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Nenhuma empresa vinculada.</p>
+                  </div>
                 ) : (
-                  <span className="text-[9px] font-black text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-500/20 px-2 py-0.5 rounded uppercase tracking-widest">
-                    Acesso Restrito
-                  </span>
+                  <div className="space-y-3">
+                    {companies.map((company: any) => {
+                      const typeStyle = (company.establishment_type || '').toLowerCase() === 'matriz'
+                        ? 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400 border border-violet-100 dark:border-violet-500/20'
+                        : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-100 dark:border-amber-500/20';
+                      
+                      const statusStyle = company.status === 'Ativo'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20'
+                        : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20';
+
+                      return (
+                        <div key={company.id} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 flex flex-col gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 leading-snug truncate" title={company.company_name}>
+                                {company.company_name}
+                              </h4>
+                              {company.trade_name && (
+                                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate" title={company.trade_name}>
+                                  {company.trade_name}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              {company.establishment_type && (
+                                <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${typeStyle}`}>
+                                  {company.establishment_type}
+                                </span>
+                              )}
+                              <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${statusStyle}`}>
+                                {company.status || 'Ativo'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                            <div>
+                              <span className="text-[8px] font-black uppercase text-slate-400 block mb-0.5">CNPJ</span>
+                              <span className="font-mono text-slate-700 dark:text-slate-350 select-all">{company.document || '---'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[8px] font-black uppercase text-slate-400 block mb-0.5">Localidade</span>
+                              <span className="text-slate-700 dark:text-slate-350 truncate block" title={company.city}>{company.city && company.state ? `${company.city}-${company.state}` : company.city || '---'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-            </div>
+            )}
 
           </div>
           
