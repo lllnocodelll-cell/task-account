@@ -74,6 +74,7 @@ interface Profile {
   client_id?: string | null;
   client_ids?: string[] | null;
   org_id?: string | null;
+  sector_ids?: string[] | null;
 }
 
 
@@ -583,7 +584,7 @@ export const Chat: React.FC = () => {
         } else {
           const isClosed = c.support_status === 'resolved' || c.status === 'closed';
           if (!isClosed) {
-            const isNotificationTab = c.is_notification || !localIsChannelCreatedByClient(c);
+            const isNotificationTab = !!c.is_notification;
             if (isNotificationTab) {
               staffNotif += (c.unreadCount || 0);
             }
@@ -1333,6 +1334,7 @@ export const Chat: React.FC = () => {
         .select(`
           first_name, 
           last_name, 
+          sector_ids,
           sectors (
             name
           )
@@ -1343,7 +1345,17 @@ export const Chat: React.FC = () => {
         
         const member = (membersData as any[] || []).find(m => {
           const mName = `${m.first_name || ''} ${m.last_name || ''}`.trim().toLowerCase();
-          return mName === profileName || mName.startsWith(profileName) || profileName.startsWith(mName);
+          if (mName === profileName) return true;
+          
+          // Dividir em palavras para aceitar nomes com ordem invertida
+          const mWords = mName.split(/\s+/).filter(Boolean);
+          const pWords = profileName.split(/\s+/).filter(Boolean);
+          if (mWords.length > 0 && pWords.length > 0) {
+            const matchesAll = mWords.every(word => pWords.includes(word)) && pWords.every(word => mWords.includes(word));
+            if (matchesAll) return true;
+          }
+          
+          return mName.startsWith(profileName) || profileName.startsWith(mName);
         });
 
         // Lidar com o fato de que Supabase pode retornar sectors como objeto ou array
@@ -1358,7 +1370,8 @@ export const Chat: React.FC = () => {
 
         return {
           ...profile,
-          sector: sectorName
+          sector: sectorName,
+          sector_ids: member?.sector_ids || []
         };
       });
 
@@ -1548,7 +1561,7 @@ export const Chat: React.FC = () => {
         } else {
           const isClosed = c.support_status === 'resolved' || c.status === 'closed';
           if (isClosed) return false;
-          return !!c.is_notification || !localIsChannelCreatedByClient(c);
+          return !!c.is_notification;
         }
       });
 
@@ -1873,26 +1886,17 @@ export const Chat: React.FC = () => {
         .insert([{
           name: channelName,
           type: 'support',
-          created_by: userId
-        }])
+          created_by: userId,
+          assigned_to: userId,
+          support_status: 'in_progress',
+          status: 'open',
+          sector_id: staffSupportSectorId || null
+        } as any])
         .select()
         .single();
 
       if (createError) throw createError;
       const channelId = newChannel.id;
-
-      // UPDATE separado p/ colunas novas
-      if (staffSupportSectorId) {
-        await supabase
-          .from('chat_channels')
-          .update({ sector_id: staffSupportSectorId, status: 'open' } as any)
-          .eq('id', channelId);
-      } else {
-        await supabase
-          .from('chat_channels')
-          .update({ status: 'open' } as any)
-          .eq('id', channelId);
-      }
 
       // Pegar todos os membros do escritório
       const { data: staffMembers } = await supabase
@@ -2129,70 +2133,217 @@ export const Chat: React.FC = () => {
   };
 
   const handleTransferSupportTicket = async () => {
-    if (!selectedChannelId || !userId || !transferUserId) return;
+    if (!selectedChannelId || !userId || !transferUserId || !transferSectorId) return;
 
     setIsTransferring(true);
     try {
-      const channel = channels.find(c => c.id === selectedChannelId);
+      const currentChannel = channels.find(c => c.id === selectedChannelId);
       const targetUser = profiles.find(p => p.id === transferUserId);
-      const currentUserProfile = currentUser;
-      
-      if (!channel || !targetUser) throw new Error('Canal ou colaborador não encontrado');
+      const targetSector = sectors.find(s => s.id === transferSectorId);
+      if (!targetUser || !targetSector) throw new Error('Colaborador ou setor de destino inválido');
 
-      let newSectorId = transferSectorId || channel.sector_id || null;
-      let newName = channel.name;
+      const isSameSector = currentChannel && currentChannel.sector_id === transferSectorId;
 
-      if (transferSectorId) {
-        const newSector = sectors.find(s => s.id === transferSectorId);
-        if (newSector) {
-          const oldName = channel.name || '';
-          if (oldName.includes('(')) {
-            newName = `${oldName.split('(')[0].trim()} (${newSector.name})`;
-          } else {
-            newName = `${oldName} (${newSector.name})`;
-          }
+      if (isSameSector) {
+        // Apenas reatribui o operador e mantém a conversa aberta
+        await supabase
+          .from('chat_channels')
+          .update({
+            assigned_to: transferUserId,
+            support_status: 'in_progress'
+          } as any)
+          .eq('id', selectedChannelId);
+
+        // Garantir que o novo atendente é membro do canal
+        const { data: isMember } = await supabase
+          .from('chat_channel_members')
+          .select('*')
+          .eq('channel_id', selectedChannelId)
+          .eq('user_id', transferUserId)
+          .maybeSingle();
+
+        if (!isMember) {
+          await supabase.from('chat_channel_members').insert({
+            channel_id: selectedChannelId,
+            user_id: transferUserId,
+            role: 'member'
+          });
+        }
+
+        // Mensagem de sistema no mesmo canal
+        await supabase.from('chat_messages').insert({
+          channel_id: selectedChannelId,
+          sender_id: userId,
+          text: `Atendimento transferido para o colaborador ${targetUser.full_name} no mesmo setor (${targetSector.name}).`,
+          status: 'sent',
+          is_system: true
+        } as any);
+
+        setIsTransferModalOpen(false);
+        setTransferUserId('');
+        setTransferSectorId('');
+        await fetchChannels(userId);
+        return;
+      }
+
+      // 1. Obter membros do canal de origem de forma plana
+      const { data: members, error: membersErr } = await (supabase
+        .from('chat_channel_members') as any)
+        .select('user_id')
+        .eq('channel_id', selectedChannelId);
+
+      if (membersErr || !members || members.length === 0) {
+        throw new Error('Não foi possível obter os membros do canal');
+      }
+
+      const memberIds = members.map(m => m.user_id).filter(Boolean) as string[];
+
+      // Buscar o perfil do cliente entre esses membros
+      const { data: dbProfiles, error: profilesErr } = await (supabase
+        .from('profiles') as any)
+        .select('id, full_name, role')
+        .in('id', memberIds)
+        .eq('role', 'cliente');
+
+      if (profilesErr || !dbProfiles || dbProfiles.length === 0) {
+        throw new Error('Cliente associado ao atendimento não encontrado');
+      }
+
+      const clientId = dbProfiles[0].id;
+      const clientName = dbProfiles[0].full_name;
+
+      // 2. Procurar se o cliente já possui um canal de suporte para o setor de destino (humano, não-notificação)
+      // A. Achar todos os canais de suporte para o setor de destino que não sejam notificações
+      const { data: targetSectorChannels, error: channelsErr } = await (supabase
+        .from('chat_channels') as any)
+        .select('id, status, support_status, name')
+        .eq('type', 'support')
+        .eq('sector_id', transferSectorId)
+        .eq('is_notification', false);
+
+      if (channelsErr) throw channelsErr;
+
+      let targetChannelId = '';
+
+      if (targetSectorChannels && targetSectorChannels.length > 0) {
+        const channelIds = targetSectorChannels.map(c => c.id);
+        
+        // B. Verificar se o cliente é membro de algum desses canais
+        const { data: clientMemberships, error: membersCheckErr } = await supabase
+          .from('chat_channel_members')
+          .select('channel_id')
+          .eq('user_id', clientId)
+          .in('channel_id', channelIds);
+
+        if (membersCheckErr) throw membersCheckErr;
+
+        if (clientMemberships && clientMemberships.length > 0) {
+          targetChannelId = clientMemberships[0].channel_id;
         }
       }
 
-      const { error: updateError } = await supabase
-        .from('chat_channels')
-        .update({ 
-          assigned_to: transferUserId,
-          support_status: 'in_progress',
-          sector_id: newSectorId,
-          name: newName
-        } as any)
-        .eq('id', selectedChannelId);
+      const hasExisting = !!targetChannelId;
 
-      if (updateError) throw updateError;
+      if (hasExisting) {
+        // 3. Canal existente encontrado
+        await supabase
+          .from('chat_channels')
+          .update({
+            status: 'open',
+            support_status: 'in_progress',
+            assigned_to: transferUserId
+          } as any)
+          .eq('id', targetChannelId);
 
-      const { data: isMember } = await supabase
-        .from('chat_channel_members')
-        .select('*')
-        .eq('channel_id', selectedChannelId)
-        .eq('user_id', transferUserId)
-        .maybeSingle();
+        // Garantir que o atendente de destino é membro
+        const { data: isMember } = await supabase
+          .from('chat_channel_members')
+          .select('*')
+          .eq('channel_id', targetChannelId)
+          .eq('user_id', transferUserId)
+          .maybeSingle();
 
-      if (!isMember) {
-        await supabase.from('chat_channel_members').insert({
-          channel_id: selectedChannelId,
-          user_id: transferUserId,
-          role: 'member'
-        });
+        if (!isMember) {
+          await supabase.from('chat_channel_members').insert({
+            channel_id: targetChannelId,
+            user_id: transferUserId,
+            role: 'member'
+          });
+        }
+      } else {
+        // 4. Canal de destino não existe: criar do zero
+        const channelName = `Atendimento - ${clientName} (${targetSector.name})`;
+        
+        const { data: newChannel, error: createError } = await supabase
+          .from('chat_channels')
+          .insert([{
+            name: channelName,
+            type: 'support',
+            created_by: userId,
+            status: 'open',
+            support_status: 'in_progress',
+            assigned_to: transferUserId,
+            sector_id: transferSectorId
+          } as any])
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        targetChannelId = newChannel.id;
+
+        // Inserir os membros no novo canal (Cliente + todos os staff)
+        const { data: staffMembers } = await supabase
+          .from('profiles')
+          .select('id')
+          .neq('role', 'cliente');
+
+        const membersToInsert = [
+          { channel_id: targetChannelId, user_id: clientId, role: 'member' }
+        ];
+
+        if (staffMembers) {
+          staffMembers.forEach(staff => {
+            membersToInsert.push({
+              channel_id: targetChannelId,
+              user_id: staff.id,
+              role: staff.id === transferUserId ? 'admin' : 'member'
+            });
+          });
+        }
+
+        await supabase.from('chat_channel_members').insert(membersToInsert);
       }
 
+      // 5. Encerrar o canal de origem
+      await supabase
+        .from('chat_channels')
+        .update({ support_status: 'resolved' } as any)
+        .eq('id', selectedChannelId);
+
+      // 6. Mensagem de sistema no canal antigo
       await supabase.from('chat_messages').insert({
         channel_id: selectedChannelId,
         sender_id: userId,
-        text: `Atendimento transferido para ${targetUser.full_name} por ${currentUserProfile?.full_name || 'Operador'}.`,
+        text: `Atendimento transferido para o setor ${targetSector.name} aos cuidados de ${targetUser.full_name}.`,
         status: 'sent',
         is_system: true
       } as any);
 
+      // 7. Mensagem de sistema no canal novo
+      await supabase.from('chat_messages').insert({
+        channel_id: targetChannelId,
+        sender_id: userId,
+        text: `Atendimento iniciado por transferência do setor de origem.`,
+        status: 'sent',
+        is_system: true
+      } as any);
+
+      // 8. Atualizar interface e selecionar novo canal
       setIsTransferModalOpen(false);
       setTransferUserId('');
       setTransferSectorId('');
       await fetchChannels(userId);
+      setSelectedChannelId(targetChannelId);
     } catch (error) {
       console.error('Error transferring ticket:', error);
       alert('Erro ao transferir atendimento.');
@@ -2678,12 +2829,8 @@ export const Chat: React.FC = () => {
             alerts++;
           } else {
             all++;
-            if (createdByClient) {
-              if (!c.assigned_to) {
-                queue++;
-              }
-            } else {
-              alerts++;
+            if (!c.assigned_to) {
+              queue++;
             }
 
             if (c.assigned_to === userId) {
@@ -2724,8 +2871,7 @@ export const Chat: React.FC = () => {
           return !channel.assigned_to && 
                  channel.support_status !== 'resolved' && 
                  channel.status !== 'closed' &&
-                 !channel.is_notification &&
-                 isChannelCreatedByClient(channel);
+                 !channel.is_notification;
         }
         if (supportSubTab === 'mine') {
           return channel.assigned_to === userId && 
@@ -2734,7 +2880,7 @@ export const Chat: React.FC = () => {
                  !channel.is_notification;
         }
         if (supportSubTab === 'alerts') {
-          return (channel.is_notification || !isChannelCreatedByClient(channel)) && 
+          return !!channel.is_notification && 
                  channel.support_status !== 'resolved' && 
                  channel.status !== 'closed';
         }
@@ -2776,8 +2922,8 @@ export const Chat: React.FC = () => {
     <div className="flex h-[calc(100vh-6.5rem)] md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-x border-b md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative -mx-4 -mb-4 md:mx-0 md:mb-0">
 
       {/* Sidebar - Contact List */}
-      <div className={`transition-all duration-300 ease-in-out overflow-hidden h-full flex-col bg-slate-50/50 dark:bg-slate-950/30 absolute md:relative z-10 ${showSidebarOnMobile ? 'w-full flex' : 'w-0 hidden md:flex'} ${isSidebarCollapsed ? 'md:w-0 md:opacity-0 border-r border-transparent pointer-events-none' : 'md:w-80 md:opacity-100 border-r border-slate-200 dark:border-slate-800'}`}>
-        <div className="w-80 h-full flex flex-col shrink-0">
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden h-full flex-col bg-slate-50/50 dark:bg-slate-950/30 absolute md:relative z-10 ${showSidebarOnMobile ? 'w-full flex' : 'w-0 hidden md:flex'} ${isSidebarCollapsed ? 'md:w-0 md:opacity-0 border-r border-transparent pointer-events-none' : 'md:w-[328px] md:opacity-100 border-r border-slate-200 dark:border-slate-800'}`}>
+        <div className="w-[328px] h-full flex flex-col shrink-0">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
@@ -4114,70 +4260,86 @@ export const Chat: React.FC = () => {
       />
 
       {/* Modal de Transferência de Atendimento */}
-      <Modal
-        isOpen={isTransferModalOpen}
-        onClose={() => setIsTransferModalOpen(false)}
-        title="Transferir Atendimento"
-        size="md"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setIsTransferModalOpen(false)} disabled={isTransferring}>
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleTransferSupportTicket} 
-              disabled={isTransferring || !transferUserId}
-              icon={isTransferring ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
-            >
-              {isTransferring ? 'Transferindo...' : 'Transferir'}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Selecione o colaborador para quem deseja transferir o atendimento e, opcionalmente, o novo setor.
-          </p>
-          
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Colaborador <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={transferUserId}
-              onChange={(e) => setTransferUserId(e.target.value)}
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Selecione o Colaborador</option>
-              {profiles
-                .filter(p => p.role !== 'cliente' && p.id !== userId && isUserAvailableForTransfer(p))
-                .map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.full_name} ({p.role})
-                  </option>
-                ))}
-            </select>
-          </div>
+      {(() => {
+        const selectedTransferUser = profiles.find(p => p.id === transferUserId);
+        const allowedSectors = selectedTransferUser 
+          ? (selectedTransferUser.role === 'gestor' || !selectedTransferUser.sector_ids || selectedTransferUser.sector_ids.length === 0
+              ? sectors // Se for gestor ou não tiver setores vinculados, mostra todos
+              : sectors.filter(s => selectedTransferUser.sector_ids.includes(s.id))
+            )
+          : [];
 
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider font-semibold">
-              Setor <span className="text-slate-400 text-[10px]">(Opcional)</span>
-            </label>
-            <select
-              value={transferSectorId}
-              onChange={(e) => setTransferSectorId(e.target.value)}
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Manter setor atual ou sem setor</option>
-              {sectors.map(sector => (
-                <option key={sector.id} value={sector.id}>
-                  {sector.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </Modal>
+        return (
+          <Modal
+            isOpen={isTransferModalOpen}
+            onClose={() => setIsTransferModalOpen(false)}
+            title="Transferir Atendimento"
+            size="md"
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setIsTransferModalOpen(false)} disabled={isTransferring}>
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handleTransferSupportTicket} 
+                  disabled={isTransferring || !transferUserId || !transferSectorId}
+                  icon={isTransferring ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
+                >
+                  {isTransferring ? 'Transferindo...' : 'Transferir'}
+                </Button>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Selecione o colaborador para quem deseja transferir o atendimento e o novo setor responsável.
+              </p>
+              
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Colaborador <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={transferUserId}
+                  onChange={(e) => {
+                    setTransferUserId(e.target.value);
+                    setTransferSectorId('');
+                  }}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Selecione o Colaborador</option>
+                  {profiles
+                    .filter(p => p.role !== 'cliente' && p.id !== userId && isUserAvailableForTransfer(p))
+                    .map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name} ({p.role})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider font-semibold">
+                  Setor <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={transferSectorId}
+                  onChange={(e) => setTransferSectorId(e.target.value)}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!transferUserId}
+                >
+                  <option value="">Selecione o Setor</option>
+                  {allowedSectors.map(sector => (
+                    <option key={sector.id} value={sector.id}>
+                      {sector.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {selectedChannel && (
         <VideoCallModal

@@ -621,6 +621,11 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
                             <span className="inline-flex items-center w-full px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40 shadow-sm truncate">
                               {doc.name}
                             </span>
+                            {doc.type && (
+                              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 pl-1 truncate w-full" title={doc.type}>
+                                <span className="text-indigo-500/80">📋</span> <span className="text-slate-400">Tarefa:</span> {doc.type}
+                              </span>
+                            )}
                             {doc.clients && (
                               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 pl-1 truncate w-full" title={doc.clients.company_name}>
                                 <span className="text-indigo-500/80">🏢</span> {doc.clients.trade_name || doc.clients.company_name}

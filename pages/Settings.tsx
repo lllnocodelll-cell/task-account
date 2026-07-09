@@ -98,7 +98,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [sectorId, setSectorId] = useState('');
+  const [sectorIds, setSectorIds] = useState<string[]>([]);
   const [role, setRole] = useState('operacional'); // New state for access role
   const [initialPassword, setInitialPassword] = useState(''); // Just for UI, logic pending
 
@@ -107,7 +107,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  const [editSectorId, setEditSectorId] = useState('');
+  const [editSectorIds, setEditSectorIds] = useState<string[]>([]);
   const [editRole, setEditRole] = useState('operacional');
 
   // Deletion Modal State
@@ -168,7 +168,8 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         first_name: firstName,
         last_name: lastName,
         email,
-        sector_id: role !== 'cliente' ? (sectorId || null) : null,
+        sector_id: role !== 'cliente' ? (sectorIds[0] || null) : null,
+        sector_ids: role !== 'cliente' ? sectorIds : [],
         client_ids: role === 'cliente' ? clientIds : [],
         role: role
       }).select('*, sectors(name), clients(company_name)');
@@ -180,7 +181,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setFirstName('');
         setLastName('');
         setEmail('');
-        setSectorId('');
+        setSectorIds([]);
         setClientIds([]);
         setRole('operacional');
         addToast('success', 'Sucesso', 'Membro cadastrado com sucesso!');
@@ -220,7 +221,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditFirstName(member.first_name || '');
     setEditLastName(member.last_name || '');
     setEditEmail(member.email || '');
-    setEditSectorId(member.sector_id || '');
+    setEditSectorIds(member.sector_ids || (member.sector_id ? [member.sector_id] : []));
     setEditRole(member.role || 'operacional');
     setEditClientIds(member.client_ids || []);
   };
@@ -230,7 +231,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditFirstName('');
     setEditLastName('');
     setEditEmail('');
-    setEditSectorId('');
+    setEditSectorIds([]);
     setEditRole('operacional');
     setEditClientIds([]);
   };
@@ -240,14 +241,15 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
     // Otimista parcial
     const originalMembers = [...members];
-    const sectorName = sectors.find(s => s.id === editSectorId)?.name || '';
+    const sectorName = sectors.find(s => s.id === editSectorIds[0])?.name || '';
 
     setMembers(prev => prev.map(m => m.id === id ? {
       ...m,
       first_name: editFirstName,
       last_name: editLastName,
       email: editEmail,
-      sector_id: editRole !== 'cliente' ? (editSectorId || null) : null,
+      sector_id: editRole !== 'cliente' ? (editSectorIds[0] || null) : null,
+      sector_ids: editRole !== 'cliente' ? editSectorIds : [],
       client_ids: editRole === 'cliente' ? editClientIds : [],
       role: editRole,
       sectors: sectorName ? { name: sectorName } : null
@@ -260,7 +262,8 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           first_name: editFirstName,
           last_name: editLastName,
           email: editEmail,
-          sector_id: editRole !== 'cliente' ? (editSectorId || null) : null,
+          sector_id: editRole !== 'cliente' ? (editSectorIds[0] || null) : null,
+          sector_ids: editRole !== 'cliente' ? editSectorIds : [],
           client_ids: editRole === 'cliente' ? editClientIds : [],
           role: editRole
         })
@@ -372,14 +375,11 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     }))}
                 />
               ) : (
-                <Select
-                  label="Setor"
-                  value={sectorId} // Control the select
-                  onChange={e => setSectorId(e.target.value)}
-                  options={[
-                    { value: '', label: 'Selecione um setor' },
-                    ...sectors.map(s => ({ value: s.id, label: s.name }))
-                  ]}
+                <MultiSelect
+                  label="Setores Vinculados"
+                  value={sectorIds}
+                  onChange={setSectorIds}
+                  options={sectors.map(s => ({ value: s.id, label: s.name }))}
                 />
               )}
               <div className="md:col-span-1">
@@ -438,7 +438,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                       editLastName, setEditLastName,
                       editEmail, setEditEmail,
                       editRole, setEditRole,
-                      editSectorId, setEditSectorId,
+                      editSectorIds, setEditSectorIds,
                       editClientIds, setEditClientIds
                     }}
                     sectors={sectors}
@@ -501,7 +501,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                       editLastName, setEditLastName,
                       editEmail, setEditEmail,
                       editRole, setEditRole,
-                      editSectorId, setEditSectorId,
+                      editSectorIds, setEditSectorIds,
                       editClientIds, setEditClientIds
                     }}
                     sectors={sectors}
@@ -616,7 +616,7 @@ const MemberCard: React.FC<any> = ({
     editLastName, setEditLastName,
     editEmail, setEditEmail,
     editRole, setEditRole,
-    editSectorId, setEditSectorId,
+    editSectorIds, setEditSectorIds,
     editClientIds, setEditClientIds
   } = editStates;
 
@@ -651,14 +651,11 @@ const MemberCard: React.FC<any> = ({
               }))}
           />
         ) : (
-          <Select
-            label="Setor"
-            value={editSectorId}
-            onChange={e => setEditSectorId(e.target.value)}
-            options={[
-              { value: '', label: 'Sem setor' },
-              ...sectors.map((s: any) => ({ value: s.id, label: s.name }))
-            ]}
+          <MultiSelect
+            label="Setores Vinculados"
+            value={editSectorIds}
+            onChange={setEditSectorIds}
+            options={sectors.map((s: any) => ({ value: s.id, label: s.name }))}
           />
         )}
         <div className="flex gap-2">
@@ -713,6 +710,22 @@ const MemberCard: React.FC<any> = ({
                   ) : (
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Nenhuma empresa vinculada</span>
                   )}
+                </div>
+              ) : (member.sector_ids && member.sector_ids.length > 0) ? (
+                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center mr-1">📁</span>
+                  {member.sector_ids.map((sid: string) => {
+                    const foundSector = sectors.find((s: any) => s.id === sid);
+                    const sectorName = foundSector ? foundSector.name : 'Desconhecido';
+                    return (
+                      <span 
+                        key={sid} 
+                        className="text-[9px] px-1.5 py-0.5 rounded font-bold border truncate max-w-[120px] bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20"
+                      >
+                        {sectorName}
+                      </span>
+                    );
+                  })}
                 </div>
               ) : member.sectors?.name && (
                 <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
