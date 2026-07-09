@@ -225,7 +225,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
         throw new Error('Este registro não possui arquivo mapeado.');
       }
 
-      if (doc.status === 'Pendente') {
+      if (doc.status === 'Pendente' || doc.status === 'Enviado') {
         setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'Lido' } : d));
         await (supabase as any).from('client_documents').update({ status: 'Lido' }).eq('id', doc.id);
         fetchDocuments();
@@ -670,18 +670,20 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({ userProfile, onNavig
 
                           {/* Botões de Ação */}
                           <div className="flex items-center gap-1.5 shrink-0 ml-auto px-3 sm:px-4 py-2 sm:py-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
-                            <button
-                              onClick={() => handlePaymentToggle(doc)}
-                              title={doc.is_paid ? 'Marcar como não pago' : 'Marcar como pago'}
-                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all active:scale-95 ${
-                                doc.is_paid
-                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20'
-                                  : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
-                              }`}
-                            >
-                              <DollarSign size={14} />
-                              <span>{doc.is_paid ? 'PAGO' : 'MARCAR PAGO'}</span>
-                            </button>
+                            {doc.due_date && (
+                              <button
+                                onClick={() => handlePaymentToggle(doc)}
+                                title={doc.is_paid ? 'Marcar como não pago' : 'Marcar como pago'}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all active:scale-95 ${
+                                  doc.is_paid
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20'
+                                    : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
+                                }`}
+                              >
+                                <DollarSign size={14} />
+                                <span>{doc.is_paid ? 'PAGO' : 'MARCAR PAGO'}</span>
+                              </button>
+                            )}
                             {doc.status === 'Lido' && (
                               <button
                                 onClick={() => handleViewProtocol(doc)}

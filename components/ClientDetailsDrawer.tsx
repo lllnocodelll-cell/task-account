@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, 
@@ -13,15 +13,27 @@ import {
   Activity, 
   CheckCircle2, 
   ChevronDown, 
+  ChevronLeft,
+  ChevronRight,
   Copy,
   LayoutList,
   Calendar,
   LogIn,
   LogOut,
-  Fingerprint
+  Fingerprint,
+  FileText,
+  Download,
+  Upload,
+  Trash2,
+  Search,
+  Plus,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { Modal } from './ui/Modal';
+import { useToast } from '../contexts/ToastContext';
 
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '---';
@@ -32,6 +44,23 @@ const formatDate = (dateString: string | null | undefined): string => {
     return `${day}/${month}/${year}`;
   }
   return dateString;
+};
+
+const getSectorStyle = (sectorName: string | undefined | null) => {
+  const name = (sectorName || 'geral').toLowerCase();
+  if (name.includes('fiscal') || name.includes('tributário') || name.includes('tributario')) {
+    return { bar: 'bg-purple-500' };
+  }
+  if (name.includes('contábil') || name.includes('contabil')) {
+    return { bar: 'bg-blue-500' };
+  }
+  if (name.includes('dp') || name.includes('pessoal') || name.includes('rh')) {
+    return { bar: 'bg-orange-500' };
+  }
+  if (name.includes('societário') || name.includes('societario') || name.includes('legalização') || name.includes('legalizacao')) {
+    return { bar: 'bg-emerald-500' };
+  }
+  return { bar: 'bg-slate-400' };
 };
 
 interface ClientDetailsDrawerProps {
@@ -47,6 +76,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   client,
   onEdit
 }) => {
+  const { addToast } = useToast();
   const [isVisible, setIsVisible] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,6 +88,49 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   const [certificates, setCertificates] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
 
+  // Estados para Documentos do Cliente
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [sectors, setSectors] = useState<any[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<any | null>(null);
+
+  // Estados dos filtros
+  const [competenceFilter, setCompetenceFilter] = useState('');
+  const [sectorFilter, setSectorFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
+
+  // Estados do formulário de upload
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadSectorId, setUploadSectorId] = useState('');
+  const [uploadCompetence, setUploadCompetence] = useState('');
+  const [uploadName, setUploadName] = useState('');
+  const [uploadDueDate, setUploadDueDate] = useState('');
+  const [isUploadCalendarOpen, setIsUploadCalendarOpen] = useState(false);
+  const [uploadCalendarYear, setUploadCalendarYear] = useState(new Date().getFullYear());
+  const uploadCalendarRef = useRef<HTMLDivElement>(null);
+
+  const [isFilterCalendarOpen, setIsFilterCalendarOpen] = useState(false);
+  const [filterCalendarYear, setFilterCalendarYear] = useState(new Date().getFullYear());
+  const filterCalendarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (uploadCalendarRef.current && !uploadCalendarRef.current.contains(event.target as Node)) {
+        setIsUploadCalendarOpen(false);
+      }
+      if (filterCalendarRef.current && !filterCalendarRef.current.contains(event.target as Node)) {
+        setIsFilterCalendarOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     info: true,
     address: false,
@@ -65,7 +138,8 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     inscriptions: true,
     contacts: true,
     certificate: true,
-    activities: true
+    activities: true,
+    documents: false
   });
 
   useEffect(() => {
@@ -83,17 +157,21 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     if (!client?.id) return;
     setLoading(true);
     try {
-      const [insc, cont, cert, act] = await Promise.all([
+      const [insc, cont, cert, act, docs, secs] = await Promise.all([
         supabase.from('client_inscriptions').select('*').eq('client_id', client.id),
         supabase.from('client_contacts').select('*').eq('client_id', client.id),
         supabase.from('client_certificates').select('*').eq('client_id', client.id),
-        supabase.from('client_activities').select('*').eq('client_id', client.id)
+        supabase.from('client_activities').select('*').eq('client_id', client.id),
+        supabase.from('client_documents' as any).select('*').eq('client_id', client.id),
+        supabase.from('sectors').select('*')
       ]);
 
       setInscriptions(insc.data || []);
       setContacts(cont.data || []);
       setCertificates(cert.data || []);
       setActivities(act.data || []);
+      setDocuments(docs.data || []);
+      setSectors(secs.data || []);
     } catch (error) {
       console.error('Erro ao buscar dados do cliente:', error);
     } finally {
@@ -127,6 +205,115 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     navigator.clipboard.writeText(text);
     setCopyFeedback(fieldId);
     setTimeout(() => setCopyFeedback(null), 2000);
+  };
+
+  const competenceMonths = React.useMemo(() => {
+    const months = [];
+    const date = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(date.getFullYear(), date.getMonth() - i, 1);
+      const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).toUpperCase();
+      const value = `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      months.push({ label, value });
+    }
+    return months;
+  }, []);
+
+  const handleUploadDocument = async () => {
+    if (!client?.id || !uploadFile || !uploadSectorId || !uploadCompetence) {
+      addToast('error', 'Campos Obrigatórios', 'Por favor, preencha todos os campos e selecione um arquivo.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = uploadFile.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const storagePath = `${client.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('client-documents')
+        .upload(storagePath, uploadFile);
+
+      if (uploadError) throw uploadError;
+
+      const docName = uploadName.trim() || uploadFile.name;
+      const { error: dbError } = await supabase.from('client_documents' as any).insert({
+        client_id: client.id,
+        org_id: (client as any).org_id,
+        name: docName,
+        competence_month: uploadCompetence,
+        sector_id: uploadSectorId,
+        storage_path: storagePath,
+        status: 'Enviado',
+        due_date: uploadDueDate || null
+      });
+
+      if (dbError) throw dbError;
+
+      setUploadFile(null);
+      setUploadName('');
+      setUploadSectorId('');
+      setUploadCompetence('');
+      setUploadDueDate('');
+      setShowUploadForm(false);
+      
+      const { data: newDocs } = await supabase.from('client_documents' as any).select('*').eq('client_id', client.id);
+      setDocuments(newDocs || []);
+      
+      addToast('success', 'Sucesso', 'Documento enviado com sucesso!');
+    } catch (err: any) {
+      console.error(err);
+      addToast('error', 'Erro de Envio', err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirmDoc) return;
+    const doc = deleteConfirmDoc;
+    try {
+      if (doc.storage_path) {
+        await supabase.storage.from('client-documents').remove([doc.storage_path]);
+      }
+
+      const { error: deleteError } = await supabase
+        .from('client_documents' as any)
+        .delete()
+        .eq('id', doc.id);
+
+      if (deleteError) throw deleteError;
+
+      setDocuments(prev => prev.filter(d => d.id !== doc.id));
+      addToast('success', 'Sucesso', 'Documento excluído com sucesso!');
+    } catch (err: any) {
+      console.error(err);
+      addToast('error', 'Erro', 'Erro ao excluir documento: ' + err.message);
+    } finally {
+      setDeleteConfirmDoc(null);
+    }
+  };
+
+  const handleDownloadDocument = async (doc: any) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('client-documents')
+        .download(doc.storage_path);
+
+      if (error) throw error;
+
+      const url = window.URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', doc.name);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err: any) {
+      console.error(err);
+      addToast('error', 'Erro de Download', err.message);
+    }
   };
 
   if (!shouldRender || !client) return null;
@@ -600,8 +787,401 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
             </div>
           </div>
 
+          {/* Section 08: Área do Cliente (Documentos) */}
+          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+            <button 
+              onClick={() => toggleSection('documents')}
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 08</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Área do Cliente (Documentos)</span>
+              </div>
+              <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.documents ? 'rotate-180' : ''}`} size={16} />
+            </button>
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.documents ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 flex flex-col gap-4">
+                  
+                  {/* Formulário/Botão de Upload */}
+                  <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30">
+                    {!showUploadForm ? (
+                      <button
+                        onClick={() => setShowUploadForm(true)}
+                        className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-lg transition-colors border border-dashed border-indigo-200 dark:border-indigo-800"
+                      >
+                        <Upload size={14} />
+                        Enviar Novo Documento
+                      </button>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Novo Documento</span>
+                          <button onClick={() => { setShowUploadForm(false); setUploadFile(null); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <X size={14} />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Setor Destino *</label>
+                            <select
+                              value={uploadSectorId}
+                              onChange={(e) => setUploadSectorId(e.target.value)}
+                              className="w-full text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                            >
+                              <option value="">Selecione o Setor</option>
+                              {sectors.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="relative" ref={uploadCalendarRef}>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Competência (Mês/Ano) *</label>
+                            <button
+                              type="button"
+                              onClick={() => setIsUploadCalendarOpen(!isUploadCalendarOpen)}
+                              className="w-full text-left text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none flex items-center justify-between font-bold text-slate-700 dark:text-slate-200"
+                            >
+                              <span>{uploadCompetence || 'Selecione...'}</span>
+                              <ChevronDown size={14} className={`text-slate-400 transition-transform ${isUploadCalendarOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isUploadCalendarOpen && (
+                              <div className="absolute right-0 mt-1 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 p-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                                {/* Seletor de Ano */}
+                                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                                  <button
+                                    type="button"
+                                    onClick={() => setUploadCalendarYear(prev => prev - 1)}
+                                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
+                                  >
+                                    <ChevronLeft size={14} />
+                                  </button>
+                                  <span className="text-xs font-black text-slate-700 dark:text-slate-200 tracking-wider">
+                                    {uploadCalendarYear}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setUploadCalendarYear(prev => prev + 1)}
+                                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
+                                  >
+                                    <ChevronRight size={14} />
+                                  </button>
+                                </div>
+
+                                {/* Grid de Meses */}
+                                <div className="grid grid-cols-4 gap-1.5">
+                                  {['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'].map((mLabel, idx) => {
+                                    const valueToCheck = `${(idx + 1).toString().padStart(2, '0')}/${uploadCalendarYear}`;
+                                    const isSelected = uploadCompetence === valueToCheck;
+
+                                    return (
+                                      <button
+                                        key={mLabel}
+                                        type="button"
+                                        onClick={() => {
+                                          setUploadCompetence(valueToCheck);
+                                          setIsUploadCalendarOpen(false);
+                                        }}
+                                        className={`py-2 text-[10px] font-black rounded-lg transition-all text-center ${
+                                          isSelected
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                            : 'bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                                        }`}
+                                      >
+                                        {mLabel}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Nome de Exibição (Opcional)</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Guia do DAS Simples"
+                              value={uploadName}
+                              onChange={(e) => setUploadName(e.target.value)}
+                              className="w-full text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Data de Vencimento (Opcional)</label>
+                            <input
+                              type="date"
+                              value={uploadDueDate}
+                              onChange={(e) => setUploadDueDate(e.target.value)}
+                              className="w-full text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors relative">
+                          <input
+                            type="file"
+                            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                          />
+                          <Upload className="mx-auto text-slate-400 mb-2" size={20} />
+                          <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
+                            {uploadFile ? uploadFile.name : 'Clique para selecionar ou arraste o arquivo'}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={handleUploadDocument}
+                          disabled={uploading}
+                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-2"
+                        >
+                          {uploading ? (
+                            <>
+                              <Loader2 className="animate-spin" size={14} />
+                              Enviando...
+                            </>
+                          ) : (
+                            'Enviar'
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Filtros e Barra de Pesquisa */}
+                  <div className="flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                      <input
+                        type="text"
+                        placeholder="Buscar documento pelo nome..."
+                        value={searchFilter}
+                        onChange={(e) => setSearchFilter(e.target.value)}
+                        className="w-full pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="relative" ref={filterCalendarRef}>
+                        <button
+                          type="button"
+                          onClick={() => setIsFilterCalendarOpen(!isFilterCalendarOpen)}
+                          className="w-full text-left text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
+                        >
+                          <span className="truncate">{competenceFilter || 'Período'}</span>
+                          <ChevronDown size={12} className={`text-slate-400 shrink-0 transition-transform ${isFilterCalendarOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isFilterCalendarOpen && (
+                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 p-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                            {/* Seletor de Ano */}
+                            <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                              <button
+                                type="button"
+                                onClick={() => setFilterCalendarYear(prev => prev - 1)}
+                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
+                              >
+                                <ChevronLeft size={12} />
+                              </button>
+                              <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 tracking-wider">
+                                {filterCalendarYear}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setFilterCalendarYear(prev => prev + 1)}
+                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
+                              >
+                                <ChevronRight size={12} />
+                              </button>
+                            </div>
+
+                            {/* Grid de Meses */}
+                            <div className="grid grid-cols-4 gap-1">
+                              {['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'].map((mLabel, idx) => {
+                                const valueToCheck = `${(idx + 1).toString().padStart(2, '0')}/${filterCalendarYear}`;
+                                const isSelected = competenceFilter === valueToCheck;
+
+                                return (
+                                  <button
+                                    key={mLabel}
+                                    type="button"
+                                    onClick={() => {
+                                      setCompetenceFilter(valueToCheck);
+                                      setIsFilterCalendarOpen(false);
+                                    }}
+                                    className={`py-1 text-[9px] font-black rounded-md transition-all text-center ${
+                                      isSelected
+                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                        : 'bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                                    }`}
+                                  >
+                                    {mLabel}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Rodapé para Limpar */}
+                            <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCompetenceFilter('');
+                                  setIsFilterCalendarOpen(false);
+                                }}
+                                className="w-full py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider rounded-md transition-all text-center"
+                              >
+                                Ver Todas
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <select
+                        value={sectorFilter}
+                        onChange={(e) => setSectorFilter(e.target.value)}
+                        className="text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold"
+                      >
+                        <option value="">Todos Setores</option>
+                        {sectors.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold"
+                      >
+                        <option value="">Todos Status</option>
+                        <option value="Enviado">Enviado</option>
+                        <option value="Lido">Lido</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Baixado">Baixado</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Listagem de Documentos */}
+                  <div className="max-h-[300px] overflow-y-auto pr-1 flex flex-col gap-2">
+                    {documents.filter(doc => {
+                      if (searchFilter && !doc.name.toLowerCase().includes(searchFilter.toLowerCase())) return false;
+                      if (competenceFilter && doc.competence_month !== competenceFilter) return false;
+                      if (sectorFilter && doc.sector_id !== sectorFilter) return false;
+                      if (statusFilter && doc.status !== statusFilter) return false;
+                      return true;
+                    }).length > 0 ? (
+                      documents.filter(doc => {
+                        if (searchFilter && !doc.name.toLowerCase().includes(searchFilter.toLowerCase())) return false;
+                        if (competenceFilter && doc.competence_month !== competenceFilter) return false;
+                        if (sectorFilter && doc.sector_id !== sectorFilter) return false;
+                        if (statusFilter && doc.status !== statusFilter) return false;
+                        return true;
+                      }).map((doc, idx) => {
+                        const sec = sectors.find(s => s.id === doc.sector_id);
+                        return (
+                          <div key={doc.id || idx} className="flex gap-0 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors">
+                            {/* Faixa lateral com Setor na Vertical (90º) */}
+                            <div className={`w-6 shrink-0 flex items-center justify-center ${getSectorStyle(sec?.name).bar} relative`}>
+                              <span className="text-[7.5px] font-black uppercase tracking-widest text-white/90 [writing-mode:vertical-lr] rotate-180 whitespace-nowrap py-1 select-none">
+                                {sec?.name || 'Geral'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between p-2.5 flex-1 min-w-0">
+                              <div className="min-w-0 flex-1 pl-1.5">
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate" title={doc.name}>{doc.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase">{doc.competence_month}</span>
+                                  {doc.due_date && (
+                                    <>
+                                      <span className="text-[9px] font-black text-slate-400">•</span>
+                                      <span className="text-[9px] font-bold text-red-500 dark:text-red-400">Venc. {formatDate(doc.due_date)}</span>
+                                    </>
+                                  )}
+                                  <span className="text-[9px] font-black text-slate-400">•</span>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                                    doc.status === 'Pago' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' :
+                                    doc.status === 'Lido' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' :
+                                    'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                                  }`}>
+                                    {doc.status || 'Enviado'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0 ml-2">
+                                <button
+                                  onClick={() => handleDownloadDocument(doc)}
+                                  className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
+                                  title="Baixar documento"
+                                >
+                                  <Download size={14} />
+                                </button>
+                                <button
+                                  onClick={() => setDeleteConfirmDoc(doc)}
+                                  className="p-1.5 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                                  title="Excluir documento"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                        Nenhum documento encontrado
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
+
+      {/* Modal de Confirmação de Exclusão de Documento */}
+      <Modal
+        isOpen={deleteConfirmDoc !== null}
+        onClose={() => setDeleteConfirmDoc(null)}
+        title={
+          <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+            <AlertCircle size={18} />
+            <span>Confirmar Exclusão</span>
+          </div>
+        }
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <button
+              onClick={() => setDeleteConfirmDoc(null)}
+              className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={executeDelete}
+              className="px-3 py-1.5 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+            >
+              Excluir
+            </button>
+          </div>
+        }
+      >
+        <div className="p-6 text-sm text-slate-600 dark:text-slate-300">
+          <p>Você tem certeza que deseja excluir o documento <strong>{deleteConfirmDoc?.name}</strong>?</p>
+          <p className="mt-2 text-xs text-slate-400">Essa ação é permanente e removerá o arquivo do portal do cliente.</p>
+        </div>
+      </Modal>
     </>,
     document.body
   );
