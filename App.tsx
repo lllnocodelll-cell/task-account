@@ -57,11 +57,15 @@ function App() {
 
   const fetchClients = async (orgId: string) => {
     try {
-      const { data } = await supabase
+      let query = supabase
         .from('clients')
-        .select('id, company_name, trade_name')
-        .eq('org_id', orgId)
-        .order('company_name');
+        .select('id, company_name, trade_name');
+
+      if (orgId && orgId !== 'demo-org') {
+        query = query.eq('org_id', orgId);
+      }
+
+      const { data } = await query.order('company_name');
       if (data) {
         setClientsList(data.map((c: any) => ({
           ...c,

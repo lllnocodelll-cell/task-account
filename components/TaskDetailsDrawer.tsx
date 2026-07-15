@@ -24,7 +24,8 @@ import {
   MinusCircle,
   FileStack,
   Scale,
-  Copy
+  Copy,
+  GripVertical
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
@@ -36,6 +37,8 @@ interface TaskDetailsDrawerProps {
   onEdit: (task: Task) => void;
   registrationRegimeLabels: Record<string, string>;
 }
+
+const DEFAULT_SECTIONS_ORDER = ['task', 'details', 'simples', 'obs', 'legis', 'files'];
 
 export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({ 
   isOpen, 
@@ -57,6 +60,29 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     legis: true,
     files: true
   });
+
+  // Estado para a ordem das seções, inicializado a partir do localStorage ou ordem padrão
+  const [sectionsOrder, setSectionsOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('task_drawer_sections_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Validar se o localStorage contém todas as opções padrões
+        const isValid = DEFAULT_SECTIONS_ORDER.every(item => parsed.includes(item));
+        if (isValid && parsed.length === DEFAULT_SECTIONS_ORDER.length) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao carregar ordem das seções do drawer:", e);
+    }
+    return DEFAULT_SECTIONS_ORDER;
+  });
+
+  // Estados relacionados ao arrastar (Drag and Drop)
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
+  const [draggableSectionId, setDraggableSectionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -156,68 +182,96 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     </div>
   );
 
-  return createPortal(
-    <>
-      <div 
-        className={`fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[9998] transition-opacity duration-300 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={onClose}
-      />
-      
-      <div 
-        onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
-      >
-        
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
-              <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
-            </div>
-            <div className="flex flex-col text-left">
-              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
-                Dados da Tarefa
-              </h1>
-              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (localTask.status === TaskStatus.CONCLUIDA) return;
-                onEdit(localTask);
-              }}
-              disabled={localTask.status === TaskStatus.CONCLUIDA}
-              className={`flex items-center gap-2 px-4 py-2 text-white text-xs font-bold rounded-full transition-all shadow-lg ${
-                localTask.status === TaskStatus.CONCLUIDA
-                  ? 'bg-slate-400 cursor-not-allowed opacity-50 shadow-none'
-                  : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-indigo-600/20'
-              }`}
-              title={localTask.status === TaskStatus.CONCLUIDA ? "Tarefas concluídas não podem ser editadas" : "Editar Tarefa"}
-            >
-              <Pencil size={14} />
-              Editar
-            </button>
-            <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
-          </div>
-        </div>
+  // Lista ordenada das seções visíveis no momento (a do simples nacional pode estar oculta dependendo do regime da tarefa)
+  const visibleSections = sectionsOrder.filter(id => id !== 'simples' || isSimplesNacional);
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
-          
-          {/* Section 01: Informações Básicas */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+  const renderSection = (sectionId: string) => {
+    const isDragged = draggedSectionId === sectionId;
+    const isDragOver = dragOverSectionId === sectionId;
+    
+    // Pegar o index correspondente nas seções visíveis
+    const indexInVisible = visibleSections.indexOf(sectionId);
+    if (indexInVisible === -1) return null; // Não renderiza se for simples nacional e a tarefa não for do regime correspondente
+
+    const sectionIndexLabel = `Seção ${String(indexInVisible + 1).padStart(2, '0')}`;
+
+    const dragProps = {
+      draggable: draggableSectionId === sectionId,
+      onDragStart: (e: React.DragEvent) => {
+        setDraggedSectionId(sectionId);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', sectionId);
+      },
+      onDragEnd: () => {
+        setDraggedSectionId(null);
+        setDragOverSectionId(null);
+        setDraggableSectionId(null);
+      },
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault();
+        if (draggedSectionId && draggedSectionId !== sectionId) {
+          setDragOverSectionId(sectionId);
+        }
+      },
+      onDragLeave: () => {
+        if (dragOverSectionId === sectionId) {
+          setDragOverSectionId(null);
+        }
+      },
+      onDrop: () => {
+        if (draggedSectionId && draggedSectionId !== sectionId) {
+          const fromIndex = sectionsOrder.indexOf(draggedSectionId);
+          const toIndex = sectionsOrder.indexOf(sectionId);
+          const newOrder = [...sectionsOrder];
+          newOrder.splice(fromIndex, 1);
+          newOrder.splice(toIndex, 0, draggedSectionId);
+          setSectionsOrder(newOrder);
+          localStorage.setItem('task_drawer_sections_order', JSON.stringify(newOrder));
+        }
+        setDraggedSectionId(null);
+        setDragOverSectionId(null);
+        setDraggableSectionId(null);
+      }
+    };
+
+    const sectionWrapperClass = `bg-white dark:bg-slate-800/40 border rounded-2xl overflow-hidden shadow-sm transition-all duration-200 ${
+      isDragged ? 'opacity-30 border-dashed border-indigo-500 dark:border-indigo-400 scale-[0.98]' : 
+      isDragOver ? 'border-indigo-500 scale-[1.01] shadow-md bg-indigo-50/5 dark:bg-indigo-500/5' : 
+      'border-slate-200 dark:border-slate-700/50'
+    }`;
+
+    const renderDragHandle = () => (
+      <div
+        className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-1"
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          setDraggableSectionId(sectionId);
+        }}
+        onMouseUp={(e) => {
+          e.stopPropagation();
+          setDraggableSectionId(null);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        title="Arraste para reordenar"
+      >
+        <GripVertical size={14} />
+      </div>
+    );
+
+    switch (sectionId) {
+      case 'task':
+        return (
+          <div key="task" className={sectionWrapperClass} {...dragProps}>
             <button 
               onClick={() => toggleSection('task')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 01</span>
+                {renderDragHandle()}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Informações Básicas</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.task ? 'rotate-180' : ''}`} size={16} />
@@ -253,15 +307,18 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               </div>
             </div>
           </div>
+        );
 
-          {/* Section 02: Detalhes da Execução */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+      case 'details':
+        return (
+          <div key="details" className={sectionWrapperClass} {...dragProps}>
             <button 
               onClick={() => toggleSection('details')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 02</span>
+                {renderDragHandle()}
+                <span className="text-[10px] font-black text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Detalhes da Execução</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.details ? 'rotate-180' : ''}`} size={16} />
@@ -373,83 +430,87 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               </div>
             </div>
           </div>
+        );
 
-          {/* Section 03: Simples Nacional */}
-          {isSimplesNacional && (
-            <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
-              <button 
-                onClick={() => toggleSection('simples')}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-black text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 03</span>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Simples Nacional</span>
-                </div>
-                <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.simples ? 'rotate-180' : ''}`} size={16} />
-              </button>
-              <div className={`grid transition-all duration-300 ease-in-out ${openSections.simples ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
-                <div className="overflow-hidden">
-                  <div className="p-4 pt-0 grid grid-cols-1 gap-3">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
-                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Fator R</span>
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Zap size={11} className={localTask.factorR ? 'text-emerald-500' : 'text-slate-300'} fill={localTask.factorR ? 'currentColor' : 'none'} />
-                          <span className={`text-[11px] font-bold ${localTask.factorR ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                            {localTask.factorR ? 'Sim' : 'Não'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
-                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Sublimite</span>
-                        <div className="flex items-center justify-center gap-1.5">
-                          <AlertTriangle size={11} className={localTask.exceededSublimit ? 'text-rose-500' : 'text-slate-300'} />
-                          <span className={`text-[11px] font-bold ${localTask.exceededSublimit ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
-                            {localTask.exceededSublimit ? 'Sim' : 'Não'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border ${localTask.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/5 border-rose-100 dark:border-rose-900/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800/50'}`}>
-                        <span className={`text-[9px] font-black uppercase tracking-wider text-center ${localTask.notifiedExclusion ? 'text-rose-400' : 'text-slate-400 dark:text-slate-500'}`}>Notificação</span>
-                        <div className="flex items-center justify-center gap-1.5">
-                           <AlertCircle size={11} className={localTask.notifiedExclusion ? 'text-rose-500' : 'text-slate-300'} />
-                           <span className={`text-[11px] font-bold ${localTask.notifiedExclusion ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
-                             {localTask.notifiedExclusion ? 'Sim, Notificada' : 'Não'}
-                           </span>
-                        </div>
+      case 'simples':
+        return (
+          <div key="simples" className={sectionWrapperClass} {...dragProps}>
+            <button 
+              onClick={() => toggleSection('simples')}
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {renderDragHandle()}
+                <span className="text-[10px] font-black text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Simples Nacional</span>
+              </div>
+              <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.simples ? 'rotate-180' : ''}`} size={16} />
+            </button>
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.simples ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
+                      <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Fator R</span>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Zap size={11} className={localTask.factorR ? 'text-emerald-500' : 'text-slate-300'} fill={localTask.factorR ? 'currentColor' : 'none'} />
+                        <span className={`text-[11px] font-bold ${localTask.factorR ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                          {localTask.factorR ? 'Sim' : 'Não'}
+                        </span>
                       </div>
                     </div>
-                    {(() => {
-                      const drawerVisibleAnnexes = localTask.selectedAnnexes?.filter(a => a !== 'Nulo' && a !== 'Sem Anexo') || [];
-                      if (drawerVisibleAnnexes.length === 0) return null;
-                      return (
-                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
-                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Anexos Vinculados</span>
-                          <div className="flex flex-wrap gap-2">
-                            {drawerVisibleAnnexes.map(annex => (
-                              <span key={annex} className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                                <Layers size={10} className="text-indigo-500" />
-                                {annex}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
+                      <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Sublimite</span>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <AlertTriangle size={11} className={localTask.exceededSublimit ? 'text-rose-500' : 'text-slate-300'} />
+                        <span className={`text-[11px] font-bold ${localTask.exceededSublimit ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
+                          {localTask.exceededSublimit ? 'Sim' : 'Não'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border ${localTask.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/5 border-rose-100 dark:border-rose-900/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800/50'}`}>
+                      <span className={`text-[9px] font-black uppercase tracking-wider text-center ${localTask.notifiedExclusion ? 'text-rose-400' : 'text-slate-400 dark:text-slate-500'}`}>Notificação</span>
+                      <div className="flex items-center justify-center gap-1.5">
+                         <AlertCircle size={11} className={localTask.notifiedExclusion ? 'text-rose-500' : 'text-slate-300'} />
+                         <span className={`text-[11px] font-bold ${localTask.notifiedExclusion ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>
+                           {localTask.notifiedExclusion ? 'Sim, Notificada' : 'Não'}
+                         </span>
+                      </div>
+                    </div>
                   </div>
+                  {(() => {
+                    const drawerVisibleAnnexes = localTask.selectedAnnexes?.filter(a => a !== 'Nulo' && a !== 'Sem Anexo') || [];
+                    if (drawerVisibleAnnexes.length === 0) return null;
+                    return (
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Anexos Vinculados</span>
+                        <div className="flex flex-wrap gap-2">
+                          {drawerVisibleAnnexes.map(annex => (
+                            <span key={annex} className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                              <Layers size={10} className="text-indigo-500" />
+                              {annex}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        );
 
-          {/* Section 04: Observação */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+      case 'obs':
+        return (
+          <div key="obs" className={sectionWrapperClass} {...dragProps}>
             <button 
               onClick={() => toggleSection('obs')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 04</span>
+                {renderDragHandle()}
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Observação</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.obs ? 'rotate-180' : ''}`} size={16} />
@@ -482,15 +543,18 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               </div>
             </div>
           </div>
+        );
 
-          {/* Section 05: Legislação */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+      case 'legis':
+        return (
+          <div key="legis" className={sectionWrapperClass} {...dragProps}>
             <button 
               onClick={() => toggleSection('legis')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-purple-500 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 05</span>
+                {renderDragHandle()}
+                <span className="text-[10px] font-black text-purple-500 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Legislação</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.legis ? 'rotate-180' : ''}`} size={16} />
@@ -535,16 +599,18 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               </div>
             </div>
           </div>
+        );
 
-
-          {/* Seção 07: Arquivos */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+      case 'files':
+        return (
+          <div key="files" className={sectionWrapperClass} {...dragProps}>
             <button 
               onClick={() => toggleSection('files')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 06</span>
+                {renderDragHandle()}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Arquivos</span>
                 <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
                   <FileStack size={10} className="text-indigo-500" />
@@ -602,7 +668,67 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               </div>
             </div>
           </div>
+        );
 
+      default:
+        return null;
+    }
+  };
+
+  return createPortal(
+    <>
+      <div 
+        className={`fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[9998] transition-opacity duration-300 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+      />
+      
+      <div 
+        onTransitionEnd={handleTransitionEnd}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+              <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                Dados da Tarefa
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (localTask.status === TaskStatus.CONCLUIDA) return;
+                onEdit(localTask);
+              }}
+              disabled={localTask.status === TaskStatus.CONCLUIDA}
+              className={`flex items-center gap-2 px-4 py-2 text-white text-xs font-bold rounded-full transition-all shadow-lg ${
+                localTask.status === TaskStatus.CONCLUIDA
+                  ? 'bg-slate-400 cursor-not-allowed opacity-50 shadow-none'
+                  : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-indigo-600/20'
+              }`}
+              title={localTask.status === TaskStatus.CONCLUIDA ? "Tarefas concluídas não podem ser editadas" : "Editar Tarefa"}
+            >
+              <Pencil size={14} />
+              Editar
+            </button>
+            <button 
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
+          {sectionsOrder.map((sectionId) => renderSection(sectionId))}
         </div>
 
         {/* Footer Audit - Estilo sutil */}
@@ -618,3 +744,4 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     document.body
   );
 };
+

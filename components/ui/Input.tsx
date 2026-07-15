@@ -353,7 +353,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       top: openUpward ? rect.top - dropdownH : rect.bottom + 4,
       left,
       width,
-      zIndex: 9999,
+      zIndex: 99999,
     });
   };
 

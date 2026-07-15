@@ -1779,10 +1779,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('clients')
-        .select('*, client_tax_regime_history(*)')
-        .eq('org_id', userProfile.org_id);
+        .select('*, client_tax_regime_history(*)');
+
+      if (userProfile?.org_id && userProfile.org_id !== 'demo-org') {
+        query = query.eq('org_id', userProfile.org_id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -1833,7 +1838,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   useEffect(() => {
     fetchTasks();
     fetchClients();
-  }, []);
+  }, [userProfile?.org_id]);
 
   // CRUD Handlers
   const handleUpdateTaskTag = async (taskId: string, tag: string | null) => {

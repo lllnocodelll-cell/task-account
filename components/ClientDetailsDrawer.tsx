@@ -28,7 +28,8 @@ import {
   Search,
   Plus,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  GripVertical
 } from 'lucide-react';
 import { Client } from '../types';
 import { supabase } from '../utils/supabaseClient';
@@ -70,6 +71,8 @@ interface ClientDetailsDrawerProps {
   onEdit: (client: Client) => void;
 }
 
+const DEFAULT_CLIENT_SECTIONS_ORDER = ['info', 'address', 'partner', 'inscriptions', 'contacts', 'certificate', 'activities', 'documents'];
+
 export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   isOpen,
   onClose,
@@ -81,6 +84,28 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   const [shouldRender, setShouldRender] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  // Estado para a ordem das seções, inicializado a partir do localStorage ou ordem padrão
+  const [sectionsOrder, setSectionsOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('client_drawer_sections_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const isValid = DEFAULT_CLIENT_SECTIONS_ORDER.every(item => parsed.includes(item));
+        if (isValid && parsed.length === DEFAULT_CLIENT_SECTIONS_ORDER.length) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao carregar ordem das seções do drawer de cliente:", e);
+    }
+    return DEFAULT_CLIENT_SECTIONS_ORDER;
+  });
+
+  // Estados relacionados ao arrastar (Drag and Drop)
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
+  const [draggableSectionId, setDraggableSectionId] = useState<string | null>(null);
 
   // Sub-data states
   const [inscriptions, setInscriptions] = useState<any[]>([]);
@@ -318,7 +343,80 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
 
   if (!shouldRender || !client) return null;
 
+  const getDragProps = (sectionId: string) => {
+    return {
+      draggable: draggableSectionId === sectionId,
+      onDragStart: (e: React.DragEvent) => {
+        setDraggedSectionId(sectionId);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', sectionId);
+      },
+      onDragEnd: () => {
+        setDraggedSectionId(null);
+        setDragOverSectionId(null);
+        setDraggableSectionId(null);
+      },
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault();
+        if (draggedSectionId && draggedSectionId !== sectionId) {
+          setDragOverSectionId(sectionId);
+        }
+      },
+      onDragLeave: () => {
+        if (dragOverSectionId === sectionId) {
+          setDragOverSectionId(null);
+        }
+      },
+      onDrop: () => {
+        if (draggedSectionId && draggedSectionId !== sectionId) {
+          const fromIndex = sectionsOrder.indexOf(draggedSectionId);
+          const toIndex = sectionsOrder.indexOf(sectionId);
+          const newOrder = [...sectionsOrder];
+          newOrder.splice(fromIndex, 1);
+          newOrder.splice(toIndex, 0, draggedSectionId);
+          setSectionsOrder(newOrder);
+          localStorage.setItem('client_drawer_sections_order', JSON.stringify(newOrder));
+        }
+        setDraggedSectionId(null);
+        setDragOverSectionId(null);
+        setDraggableSectionId(null);
+      }
+    };
+  };
+
+  const getSectionWrapperClass = (sectionId: string) => {
+    const isDragged = draggedSectionId === sectionId;
+    const isDragOver = dragOverSectionId === sectionId;
+    return `bg-white dark:bg-slate-800/40 border rounded-2xl overflow-hidden shadow-sm transition-all duration-200 shrink-0 ${
+      isDragged ? 'opacity-30 border-dashed border-indigo-500 dark:border-indigo-400 scale-[0.98]' : 
+      isDragOver ? 'border-indigo-500 scale-[1.01] shadow-md bg-indigo-50/5 dark:bg-indigo-500/5' : 
+      'border-slate-200 dark:border-slate-700/50'
+    }`;
+  };
+
+  const renderDragHandle = (sectionId: string) => (
+    <div
+      className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-1 shrink-0"
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        setDraggableSectionId(sectionId);
+      }}
+      onMouseUp={(e) => {
+        e.stopPropagation();
+        setDraggableSectionId(null);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      title="Arraste para reordenar"
+    >
+      <GripVertical size={14} />
+    </div>
+  );
+
   const InfoField = ({ 
+
     label, 
     value, 
     id, 
@@ -399,16 +497,23 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4">
           
           {/* Section 01: Dados Iniciais */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+          <div 
+            style={{ order: sectionsOrder.indexOf('info') }}
+            {...getDragProps('info')}
+            className={getSectionWrapperClass('info')}
+          >
             <button 
               onClick={() => toggleSection('info')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 01</span>
+                {renderDragHandle('info')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('info') + 1).padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Informações Básicas</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.info ? 'rotate-180' : ''}`} size={16} />
@@ -489,13 +594,20 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
 
           {/* Section 02: Endereço */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+          <div 
+            style={{ order: sectionsOrder.indexOf('address') }}
+            {...getDragProps('address')}
+            className={getSectionWrapperClass('address')}
+          >
             <button 
               onClick={() => toggleSection('address')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 02</span>
+                {renderDragHandle('address')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('address') + 1).padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Endereço</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.address ? 'rotate-180' : ''}`} size={16} />
@@ -522,13 +634,20 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
 
           {/* Section 03: Sócio Administrador */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+          <div 
+            style={{ order: sectionsOrder.indexOf('partner') }}
+            {...getDragProps('partner')}
+            className={getSectionWrapperClass('partner')}
+          >
             <button 
               onClick={() => toggleSection('partner')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 03</span>
+                {renderDragHandle('partner')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('partner') + 1).padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Sócio Administrador</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.partner ? 'rotate-180' : ''}`} size={16} />
@@ -565,13 +684,20 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
 
           {/* Section 04: Inscrições */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+          <div 
+            style={{ order: sectionsOrder.indexOf('inscriptions') }}
+            {...getDragProps('inscriptions')}
+            className={getSectionWrapperClass('inscriptions')}
+          >
             <button 
               onClick={() => toggleSection('inscriptions')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 04</span>
+                {renderDragHandle('inscriptions')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('inscriptions') + 1).padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Inscrições</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.inscriptions ? 'rotate-180' : ''}`} size={16} />
@@ -599,13 +725,20 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
 
           {/* Section 05: Contatos */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+          <div 
+            style={{ order: sectionsOrder.indexOf('contacts') }}
+            {...getDragProps('contacts')}
+            className={getSectionWrapperClass('contacts')}
+          >
             <button 
               onClick={() => toggleSection('contacts')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 05</span>
+                {renderDragHandle('contacts')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('contacts') + 1).padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Contatos</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.contacts ? 'rotate-180' : ''}`} size={16} />
@@ -671,13 +804,20 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
 
           {/* Section 06: Certificado */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+          <div 
+            style={{ order: sectionsOrder.indexOf('certificate') }}
+            {...getDragProps('certificate')}
+            className={getSectionWrapperClass('certificate')}
+          >
             <button 
               onClick={() => toggleSection('certificate')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 06</span>
+                {renderDragHandle('certificate')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('certificate') + 1).padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Certificado Digital</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.certificate ? 'rotate-180' : ''}`} size={16} />
@@ -747,13 +887,20 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
 
           {/* Section 07: Atividades */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+          <div 
+            style={{ order: sectionsOrder.indexOf('activities') }}
+            {...getDragProps('activities')}
+            className={getSectionWrapperClass('activities')}
+          >
             <button 
               onClick={() => toggleSection('activities')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 07</span>
+                {renderDragHandle('activities')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('activities') + 1).padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Atividades (CNAE)</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.activities ? 'rotate-180' : ''}`} size={16} />
@@ -788,13 +935,20 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
 
           {/* Section 08: Área do Cliente (Documentos) */}
-          <div className="bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden shadow-sm">
+          <div 
+            style={{ order: sectionsOrder.indexOf('documents') }}
+            {...getDragProps('documents')}
+            className={getSectionWrapperClass('documents')}
+          >
             <button 
               onClick={() => toggleSection('documents')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">Seção 08</span>
+                {renderDragHandle('documents')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('documents') + 1).padStart(2, '0')}
+                </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Área do Cliente (Documentos)</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.documents ? 'rotate-180' : ''}`} size={16} />

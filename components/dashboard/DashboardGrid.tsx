@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { supabase } from '../../utils/supabaseClient';
-import { Settings2 } from 'lucide-react';
+import { Settings2, LayoutGrid, X, GripVertical } from 'lucide-react';
 
 // Import Widgets
 import { StatusByUserWidget } from './widgets/StatusByUserWidget';
@@ -115,7 +116,6 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     const [activeWidgets, setActiveWidgets] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [showMenu, setShowMenu] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
 
     const OPERACIONAL_ALLOWED_WIDGETS = [
         'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
@@ -131,16 +131,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         ? DEFAULT_ACTIVE_WIDGETS 
         : DEFAULT_ACTIVE_WIDGETS.filter(id => OPERACIONAL_ALLOWED_WIDGETS.includes(id));
 
-    // Fechar menu ao clicar fora
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setShowMenu(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+
 
     // Carregar configurações
     useEffect(() => {
@@ -266,41 +257,14 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     border-bottom-color: #64748b;
                 }
             `}</style>
-            <div className="flex justify-end mb-4 relative" ref={menuRef}>
+            <div className="flex justify-end mb-4">
                 <button
-                    onClick={() => setShowMenu(!showMenu)}
+                    onClick={() => setShowMenu(true)}
                     className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
                     title="Configurar Widgets"
                 >
                     <Settings2 size={20} />
                 </button>
-                {showMenu && (
-                    <div className="absolute top-12 right-0 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 py-2">
-                        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Gerenciar Widgets</h3>
-                            <p className="text-xs text-slate-500 mt-1">Selecione o que deseja ver no dashboard.</p>
-                        </div>
-                        <div className="max-h-80 overflow-y-auto p-2 space-y-1">
-                            {allWidgets.map(id => {
-                                const isActive = activeWidgets.includes(id);
-                                return (
-                                    <button
-                                        key={id}
-                                        onClick={() => toggleWidget(id)}
-                                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
-                                    >
-                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'}`}>
-                                            {WIDGET_REGISTRY[id].name}
-                                        </span>
-                                        <div className={`w-10 h-5.5 rounded-full flex items-center transition-colors p-1 ${isActive ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
-                                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${isActive ? 'translate-x-[18px]' : 'translate-x-0'}`} />
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
             </div>
 
             <ResponsiveGridLayout
@@ -326,6 +290,253 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     );
                 })}
             </ResponsiveGridLayout>
+            {/* Widget Manager Drawer */}
+            <WidgetManagerDrawer
+                isOpen={showMenu}
+                onClose={() => setShowMenu(false)}
+                allWidgets={allWidgets}
+                activeWidgets={activeWidgets}
+                toggleWidget={toggleWidget}
+            />
         </div>
+    );
+};
+
+interface WidgetManagerDrawerProps {
+    isOpen: boolean;
+    onClose: () => void;
+    allWidgets: string[];
+    activeWidgets: string[];
+    toggleWidget: (id: string) => void;
+}
+
+const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
+    isOpen,
+    onClose,
+    allWidgets,
+    activeWidgets,
+    toggleWidget
+}) => {
+    const [isVisible, setIsVisible] = useState(false);
+    const [shouldRender, setShouldRender] = useState(false);
+
+    // Estado para a ordem dos widgets
+    const [widgetsOrder, setWidgetsOrder] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem('widget_manager_drawer_order');
+            if (saved) return JSON.parse(saved);
+        } catch (e) {
+            console.error("Erro ao carregar ordem dos widgets no drawer:", e);
+        }
+        return allWidgets;
+    });
+
+    const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
+    const [dragOverWidgetId, setDragOverWidgetId] = useState<string | null>(null);
+    const [draggableWidgetId, setDraggableWidgetId] = useState<string | null>(null);
+
+    // Sincronizar widgetsOrder se novos widgets forem incluídos
+    useEffect(() => {
+        if (allWidgets.length > 0) {
+            setWidgetsOrder(prev => {
+                const missing = allWidgets.filter(w => !prev.includes(w));
+                if (missing.length > 0) {
+                    const newOrder = [...prev, ...missing];
+                    localStorage.setItem('widget_manager_drawer_order', JSON.stringify(newOrder));
+                    return newOrder;
+                }
+                return prev;
+            });
+        }
+    }, [allWidgets]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setShouldRender(true);
+            const timer = setTimeout(() => setIsVisible(true), 10);
+            return () => clearTimeout(timer);
+        } else {
+            setIsVisible(false);
+        }
+    }, [isOpen]);
+
+    const handleTransitionEnd = () => {
+        if (!isVisible) setShouldRender(false);
+    };
+
+    const getDragProps = (widgetId: string) => {
+        return {
+            draggable: draggableWidgetId === widgetId,
+            onDragStart: (e: React.DragEvent) => {
+                setDraggedWidgetId(widgetId);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', widgetId);
+            },
+            onDragEnd: () => {
+                setDraggedWidgetId(null);
+                setDragOverWidgetId(null);
+                setDraggableWidgetId(null);
+            },
+            onDragOver: (e: React.DragEvent) => {
+                e.preventDefault();
+                if (draggedWidgetId && draggedWidgetId !== widgetId) {
+                    setDragOverWidgetId(widgetId);
+                }
+            },
+            onDragLeave: () => {
+                if (dragOverWidgetId === widgetId) {
+                    setDragOverWidgetId(null);
+                }
+            },
+            onDrop: () => {
+                if (draggedWidgetId && draggedWidgetId !== widgetId) {
+                    const currentOrder = [...widgetsOrder];
+                    // Garantir que todos de allWidgets estão incluídos antes de calcular indexes
+                    allWidgets.forEach(w => {
+                        if (!currentOrder.includes(w)) {
+                            currentOrder.push(w);
+                        }
+                    });
+                    const fromIndex = currentOrder.indexOf(draggedWidgetId);
+                    const toIndex = currentOrder.indexOf(widgetId);
+                    const newOrder = [...currentOrder];
+                    newOrder.splice(fromIndex, 1);
+                    newOrder.splice(toIndex, 0, draggedWidgetId);
+                    setWidgetsOrder(newOrder);
+                    localStorage.setItem('widget_manager_drawer_order', JSON.stringify(newOrder));
+                }
+                setDraggedWidgetId(null);
+                setDragOverWidgetId(null);
+                setDraggableWidgetId(null);
+            }
+        };
+    };
+
+    const getWidgetWrapperClass = (widgetId: string, isActive: boolean) => {
+        const isDragged = draggedWidgetId === widgetId;
+        const isDragOver = dragOverWidgetId === widgetId;
+        return `w-full flex items-start justify-between p-4 rounded-xl border transition-all duration-200 select-none ${
+            isDragged ? 'opacity-35 border-dashed border-indigo-500 scale-[0.98]' :
+            isDragOver ? 'border-indigo-500 scale-[1.01] shadow-md bg-indigo-50/5 dark:bg-indigo-500/5' :
+            isActive 
+                ? 'bg-indigo-50/10 dark:bg-indigo-950/10 border-indigo-100/80 dark:border-indigo-950/60 hover:bg-indigo-50/20' 
+                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50/50 hover:border-slate-300'
+        }`;
+    };
+
+    const renderDragHandle = (widgetId: string) => (
+        <div
+            className="cursor-grab active:cursor-grabbing p-1.5 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-2 shrink-0 self-center"
+            onMouseDown={() => setDraggableWidgetId(widgetId)}
+            onMouseUp={() => setDraggableWidgetId(null)}
+        >
+            <GripVertical size={14} />
+        </div>
+    );
+
+    if (!shouldRender) return null;
+
+    // Ordenar allWidgets com base no widgetsOrder
+    const sortedWidgets = [...allWidgets].sort((a, b) => {
+        const indexA = widgetsOrder.indexOf(a);
+        const indexB = widgetsOrder.indexOf(b);
+        return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+    });
+
+    return createPortal(
+        <>
+            {/* Backdrop */}
+            <div 
+                className={`fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[9998] transition-opacity duration-300 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                onClick={onClose}
+            />
+            
+            {/* Drawer */}
+            <div 
+                onTransitionEnd={handleTransitionEnd}
+                className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-slate-200 dark:border-slate-800 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                            <LayoutGrid size={18} className="text-slate-500 dark:text-slate-400" />
+                        </div>
+                        <div className="flex flex-col text-left">
+                            <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                                Gerenciar Widgets
+                            </h1>
+                            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+                        </div>
+                    </div>
+                    <button 
+                        onClick={onClose}
+                        className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 rounded-full transition-all duration-200"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed px-1">
+                        Selecione quais cartões e relatórios deseja visualizar em sua área de trabalho. Arraste-os pelo ícone de grip para reordenar suas posições de exibição nesta listagem.
+                    </p>
+                    <div className="space-y-3">
+                        {sortedWidgets.map(id => {
+                            const isActive = activeWidgets.includes(id);
+                            
+                            // Descrição em português para cada widget
+                            const getWidgetDescription = (widgetId: string) => {
+                                switch (widgetId) {
+                                    case 'topSegments': return 'Gráfico dos segmentos industriais e de serviços com maior representatividade.';
+                                    case 'statusByUser': return 'Monitor em tempo real de tarefas concluídas, pendentes e em andamento.';
+                                    case 'upcomingDeadlines': return 'Listagem ordenada com os prazos de obrigações fiscais prestes a vencer.';
+                                    case 'topTasks': return 'Classificação e progresso de tarefas concluídas por colaborador.';
+                                    case 'documentAlerts': return 'Central de notificações de documentos pendentes, aceitos ou rejeitados.';
+                                    case 'clientStatus': return 'Gráfico consolidado de clientes Ativos, Suspensos e Inativos.';
+                                    case 'taxRegimes': return 'Distribuição tributária entre Simples Nacional, Lucro Presumido e Real.';
+                                    case 'loggedUsers': return 'Painel de monitoramento de colaboradores conectados no momento.';
+                                    case 'notifiedExclusion': return 'Alertas críticos de exclusão de regime tributário detectados pelo sistema.';
+                                    case 'collaboratorsByDept': return 'Distribuição dos membros operacionais por setores contábeis.';
+                                    case 'uncompletedTasks': return 'Métricas e contadores de tarefas em atraso ou não finalizadas.';
+                                    case 'monthlyEvolution': return 'Evolução e histórico das guias emitidas e finalizadas mês a mês.';
+                                    case 'economicIndices': return 'Índices econômicos e financeiros vigentes (IPCA, SELIC, INCC, etc.).';
+                                    case 'operationsCalendar': return 'Visão em formato de calendário de obrigações operacionais agendadas.';
+                                    default: return 'Painel informativo customizável.';
+                                }
+                            };
+
+                            return (
+                                <div
+                                    key={id}
+                                    {...getDragProps(id)}
+                                    className={getWidgetWrapperClass(id, isActive)}
+                                >
+                                    {renderDragHandle(id)}
+                                    <div 
+                                        className="flex-1 flex items-start justify-between cursor-pointer"
+                                        onClick={() => toggleWidget(id)}
+                                    >
+                                        <div className="flex flex-col text-left pr-4">
+                                            <span className={`text-[10px] font-black uppercase tracking-wider ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                                                {WIDGET_REGISTRY[id].name}
+                                            </span>
+                                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">
+                                                {getWidgetDescription(id)}
+                                            </span>
+                                        </div>
+                                        <div className={`w-10 h-5.5 rounded-full flex items-center transition-colors p-1 shrink-0 mt-0.5 ${isActive ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform ${isActive ? 'translate-x-[18px]' : 'translate-x-0'}`} />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </>,
+        document.body
     );
 };
