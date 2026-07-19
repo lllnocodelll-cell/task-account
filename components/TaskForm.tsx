@@ -816,7 +816,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                   label="Empresa"
                   disabled={isEditing}
                   options={clients
-                    .filter(c => !selectedClientIds.includes(c.companyName))
+                    .filter(c => c.status === 'Ativo' && !selectedClientIds.includes(c.companyName))
                     .map(c => ({
                       value: c.companyName,
                       label: c.companyName

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Bell, Sun, Moon, Menu, Link2, MonitorPlay } from 'lucide-react';
 import { UserRole } from '../types';
-import { NotificationsPopover } from './notifications/NotificationsPopover';
+import { NotificationsDrawer } from './notifications/NotificationsDrawer';
 import { UsefulLinksDrawer } from './UsefulLinksDrawer';
 
 interface UserProfile {
@@ -96,15 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="tooltip-content">Notificações</span>
               </div>
               
-              {userProfile?.id && (
-                <NotificationsPopover
-                  userId={userProfile.id}
-                  isOpen={isNotificationsOpen}
-                  onClose={() => setIsNotificationsOpen(false)}
-                  onNavigate={onNavigateToTab}
-                  onUnreadCountChange={setUnreadCount}
-                />
-              )}
+              {/* Notifications Drawer (instantiated at the bottom) */}
             </div>
           </>
         )}
@@ -131,6 +123,16 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="tooltip-content">Ver Perfil</span>
         </div>
       </div>
+
+      {userProfile?.id && (
+        <NotificationsDrawer
+          userId={userProfile.id}
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+          onNavigate={onNavigateToTab}
+          onUnreadCountChange={setUnreadCount}
+        />
+      )}
     </header>
   );
 };

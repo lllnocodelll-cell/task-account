@@ -18,7 +18,7 @@ import { Loader2 } from 'lucide-react';
 import { GlobalCallListener } from './components/chat/GlobalCallListener';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ui/Toast';
-import { TutorialsModal } from './components/tutorials/TutorialsModal';
+import { TutorialsDrawer } from './components/tutorials/TutorialsDrawer';
 import { ProfileDrawer } from './components/ProfileDrawer';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
@@ -425,8 +425,8 @@ function App() {
         />
       )}
 
-      {isTutorialsOpen && userProfile && (
-        <TutorialsModal
+      {userProfile && (
+        <TutorialsDrawer
           isOpen={isTutorialsOpen}
           onClose={() => setIsTutorialsOpen(false)}
           orgId={userProfile.org_id || userProfile.id}

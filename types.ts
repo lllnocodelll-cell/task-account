@@ -117,6 +117,7 @@ export interface Task {
   attachments?: { id?: string; name: string; size: number; url?: string; storage_path?: string }[];
   temporary_tag?: string;
   workflows?: TaskWorkflow[];
+  createdAt?: string;
 }
 
 export interface Client {

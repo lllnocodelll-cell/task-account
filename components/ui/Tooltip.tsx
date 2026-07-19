@@ -69,7 +69,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ children, content, position = 
                                    position === 'bottom' ? 'translate(-50%, 0)' :
                                    position === 'right' ? 'translate(0, -50%)' :
                                    'translate(-100%, -50%)',
-                        zIndex: 9999,
+                        zIndex: 100000,
                     }}
                     className="pointer-events-none"
                 >

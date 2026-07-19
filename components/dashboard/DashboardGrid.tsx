@@ -21,6 +21,8 @@ import { UncompletedTasksWidget } from './widgets/UncompletedTasksWidget';
 import { MonthlyEvolutionWidget } from './widgets/MonthlyEvolutionWidget';
 import { EconomicIndicesWidget } from './widgets/EconomicIndicesWidget';
 import { OperationsCalendarWidget } from './widgets/OperationsCalendarWidget';
+import { ClientCertificatesWidget } from './widgets/ClientCertificatesWidget';
+import { ClientLicensesWidget } from './widgets/ClientLicensesWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -95,6 +97,16 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'CALENDÁRIO OPERACIONAL',
         component: OperationsCalendarWidget,
         defaultLayout: { i: 'operationsCalendar', x: 0, y: 46, w: 3, h: 10, minW: 3, minH: 7 }
+    },
+    clientCertificates: {
+        name: 'VENCIMENTO CERTIFICADOS',
+        component: ClientCertificatesWidget,
+        defaultLayout: { i: 'clientCertificates', x: 0, y: 56, w: 6, h: 7, minW: 3, minH: 5 }
+    },
+    clientLicenses: {
+        name: 'VENCIMENTO LICENÇAS',
+        component: ClientLicensesWidget,
+        defaultLayout: { i: 'clientLicenses', x: 6, y: 56, w: 6, h: 7, minW: 3, minH: 5 }
     }
 };
 
@@ -102,7 +114,8 @@ const DEFAULT_ACTIVE_WIDGETS = [
     'topSegments', 'statusByUser', 'monthlyEvolution',
     'upcomingDeadlines', 'topTasks', 'documentAlerts',
     'clientStatus', 'taxRegimes', 'loggedUsers',
-    'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices', 'operationsCalendar'
+    'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices', 'operationsCalendar',
+    'clientCertificates', 'clientLicenses'
 ];
 
 interface DashboardGridProps {
@@ -120,7 +133,8 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     const OPERACIONAL_ALLOWED_WIDGETS = [
         'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
         'topTasks', 'uncompletedTasks', 'clientStatus', 
-        'notifiedExclusion', 'topSegments', 'monthlyEvolution', 'economicIndices', 'operationsCalendar'
+        'notifiedExclusion', 'topSegments', 'monthlyEvolution', 'economicIndices', 'operationsCalendar',
+        'clientCertificates', 'clientLicenses'
     ];
 
     const allWidgets = Object.keys(WIDGET_REGISTRY).filter(id => 

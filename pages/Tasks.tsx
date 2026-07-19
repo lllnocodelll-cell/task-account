@@ -59,7 +59,7 @@ import { supabase } from '../utils/supabaseClient';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 import { ClientForm } from '../components/ClientForm';
 import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
-import { TutorialsModal } from '../components/tutorials/TutorialsModal';
+import { TutorialsDrawer } from '../components/tutorials/TutorialsDrawer';
 import { TaskTagEditor } from '../components/TaskTagEditor';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Notification, NotificationType } from '../components/ui/Notification';
@@ -1348,6 +1348,18 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       </div>
                     </>
                   )}
+                  {task.createdAt && (
+                    <>
+                      <div className="w-px h-3 bg-slate-300 dark:bg-slate-600/60" />
+                      <div 
+                        className="flex items-center gap-1 text-[9.5px] font-bold text-slate-500 dark:text-slate-400 cursor-help" 
+                        title={`Criada em: ${new Date(task.createdAt).toLocaleDateString('pt-BR')} às ${new Date(task.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                      >
+                        <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase">Criada:</span>
+                        <span>{new Date(task.createdAt).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1762,7 +1774,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               url: a.download_url,
               storage_path: a.storage_path
             })),
-            workflows: t.workflows?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)) || []
+            workflows: t.workflows?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)) || [],
+            createdAt: t.created_at
           };
         });
         setTasks(mappedTasks);
@@ -3041,6 +3054,17 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                 <span className="capitalize">{task.recurrence}</span>
                               </div>
                             )}
+                            {task.createdAt && (
+                              <div
+                                className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 dark:text-slate-500 font-medium"
+                                title="Data de Criação"
+                              >
+                                <span className="text-slate-350 dark:text-slate-655 font-bold">Criada:</span>
+                                <span>
+                                  {new Date(task.createdAt).toLocaleDateString('pt-BR')} {new Date(task.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -3567,9 +3591,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           </div>
         </div>
       </Modal>
-      {/* Tutorials Modal */}
-      {tutorialsModalOpen && (
-        <TutorialsModal
+      {/* Tutorials Drawer */}
+      {userProfile && (
+        <TutorialsDrawer
           isOpen={tutorialsModalOpen}
           onClose={() => setTutorialsModalOpen(false)}
           orgId={userProfile?.org_id}
