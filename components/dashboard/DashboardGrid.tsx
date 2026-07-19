@@ -4,7 +4,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { supabase } from '../../utils/supabaseClient';
-import { Settings2, LayoutGrid, X, GripVertical } from 'lucide-react';
+import { Settings2, LayoutGrid, X, GripVertical, FolderHeart, ChevronDown, Plus, Trash2, Edit3 } from 'lucide-react';
 
 // Import Widgets
 import { StatusByUserWidget } from './widgets/StatusByUserWidget';
@@ -125,10 +125,22 @@ interface DashboardGridProps {
 }
 
 export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgId }) => {
-    const [layouts, setLayouts] = useState<{ [key: string]: any[] }>({ lg: [] });
-    const [activeWidgets, setActiveWidgets] = useState<string[]>([]);
+    // Cenários de widgets
+    const [scenarios, setScenarios] = useState<Record<string, { widgets: string[], layout: { [key: string]: any[] } }>>({
+        "Principal": { widgets: [], layout: { lg: [] } }
+    });
+    const [activeScenario, setActiveScenario] = useState<string>("Principal");
+    
+    // UI control
     const [loading, setLoading] = useState(true);
     const [showMenu, setShowMenu] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [showNewScenarioModal, setShowNewScenarioModal] = useState(false);
+    const [showRenameModal, setShowRenameModal] = useState(false);
+    const [newScenarioName, setNewScenarioName] = useState("");
+    const [renameScenarioName, setRenameScenarioName] = useState("");
+
+    const scenarioDropdownRef = useRef<HTMLDivElement>(null);
 
     const OPERACIONAL_ALLOWED_WIDGETS = [
         'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
@@ -145,9 +157,23 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         ? DEFAULT_ACTIVE_WIDGETS 
         : DEFAULT_ACTIVE_WIDGETS.filter(id => OPERACIONAL_ALLOWED_WIDGETS.includes(id));
 
+    // Computar activeWidgets e layouts do cenário ativo atual
+    const currentScenario = scenarios[activeScenario] || { widgets: [], layout: { lg: [] } };
+    const activeWidgets = currentScenario.widgets;
+    const layouts = currentScenario.layout;
 
+    // Fechar dropdown de cenários ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (scenarioDropdownRef.current && !scenarioDropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
-    // Carregar configurações
+    // Carregar configurações do Supabase
     useEffect(() => {
         const loadConfig = async () => {
             try {
@@ -163,18 +189,102 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     const validWidgets = ((data.widgets as string[]) || defaultWidgetsForRole).filter((id: string) => 
                         role === 'gestor' || OPERACIONAL_ALLOWED_WIDGETS.includes(id)
                     );
-                    const validLayout = ((data.layout as any[]) || []).filter((l: any) => validWidgets.includes(l.i));
-                    setLayouts({ lg: validLayout });
-                    setActiveWidgets(validWidgets);
-                } else {
-                    const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
-                    setLayouts({ lg: defaultLgLayout });
-                    setActiveWidgets(defaultWidgetsForRole);
+                    
+                    let loadedScenarios: Record<string, { widgets: string[], layout: { [key: string]: any[] } }> = {};
+                    let loadedActiveScenario = "Principal";
 
-                    // Save default async
+                    if (data.layout) {
+                        const rawLayout = data.layout as any;
+                        if (rawLayout.activeScenario && rawLayout.scenarios) {
+                            // Formato novo de múltiplos cenários
+                            loadedActiveScenario = rawLayout.activeScenario;
+                            Object.keys(rawLayout.scenarios).forEach(name => {
+                                const sc = rawLayout.scenarios[name];
+                                const scWidgets = (sc.widgets as string[] || []).filter(id => 
+                                    role === 'gestor' || OPERACIONAL_ALLOWED_WIDGETS.includes(id)
+                                );
+                                
+                                const scLayout: { [key: string]: any[] } = {};
+                                if (sc.layout && typeof sc.layout === 'object' && !Array.isArray(sc.layout)) {
+                                    Object.keys(sc.layout).forEach(bp => {
+                                        if (Array.isArray(sc.layout[bp])) {
+                                            scLayout[bp] = sc.layout[bp].filter(l => scWidgets.includes(l.i));
+                                        }
+                                    });
+                                } else if (Array.isArray(sc.layout)) {
+                                    scLayout.lg = sc.layout.filter(l => scWidgets.includes(l.i));
+                                }
+
+                                loadedScenarios[name] = {
+                                    widgets: scWidgets,
+                                    layout: scLayout
+                                };
+                            });
+                        } else {
+                            // Formato antigo: converter para cenário "Principal"
+                            let loadedLayouts: { [key: string]: any[] } = { lg: [] };
+                            if (Array.isArray(rawLayout)) {
+                                const validLg = rawLayout.filter((l: any) => validWidgets.includes(l.i));
+                                loadedLayouts = { lg: validLg };
+                            } else if (typeof rawLayout === 'object') {
+                                Object.keys(rawLayout).forEach(breakpoint => {
+                                    if (Array.isArray(rawLayout[breakpoint])) {
+                                        loadedLayouts[breakpoint] = rawLayout[breakpoint].filter((l: any) => 
+                                            validWidgets.includes(l.i)
+                                        );
+                                    }
+                                });
+                            }
+                            
+                            loadedScenarios = {
+                                "Principal": {
+                                    widgets: validWidgets,
+                                    layout: loadedLayouts
+                                }
+                            };
+                            loadedActiveScenario = "Principal";
+                        }
+                    } else {
+                        // Sem layout salvo no banco
+                        const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
+                        loadedScenarios = {
+                            "Principal": {
+                                widgets: defaultWidgetsForRole,
+                                layout: { lg: defaultLgLayout }
+                            }
+                        };
+                        loadedActiveScenario = "Principal";
+                    }
+
+                    if (Object.keys(loadedScenarios).length === 0) {
+                        const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
+                        loadedScenarios = {
+                            "Principal": {
+                                widgets: defaultWidgetsForRole,
+                                layout: { lg: defaultLgLayout }
+                            }
+                        };
+                        loadedActiveScenario = "Principal";
+                    }
+
+                    setScenarios(loadedScenarios);
+                    setActiveScenario(loadedActiveScenario);
+                } else {
+                    // Sem dados salvos
+                    const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
+                    const initialScenarios = {
+                        "Principal": {
+                            widgets: defaultWidgetsForRole,
+                            layout: { lg: defaultLgLayout }
+                        }
+                    };
+                    setScenarios(initialScenarios);
+                    setActiveScenario("Principal");
+
+                    // Salva padrão assincronamente
                     await supabase.from('user_dashboard_configs').insert({
                         user_id: userId,
-                        layout: defaultLgLayout,
+                        layout: { activeScenario: "Principal", scenarios: initialScenarios } as any,
                         widgets: defaultWidgetsForRole
                     });
                 }
@@ -190,52 +300,135 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         }
     }, [userId, role]);
 
-    const saveLayout = async (currentLayout: any[]) => {
+    const saveScenarios = async (
+        allScenarios: Record<string, { widgets: string[], layout: { [key: string]: any[] } }>,
+        activeName: string
+    ) => {
         try {
             await supabase
                 .from('user_dashboard_configs')
                 .upsert({
                     user_id: userId,
-                    layout: currentLayout,
-                    widgets: activeWidgets,
+                    layout: { activeScenario: activeName, scenarios: allScenarios } as any,
+                    widgets: allScenarios[activeName]?.widgets || [],
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id' });
         } catch (err) {
-            console.error("Erro ao salvar layout:", err);
+            console.error("Erro ao salvar cenários:", err);
         }
     };
 
-    const onLayoutChange = (currentLayout: any[]) => {
-        setLayouts({ lg: currentLayout });
-        saveLayout(currentLayout);
+    const onLayoutChange = (currentLayout: any[], allLayouts: { [key: string]: any[] }) => {
+        const updatedScenarios = {
+            ...scenarios,
+            [activeScenario]: {
+                ...scenarios[activeScenario],
+                layout: allLayouts
+            }
+        };
+        setScenarios(updatedScenarios);
+        saveScenarios(updatedScenarios, activeScenario);
     };
 
     const toggleWidget = (id: string) => {
+        const currentScenario = scenarios[activeScenario];
         let newWidgets;
-        let newLayout = [...layouts.lg];
+        let newLayouts = { ...currentScenario.layout };
 
-        if (activeWidgets.includes(id)) {
-            newWidgets = activeWidgets.filter(w => w !== id);
-            newLayout = newLayout.filter(l => l.i !== id);
-        } else {
-            newWidgets = [...activeWidgets, id];
-            const defaultLayout = WIDGET_REGISTRY[id].defaultLayout;
-            let maxY = 0;
-            newLayout.forEach(l => {
-                if (l.y + l.h > maxY) maxY = l.y + l.h;
+        if (currentScenario.widgets.includes(id)) {
+            newWidgets = currentScenario.widgets.filter(w => w !== id);
+            // Remover o widget de todos os breakpoints
+            Object.keys(newLayouts).forEach(bp => {
+                if (Array.isArray(newLayouts[bp])) {
+                    newLayouts[bp] = newLayouts[bp].filter(l => l.i !== id);
+                }
             });
-            newLayout.push({ ...defaultLayout, y: maxY });
+        } else {
+            newWidgets = [...currentScenario.widgets, id];
+            const defaultLayout = WIDGET_REGISTRY[id].defaultLayout;
+            
+            // Garantir que o breakpoint lg exista
+            if (!newLayouts.lg) {
+                newLayouts.lg = [];
+            }
+            
+            // Adicionar o widget a todos os breakpoints existentes no estado
+            Object.keys(newLayouts).forEach(bp => {
+                if (Array.isArray(newLayouts[bp])) {
+                    let maxY = 0;
+                    newLayouts[bp].forEach(l => {
+                        if (l.y + l.h > maxY) maxY = l.y + l.h;
+                    });
+                    
+                    // Ajustar largura para breakpoints menores se necessário
+                    const bpCols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }[bp as 'lg'|'md'|'sm'|'xs'|'xxs'] || 12;
+                    const w = Math.min(defaultLayout.w, bpCols);
+                    
+                    newLayouts[bp] = [...newLayouts[bp], { ...defaultLayout, w, y: maxY }];
+                }
+            });
         }
 
-        setActiveWidgets(newWidgets);
-        setLayouts({ lg: newLayout });
+        const updatedScenarios = {
+            ...scenarios,
+            [activeScenario]: {
+                widgets: newWidgets,
+                layout: newLayouts
+            }
+        };
+        setScenarios(updatedScenarios);
+        saveScenarios(updatedScenarios, activeScenario);
+    };
 
-        supabase.from('user_dashboard_configs').upsert({
-            user_id: userId,
-            layout: newLayout,
-            widgets: newWidgets,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+    const handleCreateScenario = () => {
+        const name = newScenarioName.trim();
+        if (!name || scenarios[name]) return;
+
+        const updatedScenarios = {
+            ...scenarios,
+            [name]: {
+                widgets: [...scenarios[activeScenario].widgets],
+                layout: JSON.parse(JSON.stringify(scenarios[activeScenario].layout))
+            }
+        };
+
+        setScenarios(updatedScenarios);
+        setActiveScenario(name);
+        setShowNewScenarioModal(false);
+        saveScenarios(updatedScenarios, name);
+    };
+
+    const handleRenameScenario = () => {
+        const newName = renameScenarioName.trim();
+        if (!newName || newName === activeScenario || scenarios[newName]) {
+            if (newName === activeScenario) setShowRenameModal(false);
+            return;
+        }
+
+        const updatedScenarios = { ...scenarios };
+        updatedScenarios[newName] = updatedScenarios[activeScenario];
+        delete updatedScenarios[activeScenario];
+
+        setScenarios(updatedScenarios);
+        setActiveScenario(newName);
+        setShowRenameModal(false);
+        saveScenarios(updatedScenarios, newName);
+    };
+
+    const handleDeleteScenario = (nameToDelete: string) => {
+        if (Object.keys(scenarios).length <= 1) return;
+
+        const updatedScenarios = { ...scenarios };
+        delete updatedScenarios[nameToDelete];
+
+        let nextActive = activeScenario;
+        if (activeScenario === nameToDelete) {
+            nextActive = Object.keys(updatedScenarios)[0];
+        }
+
+        setScenarios(updatedScenarios);
+        setActiveScenario(nextActive);
+        saveScenarios(updatedScenarios, nextActive);
     };
 
     if (loading) return <div className="animate-pulse flex space-x-4"><div className="flex-1 space-y-4 py-1"><div className="h-4 bg-slate-200 rounded w-3/4"></div></div></div>;
@@ -271,7 +464,82 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     border-bottom-color: #64748b;
                 }
             `}</style>
-            <div className="flex justify-end mb-4">
+            <div className="flex items-center justify-end gap-2 mb-4">
+                {/* Seletor de Cenários */}
+                <div className="relative" ref={scenarioDropdownRef}>
+                    <button
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
+                    >
+                        <FolderHeart size={16} className="text-indigo-500" />
+                        <span>Cenário: <strong className="text-indigo-600 dark:text-indigo-400 font-bold">{activeScenario}</strong></span>
+                        <ChevronDown size={14} className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Cenários Disponíveis
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                                {Object.keys(scenarios).map(name => (
+                                    <div
+                                        key={name}
+                                        className={`flex items-center justify-between px-3 py-2 text-xs cursor-pointer transition-colors ${
+                                            name === activeScenario
+                                                ? 'bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-bold'
+                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
+                                        }`}
+                                        onClick={() => {
+                                            setActiveScenario(name);
+                                            setIsDropdownOpen(false);
+                                            saveScenarios(scenarios, name);
+                                        }}
+                                    >
+                                        <span className="truncate pr-2">{name}</span>
+                                        {Object.keys(scenarios).length > 1 && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteScenario(name);
+                                                }}
+                                                className="p-1 text-slate-400 hover:text-red-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                title="Excluir cenário"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="border-t border-slate-100 dark:border-slate-800/80 pt-1 mt-1">
+                                <button
+                                    onClick={() => {
+                                        setIsDropdownOpen(false);
+                                        setShowRenameModal(true);
+                                        setRenameScenarioName(activeScenario);
+                                    }}
+                                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors"
+                                >
+                                    <Edit3 size={14} className="text-slate-400" />
+                                    Renomear Cenário
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsDropdownOpen(false);
+                                        setShowNewScenarioModal(true);
+                                        setNewScenarioName("");
+                                    }}
+                                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 font-semibold transition-colors"
+                                >
+                                    <Plus size={14} />
+                                    Novo Cenário
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <button
                     onClick={() => setShowMenu(true)}
                     className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
@@ -304,7 +572,77 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     );
                 })}
             </ResponsiveGridLayout>
-            {/* Widget Manager Drawer */}
+
+            {/* Modal para criar novo cenário */}
+            {showNewScenarioModal && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
+                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
+                        <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase mb-4">
+                            Criar Novo Cenário
+                        </h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                            O novo cenário será criado como uma cópia das posições e widgets ativos do cenário atual ("{activeScenario}").
+                        </p>
+                        <input
+                            type="text"
+                            value={newScenarioName}
+                            onChange={(e) => setNewScenarioName(e.target.value)}
+                            placeholder="Nome do cenário (ex: Operação)"
+                            className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-lg focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 text-slate-800 dark:text-slate-200 mb-6"
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2 text-xs font-semibold">
+                            <button
+                                onClick={() => setShowNewScenarioModal(false)}
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-slate-600 dark:text-slate-400 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleCreateScenario}
+                                disabled={!newScenarioName.trim() || !!scenarios[newScenarioName.trim()]}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Criar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal para renomear cenário */}
+            {showRenameModal && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
+                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
+                        <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase mb-4">
+                            Renomear Cenário
+                        </h3>
+                        <input
+                            type="text"
+                            value={renameScenarioName}
+                            onChange={(e) => setRenameScenarioName(e.target.value)}
+                            placeholder="Novo nome do cenário"
+                            className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-lg focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 text-slate-800 dark:text-slate-200 mb-6"
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2 text-xs font-semibold">
+                            <button
+                                onClick={() => setShowRenameModal(false)}
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-slate-650 dark:text-slate-400 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleRenameScenario}
+                                disabled={!renameScenarioName.trim() || (renameScenarioName.trim() !== activeScenario && !!scenarios[renameScenarioName.trim()])}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <WidgetManagerDrawer
                 isOpen={showMenu}
                 onClose={() => setShowMenu(false)}

@@ -121,7 +121,7 @@ export const ClientLicensesWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     const filteredData = data.filter(item => {
         if (filter === 'criticos') return item.situation === 'Vencido' || item.situation === 'Vence em 30dd';
         if (filter === 'vencidos') return item.situation === 'Vencido';
-        if (filter === '30dd') return item.situation === 'Vence in 30dd' || item.situation === 'Vence em 30dd';
+        if (filter === '30dd') return item.situation === 'Vence em 30dd';
         return true;
     });
 
