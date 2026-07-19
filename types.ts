@@ -214,3 +214,25 @@ export interface UsefulLink {
   icon_name?: string;
   created_at?: string;
 }
+
+export interface OfficeDetails {
+  org_id: string;
+  company_name: string;
+  document?: string;
+  constitution_date?: string;
+  zip_code?: string;
+  street?: string;
+  street_number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  plan_name: string;
+  plan_value: number;
+  storage_limit_gb: number;
+  storage_used_bytes: number;
+  contract_url?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+

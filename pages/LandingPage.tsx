@@ -88,42 +88,127 @@ const testimonials = [
 
 const plans = [
   {
-    name: 'Starter',
-    price: 'R$ 299',
-    description: 'Para pequenos escritórios que buscam organização.',
+    name: 'Bronze',
+    price: 'R$ 199,90',
+    period: '/mês',
+    clientsLimit: 'Até 100 clientes',
+    storageLimit: '50GB',
+    costPerClient: 'Investimento de 1,99 por cliente.',
+    description: 'Ideal para contadores autônomos e escritórios em início de atividade.',
     features: [
-      'Até 50 clientes',
-      'Calendário Operacional',
-      'Gestão de Tarefas Básica',
-      'Suporte via Email',
+      'Dashboards',
+      'Gestão de Tarefas',
+      'Gestão de Cliente',
+      'Chat equipe e clientes',
+      'Portal do cliente',
+      'Módulo de Envio de mensagens em massa',
+      'Módulo de Anotações, tutoriais e links úteis',
+      'Suporte técnico',
+      'Sem limite de colaboradores',
+      'Backup por 5 anos | R$ 9,99 para cada 1GB excedente.',
     ],
     highlight: false,
+    theme: {
+      border: 'border-amber-700/40 hover:border-amber-500/60',
+      glow: 'hover:shadow-[0_0_30px_-5px_rgba(217,119,6,0.15)]',
+      badge: 'bg-amber-950/40 text-amber-400 border border-amber-800/30',
+      title: 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-600 bg-clip-text text-transparent',
+      check: 'text-amber-500',
+      button: 'bg-slate-900 border border-amber-700/50 hover:bg-amber-900/20 text-slate-100 hover:text-white',
+    }
   },
   {
-    name: 'Pro',
-    price: 'R$ 599',
-    description: 'A escolha ideal para escritórios em escala.',
+    name: 'Prata',
+    price: 'R$ 349,90',
+    period: '/mês',
+    clientsLimit: 'Até 250 clientes',
+    storageLimit: '100GB',
+    costPerClient: 'Investimento de 1,40 por cliente.',
+    description: 'Ideal para escritórios consolidados que buscam organizar suas rotinas e elevar o padrão de entrega de suas entregas.',
     features: [
-      'Clientes Ilimitados',
-      'Chat e Vídeo em Tempo Real',
-      'Kanban Avançado',
-      'Monitor de Regimes Fiscais',
-      'Suporte Prioritário',
+      'Dashboards',
+      'Gestão de Tarefas',
+      'Gestão de Cliente',
+      'Chat equipe e clientes',
+      'Portal do cliente',
+      'Módulo de Envio de mensagens em massa',
+      'Módulo de Anotações, tutoriais e links úteis',
+      'Suporte técnico',
+      'Sem limite de colaboradores',
+      'Backup por 5 anos | R$ 9,99 para cada 1GB excedente.',
+    ],
+    highlight: false,
+    theme: {
+      border: 'border-slate-700/40 hover:border-slate-400/50',
+      glow: 'hover:shadow-[0_0_30px_-5px_rgba(203,213,225,0.15)]',
+      badge: 'bg-slate-800 text-slate-300 border border-slate-700/30',
+      title: 'bg-gradient-to-r from-slate-300 via-slate-200 to-slate-400 bg-clip-text text-transparent',
+      check: 'text-slate-400',
+      button: 'bg-slate-900 border border-slate-700 hover:bg-slate-855 text-slate-100',
+    }
+  },
+  {
+    name: 'Ouro',
+    price: 'R$ 499,90',
+    period: '/mês',
+    clientsLimit: 'Até 350 clientes',
+    storageLimit: '120GB',
+    costPerClient: 'Investimento de 1,43 por cliente.',
+    description: 'Ideal para escritórios que são destaque no mercado de atuação e que desejam um controle rigoroso do fluxo de atividades e integração total de contato com com a equipe a clientes.',
+    features: [
+      'Dashboards',
+      'Gestão de Tarefas',
+      'Gestão de Cliente',
+      'Chat equipe e clientes',
+      'Portal do cliente',
+      'Módulo de Envio de mensagens em massa',
+      'Módulo de Anotações, tutoriais e links úteis',
+      'Suporte técnico',
+      'Sem limite de colaboradores',
+      'Backup por 5 anos | R$ 9,99 para cada 1GB excedente.',
     ],
     highlight: true,
+    badgeText: 'Recomendado',
+    theme: {
+      border: 'border-yellow-500/80 shadow-[0_0_30px_-10px_rgba(234,179,8,0.25)]',
+      glow: 'shadow-[0_0_50px_-10px_rgba(234,179,8,0.2)] hover:shadow-[0_0_60px_-5px_rgba(234,179,8,0.3)]',
+      badge: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40',
+      title: 'bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500 bg-clip-text text-transparent',
+      check: 'text-yellow-500',
+      button: 'bg-gradient-to-r from-yellow-600 to-amber-500 hover:from-yellow-500 hover:to-amber-400 text-slate-950 border border-yellow-400/50 shadow-lg shadow-yellow-500/10 font-black',
+    }
   },
   {
-    name: 'Enterprise',
-    price: 'Sob Consulta',
-    description: 'Customizações exclusivas para grandes redes.',
+    name: 'Elite',
+    price: 'À Consultar',
+    period: '',
+    clientsLimit: 'Clientes sob demanda',
+    storageLimit: 'Espaço customizado',
+    costPerClient: 'Customizado conforme volume',
+    description: 'Ideal para escritório com alto volume de tarefas e que não pode perder nenhum prazo.',
     features: [
-      'White-label',
-      'API para Integrações',
-      'Gerente de Conta Dedicado',
-      'Treinamento Presencial',
+      'Dashboards',
+      'Gestão de Tarefas',
+      'Gestão de Cliente',
+      'Chat equipe e clientes',
+      'Portal do cliente',
+      'Módulo de Envio de mensagens em massa',
+      'Módulo de Anotações, tutoriais e links úteis',
+      'Suporte técnico',
+      'Sem limite de colaboradores',
+      'Backup por 5 anos | R$ 9,99 para cada 1GB excedente.',
     ],
     highlight: false,
-  },
+    badgeText: 'Customizado',
+    theme: {
+      border: 'border-indigo-500/30 hover:border-indigo-400/60',
+      glow: 'hover:shadow-[0_0_40px_-5px_rgba(99,102,241,0.25)]',
+      badge: 'bg-indigo-950/50 text-indigo-400 border border-indigo-500/30',
+      title: 'bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent',
+      check: 'text-indigo-400',
+      button: 'bg-slate-900 border border-indigo-500/50 hover:bg-indigo-955 hover:border-indigo-400 text-indigo-300 hover:text-indigo-200',
+    }
+  }
 ];
 
 /* ──────────────────────────── helpers ──────────────────────────── */
@@ -390,7 +475,7 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
 
       {/* ─── Pricing ─── */}
       <section id="pricing" className="py-24 px-6 relative">
-        <div className="max-w-5xl mx-auto relative z-10">
+        <div className="max-w-7xl mx-auto relative z-10">
           <motion.div {...fadeIn} className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-display font-bold tracking-tight mb-4 text-white">
               Investimento no seu crescimento.
@@ -400,61 +485,99 @@ export const LandingPage: React.FC<{ onLoginClick: () => void }> = ({
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
             {plans.map((plan, i) => (
               <motion.div
                 key={i}
                 {...stagger(i)}
-                className={`relative p-8 rounded-3xl border flex flex-col justify-between transition-all duration-500 ${
+                whileHover={{ y: -8, transition: { duration: 0.3 } }}
+                className={`relative p-6 rounded-3xl border flex flex-col justify-between transition-all duration-500 ${
                   plan.highlight
-                    ? 'bg-slate-900 border-orange-500 shadow-[0_0_60px_-15px_rgba(249,115,22,0.15)] md:scale-105 z-10'
-                    : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
+                    ? 'bg-slate-900 border-yellow-500/80 shadow-[0_0_50px_-10px_rgba(234,179,8,0.25)] lg:scale-[1.03] z-10'
+                    : `bg-slate-900/40 border-slate-800/80 ${plan.theme.glow} ${plan.theme.border}`
                 }`}
               >
+                {/* Glow de fundo para o card destacado */}
                 {plan.highlight && (
-                   <div className="absolute -inset-[1px] bg-gradient-to-b from-orange-500 to-blue-500 rounded-3xl z-[-1] opacity-30 blur-sm"></div>
+                   <div className="absolute -inset-[1px] bg-gradient-to-b from-yellow-500 via-amber-500 to-orange-600 rounded-3xl z-[-1] opacity-40 blur-sm"></div>
                 )}
+                
                 <div>
-                  <div className="flex justify-between items-start mb-6">
+                  {/* Cabeçalho do Card */}
+                  <div className="flex justify-between items-start mb-5">
                     <div>
-                      <h3 className="text-xl font-display font-bold mb-1 text-white">
+                      <h3 className={`text-xl font-display font-black tracking-tight ${plan.theme.title}`}>
                         {plan.name}
                       </h3>
-                      <p className="text-xs text-slate-400">{plan.description}</p>
+                      <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed min-h-[44px]">
+                        {plan.description}
+                      </p>
                     </div>
-                    {plan.highlight && (
-                      <span className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-[10px] font-black uppercase border border-orange-500/30">
-                        Recomendado
+                    {plan.badgeText && (
+                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 ${plan.theme.badge}`}>
+                        {plan.badgeText}
                       </span>
                     )}
                   </div>
-                  <div className="mb-8">
-                    <span className="text-4xl font-display font-bold text-white">
-                      {plan.price}
-                    </span>
-                    {plan.price !== 'Sob Consulta' && (
-                      <span className="text-slate-500 text-sm ml-2">/mês</span>
-                    )}
-                  </div>
-                  <div className="space-y-4 mb-8">
-                    {plan.features.map((f, j) => (
-                      <div key={j} className="flex items-center gap-3 text-sm text-slate-300">
-                        <CheckCircle2 size={16} className={plan.highlight ? 'text-orange-500' : 'text-slate-600'} />
-                        {f}
+
+                  {/* Preço */}
+                  <div className="mb-6 border-b border-slate-800/50 pb-5">
+                    <div className="flex items-baseline">
+                      <span className="text-3xl font-display font-black text-white tracking-tight">
+                        {plan.price}
+                      </span>
+                      {plan.period && (
+                        <span className="text-slate-500 text-xs ml-1.5 font-medium">{plan.period}</span>
+                      )}
+                    </div>
+                    
+                    {/* Badges de Clientes, GB e Investimento */}
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-slate-300 font-medium">
+                        <Users size={14} className="text-slate-400 shrink-0" />
+                        <span>{plan.clientsLimit}</span>
+                        {plan.storageLimit && (
+                          <>
+                            <span className="text-slate-600">|</span>
+                            <span>{plan.storageLimit}</span>
+                          </>
+                        )}
                       </div>
-                    ))}
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-950/60 border border-slate-800/80 rounded-lg text-[10px] text-slate-300 font-semibold tracking-wide">
+                        <Zap size={10} className="text-orange-500 shrink-0 animate-pulse" />
+                        <span>{plan.costPerClient}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lista de Features */}
+                  <div className="space-y-2.5 mb-8">
+                    {plan.features.map((f, j) => {
+                      const isBackup = f.includes('Backup');
+                      return (
+                        <div key={j} className="flex items-start gap-2.5 text-xs text-slate-300 leading-normal">
+                          <CheckCircle2 size={14} className={`mt-0.5 shrink-0 ${plan.theme.check}`} />
+                          <span className={isBackup ? 'text-slate-400 text-[11px] italic' : ''}>
+                            {f}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                <button
-                  onClick={onLoginClick}
-                  className={`w-full py-4 rounded-full font-bold transition-all active:scale-95 cursor-pointer ${
-                    plan.highlight
-                      ? 'bg-orange-600 hover:bg-orange-500 text-white shadow-lg shadow-orange-600/20 border border-orange-500'
-                      : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
-                  }`}
-                >
-                  Selecionar Plano
-                </button>
+
+                {/* Botão de Ação & Rodapé */}
+                <div>
+                  <button
+                    onClick={onLoginClick}
+                    className={`w-full py-3.5 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${plan.theme.button}`}
+                  >
+                    {plan.name === 'Elite' ? 'Falar com Consultor' : 'Selecionar Plano'}
+                  </button>
+                  <p className="text-[9px] text-slate-500 text-center tracking-wide mt-3">
+                    Cancele quando quiser, sem taxas adicionais.
+                  </p>
+                </div>
               </motion.div>
             ))}
           </div>
