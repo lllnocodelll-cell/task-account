@@ -11,7 +11,12 @@ import {
   Building2,
   ScanFace,
   Copy,
-  Loader2
+  Loader2,
+  FileText,
+  ExternalLink,
+  HardDrive,
+  Crown,
+  Landmark
 } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 
@@ -26,6 +31,7 @@ interface UserProfile {
   org_name: string | null;
   job_title?: string | null;
   client_ids?: string[];
+  org_id?: string | null;
 }
 
 interface ProfileDrawerProps {
@@ -46,6 +52,8 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [companies, setCompanies] = useState<any[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [officeDetails, setOfficeDetails] = useState<any | null>(null);
+  const [loadingOffice, setLoadingOffice] = useState(false);
 
   useEffect(() => {
     if (isOpen && userProfile?.role === 'cliente' && userProfile.client_ids && userProfile.client_ids.length > 0) {
@@ -66,6 +74,30 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
         }
       };
       fetchDrawerCompanies();
+    }
+  }, [isOpen, userProfile]);
+
+  // Buscar dados do escritório
+  useEffect(() => {
+    if (isOpen && userProfile?.org_id) {
+      const fetchOffice = async () => {
+        try {
+          setLoadingOffice(true);
+          const { data, error } = await (supabase as any)
+            .from('office_details')
+            .select('company_name, document, city, state, plan_name, plan_value, storage_limit_gb, storage_used_bytes, contract_url')
+            .eq('org_id', userProfile.org_id!)
+            .maybeSingle();
+          
+          if (error) throw error;
+          setOfficeDetails(data);
+        } catch (err) {
+          console.error('Erro ao buscar escritório no drawer:', err);
+        } finally {
+          setLoadingOffice(false);
+        }
+      };
+      fetchOffice();
     }
   }, [isOpen, userProfile]);
 
@@ -232,6 +264,123 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
             </div>
 
 
+
+            {/* Seção: Escritório */}
+            <div className="mt-4">
+              <div className="mb-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-5">
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Escritório</span>
+              </div>
+
+              {loadingOffice ? (
+                <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                  <Loader2 size={18} className="animate-spin mb-1 text-indigo-500" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider">Buscando dados...</span>
+                </div>
+              ) : !officeDetails ? (
+                <div className="py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Dados do escritório ainda não cadastrados.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <InfoField
+                    label="Razão Social"
+                    value={officeDetails.company_name}
+                    id="office-name"
+                    icon={Building2}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoField
+                      label="CNPJ"
+                      value={officeDetails.document}
+                      id="office-doc"
+                      icon={Landmark}
+                    />
+                    <InfoField
+                      label="Localidade"
+                      value={officeDetails.city && officeDetails.state ? `${officeDetails.city}/${officeDetails.state}` : officeDetails.city || '---'}
+                      id="office-city"
+                      icon={MapPin}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Seção: Plano & Contrato */}
+            {officeDetails && !loadingOffice && (
+              <div className="mt-4">
+                <div className="mb-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-5">
+                  <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Plano & Contrato</span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 space-y-4">
+                  {/* Plano e Valor */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500/10 to-sky-500/10 border border-indigo-200/50 dark:border-indigo-500/20">
+                        <Crown size={16} className="text-indigo-500" />
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Plano Atual</span>
+                        <span className="text-sm font-black bg-gradient-to-r from-indigo-500 to-sky-400 bg-clip-text text-transparent leading-tight">
+                          {officeDetails.plan_name}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Mensal</span>
+                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        {officeDetails.plan_name === 'Elite'
+                          ? 'Consulta'
+                          : `R$ ${Number(officeDetails.plan_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                        }
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Barra de Storage */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <HardDrive size={11} className="text-slate-400" />
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Armazenamento</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                        {(officeDetails.storage_used_bytes / (1024 * 1024 * 1024)).toFixed(2)} / {officeDetails.storage_limit_gb} GB
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-sky-400 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, (officeDetails.storage_used_bytes / (officeDetails.storage_limit_gb * 1024 * 1024 * 1024)) * 100)}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Contrato */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800/50">
+                    <div className="flex items-center gap-1.5">
+                      <FileText size={12} className="text-slate-400" />
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Contrato</span>
+                    </div>
+                    {officeDetails.contract_url ? (
+                      <a
+                        href={officeDetails.contract_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-full transition-all shadow-sm active:scale-95"
+                      >
+                        <FileText size={10} /> Ver PDF <ExternalLink size={9} />
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 italic">Não anexado</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {userProfile.role === 'cliente' && (
               <div className="mt-4">

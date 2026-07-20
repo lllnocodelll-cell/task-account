@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -967,7 +968,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                        className="flex justify-between items-center px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900/80 cursor-pointer transition-colors select-none"
                                     >
                                        <div>
-                                          <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-350 flex items-center gap-2">
+                                          <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2">
                                              <Building2 size={16} className="text-indigo-500" />
                                              Dados do Escritório
                                           </h3>
@@ -983,139 +984,149 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                        />
                                     </div>
 
-                                    {isSection1Expanded && (
-                                       <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
-                                          {profile?.role === 'gestor' ? (
-                                             <div className="space-y-4">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                   <Input
-                                                      label="Razão Social"
-                                                      value={officeCompanyName}
-                                                      onChange={(e) => setOfficeCompanyName(e.target.value)}
-                                                      placeholder="Contabilidade Exemplo LTDA"
-                                                      required
-                                                   />
-                                                   <Input
-                                                      label="CNPJ ou CPF"
-                                                      value={officeDocument}
-                                                      onChange={(e) => setOfficeDocument(formatCnpjCpf(e.target.value))}
-                                                      placeholder="00.000.000/0001-00 ou 000.000.000-00"
-                                                   />
-                                                   <Input
-                                                      label="Data de Constituição"
-                                                      type="date"
-                                                      value={officeConstitutionDate}
-                                                      onChange={(e) => setOfficeConstitutionDate(e.target.value)}
-                                                   />
-                                                   <Input
-                                                      label="CEP"
-                                                      value={officeZipCode}
-                                                      onChange={(e) => handleCepChange(e.target.value)}
-                                                      placeholder="00000-000"
-                                                   />
-                                                </div>
-                                                
-                                                <div className="h-[1px] w-full bg-slate-100 dark:bg-slate-800/80 my-2" />
-                                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Endereço Completo</h4>
-                                                
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                   <div className="md:col-span-2">
-                                                      <Input
-                                                         label="Rua / Logradouro"
-                                                         value={officeStreet}
-                                                         onChange={(e) => setOfficeStreet(e.target.value)}
-                                                         placeholder="Av. Paulista"
-                                                      />
-                                                   </div>
-                                                   <Input
-                                                      label="Número"
-                                                      value={officeStreetNumber}
-                                                      onChange={(e) => setOfficeStreetNumber(e.target.value)}
-                                                      placeholder="123"
-                                                   />
-                                                   <Input
-                                                      label="Complemento"
-                                                      value={officeComplement}
-                                                      onChange={(e) => setOfficeComplement(e.target.value)}
-                                                      placeholder="Apto 45, Bloco B"
-                                                   />
-                                                   <Input
-                                                      label="Bairro"
-                                                      value={officeNeighborhood}
-                                                      onChange={(e) => setOfficeNeighborhood(e.target.value)}
-                                                      placeholder="Centro"
-                                                   />
-                                                   <div className="grid grid-cols-2 gap-4">
-                                                      <Input
-                                                         label="Cidade"
-                                                         value={officeCity}
-                                                         onChange={(e) => setOfficeCity(e.target.value)}
-                                                         placeholder="São Paulo"
-                                                      />
-                                                      <Input
-                                                         label="Estado"
-                                                         value={officeState}
-                                                         onChange={(e) => setOfficeState(e.target.value)}
-                                                         placeholder="SP"
-                                                      />
-                                                   </div>
-                                                </div>
+                                    <AnimatePresence initial={false}>
+                                       {isSection1Expanded && (
+                                          <motion.div
+                                             initial={{ height: 0, opacity: 0 }}
+                                             animate={{ height: 'auto', opacity: 1 }}
+                                             exit={{ height: 0, opacity: 0 }}
+                                             transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                             className="overflow-hidden"
+                                          >
+                                             <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                                                {profile?.role === 'gestor' ? (
+                                                   <div className="space-y-4">
+                                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                         <Input
+                                                            label="Razão Social"
+                                                            value={officeCompanyName}
+                                                            onChange={(e) => setOfficeCompanyName(e.target.value)}
+                                                            placeholder="Contabilidade Exemplo LTDA"
+                                                            required
+                                                         />
+                                                         <Input
+                                                            label="CNPJ ou CPF"
+                                                            value={officeDocument}
+                                                            onChange={(e) => setOfficeDocument(formatCnpjCpf(e.target.value))}
+                                                            placeholder="00.000.000/0001-00 ou 000.000.000-00"
+                                                         />
+                                                         <Input
+                                                            label="Data de Constituição"
+                                                            type="date"
+                                                            value={officeConstitutionDate}
+                                                            onChange={(e) => setOfficeConstitutionDate(e.target.value)}
+                                                         />
+                                                         <Input
+                                                            label="CEP"
+                                                            value={officeZipCode}
+                                                            onChange={(e) => handleCepChange(e.target.value)}
+                                                            placeholder="00000-000"
+                                                         />
+                                                      </div>
+                                                      
+                                                      <div className="h-[1px] w-full bg-slate-100 dark:bg-slate-800/80 my-2" />
+                                                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Endereço Completo</h4>
+                                                      
+                                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                         <div className="md:col-span-2">
+                                                            <Input
+                                                               label="Rua / Logradouro"
+                                                               value={officeStreet}
+                                                               onChange={(e) => setOfficeStreet(e.target.value)}
+                                                               placeholder="Av. Paulista"
+                                                            />
+                                                         </div>
+                                                         <Input
+                                                            label="Número"
+                                                            value={officeStreetNumber}
+                                                            onChange={(e) => setOfficeStreetNumber(e.target.value)}
+                                                            placeholder="123"
+                                                         />
+                                                         <Input
+                                                            label="Complemento"
+                                                            value={officeComplement}
+                                                            onChange={(e) => setOfficeComplement(e.target.value)}
+                                                            placeholder="Apto 45, Bloco B"
+                                                         />
+                                                         <Input
+                                                            label="Bairro"
+                                                            value={officeNeighborhood}
+                                                            onChange={(e) => setOfficeNeighborhood(e.target.value)}
+                                                            placeholder="Centro"
+                                                         />
+                                                         <div className="grid grid-cols-2 gap-4">
+                                                            <Input
+                                                               label="Cidade"
+                                                               value={officeCity}
+                                                               onChange={(e) => setOfficeCity(e.target.value)}
+                                                               placeholder="São Paulo"
+                                                            />
+                                                            <Input
+                                                               label="Estado"
+                                                               value={officeState}
+                                                               onChange={(e) => setOfficeState(e.target.value)}
+                                                               placeholder="SP"
+                                                            />
+                                                         </div>
+                                                      </div>
 
-                                                <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-                                                   <Button
-                                                      icon={savingOffice ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                                                      onClick={handleSaveOffice}
-                                                      disabled={savingOffice}
-                                                   >
-                                                      {savingOffice ? 'Salvando Escritório...' : 'Salvar Dados do Escritório'}
-                                                   </Button>
-                                                </div>
-                                             </div>
-                                          ) : (
-                                             <div className="space-y-4">
-                                                {!officeExists ? (
-                                                   <p className="text-sm text-slate-500 dark:text-slate-400 italic">As informações do escritório ainda não foram preenchidas pelo administrador.</p>
+                                                      <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                                                         <Button
+                                                            icon={savingOffice ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                                            onClick={handleSaveOffice}
+                                                            disabled={savingOffice}
+                                                         >
+                                                            {savingOffice ? 'Salvando Escritório...' : 'Salvar Dados do Escritório'}
+                                                         </Button>
+                                                      </div>
+                                                   </div>
                                                 ) : (
-                                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                      <div className="space-y-4">
-                                                         <div>
-                                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Razão Social</span>
-                                                            <span className="text-sm font-bold text-slate-900 dark:text-white">{officeCompanyName}</span>
-                                                         </div>
-                                                         <div>
-                                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Documento (CNPJ/CPF)</span>
-                                                            <span className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{officeDocument || 'Não informado'}</span>
-                                                         </div>
-                                                         {officeConstitutionDate && (
-                                                            <div>
-                                                               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Data de Constituição</span>
-                                                               <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                                                                  {new Date(officeConstitutionDate + 'T00:00:00').toLocaleDateString('pt-BR')}
-                                                               </span>
+                                                   <div className="space-y-4">
+                                                      {!officeExists ? (
+                                                         <p className="text-sm text-slate-500 dark:text-slate-400 italic">As informações do escritório ainda não foram preenchidas pelo administrador.</p>
+                                                      ) : (
+                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                            <div className="space-y-4">
+                                                               <div>
+                                                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Razão Social</span>
+                                                                  <span className="text-sm font-bold text-slate-900 dark:text-white">{officeCompanyName}</span>
+                                                               </div>
+                                                               <div>
+                                                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Documento (CNPJ/CPF)</span>
+                                                                  <span className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{officeDocument || 'Não informado'}</span>
+                                                               </div>
+                                                               {officeConstitutionDate && (
+                                                                  <div>
+                                                                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Data de Constituição</span>
+                                                                     <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                                                        {new Date(officeConstitutionDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                                                     </span>
+                                                                  </div>
+                                                               )}
                                                             </div>
-                                                         )}
-                                                      </div>
-                                                      <div className="space-y-4">
-                                                         <div>
-                                                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Endereço</span>
-                                                            <span className="text-sm font-bold text-slate-800 dark:text-slate-200 block">
-                                                               {officeStreet}{officeStreetNumber ? `, nº ${officeStreetNumber}` : ''}
-                                                               {officeComplement ? ` - ${officeComplement}` : ''}
-                                                            </span>
-                                                            <span className="text-xs text-slate-500 dark:text-slate-400 block mt-1">
-                                                               {officeNeighborhood ? `${officeNeighborhood}, ` : ''}{officeCity} - {officeState}
-                                                            </span>
-                                                            {officeZipCode && (
-                                                               <span className="text-xs font-mono text-slate-450 block mt-0.5">CEP: {officeZipCode}</span>
-                                                            )}
+                                                            <div className="space-y-4">
+                                                               <div>
+                                                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Endereço</span>
+                                                                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200 block">
+                                                                     {officeStreet}{officeStreetNumber ? `, nº ${officeStreetNumber}` : ''}
+                                                                     {officeComplement ? ` - ${officeComplement}` : ''}
+                                                                  </span>
+                                                                  <span className="text-xs text-slate-500 dark:text-slate-400 block mt-1">
+                                                                     {officeNeighborhood ? `${officeNeighborhood}, ` : ''}{officeCity} - {officeState}
+                                                                  </span>
+                                                                  {officeZipCode && (
+                                                                     <span className="text-xs font-mono text-slate-450 block mt-0.5">CEP: {officeZipCode}</span>
+                                                                  )}
+                                                               </div>
+                                                            </div>
                                                          </div>
-                                                      </div>
+                                                      )}
                                                    </div>
                                                 )}
                                              </div>
-                                          )}
-                                       </div>
-                                    )}
+                                          </motion.div>
+                                       )}
+                                    </AnimatePresence>
                                  </div>
 
                                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20 shadow-sm">
@@ -1124,7 +1135,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                        className="flex justify-between items-center px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900/80 cursor-pointer transition-colors select-none"
                                     >
                                        <div>
-                                          <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-350 flex items-center gap-2">
+                                          <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2">
                                              <HardDrive size={16} className="text-indigo-500" />
                                              Planos & Contratação
                                           </h3>
@@ -1140,129 +1151,139 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                        />
                                     </div>
 
-                                    {isSection2Expanded && (
-                                       <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                             <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between gap-4">
-                                                <div>
-                                                   <div className="flex justify-between items-start">
+                                    <AnimatePresence initial={false}>
+                                       {isSection2Expanded && (
+                                          <motion.div
+                                             initial={{ height: 0, opacity: 0 }}
+                                             animate={{ height: 'auto', opacity: 1 }}
+                                             exit={{ height: 0, opacity: 0 }}
+                                             transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                             className="overflow-hidden"
+                                          >
+                                             <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                   <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between gap-4">
                                                       <div>
-                                                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Plano Atual</span>
-                                                         <span className="text-2xl font-black bg-gradient-to-r from-indigo-500 to-sky-400 bg-clip-text text-transparent">{officePlanName}</span>
-                                                      </div>
-                                                      <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 rounded-full text-[10px] font-black uppercase tracking-wide">
-                                                         Assinatura Ativa
-                                                      </span>
-                                                   </div>
+                                                         <div className="flex justify-between items-start">
+                                                            <div>
+                                                               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Plano Atual</span>
+                                                               <span className="text-2xl font-black bg-gradient-to-r from-indigo-500 to-sky-400 bg-clip-text text-transparent">{officePlanName}</span>
+                                                            </div>
+                                                            <span className="px-2.5 py-1 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 rounded-full text-[10px] font-black uppercase tracking-wide">
+                                                               Assinatura Ativa
+                                                            </span>
+                                                         </div>
 
-                                                   <div className="mt-4 flex justify-between items-end">
-                                                      <div>
-                                                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Valor Mensal</span>
-                                                         <span className="text-xl font-bold text-slate-900 dark:text-white">
-                                                            {officePlanName === 'Elite' ? 'Sob Consulta' : `R$ ${officePlanValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                                                         </span>
+                                                         <div className="mt-4 flex justify-between items-end">
+                                                            <div>
+                                                               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Valor Mensal</span>
+                                                               <span className="text-xl font-bold text-slate-900 dark:text-white">
+                                                                  {officePlanName === 'Elite' ? 'Sob Consulta' : `R$ ${officePlanValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                                               </span>
+                                                            </div>
+                                                            {profile?.role === 'gestor' && (
+                                                               <button
+                                                                  onClick={() => {
+                                                                     setSelectedNewPlan(officePlanName);
+                                                                     setPlanChangeError(null);
+                                                                     setIsPlanModalOpen(true);
+                                                                  }}
+                                                                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shrink-0 cursor-pointer"
+                                                               >
+                                                                  Alterar Plano / Upgrade
+                                                               </button>
+                                                            )}
+                                                         </div>
                                                       </div>
-                                                      {profile?.role === 'gestor' && (
-                                                         <button
-                                                            onClick={() => {
-                                                               setSelectedNewPlan(officePlanName);
-                                                               setPlanChangeError(null);
-                                                               setIsPlanModalOpen(true);
-                                                            }}
-                                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shrink-0 cursor-pointer"
-                                                         >
-                                                            Alterar Plano / Upgrade
-                                                         </button>
-                                                      )}
-                                                   </div>
-                                                </div>
 
-                                                <div className="border-t border-slate-200/50 dark:border-slate-800/50 pt-4">
-                                                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2 text-xs">Contrato de Prestação de Serviços</span>
-                                                   {officeContractUrl ? (
-                                                      <div className="flex items-center gap-3">
-                                                         <a
-                                                            href={officeContractUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
-                                                         >
-                                                            <FileText size={14} /> Ver Contrato (PDF) <ExternalLink size={12} />
-                                                         </a>
-                                                         {profile?.role === 'gestor' && (
-                                                            <button
-                                                               onClick={() => contractInputRef.current?.click()}
-                                                               className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                                                            >
-                                                               Substituir PDF
-                                                            </button>
+                                                      <div className="border-t border-slate-200/50 dark:border-slate-800/50 pt-4">
+                                                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2 text-xs">Contrato de Prestação de Serviços</span>
+                                                         {officeContractUrl ? (
+                                                            <div className="flex items-center gap-3">
+                                                               <a
+                                                                  href={officeContractUrl}
+                                                                  target="_blank"
+                                                                  rel="noopener noreferrer"
+                                                                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                                               >
+                                                                  <FileText size={14} /> Ver Contrato (PDF) <ExternalLink size={12} />
+                                                               </a>
+                                                               {profile?.role === 'gestor' && (
+                                                                  <button
+                                                                     onClick={() => contractInputRef.current?.click()}
+                                                                     className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                                                  >
+                                                                     Substituir PDF
+                                                                  </button>
+                                                               )}
+                                                            </div>
+                                                         ) : (
+                                                            <div>
+                                                               <p className="text-xs text-slate-500 dark:text-slate-400 italic mb-2">Contrato em formato PDF ainda não anexado.</p>
+                                                               {profile?.role === 'gestor' && (
+                                                                  <button
+                                                                     onClick={() => contractInputRef.current?.click()}
+                                                                     className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                                                                  >
+                                                                     <Upload size={14} /> Anexar PDF do Contrato
+                                                                  </button>
+                                                               )}
+                                                            </div>
                                                          )}
-                                                      </div>
-                                                   ) : (
-                                                      <div>
-                                                         <p className="text-xs text-slate-500 dark:text-slate-400 italic mb-2">Contrato em formato PDF ainda não anexado.</p>
-                                                         {profile?.role === 'gestor' && (
-                                                            <button
-                                                               onClick={() => contractInputRef.current?.click()}
-                                                               className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                                                            >
-                                                               <Upload size={14} /> Anexar PDF do Contrato
-                                                            </button>
-                                                         )}
-                                                      </div>
-                                                   )}
-                                                   
-                                                   <input
-                                                      type="file"
-                                                      ref={contractInputRef}
-                                                      onChange={handleContractUpload}
-                                                      className="hidden"
-                                                      accept="application/pdf"
-                                                   />
-                                                   {uploadingContract && (
-                                                      <span className="text-xs text-indigo-500 flex items-center gap-1.5 mt-2 font-medium">
-                                                         <Loader2 size={12} className="animate-spin" /> Enviando PDF do contrato...
-                                                      </span>
-                                                   )}
-                                                </div>
-                                             </div>
-
-                                             <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
-                                                <div>
-                                                   <div className="flex justify-between items-center mb-3">
-                                                      <div>
-                                                         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Armazenamento do Storage</span>
-                                                         <span className="text-base font-bold text-slate-900 dark:text-white">Uso de Dados</span>
-                                                      </div>
-                                                      <HardDrive size={20} className="text-slate-400" />
-                                                   </div>
-
-                                                   <div className="space-y-2 mt-4">
-                                                      <div className="w-full h-3.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden relative border border-slate-300/30 dark:border-slate-700/30">
-                                                         <div 
-                                                            className="h-full bg-gradient-to-r from-indigo-500 to-sky-400 rounded-full transition-all duration-500"
-                                                            style={{ 
-                                                               width: `${Math.min(
-                                                                  100, 
-                                                                  (officeStorageUsedBytes / (officeStorageLimitGb * 1024 * 1024 * 1024)) * 100
-                                                               )}%` 
-                                                            }}
+                                                         
+                                                         <input
+                                                            type="file"
+                                                            ref={contractInputRef}
+                                                            onChange={handleContractUpload}
+                                                            className="hidden"
+                                                            accept="application/pdf"
                                                          />
-                                                      </div>
-                                                      <div className="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                                         <span>{(officeStorageUsedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB utilizados</span>
-                                                         <span>{officeStorageLimitGb} GB totais</span>
+                                                         {uploadingContract && (
+                                                            <span className="text-xs text-indigo-500 flex items-center gap-1.5 mt-2 font-medium">
+                                                               <Loader2 size={12} className="animate-spin" /> Enviando PDF do contrato...
+                                                            </span>
+                                                         )}
                                                       </div>
                                                    </div>
 
-                                                   <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-4 leading-normal text-xs font-normal">
-                                                      * Backup por 5 anos incluso na sua licença contábil. Cobrança adicional de R$ 9,99 para cada 1GB excedente de armazenamento.
-                                                   </p>
+                                                   <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
+                                                      <div>
+                                                         <div className="flex justify-between items-center mb-3">
+                                                            <div>
+                                                               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Armazenamento do Storage</span>
+                                                               <span className="text-base font-bold text-slate-900 dark:text-white">Uso de Dados</span>
+                                                            </div>
+                                                            <HardDrive size={20} className="text-slate-400" />
+                                                         </div>
+
+                                                         <div className="space-y-2 mt-4">
+                                                            <div className="w-full h-3.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden relative border border-slate-300/30 dark:border-slate-700/30">
+                                                               <div 
+                                                                  className="h-full bg-gradient-to-r from-indigo-500 to-sky-400 rounded-full transition-all duration-500"
+                                                                  style={{ 
+                                                                     width: `${Math.min(
+                                                                        100, 
+                                                                        (officeStorageUsedBytes / (officeStorageLimitGb * 1024 * 1024 * 1024)) * 100
+                                                                     )}%` 
+                                                                  }}
+                                                               />
+                                                            </div>
+                                                            <div className="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                               <span>{(officeStorageUsedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB utilizados</span>
+                                                               <span>{officeStorageLimitGb} GB totais</span>
+                                                            </div>
+                                                         </div>
+
+                                                         <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-4 leading-normal text-xs font-normal">
+                                                            * Backup por 5 anos incluso na sua licença contábil. Cobrança adicional de R$ 9,99 para cada 1GB excedente de armazenamento.
+                                                         </p>
+                                                      </div>
+                                                   </div>
                                                 </div>
                                              </div>
-                                          </div>
-                                       </div>
-                                    )}
+                                          </motion.div>
+                                       )}
+                                    </AnimatePresence>
                                  </div>
                               </>
                            )}
