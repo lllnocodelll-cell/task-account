@@ -1829,6 +1829,7 @@ export type Database = {
       }
     }
     Functions: {
+      cancel_inactivated_client_tasks: { Args: { p_client_id: string }; Returns: number }
       check_client_access: { Args: { client_uuid: string }; Returns: boolean }
       check_daily_expirations: { Args: never; Returns: undefined }
       get_adjusted_due_date: {
@@ -1839,6 +1840,7 @@ export type Database = {
       is_channel_member: { Args: { channel_uuid: string }; Returns: boolean }
       is_chat_member: { Args: { cid: string }; Returns: boolean }
       process_automated_chat_templates: { Args: never; Returns: undefined }
+      process_recurring_tasks_cycle: { Args: never; Returns: unknown }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }

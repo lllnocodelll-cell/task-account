@@ -34,6 +34,7 @@ import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input, Select, GroupedSelect, CopyButton, Textarea } from './ui/Input';
 import { Modal } from './ui/Modal';
+import { ConfirmModal } from './ui/ConfirmModal';
 import { Tooltip } from './ui/Tooltip';
 import { Notification, NotificationType } from './ui/Notification';
 import { Client, Sector, TAX_REGIME_GROUPS, TAX_REGIME_LABELS } from '../types';
@@ -128,6 +129,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [segmentOpen, setSegmentOpen] = useState(false);
     const [segmentSearch, setSegmentSearch] = useState('');
     const segmentDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Inactivation Modal State
+    const [showInactivateModal, setShowInactivateModal] = useState(false);
+    const [inactivateConfirmed, setInactivateConfirmed] = useState(false);
     const segmentButtonRef = useRef<HTMLButtonElement>(null);
     const [segmentPos, setSegmentPos] = useState({ top: 0, left: 0, width: 0 });
 
@@ -548,6 +553,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     setLoading(false);
                     return;
                 }
+            }
+
+            // Se o cliente era Ativo e foi alterado para Inativo, solicitar confirmação para cancelar tarefas futuras
+            if (initialData?.id && initialData.status === 'Ativo' && formData.status === 'Inativo' && !inactivateConfirmed) {
+                setLoading(false);
+                setShowInactivateModal(true);
+                return;
             }
 
             const clientData = {
@@ -2721,6 +2733,37 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     </div>
                 </div>
             </Modal>
+            <ConfirmModal
+                isOpen={showInactivateModal}
+                onClose={() => {
+                    setShowInactivateModal(false);
+                    setInactivateConfirmed(true);
+                    setTimeout(() => {
+                        handleSave();
+                    }, 50);
+                }}
+                onConfirm={async () => {
+                    setShowInactivateModal(false);
+                    setInactivateConfirmed(true);
+                    if (initialData?.id) {
+                        try {
+                            const { data: cancelledCount } = await supabase.rpc('cancel_inactivated_client_tasks', { p_client_id: initialData.id });
+                            showNotify(`Cliente inativado. ${cancelledCount || 0} tarefas pendentes futuras foram canceladas.`, 'info');
+                        } catch (err) {
+                            console.error('Erro ao cancelar tarefas:', err);
+                        }
+                    }
+                    setTimeout(() => {
+                        handleSave();
+                    }, 50);
+                }}
+                title="Inativar Cliente"
+                message="Este cliente está sendo alterado para Inativo. Deseja cancelar e excluir automaticamente todas as tarefas pendentes futuras deste cliente?"
+                confirmText="Sim, cancelar tarefas futuras"
+                cancelText="Não, manter tarefas atuais"
+                type="warning"
+            />
+
             <Notification
                 show={notification.show}
                 message={notification.message}

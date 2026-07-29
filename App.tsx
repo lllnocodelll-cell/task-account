@@ -185,11 +185,16 @@ function App() {
     // Initial update forced to check session state
     const initSessionAsync = async () => {
       await updateActivity(true);
-      // Trigger the daily expiration check (tasks due soon, licenses expiring)
+      // Trigger daily expiration check & recurring tasks self-healing cycle
       try {
         await supabase.rpc('check_daily_expirations');
       } catch (err) {
         console.error('Error checking daily expirations:', err);
+      }
+      try {
+        await supabase.rpc('process_recurring_tasks_cycle');
+      } catch (err) {
+        console.error('Error in recurring tasks self-healing:', err);
       }
     };
     initSessionAsync();
