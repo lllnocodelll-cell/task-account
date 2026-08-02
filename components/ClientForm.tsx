@@ -1069,7 +1069,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.1 Tabbar ‘Inscrições’ */}
                     {activeTab === 'inscricoes' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <FileText className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -1078,17 +1081,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
@@ -1228,7 +1232,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.2 Tabbar ‘Contatos’ */}
                     {activeTab === 'contatos' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <Users className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -1237,17 +1244,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
@@ -1408,7 +1416,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.3 Tabbar ‘Regime Tributário’ */}
                     {activeTab === 'regime' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <Landmark className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -1417,17 +1428,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
@@ -1562,7 +1574,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.4 Tabbar ‘Atividades’ */}
                     {activeTab === 'atividades' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <Activity className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -1571,17 +1586,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
@@ -1711,7 +1727,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.5 Tabbar ‘Acessos’ */}
                     {activeTab === 'acessos' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <Key className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -1720,17 +1739,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
@@ -1897,7 +1917,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.6 Tabbar ‘Certificado’ */}
                     {activeTab === 'certificado' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <Shield className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -1906,17 +1929,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
@@ -2110,7 +2134,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.7 Tabbar ‘Licenças’ */}
                     {activeTab === 'licencas' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <FileCheck className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -2119,17 +2146,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
@@ -2291,7 +2319,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.8 Tabbar ‘Legislação’ */}
                     {activeTab === 'legislacao' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <BookOpen className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -2300,17 +2331,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
@@ -2444,7 +2476,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     {/* 3.4.9 Tabbar 'Séries DF-e' */}
                     {activeTab === 'dfe' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg">
+                            <div 
+                                onClick={() => !readOnly && setIsFormExpanded(!isFormExpanded)} 
+                                className={`flex items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg ${!readOnly ? 'cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors select-none' : ''}`}
+                            >
                                 <div className="flex items-start gap-3">
                                     <Receipt className="w-5 h-5 text-indigo-500 mt-0.5" />
                                     <div>
@@ -2453,17 +2488,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                 </div>
                                 {!readOnly && (
-                                    <button
-                                        onClick={() => setIsFormExpanded(!isFormExpanded)}
-                                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
-                                            isFormExpanded 
-                                            ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
-                                            : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                        }`}
-                                        title={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"}
-                                    >
-                                        {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
-                                    </button>
+                                    <Tooltip content={isFormExpanded ? "Recolher Formulário" : "Expandir Formulário"} position="top">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setIsFormExpanded(!isFormExpanded); }}
+                                            className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ${
+                                                isFormExpanded 
+                                                ? 'bg-zinc-500/80 text-white shadow-[0_0_10px_rgba(113,113,122,0.3)] hover:shadow-[0_0_15px_rgba(113,113,122,0.5)]' 
+                                                : 'bg-emerald-500/80 text-white shadow-[0_0_10px_rgba(16,185,129,0.3)] hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                                            }`}
+                                        >
+                                            {isFormExpanded ? <ChevronDown className="rotate-180 transition-transform duration-300" size={18} /> : <Plus size={18} />}
+                                        </button>
+                                    </Tooltip>
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>

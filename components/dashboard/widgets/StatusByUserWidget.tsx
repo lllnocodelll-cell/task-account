@@ -34,7 +34,8 @@ const avatarColor = (name: string) =>
 
 export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     const now = new Date();
-    const defaultPeriod = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const defaultPeriod = `${prevMonthDate.getFullYear()}-${(prevMonthDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
     const [data, setData] = useState<any[]>([]);
     const [totals, setTotals] = useState({ total: 0, pendente: 0, iniciada: 0, atrasada: 0, concluida: 0 });

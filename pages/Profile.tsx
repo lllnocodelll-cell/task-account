@@ -724,12 +724,14 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                            <Building2 size={18} /> Minhas Empresas
                         </button>
                      )}
-                     <button
-                        onClick={() => setActiveTab('office')}
-                        className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'office' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                     >
-                        <Building2 size={18} /> Escritório
-                     </button>
+                     {profile?.role !== 'cliente' && (
+                        <button
+                           onClick={() => setActiveTab('office')}
+                           className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'office' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                        >
+                           <Building2 size={18} /> Escritório
+                        </button>
+                     )}
                   </div>
 
                   <div className="p-6">
@@ -953,7 +955,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                         </div>
                      )}
 
-                     {activeTab === 'office' && (
+                     {activeTab === 'office' && profile?.role !== 'cliente' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                            {loadingOffice ? (
                               <div className="flex flex-col items-center justify-center py-12 text-slate-400">

@@ -1706,14 +1706,22 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     try {
       setLoading(true);
       
-      // Fetch members and their sectors for accurate sector mapping
-      const { data: membersData, error: membersError } = await supabase
-        .from('members')
-        .select('first_name, last_name, sectors(name)')
-        .eq('org_id', userProfile.org_id)
-        .not('sector_id', 'is', null);
-        
-      if (membersError) console.error('Error fetching members for sectors:', membersError);
+      // Fetch members and sectors for accurate multi-sector mapping
+      const [membersRes, sectorsRes] = await Promise.all([
+        (supabase as any)
+          .from('members')
+          .select('first_name, last_name, sector_id, sector_ids, sector, sectors(name)')
+          .eq('org_id', userProfile.org_id),
+        (supabase as any)
+          .from('sectors')
+          .select('id, name')
+          .eq('org_id', userProfile.org_id)
+      ]);
+
+      const membersData = membersRes.data;
+      const sectorsData = sectorsRes.data;
+      if (membersRes.error) console.error('Error fetching members for sectors:', membersRes.error);
+      if (sectorsRes.error) console.error('Error fetching sectors:', sectorsRes.error);
       
       const { data, error } = await supabase
         .from('tasks')
@@ -1730,12 +1738,34 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       if (data) {
         // Map DB fields to component Task type if names differ
         const mappedTasks: Task[] = data.map((t: any) => {
-          // Find the current sector of the responsible member
-          const member = membersData?.find(m => 
-            `${m.first_name || ''} ${m.last_name || ''}`.trim() === t.responsible || 
-            (m.first_name || '').trim() === t.responsible
-          );
-          const currentSector = member?.sectors?.name || t.sector;
+          // Find the responsible member
+          const respStr = (t.responsible || '').trim().toLowerCase();
+          const member = membersData?.find((m: any) => {
+            const fullName = `${m.first_name || ''} ${m.last_name || ''}`.trim().toLowerCase();
+            const firstName = (m.first_name || '').trim().toLowerCase();
+            return fullName === respStr || (firstName && firstName === respStr);
+          });
+
+          let respSectors: string[] = [];
+
+          if (member?.sector_ids && Array.isArray(member.sector_ids) && member.sector_ids.length > 0) {
+            respSectors = member.sector_ids
+              .map((sid: string) => sectorsData?.find((s: any) => s.id === sid)?.name)
+              .filter((n: string | undefined): n is string => Boolean(n));
+          }
+
+          if (respSectors.length === 0) {
+            if (member?.sectors?.name) {
+              respSectors = [member.sectors.name];
+            } else if (member?.sector) {
+              respSectors = [member.sector];
+            } else if (t.sector) {
+              respSectors = [t.sector];
+            }
+          }
+
+          respSectors = Array.from(new Set(respSectors));
+          const currentSector = respSectors.join(', ') || t.sector;
 
           return {
             id: t.id,
@@ -1746,6 +1776,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             taxRegime: t.tax_regime,
             priority: t.priority as Priority,
             sector: currentSector,
+            responsibleSectors: respSectors,
             responsible: t.responsible,
             status: t.status as TaskStatus,
             dueDate: t.due_date,
@@ -3123,14 +3154,28 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-slate-700 dark:text-slate-200">{task.responsible}</span>
-                            {task.sector && (
-                              <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium">
-                                <Layers size={10} className="text-slate-300" />
+                          <div className="flex flex-col gap-1">
+                            <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-snug">
+                              {task.responsible}
+                            </span>
+                            {task.responsibleSectors && task.responsibleSectors.length > 0 ? (
+                              <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                <Layers size={10} className="text-indigo-500 dark:text-indigo-400 shrink-0 mr-0.5" />
+                                {task.responsibleSectors.map((secName, sIdx) => (
+                                  <span
+                                    key={sIdx}
+                                    className="text-[9px] px-1.5 py-0.5 rounded font-bold border bg-indigo-50/80 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20 whitespace-nowrap"
+                                  >
+                                    {secName}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : task.sector ? (
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-400 font-medium">
+                                <Layers size={10} className="text-slate-300 shrink-0" />
                                 <span>{task.sector}</span>
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-6 py-4">

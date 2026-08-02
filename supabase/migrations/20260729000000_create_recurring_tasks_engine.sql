@@ -18,7 +18,90 @@ DROP POLICY IF EXISTS "Permitir leitura de logs por membros da org" ON public.re
 CREATE POLICY "Permitir leitura de logs por membros da org" ON public.recurring_task_cron_logs
     FOR SELECT USING (true);
 
--- 3. Função Universal para Recomposição do Ciclo de Tarefas Recorrentes
+-- 3. Função de Verificação de Dia Útil (Finais de semana e Feriados Nacionais/Facultativos)
+CREATE OR REPLACE FUNCTION public.is_brazilian_business_day(p_date DATE)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+    v_dow INT;
+    v_mm_dd TEXT;
+BEGIN
+    IF p_date IS NULL THEN
+        RETURN false;
+    END IF;
+
+    -- 1 = Segunda, 6 = Sábado, 7 = Domingo (ISO DOW)
+    v_dow := EXTRACT(ISODOW FROM p_date);
+    IF v_dow = 6 OR v_dow = 7 THEN
+        RETURN false;
+    END IF;
+
+    v_mm_dd := to_char(p_date, 'MM-DD');
+
+    -- Feriados fixos e recorrentes comuns
+    IF v_mm_dd IN (
+        '01-01', -- Confraternização Universal
+        '02-12', -- Carnaval
+        '02-13', -- Carnaval
+        '03-29', -- Sexta-feira Santa
+        '04-21', -- Tiradentes
+        '05-01', -- Dia do Trabalho
+        '05-30', -- Corpus Christi
+        '09-07', -- Independência do Brasil
+        '10-12', -- Nossa Senhora Aparecida
+        '11-02', -- Finados
+        '11-15', -- Proclamação da República
+        '11-20', -- Consciência Negra
+        '12-25'  -- Natal
+    ) THEN
+        RETURN false;
+    END IF;
+
+    RETURN true;
+END;
+$$;
+
+-- 4. Função de Ajuste da Data de Vencimento de Acordo com Regras Variáveis
+CREATE OR REPLACE FUNCTION public.calculate_adjusted_due_date(p_base_date DATE, p_rule TEXT)
+RETURNS DATE
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+    v_curr_date DATE;
+    v_direction INT := 1;
+BEGIN
+    IF p_base_date IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    IF p_rule IS NULL OR LOWER(p_rule) IN ('nao_aplica', 'none', '') THEN
+        RETURN p_base_date;
+    END IF;
+
+    v_curr_date := p_base_date;
+
+    IF public.is_brazilian_business_day(v_curr_date) THEN
+        RETURN v_curr_date;
+    END IF;
+
+    IF LOWER(p_rule) = 'antecipar' THEN
+        v_direction := -1;
+    ELSE
+        v_direction := 1; -- postergar, prorrogar, proximo_dia_util
+    END IF;
+
+    WHILE NOT public.is_brazilian_business_day(v_curr_date) LOOP
+        v_curr_date := (v_curr_date + (v_direction || ' day')::INTERVAL)::DATE;
+    END LOOP;
+
+    RETURN v_curr_date;
+END;
+$$;
+
+-- 5. Função Universal para Recomposição do Ciclo de Tarefas Recorrentes
 CREATE OR REPLACE FUNCTION public.process_recurring_tasks_cycle()
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -41,9 +124,19 @@ DECLARE
     
     v_tasks_created INT := 0;
     v_errors_count INT := 0;
+    
     v_ref_task RECORD;
-    v_new_due_date DATE;
+    v_ref_comp_year INT;
+    v_ref_comp_month INT;
+    v_ref_due_year INT;
+    v_ref_due_month INT;
+    v_ref_due_day INT;
+    v_month_offset INT := 0;
     v_day_of_month INT := 10;
+
+    v_raw_due_date DATE;
+    v_new_due_date DATE;
+    
     v_workflow RECORD;
     v_new_task_id UUID;
     v_months_arr INT[];
@@ -102,11 +195,22 @@ BEGIN
                 v_max_month := SPLIT_PART(v_max_comp, '-', 2)::INT;
             END IF;
 
-            -- Buscar vencimento de referência da tarefa original para manter o dia do mês
-            SELECT due_date INTO v_ref_task FROM public.tasks WHERE id = t_rec.ref_id;
-            IF v_ref_task.due_date IS NOT NULL THEN
-                v_day_of_month := EXTRACT(DAY FROM v_ref_task.due_date);
+            -- Buscar a tarefa de referência e calcular o month_offset e o dia base de vencimento
+            SELECT competence, due_date INTO v_ref_task 
+            FROM public.tasks 
+            WHERE id = t_rec.ref_id;
+
+            IF v_ref_task.competence IS NOT NULL AND v_ref_task.competence != '' AND v_ref_task.due_date IS NOT NULL THEN
+                v_ref_comp_year := SPLIT_PART(v_ref_task.competence, '-', 1)::INT;
+                v_ref_comp_month := SPLIT_PART(v_ref_task.competence, '-', 2)::INT;
+                v_ref_due_year := EXTRACT(YEAR FROM v_ref_task.due_date);
+                v_ref_due_month := EXTRACT(MONTH FROM v_ref_task.due_date);
+                v_ref_due_day := EXTRACT(DAY FROM v_ref_task.due_date);
+
+                v_month_offset := (v_ref_due_year - v_ref_comp_year) * 12 + (v_ref_due_month - v_ref_comp_month);
+                v_day_of_month := v_ref_due_day;
             ELSE
+                v_month_offset := 0;
                 v_day_of_month := 10;
             END IF;
 
@@ -148,11 +252,9 @@ BEGIN
                     v_next_year := v_next_year + 1;
 
                 ELSIF t_rec.recurrence_months IS NOT NULL AND array_length(t_rec.recurrence_months, 1) > 0 THEN
-                    -- Recorrência personalizada por meses específicos (ex: [3, 9])
                     v_months_arr := t_rec.recurrence_months;
                     v_step_found := false;
 
-                    -- Procurar o próximo mês no mesmo ano
                     FOR v_i IN 1..array_length(v_months_arr, 1) LOOP
                         IF v_months_arr[v_i] > v_next_month THEN
                             v_next_month := v_months_arr[v_i];
@@ -161,13 +263,11 @@ BEGIN
                         END IF;
                     END LOOP;
 
-                    -- Se não encontrou no mesmo ano, pega o primeiro mês do próximo ano
                     IF NOT v_step_found THEN
                         v_next_year := v_next_year + 1;
                         v_next_month := v_months_arr[1];
                     END IF;
                 ELSE
-                    -- Padrão mensal caso não especificado
                     v_next_month := v_next_month + 1;
                     IF v_next_month > 12 THEN
                         v_next_month := 1;
@@ -183,12 +283,17 @@ BEGIN
                     EXIT;
                 END IF;
 
-                -- Calcular a data de vencimento correspondente à nova competência
+                -- Calcular a data de vencimento base adicionando o month_offset
                 BEGIN
-                    v_new_due_date := (v_next_comp || '-' || LPAD(LEAST(v_day_of_month, 28)::text, 2, '0'))::DATE;
+                    v_raw_due_date := (date_trunc('month', (v_next_comp || '-01')::DATE) 
+                                       + (v_month_offset || ' month')::INTERVAL 
+                                       + ((LEAST(v_day_of_month, 28) - 1) || ' day')::INTERVAL)::DATE;
                 EXCEPTION WHEN OTHERS THEN
-                    v_new_due_date := (v_next_comp || '-28')::DATE;
+                    v_raw_due_date := (v_next_comp || '-28')::DATE;
                 END;
+
+                -- Aplicar o ajuste de finais de semana e feriados
+                v_new_due_date := public.calculate_adjusted_due_date(v_raw_due_date, t_rec.variable_adjustment);
 
                 -- Inserir a nova tarefa respeitando a restrição única de idempotência
                 INSERT INTO public.tasks (
@@ -300,7 +405,7 @@ BEGIN
 END;
 $$;
 
--- 4. Agendar a execução diária no pg_cron se a extensão estiver ativa
+-- 6. Agendar a execução diária no pg_cron se a extensão estiver ativa
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
@@ -314,7 +419,7 @@ EXCEPTION WHEN OTHERS THEN
     NULL;
 END $$;
 
--- 5. Função RPC para cancelar tarefas pendentes de clientes inativados
+-- 7. Função RPC para cancelar tarefas pendentes de clientes inativados
 CREATE OR REPLACE FUNCTION public.cancel_inactivated_client_tasks(p_client_id UUID)
 RETURNS integer
 LANGUAGE plpgsql

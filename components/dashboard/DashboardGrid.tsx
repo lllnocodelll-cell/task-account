@@ -5,6 +5,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { supabase } from '../../utils/supabaseClient';
 import { Settings2, LayoutGrid, X, GripVertical, FolderHeart, ChevronDown, Plus, Trash2, Edit3 } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip';
 
 // Import Widgets
 import { StatusByUserWidget } from './widgets/StatusByUserWidget';
@@ -498,16 +499,17 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                                     >
                                         <span className="truncate pr-2">{name}</span>
                                         {Object.keys(scenarios).length > 1 && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeleteScenario(name);
-                                                }}
-                                                className="p-1 text-slate-400 hover:text-red-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                                title="Excluir cenário"
-                                            >
-                                                <Trash2 size={12} />
-                                            </button>
+                                            <Tooltip content="Excluir cenário" position="top">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteScenario(name);
+                                                    }}
+                                                    className="p-1 text-slate-400 hover:text-red-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </Tooltip>
                                         )}
                                     </div>
                                 ))}
@@ -540,13 +542,14 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     )}
                 </div>
 
-                <button
-                    onClick={() => setShowMenu(true)}
-                    className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
-                    title="Configurar Widgets"
-                >
-                    <Settings2 size={20} />
-                </button>
+                <Tooltip content="Configurar Widgets" position="left">
+                    <button
+                        onClick={() => setShowMenu(true)}
+                        className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
+                    >
+                        <Settings2 size={20} />
+                    </button>
+                </Tooltip>
             </div>
 
             <ResponsiveGridLayout
@@ -841,20 +844,22 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                             // Descrição em português para cada widget
                             const getWidgetDescription = (widgetId: string) => {
                                 switch (widgetId) {
-                                    case 'topSegments': return 'Gráfico dos segmentos industriais e de serviços com maior representatividade.';
-                                    case 'statusByUser': return 'Monitor em tempo real de tarefas concluídas, pendentes e em andamento.';
+                                    case 'topSegments': return 'Gráfico dos segmentos atendidos com maior representatividade.';
+                                    case 'statusByUser': return 'Monitor em tempo real de tarefas concluídas, pendentes e em andamento por colaborador.';
                                     case 'upcomingDeadlines': return 'Listagem ordenada com os prazos de obrigações fiscais prestes a vencer.';
-                                    case 'topTasks': return 'Classificação e progresso de tarefas concluídas por colaborador.';
-                                    case 'documentAlerts': return 'Central de notificações de documentos pendentes, aceitos ou rejeitados.';
-                                    case 'clientStatus': return 'Gráfico consolidado de clientes Ativos, Suspensos e Inativos.';
-                                    case 'taxRegimes': return 'Distribuição tributária entre Simples Nacional, Lucro Presumido e Real.';
+                                    case 'topTasks': return 'Ranking de tarefas com maior volume no período.';
+                                    case 'documentAlerts': return 'Alerta de licenças e certificados digitais próximos do vencimento.';
+                                    case 'clientStatus': return 'Painel de clientes ativos e inativos.';
+                                    case 'taxRegimes': return 'Consolidado de regimes mais atendidos.';
                                     case 'loggedUsers': return 'Painel de monitoramento de colaboradores conectados no momento.';
-                                    case 'notifiedExclusion': return 'Alertas críticos de exclusão de regime tributário detectados pelo sistema.';
-                                    case 'collaboratorsByDept': return 'Distribuição dos membros operacionais por setores contábeis.';
-                                    case 'uncompletedTasks': return 'Métricas e contadores de tarefas em atraso ou não finalizadas.';
-                                    case 'monthlyEvolution': return 'Evolução e histórico das guias emitidas e finalizadas mês a mês.';
-                                    case 'economicIndices': return 'Índices econômicos e financeiros vigentes (IPCA, SELIC, INCC, etc.).';
-                                    case 'operationsCalendar': return 'Visão em formato de calendário de obrigações operacionais agendadas.';
+                                    case 'notifiedExclusion': return 'Monitor de clientes excluídos do simples nacional.';
+                                    case 'collaboratorsByDept': return 'Distribuição de colaboradores por setor.';
+                                    case 'uncompletedTasks': return 'Painel de tarefas pendentes, iniciadas e concluídas por período.';
+                                    case 'monthlyEvolution': return 'Gráfico de evolução mensal de tarefas.';
+                                    case 'economicIndices': return 'Indicadores econômicos: cotação dólar, Selic, IGPM e IPCA.';
+                                    case 'operationsCalendar': return 'Calendário tributário simplificado.';
+                                    case 'clientCertificates': return 'Painel de controle de vencimento de certificado digital.';
+                                    case 'clientLicenses': return 'Painel de controle de vencimento de licenças.';
                                     default: return 'Painel informativo customizável.';
                                 }
                             };

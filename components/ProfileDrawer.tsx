@@ -266,48 +266,50 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
 
 
             {/* Seção: Escritório */}
-            <div className="mt-4">
-              <div className="mb-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-5">
-                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Escritório</span>
-              </div>
+            {userProfile?.role !== 'cliente' && (
+              <div className="mt-4">
+                <div className="mb-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-5">
+                  <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Escritório</span>
+                </div>
 
-              {loadingOffice ? (
-                <div className="flex flex-col items-center justify-center py-6 text-slate-400">
-                  <Loader2 size={18} className="animate-spin mb-1 text-indigo-500" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider">Buscando dados...</span>
-                </div>
-              ) : !officeDetails ? (
-                <div className="py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Dados do escritório ainda não cadastrados.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <InfoField
-                    label="Razão Social"
-                    value={officeDetails.company_name}
-                    id="office-name"
-                    icon={Building2}
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <InfoField
-                      label="CNPJ"
-                      value={officeDetails.document}
-                      id="office-doc"
-                      icon={Landmark}
-                    />
-                    <InfoField
-                      label="Localidade"
-                      value={officeDetails.city && officeDetails.state ? `${officeDetails.city}/${officeDetails.state}` : officeDetails.city || '---'}
-                      id="office-city"
-                      icon={MapPin}
-                    />
+                {loadingOffice ? (
+                  <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                    <Loader2 size={18} className="animate-spin mb-1 text-indigo-500" />
+                    <span className="text-[9px] font-bold uppercase tracking-wider">Buscando dados...</span>
                   </div>
-                </div>
-              )}
-            </div>
+                ) : !officeDetails ? (
+                  <div className="py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Dados do escritório ainda não cadastrados.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <InfoField
+                      label="Razão Social"
+                      value={officeDetails.company_name}
+                      id="office-name"
+                      icon={Building2}
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <InfoField
+                        label="CNPJ"
+                        value={officeDetails.document}
+                        id="office-doc"
+                        icon={Landmark}
+                      />
+                      <InfoField
+                        label="Localidade"
+                        value={officeDetails.city && officeDetails.state ? `${officeDetails.city}/${officeDetails.state}` : officeDetails.city || '---'}
+                        id="office-city"
+                        icon={MapPin}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Seção: Plano & Contrato */}
-            {officeDetails && !loadingOffice && (
+            {userProfile?.role !== 'cliente' && officeDetails && !loadingOffice && (
               <div className="mt-4">
                 <div className="mb-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-5">
                   <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Plano & Contrato</span>
