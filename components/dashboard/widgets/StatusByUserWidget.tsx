@@ -50,7 +50,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
         setPeriod(`${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`);
     };
 
-    const resetToCurrentMonth = () => setPeriod(defaultPeriod);
+    const resetToDefaultPeriod = () => setPeriod(defaultPeriod);
 
     const fetchData = useCallback(async () => {
         if (!orgId) return;
@@ -139,10 +139,11 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     </Tooltip>
                     {period !== defaultPeriod && (
                         <button
-                            onClick={resetToCurrentMonth}
+                            onClick={resetToDefaultPeriod}
                             className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                            title="Voltar ao mês padrão (anterior)"
                         >
-                            Hoje
+                            Padrão
                         </button>
                     )}
                 </div>

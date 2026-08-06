@@ -387,7 +387,8 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   const getSectionWrapperClass = (sectionId: string) => {
     const isDragged = draggedSectionId === sectionId;
     const isDragOver = dragOverSectionId === sectionId;
-    return `bg-white dark:bg-slate-800/40 border rounded-2xl overflow-hidden shadow-sm transition-all duration-200 shrink-0 ${
+    const isOpen = openSections[sectionId];
+    return `bg-white dark:bg-slate-800/40 border rounded-2xl ${isOpen ? 'overflow-visible' : 'overflow-hidden'} shadow-sm transition-all duration-200 shrink-0 ${
       isDragged ? 'opacity-30 border-dashed border-indigo-500 dark:border-indigo-400 scale-[0.98]' : 
       isDragOver ? 'border-indigo-500 scale-[1.01] shadow-md bg-indigo-50/5 dark:bg-indigo-500/5' : 
       'border-slate-200 dark:border-slate-700/50'
@@ -954,11 +955,11 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.documents ? 'rotate-180' : ''}`} size={16} />
             </button>
             <div className={`grid transition-all duration-300 ease-in-out ${openSections.documents ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
-              <div className="overflow-hidden">
+              <div className={openSections.documents ? 'overflow-visible' : 'overflow-hidden'}>
                 <div className="p-4 pt-0 flex flex-col gap-4">
                   
                   {/* Formulário/Botão de Upload */}
-                  <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30">
+                  <div className={`border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30 relative ${isUploadCalendarOpen ? 'z-30' : ''}`}>
                     {!showUploadForm ? (
                       <button
                         onClick={() => setShowUploadForm(true)}
@@ -990,7 +991,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                               ))}
                             </select>
                           </div>
-                          <div className="relative" ref={uploadCalendarRef}>
+                          <div className={`relative ${isUploadCalendarOpen ? 'z-40' : ''}`} ref={uploadCalendarRef}>
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Competência (Mês/Ano) *</label>
                             <button
                               type="button"
@@ -1107,7 +1108,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                   </div>
 
                   {/* Filtros e Barra de Pesquisa */}
-                  <div className="flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className={`flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 relative ${isFilterCalendarOpen ? 'z-30' : 'z-10'}`}>
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                       <input
@@ -1120,7 +1121,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                     </div>
                     
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="relative" ref={filterCalendarRef}>
+                      <div className={`relative ${isFilterCalendarOpen ? 'z-40' : ''}`} ref={filterCalendarRef}>
                         <button
                           type="button"
                           onClick={() => setIsFilterCalendarOpen(!isFilterCalendarOpen)}
@@ -1222,7 +1223,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                   </div>
 
                   {/* Listagem de Documentos */}
-                  <div className="max-h-[300px] overflow-y-auto pr-1 flex flex-col gap-2">
+                  <div className="max-h-[300px] overflow-y-auto pr-1 flex flex-col gap-2 relative z-0">
                     {documents.filter(doc => {
                       if (searchFilter && !doc.name.toLowerCase().includes(searchFilter.toLowerCase())) return false;
                       if (competenceFilter && doc.competence_month !== competenceFilter) return false;

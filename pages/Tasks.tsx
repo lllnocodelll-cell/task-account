@@ -1710,7 +1710,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       const [membersRes, sectorsRes] = await Promise.all([
         (supabase as any)
           .from('members')
-          .select('first_name, last_name, sector_id, sector_ids, sector, sectors(name)')
+          .select('first_name, last_name, sector_id, sector_ids, sectors(name)')
           .eq('org_id', userProfile.org_id),
         (supabase as any)
           .from('sectors')
