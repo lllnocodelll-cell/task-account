@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { BarChart2, Users, Calendar, ChevronLeft, ChevronRight, CheckCircle2, Clock, AlertTriangle, Hourglass } from 'lucide-react';
+import { BarChart2, Users, Calendar, ChevronLeft, ChevronRight, CheckCircle2, Clock, AlertTriangle, Hourglass, ArrowUpDown } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
 import { Tooltip } from '../../ui/Tooltip';
@@ -42,6 +42,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState(defaultPeriod);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const [sortBy, setSortBy] = useState<'total' | 'atrasadas'>('total');
 
     const navigatePeriod = (direction: 'prev' | 'next') => {
         const base = period || defaultPeriod;
@@ -85,7 +86,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     if (row.status === 'Concluída') concluidaAcc += 1;
                 });
 
-                const arr = Object.values(transformed).sort((a, b) => b.total - a.total);
+                const arr = Object.values(transformed);
                 setData(arr);
                 setTotals({ total: totalAcc, pendente: pendenteAcc, iniciada: iniciadaAcc, atrasada: atrasadaAcc, concluida: concluidaAcc });
             }
@@ -98,16 +99,39 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const selected = selectedIndex !== null ? data[selectedIndex] : null;
+    const sortedData = [...data].sort((a, b) => {
+        if (sortBy === 'atrasadas') {
+            const diffAtraso = (b['Atrasada'] || 0) - (a['Atrasada'] || 0);
+            if (diffAtraso !== 0) return diffAtraso;
+        }
+        return b.total - a.total;
+    });
+
+    const selected = selectedIndex !== null ? sortedData[selectedIndex] : null;
     const periodLabel = period ? `${period.split('-')[1]}/${period.split('-')[0]}` : 'Todos';
 
     return (
+
+
         <WidgetContainer
+
             title="MONITOR OPERAÇÃO"
+
             icon={<BarChart2 size={14} className="text-indigo-500" />}
             onRemove={onRemove}
             headerActions={
-                <div className="flex items-center gap-0.5" onMouseDown={e => e.stopPropagation()}>
+                <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+                    <button
+                        onClick={() => setSortBy(prev => prev === 'total' ? 'atrasadas' : 'total')}
+                        className={`h-6 px-1.5 flex items-center gap-1 rounded text-[10px] font-bold transition-all ${
+                            sortBy === 'atrasadas' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900'
+                        }`}
+                        title={sortBy === 'atrasadas' ? 'Ordenando por atrasadas primeiro' : 'Alternar ordenação por atrasos'}
+                    >
+                        <ArrowUpDown size={10} />
+                        <span>{sortBy === 'atrasadas' ? 'Atrasos' : 'Volume'}</span>
+                    </button>
+                    <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
                     <Tooltip content="Mês anterior" position="top">
                         <button
                             onClick={() => navigatePeriod('prev')}
@@ -154,7 +178,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     <div className="w-10 h-10 rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-indigo-500 animate-spin" />
                     <div className="text-xs text-slate-400 font-medium animate-pulse">Carregando...</div>
                 </div>
-            ) : data.length === 0 ? (
+            ) : sortedData.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm gap-3">
                     <div className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center">
                         <Users size={24} className="text-slate-300 dark:text-slate-600" />
@@ -164,8 +188,10 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             ) : (
                 <div className="flex-1 flex flex-col h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-1.5 min-h-0">
-                        {data.map((item, idx) => {
+                        {sortedData.map((item, idx) => {
                             const isSelected = selectedIndex === idx;
+                            const isBottleneck = item['Atrasada'] >= 2 && (item['Atrasada'] / item.total) >= 0.2;
+
                             return (
                                 <button
                                     key={idx}
@@ -181,11 +207,18 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                             <span className="text-[10px] font-black text-white">{getInitials(item.name)}</span>
                                         </div>
                                         <div className="flex-1 min-w-0 flex items-baseline justify-between gap-2">
-                                            <span className={`text-xs font-semibold truncate ${
-                                                isSelected ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-400'
-                                            }`}>
-                                                {item.name}
-                                            </span>
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <span className={`text-xs font-semibold truncate ${
+                                                    isSelected ? 'text-slate-800 dark:text-white' : 'text-slate-600 dark:text-slate-400'
+                                                }`}>
+                                                    {item.name}
+                                                </span>
+                                                {isBottleneck && (
+                                                    <span className="px-1.5 py-0.2 text-[8px] font-bold rounded-md bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 border border-red-200 dark:border-red-800 shrink-0">
+                                                        ⚠️ Gargalo
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="flex items-center gap-1.5 shrink-0">
                                                 <span className={`text-xs font-black tabular-nums ${
                                                     isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'

@@ -138,9 +138,11 @@ export const MonthlyEvolutionWidget: React.FC<Props> = ({ orgId, onRemove }) => 
     const currentPeriod = fullTimelineData.slice(-range);
     const previousPeriod = fullTimelineData.slice(0, range);
 
-    // 6. Calcular Totais para a Opção 1
+    // 6. Calcular Totais e Taxa de Eficiência
     const currentSum = currentPeriod.reduce((acc, curr) => acc + curr.tasks, 0);
+    const completedSum = currentPeriod.reduce((acc, curr) => acc + curr.completed, 0);
     const previousSum = previousPeriod.reduce((acc, curr) => acc + curr.tasks, 0);
+    const efficiencyRate = currentSum > 0 ? (completedSum / currentSum) * 100 : 0;
     
     // Tendência baseada na soma total do período vs soma total do período anterior
     const trend = previousSum === 0 
@@ -149,7 +151,7 @@ export const MonthlyEvolutionWidget: React.FC<Props> = ({ orgId, onRemove }) => 
 
     return { 
         processedChartData: currentPeriod, 
-        stats: { currentSum, trend, isUp: trend >= 0 } 
+        stats: { currentSum, completedSum, efficiencyRate, trend, isUp: trend >= 0 } 
     };
   }, [rawData, range]);
 
@@ -195,32 +197,41 @@ export const MonthlyEvolutionWidget: React.FC<Props> = ({ orgId, onRemove }) => 
           </div>
         ) : (
           <>
-            {/* Header Indicators with Option 1 Highlight */}
-            <div className="flex items-start justify-between mb-8 shrink-0">
+            {/* Header Indicators with Efficiency Rate */}
+            <div className="grid grid-cols-3 gap-2 mb-6 shrink-0">
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                    Somatória do Período
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                    Tarefas
                     <div className="group relative">
-                        <Info size={11} className="text-slate-300" />
-                        <div className="absolute left-0 top-4 w-48 p-2 bg-slate-800 text-[9px] text-white rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-                            Total de tarefas criadas nos {range} meses exibidos no gráfico.
+                        <Info size={10} className="text-slate-300" />
+                        <div className="absolute left-0 top-4 w-44 p-2 bg-slate-800 text-[9px] text-white rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+                            Total de tarefas nos {range} meses.
                         </div>
                     </div>
                 </span>
-                <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
+                <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
                   {stats.currentSum}
+                </span>
+              </div>
+
+              <div className="flex flex-col border-x border-slate-100 dark:border-slate-800/80 px-2">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+                  Taxa Eficiência
+                </span>
+                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter leading-none">
+                  {stats.efficiencyRate.toFixed(0)}%
                 </span>
               </div>
               
               <div className="flex flex-col items-end">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 text-right">Variação do Período</span>
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border ${
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 text-right">Variação</span>
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${
                   stats.isUp 
                     ? 'bg-emerald-50/50 dark:bg-emerald-500/5 border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400' 
                     : 'bg-rose-50/50 dark:bg-rose-500/5 border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400'
                 }`}>
-                  {stats.isUp ? <TrendingUp size={14} strokeWidth={3} /> : <TrendingDown size={14} strokeWidth={3} />}
-                  <span className="text-sm font-black tabular-nums tracking-tight">
+                  {stats.isUp ? <TrendingUp size={12} strokeWidth={3} /> : <TrendingDown size={12} strokeWidth={3} />}
+                  <span className="text-xs font-black tabular-nums tracking-tight">
                     {stats.isUp ? '+' : ''}{stats.trend.toFixed(1)}%
                   </span>
                 </div>

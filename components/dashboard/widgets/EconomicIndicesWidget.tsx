@@ -197,13 +197,22 @@ export const EconomicIndicesWidget: React.FC<{ onRemove?: () => void; orgId?: st
                     )}
                 </div>
                 
-                <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
-                    <p className="text-[8px] text-slate-400 italic">
+                <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 text-[9px] text-slate-400">
+                    <p className="italic">
                         Fonte: Banco Central (SGS)
                     </p>
-                    {syncing && <span className="text-[8px] font-bold text-indigo-500 animate-pulse uppercase tracking-tighter">Sincronizando...</span>}
+                    <div className="flex items-center gap-1.5 font-medium">
+                        {syncing ? (
+                            <span className="font-bold text-indigo-500 animate-pulse uppercase tracking-tighter">Sincronizando...</span>
+                        ) : (
+                            <span>
+                                Última sinc: {indices[0]?.last_sync ? new Date(indices[0].last_sync).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Hoje'}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
         </WidgetContainer>
     );
 };
+

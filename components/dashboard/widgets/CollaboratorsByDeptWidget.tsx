@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { UsersRound, Briefcase, Code, Megaphone, Headset, Calculator, FileText, ChevronRight, Scale, BookOpen } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
@@ -81,14 +81,14 @@ export const CollaboratorsByDeptWidget: React.FC<Props> = ({ orgId, onRemove }) 
 
     return (
         <WidgetContainer title="COLABORADOR POR SETOR" icon={<UsersRound size={14} className="text-indigo-500" />} onRemove={onRemove}>
-            <div className="flex-1 w-full h-full p-2 lg:p-4">
+            <div className="flex-1 w-full min-h-0 overflow-y-auto custom-scrollbar p-2 lg:p-4 pr-1">
                 {loading ? (
-                    <div className="flex-1 flex flex-col items-center justify-center space-y-4 h-full">
+                    <div className="flex-1 flex flex-col items-center justify-center space-y-4 h-full py-8">
                         <div className="w-16 h-16 rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-indigo-500 animate-spin"></div>
                         <div className="text-sm text-slate-400 font-medium animate-pulse">Buscando equipe...</div>
                     </div>
                 ) : data.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm gap-3 h-full">
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm gap-3 h-full py-8">
                         <div className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center">
                             <UsersRound size={24} className="text-slate-300 dark:text-slate-600" />
                         </div>
