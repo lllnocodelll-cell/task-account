@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ClipboardList, Calendar, AlertTriangle, Clock, Hourglass, ChevronLeft, ChevronRight, Search, X, ChevronDown, CheckCircle2, Building2 } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
+import { Tooltip } from '../../ui/Tooltip';
 
 interface Props {
     orgId: string;
@@ -141,13 +142,14 @@ export const UncompletedTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => 
             onRemove={onRemove}
             headerActions={
                 <div className="flex items-center gap-0.5" onMouseDown={e => e.stopPropagation()}>
-                    <button
-                        onClick={() => setStartMonth(prev => navigateMonth(prev, 'prev'))}
-                        className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                        title="Início anterior"
-                    >
-                        <ChevronLeft size={13} strokeWidth={2.5} />
-                    </button>
+                    <Tooltip content="Mês inicial anterior" position="top">
+                        <button
+                            onClick={() => setStartMonth(prev => navigateMonth(prev, 'prev'))}
+                            className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                        >
+                            <ChevronLeft size={13} strokeWidth={2.5} />
+                        </button>
+                    </Tooltip>
                     <div className="relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer text-rose-600 dark:text-rose-400">
                         <Calendar size={11} className="shrink-0 pointer-events-none" />
                         <input
@@ -161,21 +163,23 @@ export const UncompletedTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => 
                             {formatMonthLabel(startMonth)}
                         </span>
                     </div>
-                    <button
-                        onClick={() => setStartMonth(prev => navigateMonth(prev, 'next'))}
-                        className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                        title="Início próximo"
-                    >
-                        <ChevronRight size={13} strokeWidth={2.5} />
-                    </button>
+                    <Tooltip content="Próximo mês inicial" position="top">
+                        <button
+                            onClick={() => setStartMonth(prev => navigateMonth(prev, 'next'))}
+                            className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                        >
+                            <ChevronRight size={13} strokeWidth={2.5} />
+                        </button>
+                    </Tooltip>
                     <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
-                    <button
-                        onClick={() => setEndMonth(prev => navigateMonth(prev, 'prev'))}
-                        className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                        title="Fim anterior"
-                    >
-                        <ChevronLeft size={13} strokeWidth={2.5} />
-                    </button>
+                    <Tooltip content="Mês final anterior" position="top">
+                        <button
+                            onClick={() => setEndMonth(prev => navigateMonth(prev, 'prev'))}
+                            className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                        >
+                            <ChevronLeft size={13} strokeWidth={2.5} />
+                        </button>
+                    </Tooltip>
                     <div className="relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer text-rose-600 dark:text-rose-400">
                         <input
                             type="month"
@@ -189,13 +193,14 @@ export const UncompletedTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => 
                             {formatMonthLabel(endMonth)}
                         </span>
                     </div>
-                    <button
-                        onClick={() => setEndMonth(prev => navigateMonth(prev, 'next'))}
-                        className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                        title="Fim próximo"
-                    >
-                        <ChevronRight size={13} strokeWidth={2.5} />
-                    </button>
+                    <Tooltip content="Próximo mês final" position="top">
+                        <button
+                            onClick={() => setEndMonth(prev => navigateMonth(prev, 'next'))}
+                            className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                        >
+                            <ChevronRight size={13} strokeWidth={2.5} />
+                        </button>
+                    </Tooltip>
                 </div>
             }
         >
@@ -205,57 +210,148 @@ export const UncompletedTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => 
                     <div className="text-xs text-slate-400 animate-pulse">Buscando pendências...</div>
                 </div>
             ) : (
-                <div className="flex-1 flex flex-col h-full overflow-hidden">
-                    <div className="flex-1 flex flex-col items-center justify-center py-4 gap-1 min-h-0">
-                        <div className="relative flex items-center justify-center">
-                            <div className={`absolute w-20 h-20 rounded-full blur-2xl opacity-20 transition-all duration-500 ${
+                <div className="flex-1 flex flex-col h-full overflow-hidden p-2 gap-2">
+                    {/* Layout em 2 Colunas: Não Concluídas | Status */}
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-2.5 min-h-0 items-stretch">
+                        
+                        {/* Coluna Esquerda: Não Concluídas com Donut Chart */}
+                        <div className="sm:col-span-5 flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 text-center relative overflow-hidden">
+                            {/* Glow de Fundo */}
+                            <div className={`absolute w-24 h-24 rounded-full blur-2xl opacity-15 pointer-events-none ${
                                 stats.atrasada > 0 ? 'bg-red-500' : stats.pendente > 0 ? 'bg-amber-500' : 'bg-emerald-500'
                             }`} />
-                            <span className={`relative text-4xl font-black leading-none tabular-nums ${
-                                stats.atrasada > 0
-                                    ? 'text-red-600 dark:text-red-400'
-                                    : stats.pendente > 0
-                                    ? 'text-amber-600 dark:text-amber-400'
-                                    : 'text-emerald-600 dark:text-emerald-400'
-                            }`}>
-                                {stats.total}
+
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">
+                                Não Concluídas
                             </span>
-                        </div>
-                        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-                            não concluídas
-                        </span>
-                    </div>
 
-                    <div className="flex flex-col gap-2 px-3 pb-3 overflow-y-auto custom-scrollbar">
-                        {STATUS_ITEMS.map(item => (
-                            <div
-                                key={item.label}
-                                onClick={() => openDrilldown(item.statusKey)}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${item.bg} ${item.border} cursor-pointer transition-all hover:scale-[1.01] group`}
-                                title={`Clique para detalhar tarefas ${item.label.toLowerCase()}`}
-                            >
-                                <div className={`shrink-0 ${item.text}`}>{item.icon}</div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className={`text-[11px] font-bold ${item.text} flex items-center gap-1`}>
-                                            {item.label}
-                                            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">→</span>
-                                        </span>
-                                        <span className={`text-sm font-black tabular-nums ${item.text}`}>{item.count}</span>
-                                    </div>
-                                    <div className="h-1 w-full bg-white/60 dark:bg-slate-900/30 rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full ${item.bar} rounded-full transition-all duration-700`}
-                                            style={{ width: `${(item.count / maxCount) * 100}%` }}
-                                        />
-                                    </div>
-                                </div>
+                            {/* Gráfico Donut SVG */}
+                            <div className="relative w-24 h-24 flex items-center justify-center shrink-0 my-1">
+                                {stats.total === 0 ? (
+                                    <>
+                                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                            <circle
+                                                cx="18"
+                                                cy="18"
+                                                r="15.9155"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="3.5"
+                                                className="text-emerald-200 dark:text-emerald-950/60"
+                                            />
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                            <CheckCircle2 size={20} className="text-emerald-500 mb-0.5" />
+                                            <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tight">Zero</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                            <circle
+                                                cx="18"
+                                                cy="18"
+                                                r="15.9155"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="3.5"
+                                                className="text-slate-100 dark:text-slate-800/60"
+                                            />
+                                            {(() => {
+                                                const total = stats.total;
+                                                const segments = [
+                                                    { count: stats.atrasada, color: '#ef4444' },
+                                                    { count: stats.pendente, color: '#f59e0b' },
+                                                    { count: stats.iniciada, color: '#3b82f6' },
+                                                ];
+                                                let accumulatedPct = 0;
+                                                return segments.map((seg, i) => {
+                                                    if (seg.count <= 0) return null;
+                                                    const pct = (seg.count / total) * 100;
+                                                    const dash = `${pct} ${100 - pct}`;
+                                                    const offset = 100 - accumulatedPct;
+                                                    accumulatedPct += pct;
+                                                    return (
+                                                        <circle
+                                                            key={i}
+                                                            cx="18"
+                                                            cy="18"
+                                                            r="15.9155"
+                                                            fill="none"
+                                                            stroke={seg.color}
+                                                            strokeWidth="3.5"
+                                                            strokeDasharray={dash}
+                                                            strokeDashoffset={offset}
+                                                            strokeLinecap="round"
+                                                            className="transition-all duration-700"
+                                                        />
+                                                    );
+                                                });
+                                            })()}
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                            <span className={`text-2xl font-black leading-none tabular-nums ${
+                                                stats.atrasada > 0 ? 'text-red-600 dark:text-red-400' :
+                                                stats.pendente > 0 ? 'text-amber-600 dark:text-amber-400' :
+                                                'text-blue-600 dark:text-blue-400'
+                                            }`}>
+                                                {stats.total}
+                                            </span>
+                                            <span className="text-[7px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
+                                                Obrigações
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                        ))}
+
+                            <div className="mt-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-tight">
+                                {stats.atrasada > 0 ? (
+                                    <span className="text-red-600 dark:text-red-400">⚠️ {stats.atrasada} com prazo vencido</span>
+                                ) : stats.pendente > 0 ? (
+                                    <span className="text-amber-600 dark:text-amber-400">⏳ {stats.pendente} aguardando início</span>
+                                ) : stats.total > 0 ? (
+                                    <span className="text-blue-600 dark:text-blue-400">✓ {stats.iniciada} em andamento</span>
+                                ) : (
+                                    <span className="text-emerald-600 dark:text-emerald-400">✓ Nenhuma pendência</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Coluna Direita: Status da Operação */}
+                        <div className="sm:col-span-7 flex flex-col justify-center gap-2 overflow-y-auto custom-scrollbar">
+                            {STATUS_ITEMS.map(item => (
+                                <Tooltip key={item.label} content={`Clique para detalhar tarefas ${item.label.toLowerCase()}`} position="top" className="w-full">
+                                    <div
+                                        onClick={() => openDrilldown(item.statusKey)}
+                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${item.bg} ${item.border} cursor-pointer transition-all hover:scale-[1.01] group w-full`}
+                                    >
+                                        <div className={`shrink-0 ${item.text}`}>{item.icon}</div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className={`text-[11px] font-bold ${item.text} flex items-center gap-1`}>
+                                                    {item.label}
+                                                    <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px]">→</span>
+                                                </span>
+                                                <span className={`text-sm font-black tabular-nums ${item.text}`}>{item.count}</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-white/60 dark:bg-slate-900/30 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full ${item.bar} rounded-full transition-all duration-700`}
+                                                    style={{ width: `${(item.count / maxCount) * 100}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Tooltip>
+                            ))}
+                        </div>
+
                     </div>
 
-                    <div className="shrink-0 px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl flex items-center justify-between mt-auto">
-                        <span className="text-[10px] text-slate-400">Período selecionado</span>
+                    {/* Footer */}
+                    <div className="shrink-0 px-3 py-1.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 rounded-xl flex items-center justify-between mt-auto">
+                        <span className="text-[10px] text-slate-400 font-medium">Período selecionado</span>
                         {stats.total === 0 ? (
                             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">✓ Tudo em dia</span>
                         ) : (

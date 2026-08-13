@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip';
 
 interface WidgetContainerProps {
     title: string;
@@ -74,33 +75,36 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
 
     const zoomControls = allowZoom ? (
         <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold" onMouseDown={e => e.stopPropagation()}>
-            <button
-                onClick={handleZoomOut}
-                disabled={zoomLevel <= ZOOM_LEVELS[0]}
-                className="h-5 w-5 flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 dark:hover:text-white disabled:opacity-30 transition-colors"
-                title="Reduzir conteúdo (Zoom Out)"
-            >
-                <ZoomOut size={11} />
-            </button>
-            <button
-                onClick={resetZoom}
-                className={`px-1.5 py-0.5 rounded transition-colors text-[9px] font-mono tabular-nums ${
-                    zoomLevel !== 100 
-                        ? 'bg-indigo-600 text-white dark:bg-indigo-500' 
-                        : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-                title="Clique para resetar para 100%"
-            >
-                {zoomLevel}%
-            </button>
-            <button
-                onClick={handleZoomIn}
-                disabled={zoomLevel >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-                className="h-5 w-5 flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 dark:hover:text-white disabled:opacity-30 transition-colors"
-                title="Aumentar conteúdo (Zoom In)"
-            >
-                <ZoomIn size={11} />
-            </button>
+            <Tooltip content="Reduzir zoom" position="top">
+                <button
+                    onClick={handleZoomOut}
+                    disabled={zoomLevel <= ZOOM_LEVELS[0]}
+                    className="h-5 w-5 flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 dark:hover:text-white disabled:opacity-30 transition-colors"
+                >
+                    <ZoomOut size={11} />
+                </button>
+            </Tooltip>
+            <Tooltip content="Resetar zoom (100%)" position="top">
+                <button
+                    onClick={resetZoom}
+                    className={`px-1.5 py-0.5 rounded transition-colors text-[9px] font-mono tabular-nums ${
+                        zoomLevel !== 100 
+                            ? 'bg-indigo-600 text-white dark:bg-indigo-500' 
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                >
+                    {zoomLevel}%
+                </button>
+            </Tooltip>
+            <Tooltip content="Aumentar zoom" position="top">
+                <button
+                    onClick={handleZoomIn}
+                    disabled={zoomLevel >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+                    className="h-5 w-5 flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 dark:hover:text-white disabled:opacity-30 transition-colors"
+                >
+                    <ZoomIn size={11} />
+                </button>
+            </Tooltip>
         </div>
     ) : null;
 
@@ -136,16 +140,17 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
 
                     {/* Remove button - visible on hover */}
                     {onRemove && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onRemove();
-                            }}
-                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Remover Widget"
-                        >
-                            <X size={16} />
-                        </button>
+                        <Tooltip content="Remover widget" position="top">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onRemove();
+                                }}
+                                className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <X size={16} />
+                            </button>
+                        </Tooltip>
                     )}
                 </div>
             </div>

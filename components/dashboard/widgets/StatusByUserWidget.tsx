@@ -42,6 +42,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState(defaultPeriod);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [sortBy, setSortBy] = useState<'total' | 'atrasadas'>('total');
 
     const navigatePeriod = (direction: 'prev' | 'next') => {
@@ -57,6 +58,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
         if (!orgId) return;
         setLoading(true);
         setSelectedIndex(null);
+        setHoveredIndex(null);
         try {
             let query = (supabase as any)
                 .from('tasks')
@@ -107,7 +109,8 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
         return b.total - a.total;
     });
 
-    const selected = selectedIndex !== null ? sortedData[selectedIndex] : null;
+    const activeIndex = hoveredIndex !== null ? hoveredIndex : selectedIndex;
+    const selected = activeIndex !== null && sortedData[activeIndex] ? sortedData[activeIndex] : null;
     const periodLabel = period ? `${period.split('-')[1]}/${period.split('-')[0]}` : 'Todos';
 
     return (
@@ -121,16 +124,17 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             onRemove={onRemove}
             headerActions={
                 <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
-                    <button
-                        onClick={() => setSortBy(prev => prev === 'total' ? 'atrasadas' : 'total')}
-                        className={`h-6 px-1.5 flex items-center gap-1 rounded text-[10px] font-bold transition-all ${
-                            sortBy === 'atrasadas' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900'
-                        }`}
-                        title={sortBy === 'atrasadas' ? 'Ordenando por atrasadas primeiro' : 'Alternar ordenação por atrasos'}
-                    >
-                        <ArrowUpDown size={10} />
-                        <span>{sortBy === 'atrasadas' ? 'Atrasos' : 'Volume'}</span>
-                    </button>
+                    <Tooltip content={sortBy === 'atrasadas' ? 'Ordenando por atrasadas primeiro' : 'Alternar ordenação por atrasos'} position="top">
+                        <button
+                            onClick={() => setSortBy(prev => prev === 'total' ? 'atrasadas' : 'total')}
+                            className={`h-6 px-1.5 flex items-center gap-1 rounded text-[10px] font-bold transition-all ${
+                                sortBy === 'atrasadas' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900'
+                            }`}
+                        >
+                            <ArrowUpDown size={10} />
+                            <span>{sortBy === 'atrasadas' ? 'Atrasos' : 'Volume'}</span>
+                        </button>
+                    </Tooltip>
                     <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
                     <Tooltip content="Mês anterior" position="top">
                         <button
@@ -162,13 +166,14 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                         </button>
                     </Tooltip>
                     {period !== defaultPeriod && (
-                        <button
-                            onClick={resetToDefaultPeriod}
-                            className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
-                            title="Voltar ao mês padrão (anterior)"
-                        >
-                            Padrão
-                        </button>
+                        <Tooltip content="Voltar ao mês padrão" position="top">
+                            <button
+                                onClick={resetToDefaultPeriod}
+                                className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                            >
+                                Padrão
+                            </button>
+                        </Tooltip>
                     )}
                 </div>
             }
@@ -189,14 +194,16 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                 <div className="flex-1 flex flex-col h-full overflow-hidden">
                     <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-1.5 min-h-0">
                         {sortedData.map((item, idx) => {
-                            const isSelected = selectedIndex === idx;
+                            const isSelected = activeIndex === idx;
                             const isBottleneck = item['Atrasada'] >= 2 && (item['Atrasada'] / item.total) >= 0.2;
 
                             return (
-                                <button
+                                <div
                                     key={idx}
+                                    onMouseEnter={() => setHoveredIndex(idx)}
+                                    onMouseLeave={() => setHoveredIndex(null)}
                                     onClick={() => setSelectedIndex(prev => prev === idx ? null : idx)}
-                                    className={`w-full rounded-xl px-3 py-2.5 text-left transition-all duration-200 border ${
+                                    className={`w-full rounded-xl px-3 py-2.5 text-left transition-all duration-200 border cursor-pointer ${
                                         isSelected
                                             ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm'
                                             : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/40'
@@ -250,7 +257,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                                         className="h-full w-full rounded-full transition-all duration-500"
                                                         style={{
                                                             backgroundColor: STATUS_CONFIG[status].color,
-                                                            opacity: isSelected || selectedIndex === null ? 1 : 0.4,
+                                                            opacity: isSelected || activeIndex === null ? 1 : 0.4,
                                                         }}
                                                     />
                                                 </Tooltip>
@@ -258,7 +265,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                         })}
                                     </div>
                                     {isSelected && (
-                                        <div className="mt-2 flex items-center gap-2.5 flex-wrap">
+                                        <div className="mt-2 flex items-center gap-2.5 flex-wrap animate-in fade-in zoom-in-95 duration-150">
                                             {STATUS_ORDER.map(status => {
                                                 const count = item[status] || 0;
                                                 if (!count) return null;
@@ -273,7 +280,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                             })}
                                         </div>
                                     )}
-                                </button>
+                                </div>
                             );
                         })}
                     </div>

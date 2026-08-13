@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, FileWarning, Search, X } from 'lucide-react';
+import { ShieldCheck, FileWarning, Search, X, Download } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
+import { Tooltip } from '../../ui/Tooltip';
+import { exportToCSV } from '../../../utils/exportUtils';
 
 interface Props {
     orgId: string;
@@ -149,32 +151,61 @@ export const ClientLicensesWidget: React.FC<Props> = ({ orgId, onRemove }) => {
         return `Válido (${item.daysRemaining}d)`;
     };
 
+    const handleExportExcel = () => {
+        const headers = ['Cliente', 'Nome da Licença', 'Número / Registro', 'Data de Vencimento', 'Situação'];
+        const rows = filteredData.map(item => {
+            const formattedDate = item.expiryDate !== 'Sem validade' 
+                ? new Date(item.expiryDate + 'T00:00:00').toLocaleDateString('pt-BR') 
+                : 'Sem validade';
+            return [
+                item.clientName,
+                item.licenseName,
+                item.licenseNumber || 'N/A',
+                formattedDate,
+                formatBadgeText(item)
+            ];
+        });
+        const todayStr = new Date().toISOString().slice(0, 10);
+        exportToCSV(`Licencas_e_Alvaras_${todayStr}.csv`, headers, rows);
+    };
+
     const headerActions = (
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold" onMouseDown={e => e.stopPropagation()}>
-            <button
-                onClick={() => setFilter('criticos')}
-                className={`px-2 py-1 rounded transition-colors ${filter === 'criticos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-            >
-                Críticos ({counts.vencidos + counts.trintaDias})
-            </button>
-            <button
-                onClick={() => setFilter('vencidos')}
-                className={`px-2 py-1 rounded transition-colors ${filter === 'vencidos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-            >
-                Vencidos ({counts.vencidos})
-            </button>
-            <button
-                onClick={() => setFilter('30dd')}
-                className={`px-2 py-1 rounded transition-colors ${filter === '30dd' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-            >
-                30d ({counts.trintaDias})
-            </button>
-            <button
-                onClick={() => setFilter('todos')}
-                className={`px-2 py-1 rounded transition-colors ${filter === 'todos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
-            >
-                Todos ({counts.total})
-            </button>
+        <div className="flex items-center gap-1">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold" onMouseDown={e => e.stopPropagation()}>
+                <button
+                    onClick={() => setFilter('criticos')}
+                    className={`px-2 py-1 rounded transition-colors ${filter === 'criticos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                    Críticos ({counts.vencidos + counts.trintaDias})
+                </button>
+                <button
+                    onClick={() => setFilter('vencidos')}
+                    className={`px-2 py-1 rounded transition-colors ${filter === 'vencidos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                    Vencidos ({counts.vencidos})
+                </button>
+                <button
+                    onClick={() => setFilter('30dd')}
+                    className={`px-2 py-1 rounded transition-colors ${filter === '30dd' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                    30d ({counts.trintaDias})
+                </button>
+                <button
+                    onClick={() => setFilter('todos')}
+                    className={`px-2 py-1 rounded transition-colors ${filter === 'todos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                >
+                    Todos ({counts.total})
+                </button>
+            </div>
+            <Tooltip content="Exportar para Excel (.csv)" position="top">
+                <button
+                    onClick={handleExportExcel}
+                    disabled={filteredData.length === 0}
+                    className="h-6 w-6 flex items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 disabled:opacity-30 transition-all shrink-0"
+                >
+                    <Download size={12} />
+                </button>
+            </Tooltip>
         </div>
     );
 

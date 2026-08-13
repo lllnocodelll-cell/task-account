@@ -33,6 +33,7 @@ export const LoggedUsersWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     .select('id, full_name, role, avatar_url, current_session_start, last_active_at')
                     .not('current_session_start', 'is', null)
                     .gte('last_active_at', fifteenMinutesAgo)
+                    .neq('role', 'cliente')
                     .order('last_active_at', { ascending: false });
 
                 if (orgId) {
@@ -44,7 +45,9 @@ export const LoggedUsersWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                 if (error) throw error;
 
                 if (data) {
-                    setUsers(data as LoggedUser[]);
+                    // Filtrar rigorosamente apenas usuários do escritório (excluindo clientes do portal)
+                    const officeUsers = (data as LoggedUser[]).filter(u => u.role !== 'cliente');
+                    setUsers(officeUsers);
                 }
             } catch (err) {
                 console.error('Error fetching logged users:', err);

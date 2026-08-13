@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Filter, Info, CheckCircle2, AlertCircle, Award, FileText, Search, X, Layers, ListFilter, ChevronDown, ChevronUp } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
+import { Tooltip } from '../../ui/Tooltip';
 
 interface Props {
     orgId: string;
@@ -363,30 +364,32 @@ export const OperationsCalendarWidget: React.FC<Props> = ({ orgId, onRemove }) =
 
                                 {/* Alternador de Visão */}
                                 <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200/60 dark:border-slate-700/60 shrink-0">
-                                    <button
-                                        onClick={() => setModalViewMode('grouped')}
-                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
-                                            modalViewMode === 'grouped' 
-                                                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                                                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                                        }`}
-                                        title="Visão Agrupada por Obrigação"
-                                    >
-                                        <Layers size={12} />
-                                        <span>Agrupado</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setModalViewMode('individual')}
-                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
-                                            modalViewMode === 'individual' 
-                                                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                                                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                                        }`}
-                                        title="Visão Lista Individual por Cliente"
-                                    >
-                                        <ListFilter size={12} />
-                                        <span>Individual</span>
-                                    </button>
+                                    <Tooltip content="Visão Agrupada por Obrigação" position="top">
+                                        <button
+                                            onClick={() => setModalViewMode('grouped')}
+                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                                                modalViewMode === 'grouped' 
+                                                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                            }`}
+                                        >
+                                            <Layers size={12} />
+                                            <span>Agrupado</span>
+                                        </button>
+                                    </Tooltip>
+                                    <Tooltip content="Visão Lista Individual por Cliente" position="top">
+                                        <button
+                                            onClick={() => setModalViewMode('individual')}
+                                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                                                modalViewMode === 'individual' 
+                                                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                            }`}
+                                        >
+                                            <ListFilter size={12} />
+                                            <span>Individual</span>
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             </div>
 
