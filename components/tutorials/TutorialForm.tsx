@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { Input, Select, SearchableSelect } from '../ui/Input';
 import { supabase } from '../../utils/supabaseClient';
 import { Save, X, Upload, Link as LinkIcon, FileText } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 interface TutorialFormProps {
   tutorial?: Tutorial | null;
@@ -22,6 +23,7 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
+  const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     subject: tutorial?.subject || '',
@@ -34,13 +36,13 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
 
   const clientOptions = clients.map(c => ({
     value: c.id,
-    label: `${c.companyName} ${c.tradeName ? `(${c.tradeName})` : ''}`
+    label: c.companyName
   }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.subject) {
-      alert('O assunto é obrigatório');
+      addToast('warning', 'Campo Obrigatório', 'O assunto é obrigatório');
       return;
     }
 
@@ -108,7 +110,7 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
       onSuccess();
     } catch (error: any) {
       console.error('Erro ao salvar tutorial:', error);
-      alert('Erro ao salvar tutorial: ' + (error.message || 'Erro desconhecido'));
+      addToast('error', 'Erro ao Salvar', 'Erro ao salvar tutorial: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
@@ -164,13 +166,13 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
               const selectedFile = e.target.files[0];
               
               if (selectedFile.type.startsWith('video/')) {
-                alert('Envio de vídeos não é permitido. Por favor, utilize o campo "Link / URL de Vídeo" acima.');
+                addToast('warning', 'Formato Não Permitido', 'Envio de vídeos não é permitido. Por favor, utilize o campo "Link / URL de Vídeo" acima.');
                 e.target.value = '';
                 return;
               }
 
               if (selectedFile.size > 10 * 1024 * 1024) {
-                alert('O tamanho máximo permitido para o arquivo é de 10MB.');
+                addToast('warning', 'Tamanho Limite Excedido', 'O tamanho máximo permitido para o arquivo é de 10MB.');
                 e.target.value = '';
                 return;
               }

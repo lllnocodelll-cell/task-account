@@ -24,95 +24,101 @@ import { EconomicIndicesWidget } from './widgets/EconomicIndicesWidget';
 import { OperationsCalendarWidget } from './widgets/OperationsCalendarWidget';
 import { ClientCertificatesWidget } from './widgets/ClientCertificatesWidget';
 import { ClientLicensesWidget } from './widgets/ClientLicensesWidget';
+import { CollaboratorPerformanceWidget } from './widgets/CollaboratorPerformanceWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Registro de todos os widgets disponíveis
 export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC<any>, defaultLayout: any }> = {
+    collaboratorPerformance: {
+        name: 'DESEMPENHO POR COLABORADOR',
+        component: CollaboratorPerformanceWidget,
+        defaultLayout: { i: 'collaboratorPerformance', x: 0, y: 0, w: 12, h: 9, minW: 4, minH: 6 }
+    },
     topSegments: {
         name: 'RANKING SEGMENTOS',
         component: TopSegmentsWidget,
-        defaultLayout: { i: 'topSegments', x: 0, y: 0, w: 4, h: 9, minW: 3, minH: 6 }
+        defaultLayout: { i: 'topSegments', x: 0, y: 9, w: 4, h: 9, minW: 3, minH: 6 }
     },
     statusByUser: {
         name: 'MONITOR OPERAÇÃO',
         component: StatusByUserWidget,
-        defaultLayout: { i: 'statusByUser', x: 4, y: 0, w: 5, h: 9, minW: 4, minH: 6 }
+        defaultLayout: { i: 'statusByUser', x: 4, y: 9, w: 5, h: 9, minW: 4, minH: 6 }
     },
     upcomingDeadlines: {
         name: 'PRÓXIMOS VENCIMENTOS',
         component: UpcomingDeadlinesWidget,
-        defaultLayout: { i: 'upcomingDeadlines', x: 0, y: 9, w: 4, h: 7, minW: 3, minH: 5 }
+        defaultLayout: { i: 'upcomingDeadlines', x: 0, y: 18, w: 4, h: 7, minW: 3, minH: 5 }
     },
     topTasks: {
         name: 'RANKING TAREFAS',
         component: TopTasksWidget,
-        defaultLayout: { i: 'topTasks', x: 4, y: 9, w: 4, h: 7, minW: 3, minH: 5 }
+        defaultLayout: { i: 'topTasks', x: 4, y: 18, w: 4, h: 7, minW: 3, minH: 5 }
     },
     documentAlerts: {
         name: 'ALERTAS DE DOCUMENTOS',
         component: DocumentAlertsWidget,
-        defaultLayout: { i: 'documentAlerts', x: 8, y: 9, w: 4, h: 7, minW: 3, minH: 4 }
+        defaultLayout: { i: 'documentAlerts', x: 8, y: 18, w: 4, h: 7, minW: 3, minH: 4 }
     },
     clientStatus: {
         name: 'STATUS DE CLIENTES',
         component: ClientStatusWidget,
-        defaultLayout: { i: 'clientStatus', x: 0, y: 16, w: 3, h: 7, minW: 2, minH: 5 }
+        defaultLayout: { i: 'clientStatus', x: 0, y: 25, w: 3, h: 7, minW: 2, minH: 5 }
     },
     taxRegimes: {
         name: 'MONITOR REGIMES',
         component: TaxRegimesWidget,
-        defaultLayout: { i: 'taxRegimes', x: 3, y: 16, w: 4, h: 7, minW: 3, minH: 4 }
+        defaultLayout: { i: 'taxRegimes', x: 3, y: 25, w: 4, h: 7, minW: 3, minH: 4 }
     },
     loggedUsers: {
         name: 'USUÁRIOS ONLINE',
         component: LoggedUsersWidget,
-        defaultLayout: { i: 'loggedUsers', x: 7, y: 16, w: 5, h: 7, minW: 3, minH: 4 }
+        defaultLayout: { i: 'loggedUsers', x: 7, y: 25, w: 5, h: 7, minW: 3, minH: 4 }
     },
     notifiedExclusion: {
         name: 'EXCLUSÃO SIMPLES',
         component: NotifiedExclusionWidget,
-        defaultLayout: { i: 'notifiedExclusion', x: 0, y: 23, w: 4, h: 6, minW: 3, minH: 4 }
+        defaultLayout: { i: 'notifiedExclusion', x: 0, y: 32, w: 4, h: 6, minW: 3, minH: 4 }
     },
     collaboratorsByDept: {
         name: 'COLABORADOR POR SETOR',
         component: CollaboratorsByDeptWidget,
-        defaultLayout: { i: 'collaboratorsByDept', x: 4, y: 23, w: 4, h: 6, minW: 3, minH: 4 }
+        defaultLayout: { i: 'collaboratorsByDept', x: 4, y: 32, w: 4, h: 6, minW: 3, minH: 4 }
     },
     uncompletedTasks: {
         name: 'TAREFAS PENDENTES',
         component: UncompletedTasksWidget,
-        defaultLayout: { i: 'uncompletedTasks', x: 8, y: 23, w: 4, h: 7, minW: 3, minH: 5 }
+        defaultLayout: { i: 'uncompletedTasks', x: 8, y: 32, w: 4, h: 7, minW: 3, minH: 5 }
     },
     monthlyEvolution: {
         name: 'EVOLUÇÃO MENSAL',
         component: MonthlyEvolutionWidget,
-        defaultLayout: { i: 'monthlyEvolution', x: 0, y: 30, w: 12, h: 9, minW: 4, minH: 6 }
+        defaultLayout: { i: 'monthlyEvolution', x: 0, y: 39, w: 12, h: 9, minW: 4, minH: 6 }
     },
     economicIndices: {
         name: 'ÍNDICES ECONÔMICOS',
         component: EconomicIndicesWidget,
-        defaultLayout: { i: 'economicIndices', x: 0, y: 39, w: 6, h: 7, minW: 4, minH: 5 }
+        defaultLayout: { i: 'economicIndices', x: 0, y: 48, w: 6, h: 7, minW: 4, minH: 5 }
     },
     operationsCalendar: {
         name: 'CALENDÁRIO OPERACIONAL',
         component: OperationsCalendarWidget,
-        defaultLayout: { i: 'operationsCalendar', x: 0, y: 46, w: 3, h: 10, minW: 3, minH: 7 }
+        defaultLayout: { i: 'operationsCalendar', x: 0, y: 55, w: 3, h: 10, minW: 3, minH: 7 }
     },
     clientCertificates: {
         name: 'VENCIMENTO CERTIFICADOS',
         component: ClientCertificatesWidget,
-        defaultLayout: { i: 'clientCertificates', x: 0, y: 56, w: 6, h: 7, minW: 3, minH: 5 }
+        defaultLayout: { i: 'clientCertificates', x: 0, y: 65, w: 6, h: 7, minW: 3, minH: 5 }
     },
     clientLicenses: {
         name: 'VENCIMENTO LICENÇAS',
         component: ClientLicensesWidget,
-        defaultLayout: { i: 'clientLicenses', x: 6, y: 56, w: 6, h: 7, minW: 3, minH: 5 }
+        defaultLayout: { i: 'clientLicenses', x: 6, y: 65, w: 6, h: 7, minW: 3, minH: 5 }
     }
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
-    'topSegments', 'statusByUser', 'monthlyEvolution',
+    'collaboratorPerformance', 'topSegments', 'statusByUser', 'monthlyEvolution',
     'upcomingDeadlines', 'topTasks', 'documentAlerts',
     'clientStatus', 'taxRegimes', 'loggedUsers',
     'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices', 'operationsCalendar',
@@ -835,7 +841,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed px-1">
-                        Selecione quais cartões e relatórios deseja visualizar em sua área de trabalho. Arraste-os pelo ícone de grip para reordenar suas posições de exibição nesta listagem.
+                        Ative os widgets que deseja exibir no painel do dashboard.
                     </p>
                     <div className="space-y-3">
                         {sortedWidgets.map(id => {
@@ -854,7 +860,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                                     case 'loggedUsers': return 'Painel de monitoramento de colaboradores conectados no momento.';
                                     case 'notifiedExclusion': return 'Monitor de clientes excluídos do simples nacional.';
                                     case 'collaboratorsByDept': return 'Distribuição de colaboradores por setor.';
-                                    case 'uncompletedTasks': return 'Painel de tarefas pendentes, iniciadas e concluídas por período.';
+                                    case 'uncompletedTasks': return 'Painel de tarefas pendentes, atrasadas e em andamento por período.';
                                     case 'monthlyEvolution': return 'Gráfico de evolução mensal de tarefas.';
                                     case 'economicIndices': return 'Indicadores econômicos: cotação dólar, Selic, IGPM e IPCA.';
                                     case 'operationsCalendar': return 'Calendário tributário simplificado.';

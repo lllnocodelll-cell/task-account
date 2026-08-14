@@ -290,6 +290,7 @@ interface SearchableSelectProps {
   error?: string;
   className?: string;
   disabled?: boolean;
+  clearable?: boolean;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -301,7 +302,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   error,
   tooltip,
   className = '',
-  disabled
+  disabled,
+  clearable = true
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -410,6 +412,20 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
       {/* Lista rolável */}
       <div className="max-h-52 overflow-y-auto py-1 custom-scrollbar">
+        {clearable && !!value && (
+          <button
+            type="button"
+            onClick={() => {
+              onChange('');
+              setIsOpen(false);
+              setSearch('');
+            }}
+            className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-2"
+          >
+            <X size={13} />
+            <span>Nenhum (Limpar seleção)</span>
+          </button>
+        )}
         {filteredOptions.length > 0 ? (
           filteredOptions.map((opt) => (
             <button
@@ -478,10 +494,29 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               ${isOpen ? 'ring-2 ring-indigo-500 border-transparent' : ''}
             `}
           >
-            <span className={selectedOption ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}>
+            <span className={selectedOption ? 'text-slate-900 dark:text-slate-100 truncate pr-2' : 'text-slate-400'}>
               {selectedOption ? selectedOption.label : placeholder}
             </span>
-            <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+              {clearable && !!value && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onChange('');
+                    setIsOpen(false);
+                    setSearch('');
+                  }}
+                  className="p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                  title="Remover seleção"
+                >
+                  <X size={14} />
+                </span>
+              )}
+              <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
           </button>
 
           {typeof document !== 'undefined' && createPortal(dropdownContent, document.body)}

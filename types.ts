@@ -119,6 +119,8 @@ export interface Task {
   temporary_tag?: string;
   workflows?: TaskWorkflow[];
   createdAt?: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export interface Client {

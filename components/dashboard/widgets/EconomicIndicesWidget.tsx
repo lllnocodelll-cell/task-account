@@ -46,7 +46,7 @@ export const EconomicIndicesWidget: React.FC<{ onRemove?: () => void; orgId?: st
                         let selectedData = data[data.length - 1];
                         
                         // Para índices mensais, se o último for o mês atual, pegamos o anterior (mês fechado)
-                        if (['433', '189', '4390'].includes(index.code)) {
+                        if (['433', '189', '4390', '13522'].includes(index.code)) {
                             const today = new Date();
                             const currentMonthStart = `01/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
                             if (selectedData.data === currentMonthStart && data.length > 1) {
@@ -185,7 +185,7 @@ export const EconomicIndicesWidget: React.FC<{ onRemove?: () => void; orgId?: st
                                                 </div>
                                                 <div className="flex items-end mt-1">
                                                     <span className="text-sm font-black text-slate-800 dark:text-slate-100 tabular-nums">
-                                                        {index.unit === 'R$' ? `R$ ${index.value?.toFixed(4)}` : `${index.value?.toFixed(4)}%`}
+                                                        {index.unit === 'R$' ? `R$ ${index.value?.toFixed(4)}` : `${index.value?.toFixed(2)}%`}
                                                     </span>
                                                 </div>
                                             </div>

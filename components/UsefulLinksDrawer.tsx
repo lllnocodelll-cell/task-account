@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { X, Link2, Globe, Landmark, Calculator, FileText, BookOpen, Briefcase, ChevronDown, ChevronUp, Loader2, Plus, Edit2, Trash2 } from 'lucide-react';
+import { X, Link2, Globe, Landmark, Calculator, FileText, BookOpen, Briefcase, ChevronDown, ChevronUp, Loader2, Plus, Edit2, Trash2, HandPlatter, Scale, HatGlasses, HeartPulse, MonitorCog, Handshake, GraduationCap, Wrench, ThumbsUp, CloudFog, SquareDashedMousePointer } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Button } from './ui/Button';
 import { Input, Select } from './ui/Input';
+import { ConfirmModal } from './ui/ConfirmModal';
 import { useToast } from '../contexts/ToastContext';
 
 interface UsefulLinksDrawerProps {
@@ -10,6 +11,23 @@ interface UsefulLinksDrawerProps {
   onClose: () => void;
   orgId: string;
 }
+
+const ICON_OPTIONS = [
+  { value: '', label: 'Padrão' },
+  { value: 'Landmark', label: '🏛️ Governamentais' },
+  { value: 'HandPlatter', label: '🍽️ Sindicato' },
+  { value: 'Scale', label: '⚖️ Legislação' },
+  { value: 'HatGlasses', label: '🕶️ Receita Federal' },
+  { value: 'Calculator', label: '🧮 Calculadora' },
+  { value: 'HeartPulse', label: '💗 Saúde' },
+  { value: 'MonitorCog', label: '🖥️ Sistemas' },
+  { value: 'Handshake', label: '🤝 Negócios' },
+  { value: 'GraduationCap', label: '🎓 Cursos' },
+  { value: 'Wrench', label: '🔧 Suporte Técnico' },
+  { value: 'ThumbsUp', label: '👍 Rede Social' },
+  { value: 'CloudFog', label: '☁️ Nuvem' },
+  { value: 'SquareDashedMousePointer', label: '🖱️ Outros' }
+];
 
 export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, onClose, orgId }) => {
   const [links, setLinks] = useState<any[]>([]);
@@ -169,14 +187,19 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const [linkToDelete, setLinkToDelete] = useState<string | null>(null);
+
+  const promptDelete = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm('Tem certeza que deseja excluir este link?')) return;
+    setLinkToDelete(id);
+  };
 
+  const executeDelete = async () => {
+    if (!linkToDelete) return;
     try {
       setLoading(true);
-      const { error } = await supabase.from('useful_links').delete().eq('id', id);
+      const { error } = await supabase.from('useful_links').delete().eq('id', linkToDelete);
       if (error) throw error;
       addToast('success', 'Link excluído com sucesso');
       loadData();
@@ -184,6 +207,8 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
       addToast('error', 'Erro ao excluir link');
       console.error(error);
       setLoading(false);
+    } finally {
+      setLinkToDelete(null);
     }
   };
 
@@ -200,9 +225,21 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
 
   const renderIcon = (iconName: string) => {
     switch (iconName) {
-      case 'Globe': return <Globe size={18} className="text-blue-500" />;
       case 'Landmark': return <Landmark size={18} className="text-amber-600" />;
-      case 'Calculator': return <Calculator size={18} className="text-green-600" />;
+      case 'HandPlatter': return <HandPlatter size={18} className="text-purple-600" />;
+      case 'Scale': return <Scale size={18} className="text-indigo-600" />;
+      case 'HatGlasses': return <HatGlasses size={18} className="text-slate-700 dark:text-slate-200" />;
+      case 'Calculator': return <Calculator size={18} className="text-emerald-600" />;
+      case 'HeartPulse': return <HeartPulse size={18} className="text-rose-500" />;
+      case 'MonitorCog': return <MonitorCog size={18} className="text-cyan-600" />;
+      case 'Handshake': return <Handshake size={18} className="text-blue-600" />;
+      case 'GraduationCap': return <GraduationCap size={18} className="text-violet-600" />;
+      case 'Wrench': return <Wrench size={18} className="text-slate-600" />;
+      case 'ThumbsUp': return <ThumbsUp size={18} className="text-sky-500" />;
+      case 'CloudFog': return <CloudFog size={18} className="text-teal-500" />;
+      case 'SquareDashedMousePointer': return <SquareDashedMousePointer size={18} className="text-slate-400" />;
+      // Fallbacks retro-compatíveis:
+      case 'Globe': return <Globe size={18} className="text-blue-500" />;
       case 'FileText': return <FileText size={18} className="text-slate-500" />;
       case 'BookOpen': return <BookOpen size={18} className="text-indigo-500" />;
       case 'Briefcase': return <Briefcase size={18} className="text-amber-800" />;
@@ -290,15 +327,7 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
                     label="Ícone"
                     value={iconName} 
                     onChange={(e) => setIconName(e.target.value)}
-                    options={[
-                      { value: '', label: 'Padrão' },
-                      { value: 'Globe', label: '🌍 Globo' },
-                      { value: 'Landmark', label: '🏛️ Governo' },
-                      { value: 'Calculator', label: '🧮 Calculadora' },
-                      { value: 'FileText', label: '📄 Documento' },
-                      { value: 'BookOpen', label: '📖 Legislação' },
-                      { value: 'Briefcase', label: '💼 Maleta' }
-                    ]}
+                    options={ICON_OPTIONS}
                   />
                 </div>
                 <Input label="Descrição Curta" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Opcional" />
@@ -403,6 +432,17 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!linkToDelete}
+        onClose={() => setLinkToDelete(null)}
+        onConfirm={executeDelete}
+        title="Excluir Link Útil"
+        message="Tem certeza que deseja excluir este link?"
+        confirmText="Sim, excluir link"
+        cancelText="Cancelar"
+        type="danger"
+      />
     </>
   );
 
@@ -425,15 +465,7 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
               label="Ícone"
               value={editIconName} 
               onChange={e => setEditIconName(e.target.value)}
-              options={[
-                { value: '', label: 'Padrão' },
-                { value: 'Globe', label: '🌍 Globo' },
-                { value: 'Landmark', label: '🏛️ Governo' },
-                { value: 'Calculator', label: '🧮 Calculadora' },
-                { value: 'FileText', label: '📄 Documento' },
-                { value: 'BookOpen', label: '📖 Legislação' },
-                { value: 'Briefcase', label: '💼 Maleta' }
-              ]}
+              options={ICON_OPTIONS}
             />
           </div>
           <div className="flex gap-2">
@@ -477,7 +509,7 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
             <Edit2 size={14} />
           </button>
           <button 
-            onClick={(e) => handleDelete(link.id, e)}
+            onClick={(e) => promptDelete(link.id, e)}
             className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
             title="Excluir"
           >

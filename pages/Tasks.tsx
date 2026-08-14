@@ -1806,7 +1806,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
               storage_path: a.storage_path
             })),
             workflows: t.workflows?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)) || [],
-            createdAt: t.created_at
+            createdAt: t.created_at,
+            startedAt: t.started_at,
+            completedAt: t.completed_at
           };
         });
         setTasks(mappedTasks);

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../ui/Button';
 import { SearchableSelect } from '../ui/Input';
-import { Plus, Search, FileText, Trash2, Edit, Star, MonitorPlay, GraduationCap, X, TvMinimalPlay, CloudDownload } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Edit, Star, MonitorPlay, GraduationCap, X, TvMinimalPlay, CloudDownload, CircleArrowLeft } from 'lucide-react';
 import { Tutorial, Client } from '../../types';
 import { supabase } from '../../utils/supabaseClient';
 import { TutorialForm } from './TutorialForm';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { Tooltip } from '../ui/Tooltip';
+import { useToast } from '../../contexts/ToastContext';
 
 interface TutorialsDrawerProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
   userId,
   clients
 }) => {
+  const { addToast } = useToast();
   const [view, setView] = useState<'list' | 'form'>('list');
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +132,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
       fetchTutorials();
     } catch (error) {
       console.error('Erro ao deletar tutorial:', error);
-      alert('Erro ao excluir tutorial');
+      addToast('error', 'Erro ao Excluir', 'Erro ao excluir tutorial');
     } finally {
       setDeleting(false);
       setIsConfirmOpen(false);
@@ -153,7 +155,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
       }
     } catch (error) {
       console.error('Erro ao baixar arquivo:', error);
-      alert('Não foi possível baixar o arquivo.');
+      addToast('error', 'Erro no Download', 'Não foi possível baixar o arquivo.');
     }
   };
 
@@ -169,7 +171,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
     { value: '', label: 'Todos os Clientes (Geral)' },
     ...clients.map(c => ({
       value: c.id,
-      label: `${c.companyName} ${c.tradeName ? `(${c.tradeName})` : ''}`
+      label: c.companyName
     }))
   ];
 
@@ -222,14 +224,17 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
                 Novo Manual
               </Button>
             ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setView('list')}
-                className="rounded-full text-xs font-bold"
-              >
-                Voltar à Lista
-              </Button>
+              <Tooltip content="Voltar à lista" position="bottom">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<CircleArrowLeft size={16} />}
+                  onClick={() => setView('list')}
+                  className="rounded-full text-xs font-bold px-2.5 sm:px-3.5"
+                >
+                  <span className="hidden sm:inline">Voltar à Lista</span>
+                </Button>
+              </Tooltip>
             )}
             <button 
               onClick={onClose}
@@ -350,9 +355,26 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
                               <span className="text-[10px] font-bold">{tutorial.profiles?.full_name?.[0]}</span>
                             </div>
                           )}
-                          <span className="truncate text-slate-500">
-                            Por {tutorial.profiles?.full_name} em {new Date(tutorial.created_at).toLocaleDateString()}
-                          </span>
+                          {(() => {
+                            const isEdited = tutorial.updated_at && (
+                              new Date(tutorial.updated_at).getTime() - new Date(tutorial.created_at).getTime() > 5000
+                            );
+                            const createdDateStr = new Date(tutorial.created_at).toLocaleDateString('pt-BR');
+                            const updatedDateStr = isEdited ? new Date(tutorial.updated_at).toLocaleDateString('pt-BR') : null;
+
+                            return (
+                              <div className="flex flex-col min-w-0">
+                                <span className="truncate text-slate-500 text-xs font-medium">
+                                  Por {tutorial.profiles?.full_name || 'Usuário'} em {createdDateStr}
+                                </span>
+                                {updatedDateStr && (
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal truncate">
+                                    Atualizado em {updatedDateStr}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         <div className="flex gap-2">

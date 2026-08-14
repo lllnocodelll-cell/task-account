@@ -1553,6 +1553,8 @@ export type Database = {
           responsible: string | null
           sector: string | null
           selected_annexes: string[] | null
+          completed_at: string | null
+          started_at: string | null
           status: string
           task_name: string
           tax_regime: string | null
@@ -1563,6 +1565,7 @@ export type Database = {
           client_id?: string | null
           client_name: string
           competence: string
+          completed_at?: string | null
           created_at?: string
           due_date?: string | null
           exceeded_sublimit?: boolean | null
@@ -1579,6 +1582,7 @@ export type Database = {
           responsible?: string | null
           sector?: string | null
           selected_annexes?: string[] | null
+          started_at?: string | null
           status: string
           task_name: string
           tax_regime?: string | null
@@ -1589,6 +1593,7 @@ export type Database = {
           client_id?: string | null
           client_name?: string
           competence?: string
+          completed_at?: string | null
           created_at?: string
           due_date?: string | null
           exceeded_sublimit?: boolean | null
@@ -1605,6 +1610,7 @@ export type Database = {
           responsible?: string | null
           sector?: string | null
           selected_annexes?: string[] | null
+          started_at?: string | null
           status?: string
           task_name?: string
           tax_regime?: string | null

@@ -28,7 +28,8 @@ import {
     BookOpen,
     Receipt,
     Star,
-    ChevronDown
+    ChevronDown,
+    AlertTriangle
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -2769,36 +2770,94 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     </div>
                 </div>
             </Modal>
-            <ConfirmModal
+            <Modal
                 isOpen={showInactivateModal}
                 onClose={() => {
                     setShowInactivateModal(false);
-                    setInactivateConfirmed(true);
-                    setTimeout(() => {
-                        handleSave();
-                    }, 50);
+                    setInactivateConfirmed(false);
+                    setLoading(false);
                 }}
-                onConfirm={async () => {
-                    setShowInactivateModal(false);
-                    setInactivateConfirmed(true);
-                    if (initialData?.id) {
-                        try {
-                            const { data: cancelledCount } = await supabase.rpc('cancel_inactivated_client_tasks', { p_client_id: initialData.id });
-                            showNotify(`Cliente inativado. ${cancelledCount || 0} tarefas pendentes futuras foram canceladas.`, 'info');
-                        } catch (err) {
-                            console.error('Erro ao cancelar tarefas:', err);
-                        }
-                    }
-                    setTimeout(() => {
-                        handleSave();
-                    }, 50);
-                }}
-                title="Inativar Cliente"
-                message="Este cliente está sendo alterado para Inativo. Deseja cancelar e excluir automaticamente todas as tarefas pendentes futuras deste cliente?"
-                confirmText="Sim, cancelar tarefas futuras"
-                cancelText="Não, manter tarefas atuais"
-                type="warning"
-            />
+                title={
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-base">
+                        <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500" />
+                        <span>Confirmar Inativação de Cliente</span>
+                    </div>
+                }
+                size="lg"
+                footer={
+                    <div className="flex flex-col sm:flex-row gap-2 w-full justify-between items-center">
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                setShowInactivateModal(false);
+                                setInactivateConfirmed(false);
+                                setLoading(false);
+                            }}
+                            className="order-3 sm:order-1 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
+                        >
+                            Cancelar Inativação
+                        </Button>
+                        <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2 w-full sm:w-auto">
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    setShowInactivateModal(false);
+                                    setInactivateConfirmed(true);
+                                    setTimeout(() => {
+                                        handleSave();
+                                    }, 50);
+                                }}
+                                className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold"
+                            >
+                                Manter tarefas e inativar
+                            </Button>
+                            <Button
+                                variant="danger"
+                                onClick={async () => {
+                                    setShowInactivateModal(false);
+                                    setInactivateConfirmed(true);
+                                    if (initialData?.id) {
+                                        try {
+                                            const { data: cancelledCount } = await supabase.rpc('cancel_inactivated_client_tasks', { p_client_id: initialData.id });
+                                            showNotify(`Cliente inativado. ${cancelledCount || 0} tarefas pendentes futuras foram canceladas.`, 'info');
+                                        } catch (err) {
+                                            console.error('Erro ao cancelar tarefas:', err);
+                                        }
+                                    }
+                                    setTimeout(() => {
+                                        handleSave();
+                                    }, 50);
+                                }}
+                                className="shadow-lg shadow-rose-500/20 dark:shadow-rose-900/20 font-semibold"
+                            >
+                                Cancelar tarefas futuras e inativar
+                            </Button>
+                        </div>
+                    </div>
+                }
+            >
+                <div className="flex flex-col items-center text-center py-2 space-y-4">
+                    <div className="w-14 h-14 bg-amber-50 dark:bg-amber-500/10 rounded-full flex items-center justify-center mb-1">
+                        <AlertTriangle className="w-7 h-7 text-amber-500" />
+                    </div>
+                    <div className="space-y-1">
+                        <h3 className="text-base font-bold text-slate-800 dark:text-white">
+                            Você está alterando a situação do cliente <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{formData.companyName || formData.tradeName}</span> para <span className="text-rose-600 dark:text-rose-400 font-bold">Inativo</span>.
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg mx-auto">
+                            Como deseja proceder com as tarefas deste cliente? Escolha uma das opções abaixo ou cancele para anular a alteração.
+                        </p>
+                    </div>
+                    <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs text-amber-800 dark:text-amber-300 text-left w-full max-w-lg space-y-1.5">
+                        <p className="font-semibold text-amber-900 dark:text-amber-200">Opções disponíveis:</p>
+                        <ul className="list-disc list-inside space-y-1 text-slate-600 dark:text-slate-300">
+                            <li><strong className="text-rose-600 dark:text-rose-400">Cancelar tarefas futuras e inativar:</strong> Altera a situação para Inativo e exclui automaticamente as tarefas pendentes futuras.</li>
+                            <li><strong className="text-amber-700 dark:text-amber-300">Manter tarefas e inativar:</strong> Altera a situação para Inativo preservando todas as tarefas já existentes.</li>
+                            <li><strong className="text-slate-700 dark:text-slate-200">Cancelar Inativação:</strong> Anula esta operação e mantém o formulário aberto sem realizar nenhuma alteração no cliente.</li>
+                        </ul>
+                    </div>
+                </div>
+            </Modal>
 
             <Notification
                 show={notification.show}
