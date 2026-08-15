@@ -134,6 +134,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     // Inactivation Modal State
     const [showInactivateModal, setShowInactivateModal] = useState(false);
     const [inactivateConfirmed, setInactivateConfirmed] = useState(false);
+    const [futureTasksCount, setFutureTasksCount] = useState<number>(0);
     const segmentButtonRef = useRef<HTMLButtonElement>(null);
     const [segmentPos, setSegmentPos] = useState({ top: 0, left: 0, width: 0 });
 
@@ -178,6 +179,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         fetchSegments();
 
         const loadInitialData = async () => {
+            setInactivateConfirmed(false);
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
@@ -498,7 +500,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         listSetter(newList);
     };
 
-    const handleSave = async () => {
+    const handleSave = async (bypassInactivateCheck: boolean = false) => {
         try {
             if (!formData.document) {
                 return showNotify('O campo Documento (CPF/CNPJ) é obrigatório.', 'warning');
@@ -556,11 +558,27 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                 }
             }
 
-            // Se o cliente era Ativo e foi alterado para Inativo, solicitar confirmação para cancelar tarefas futuras
-            if (initialData?.id && initialData.status === 'Ativo' && formData.status === 'Inativo' && !inactivateConfirmed) {
-                setLoading(false);
-                setShowInactivateModal(true);
-                return;
+            // Se a situação foi alterada para Inativo, verificar se o cliente possui tarefas abertas vinculadas
+            if (!bypassInactivateCheck && initialData?.id && formData.status === 'Inativo') {
+                try {
+                    const { data: openTasks, error: tasksErr } = await (supabase.from('tasks') as any)
+                        .select('id, task_name, due_date, competence, status')
+                        .eq('client_id', initialData.id)
+                        .neq('status', 'Concluída');
+
+                    if (tasksErr) {
+                        console.error('Erro ao consultar tarefas do cliente:', tasksErr);
+                    }
+
+                    if (openTasks && openTasks.length > 0) {
+                        setFutureTasksCount(openTasks.length);
+                        setLoading(false);
+                        setShowInactivateModal(true);
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Erro na checagem de tarefas para inativação:', err);
+                }
             }
 
             const clientData = {
@@ -747,7 +765,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             Editar
                         </Button>
                     ) : (
-                        <Button icon={loading ? <Loader2 className="animate-spin" /> : <Save size={18} />} onClick={handleSave} disabled={loading}>
+                        <Button icon={loading ? <Loader2 className="animate-spin" /> : <Save size={18} />} onClick={() => handleSave(false)} disabled={loading}>
                             {isEditing ? 'Salvar Alterações' : 'Criar Cliente'}
                         </Button>
                     )}
@@ -819,7 +837,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             </button>
                             <button
                                 type="button"
-                                onClick={() => !readOnly && setFormData({ ...formData, status: 'Inativo' })}
+                                onClick={() => {
+                                    if (!readOnly) {
+                                        setInactivateConfirmed(false);
+                                        setFormData({ ...formData, status: 'Inativo' });
+                                    }
+                                }}
                                 className={`flex-1 rounded text-xs font-medium transition-colors ${formData.status === 'Inativo' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'} ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}
                                 disabled={readOnly}
                             >
@@ -952,7 +975,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Input type="date" label="Data de Const." value={formData.constitution_date} onChange={e => setFormData({ ...formData, constitution_date: e.target.value })} disabled={readOnly} />
+                        <Input type="date" label="Data de Constituição" value={formData.constitution_date} onChange={e => setFormData({ ...formData, constitution_date: e.target.value })} disabled={readOnly} />
                         <Input type="date" label="Data Entrada" value={formData.entry_date} onChange={e => setFormData({ ...formData, entry_date: e.target.value })} disabled={readOnly} />
                         <Input type="date" label="Data Saída" value={formData.exit_date} onChange={e => setFormData({ ...formData, exit_date: e.target.value })} disabled={readOnly} />
                     </div>
@@ -1166,25 +1189,29 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </div>
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1">
-                                                            <button 
-                                                                onClick={() => { 
-                                                                    setTempInscription(item); 
-                                                                    setOtherInscriptionType(!['Municipal', 'Estadual', 'Suframa', 'Nire'].includes(item.type)); 
-                                                                    setEditingIndex(index);
-                                                                    setIsFormExpanded(true);
-                                                                }} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                title="Editar"
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleRemoveItem(setInscriptions, inscriptions, index, 'client_inscriptions')} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                title="Remover"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
+                                                            <Tooltip content="Editar" position="top">
+                                                                <button 
+                                                                    onClick={() => { 
+                                                                        setTempInscription(item); 
+                                                                        setOtherInscriptionType(!['Municipal', 'Estadual', 'Suframa', 'Nire'].includes(item.type)); 
+                                                                        setEditingIndex(index);
+                                                                        setIsFormExpanded(true);
+                                                                    }} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                    title="Editar"
+                                                                >
+                                                                    <Pencil size={14} />
+                                                                </button>
+                                                            </Tooltip>
+                                                            <Tooltip content="Remover" position="top">
+                                                                <button 
+                                                                    onClick={() => handleRemoveItem(setInscriptions, inscriptions, index, 'client_inscriptions')} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                    title="Remover"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </Tooltip>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1325,20 +1352,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </div>
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1">
-                                                            <button 
-                                                                onClick={() => { setTempContact(item); setEditingIndex(index); setIsFormExpanded(true); }} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                title="Editar"
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleRemoveItem(setContacts, contacts, index, 'client_contacts')} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                title="Remover"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
+                                                            <Tooltip content="Editar" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => { setTempContact(item); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                >
+                                                                    <Pencil size={14} />
+                                                                </button>
+                                                            </Tooltip>
+                                                            <Tooltip content="Remover" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveItem(setContacts, contacts, index, 'client_contacts')} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </Tooltip>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1446,13 +1477,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
-                                        label="Início em"
+                                        label="Início em:"
                                         type="date"
                                         value={tempRegime.start_date}
                                         onChange={e => setTempRegime({ ...tempRegime, start_date: e.target.value })}
                                     />
                                     <Input
-                                        label="Saída em"
+                                        label="Saída em:"
                                         type="date"
                                         value={tempRegime.end_date}
                                         onChange={e => setTempRegime({ ...tempRegime, end_date: e.target.value })}
@@ -1501,20 +1532,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </div>
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1">
-                                                            <button 
-                                                                onClick={() => { setTempRegime(item); setEditingIndex(index); setIsFormExpanded(true); }} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                title="Editar"
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleRemoveItem(setTaxRegimes, taxRegimes, index, 'client_tax_regime_history')} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                title="Remover"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
+                                                            <Tooltip content="Editar" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => { setTempRegime(item); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                >
+                                                                    <Pencil size={14} />
+                                                                </button>
+                                                            </Tooltip>
+                                                            <Tooltip content="Remover" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveItem(setTaxRegimes, taxRegimes, index, 'client_tax_regime_history')} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </Tooltip>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1528,11 +1563,11 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </div>
                                                     <div className="flex flex-col gap-3 flex-1">
                                                         <div className="flex flex-col">
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Início em</span>
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Início em:</span>
                                                             <span className="text-xs font-black text-slate-700 dark:text-slate-200">{item.start_date || 'N/A'}</span>
                                                         </div>
                                                         <div className="flex flex-col">
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Saída em</span>
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Saída em:</span>
                                                             <span className={`text-xs font-black ${item.end_date ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400 italic font-medium'}`}>
                                                                 {item.end_date || 'Vigente'}
                                                             </span>
@@ -1627,10 +1662,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             setTempActivity({ ...tempActivity, cnae_code: v });
                                         }}
                                     />
-                                    <Input
+                                    <Textarea
                                         label="Descrição do CNAE"
-                                        placeholder="Contabilidade"
+                                        placeholder="Contabilidade e serviços correlatos..."
                                         containerClassName="md:col-span-8"
+                                        className="h-[40px] min-h-[40px] py-2 resize-y"
+                                        rows={1}
                                         value={tempActivity.cnae_description}
                                         onChange={e => setTempActivity({ ...tempActivity, cnae_description: e.target.value })}
                                     />
@@ -1670,20 +1707,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         </div>
                                                         {!readOnly && (
                                                             <div className="flex items-center gap-1">
-                                                                <button 
-                                                                    onClick={() => { setTempActivity(item); setEditingIndex(originalIndex); setIsFormExpanded(true); }} 
-                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                    title="Editar"
-                                                                >
-                                                                    <Pencil size={14} />
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleRemoveItem(setActivities, activities, originalIndex, 'client_activities')} 
-                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                    title="Remover"
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
+                                                                <Tooltip content="Editar" position="top">
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => { setTempActivity(item); setEditingIndex(originalIndex); setIsFormExpanded(true); }} 
+                                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                    >
+                                                                        <Pencil size={14} />
+                                                                    </button>
+                                                                </Tooltip>
+                                                                <Tooltip content="Remover" position="top">
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleRemoveItem(setActivities, activities, originalIndex, 'client_activities')} 
+                                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </Tooltip>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1757,14 +1798,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
-                                        label="Nome do Acesso"
+                                        label="Nome do acesso"
                                         placeholder="Empregador web"
                                         containerClassName="lg:col-span-1"
                                         value={tempAccess.access_name}
                                         onChange={e => setTempAccess({ ...tempAccess, access_name: e.target.value })}
                                     />
                                     <Select
-                                        label="Setor do Acesso"
+                                        label="Setor do acesso"
                                         value={tempAccess.sector || ''}
                                         onChange={e => setTempAccess({ ...tempAccess, sector: e.target.value })}
                                         options={[
@@ -1784,7 +1825,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     />
                                     <div className="flex flex-col gap-1.5">
                                         <div className="flex items-center h-5">
-                                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Link de Acesso</label>
+                                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Link de acesso</label>
                                         </div>
                                         <div className="flex gap-2">
                                             <input
@@ -1836,20 +1877,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </div>
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1 shrink-0 ml-2">
-                                                            <button 
-                                                                onClick={() => { setTempAccess(item); setEditingIndex(index); setIsFormExpanded(true); }} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                title="Editar"
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleRemoveItem(setAccesses, accesses, index, 'client_accesses')} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                title="Remover"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
+                                                            <Tooltip content="Editar" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => { setTempAccess(item); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                >
+                                                                    <Pencil size={14} />
+                                                                </button>
+                                                            </Tooltip>
+                                                            <Tooltip content="Remover" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveItem(setAccesses, accesses, index, 'client_accesses')} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </Tooltip>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1992,13 +2037,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             ]}
                                         />
                                         <Input
-                                            label="Expira em"
+                                            label="Expira em:"
                                             type="date"
                                             value={tempCertificate.expiration_date || tempCertificate.expires_at || ''}
                                             onChange={e => setTempCertificate({ ...tempCertificate, expiration_date: e.target.value, expires_at: e.target.value })}
                                         />
                                         <Input
-                                            label="Senha (Visível)"
+                                            label="Senha PIN"
                                             type="text"
                                             value={tempCertificate.password || ''}
                                             onChange={e => setTempCertificate({ ...tempCertificate, password: e.target.value })}
@@ -2058,20 +2103,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         </div>
                                                         {!readOnly && (
                                                             <div className="flex items-center gap-1">
-                                                                <button 
-                                                                    onClick={() => { setTempCertificate({ ...item, expiration_date: item.expiration_date || item.expires_at }); setEditingIndex(index); setIsFormExpanded(true); }} 
-                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                    title="Editar"
-                                                                >
-                                                                    <Pencil size={14} />
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleRemoveItem(setCertificates, certificates, index, 'client_certificates')} 
-                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                    title="Remover"
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
+                                                                <Tooltip content="Editar" position="top">
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => { setTempCertificate({ ...item, expiration_date: item.expiration_date || item.expires_at }); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                    >
+                                                                        <Pencil size={14} />
+                                                                    </button>
+                                                                </Tooltip>
+                                                                <Tooltip content="Remover" position="top">
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleRemoveItem(setCertificates, certificates, index, 'client_certificates')} 
+                                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </Tooltip>
                                                             </div>
                                                         )}
                                                     </div>
@@ -2182,7 +2231,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     />
                                     <div className="flex flex-col gap-1.5">
                                         <div className="flex items-center h-5">
-                                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Link de Acesso</label>
+                                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Link de acesso</label>
                                         </div>
                                         <div className="flex gap-2">
                                             <input
@@ -2237,25 +2286,29 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                                 {item.license_name}
                                                             </h5>
                                                             <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                                                Licença / Alvará
+                                                                Dados do Registro
                                                             </span>
                                                         </div>
                                                         {!readOnly && (
                                                             <div className="flex items-center gap-1 shrink-0 ml-2">
-                                                                <button 
-                                                                    onClick={() => { setTempLicense({ ...item, expiration_date: item.expiration_date || item.expiry_date, number: item.number || item.license_number }); setEditingIndex(index); setIsFormExpanded(true); }} 
-                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                    title="Editar"
-                                                                >
-                                                                    <Pencil size={14} />
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleRemoveItem(setLicenses, licenses, index, 'client_licenses')} 
-                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                    title="Remover"
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
+                                                                <Tooltip content="Editar" position="top">
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => { setTempLicense({ ...item, expiration_date: item.expiration_date || item.expiry_date, number: item.number || item.license_number }); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                    >
+                                                                        <Pencil size={14} />
+                                                                    </button>
+                                                                </Tooltip>
+                                                                <Tooltip content="Remover" position="top">
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleRemoveItem(setLicenses, licenses, index, 'client_licenses')} 
+                                                                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </Tooltip>
                                                             </div>
                                                         )}
                                                     </div>
@@ -2412,20 +2465,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </div>
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1 shrink-0 ml-2">
-                                                            <button 
-                                                                onClick={() => { setTempLegislation(item); setEditingIndex(index); setIsFormExpanded(true); }} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                title="Editar"
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleRemoveItem(setLegislations, legislations, index, 'client_legislations')} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                title="Remover"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
+                                                            <Tooltip content="Editar" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => { setTempLegislation(item); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                >
+                                                                    <Pencil size={14} />
+                                                                </button>
+                                                            </Tooltip>
+                                                            <Tooltip content="Remover" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveItem(setLegislations, legislations, index, 'client_legislations')} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </Tooltip>
                                                         </div>
                                                     )}
                                                 </div>
@@ -2523,22 +2580,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                 { id: 'NF-e ABI', title: 'Nota Fiscal Eletrônica de Alienação de Bens Imóveis - Mod: 77' },
                                                 { id: 'NFGas', title: 'Nota Fiscal Eletrônica do Gás - Mod: 76' }
                                             ].map((dfe) => (
-                                                <button
-                                                    key={dfe.id}
-                                                    type="button"
-                                                    onClick={() => setTempDfeSerie({ ...tempDfeSerie, dfe_type: dfe.id })}
-                                                    className={`group relative py-1.5 px-3 rounded text-[10px] font-bold transition-all border ${tempDfeSerie.dfe_type === dfe.id
-                                                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 shadow-sm'
-                                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                                        }`}
-                                                >
-                                                    {dfe.id}
-                                                    
-                                                    {/* Tooltip CSS Customizado */}
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
-                                                        {dfe.title}
-                                                    </div>
-                                                </button>
+                                                <Tooltip key={dfe.id} content={dfe.title} position="top">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTempDfeSerie({ ...tempDfeSerie, dfe_type: dfe.id })}
+                                                        className={`py-1.5 px-3 rounded text-[10px] font-bold transition-all border ${tempDfeSerie.dfe_type === dfe.id
+                                                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 shadow-sm'
+                                                            : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                                            }`}
+                                                    >
+                                                        {dfe.id}
+                                                    </button>
+                                                </Tooltip>
                                             ))}
                                         </div>
                                     </div>
@@ -2623,20 +2676,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                     </div>
                                                     {!readOnly && (
                                                         <div className="flex items-center gap-1 shrink-0 ml-2">
-                                                            <button 
-                                                                onClick={() => { setTempDfeSerie(item); setEditingIndex(index); setIsFormExpanded(true); }} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
-                                                                title="Editar"
-                                                            >
-                                                                <Pencil size={14} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleRemoveItem(setDfeSeries, dfeSeries, index, 'client_dfe_series')} 
-                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                                title="Remover"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
+                                                            <Tooltip content="Editar" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => { setTempDfeSerie(item); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
+                                                                >
+                                                                    <Pencil size={14} />
+                                                                </button>
+                                                            </Tooltip>
+                                                            <Tooltip content="Remover" position="top">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveItem(setDfeSeries, dfeSeries, index, 'client_dfe_series')} 
+                                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </Tooltip>
                                                         </div>
                                                     )}
                                                 </div>
@@ -2800,12 +2857,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                         <div className="flex flex-col sm:flex-row gap-2 order-1 sm:order-2 w-full sm:w-auto">
                             <Button
                                 variant="secondary"
-                                onClick={() => {
+                                onClick={async () => {
                                     setShowInactivateModal(false);
                                     setInactivateConfirmed(true);
-                                    setTimeout(() => {
-                                        handleSave();
-                                    }, 50);
+                                    await handleSave(true);
                                 }}
                                 className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold"
                             >
@@ -2815,18 +2870,21 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 variant="danger"
                                 onClick={async () => {
                                     setShowInactivateModal(false);
-                                    setInactivateConfirmed(true);
                                     if (initialData?.id) {
                                         try {
-                                            const { data: cancelledCount } = await supabase.rpc('cancel_inactivated_client_tasks', { p_client_id: initialData.id });
-                                            showNotify(`Cliente inativado. ${cancelledCount || 0} tarefas pendentes futuras foram canceladas.`, 'info');
+                                            const { data: deleted, error: delErr } = await (supabase.from('tasks') as any)
+                                                .delete()
+                                                .eq('client_id', initialData.id)
+                                                .neq('status', 'Concluída')
+                                                .select('id');
+
+                                            const count = deleted?.length || futureTasksCount || 0;
+                                            showNotify(`Cliente inativado. ${count} tarefa(s) cancelada(s) e excluída(s) com sucesso.`, 'info');
                                         } catch (err) {
                                             console.error('Erro ao cancelar tarefas:', err);
                                         }
                                     }
-                                    setTimeout(() => {
-                                        handleSave();
-                                    }, 50);
+                                    await handleSave(true);
                                 }}
                                 className="shadow-lg shadow-rose-500/20 dark:shadow-rose-900/20 font-semibold"
                             >
@@ -2845,7 +2903,11 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             Você está alterando a situação do cliente <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{formData.companyName || formData.tradeName}</span> para <span className="text-rose-600 dark:text-rose-400 font-bold">Inativo</span>.
                         </h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg mx-auto">
-                            Como deseja proceder com as tarefas deste cliente? Escolha uma das opções abaixo ou cancele para anular a alteração.
+                            {futureTasksCount > 0 ? (
+                                <>Este cliente possui <span className="font-bold text-rose-600 dark:text-rose-400">{futureTasksCount} {futureTasksCount === 1 ? 'tarefa futura pendente' : 'tarefas futuras pendentes'}</span> a partir da data de inativação. Como deseja proceder?</>
+                            ) : (
+                                <>Como deseja proceder com as tarefas deste cliente? Escolha uma das opções abaixo ou cancele para anular a alteração.</>
+                            )}
                         </p>
                     </div>
                     <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs text-amber-800 dark:text-amber-300 text-left w-full max-w-lg space-y-1.5">

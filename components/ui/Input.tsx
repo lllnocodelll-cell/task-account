@@ -169,18 +169,20 @@ export const Textarea: React.FC<TextareaProps> = ({
   containerClassName = '',
   ...props
 }) => {
+  const hasCustomMinHeight = className.includes('min-h-');
   return (
     <div className={`flex flex-col gap-1.5 ${containerClassName}`}>
       {label && <label className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</label>}
       {props.disabled ? (
-        <div className="relative group flex items-start min-h-[80px] px-3 py-2 bg-slate-50/50 dark:bg-slate-800/30 rounded-lg border border-slate-100 dark:border-slate-800/50">
+        <div className={`relative group flex items-start px-3 py-2 bg-slate-50/50 dark:bg-slate-800/30 rounded-lg border border-slate-100 dark:border-slate-800/50 ${hasCustomMinHeight ? '' : 'min-h-[80px]'}`}>
           <span className="text-sm font-medium text-slate-900 dark:text-slate-100 break-words whitespace-pre-wrap">
             {props.value || '-'}
           </span>
         </div>
       ) : (
         <textarea
-          className={`w-full min-h-[80px] rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-y
+          className={`w-full rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-y
+            ${hasCustomMinHeight ? '' : 'min-h-[80px]'}
             ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}
             ${className}
           `}

@@ -30,7 +30,10 @@ import {
     Table as TableIcon,
     ScanEye,
     SlidersHorizontal,
-    BarChart2
+    BarChart2,
+    ShieldAlert,
+    AlertTriangle,
+    Smartphone
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -191,6 +194,13 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     const showNotify = (message: string, type: NotificationType = 'info') => {
         setNotification({ show: true, message, type });
     };
+
+    const handleCopyData = (text: string | undefined | null, label: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        showNotify(`${label} copiado para a área de transferência!`, 'success');
+    };
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
     const [clientForDetails, setClientForDetails] = useState<Client | null>(null);
@@ -198,6 +208,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     // Deletion Modal State
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const [deleteModalState, setDeleteModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
+    const [dependencyCount, setDependencyCount] = useState<number>(0);
 
     // Filter Values State
     const [filters, setFilters] = useState({
@@ -385,28 +396,38 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     const initDeleteClient = async (client: Client) => {
         setClientToDelete(client);
         setDeleteModalState('checking');
+        setDependencyCount(0);
 
         try {
-            // Verifica se o cliente possui tarefas na base
-            const { count, error } = await supabase
-                .from('tasks')
-                .select('*', { count: 'exact', head: true })
-                .eq('client_id', client.id);
+            // Verifica se o cliente possui dependências em todas as tabelas vinculadas
+            const [
+                { count: tasksCount },
+                { count: certsCount },
+                { count: dfesCount },
+                { count: accessesCount },
+                { count: docsCount },
+                { count: chatsCount }
+            ] = await Promise.all([
+                (supabase.from('tasks' as any) as any).select('*', { count: 'exact', head: true }).eq('client_id', client.id),
+                (supabase.from('client_certificates' as any) as any).select('*', { count: 'exact', head: true }).eq('client_id', client.id),
+                (supabase.from('client_dfes' as any) as any).select('*', { count: 'exact', head: true }).eq('client_id', client.id),
+                (supabase.from('client_accesses' as any) as any).select('*', { count: 'exact', head: true }).eq('client_id', client.id),
+                (supabase.from('client_documents' as any) as any).select('*', { count: 'exact', head: true }).eq('client_id', client.id),
+                (supabase.from('chat_channels' as any) as any).select('*', { count: 'exact', head: true }).eq('client_id', client.id)
+            ]);
 
-            if (error) {
-                console.error("Erro ao verificar tarefas:", error);
-                setDeleteModalState('closed');
-                showNotify("Erro ao verificar dependências do cliente.", "error");
-                return;
-            }
+            const totalDependencies = (tasksCount || 0) + (certsCount || 0) + (dfesCount || 0) + (accessesCount || 0) + (docsCount || 0) + (chatsCount || 0);
 
-            if (count && count > 0) {
+            setDependencyCount(totalDependencies);
+
+            if (totalDependencies > 0) {
                 setDeleteModalState('cannot_delete');
             } else {
                 setDeleteModalState('can_delete');
             }
         } catch (error) {
-            console.error("Erro desconhecido:", error);
+            console.error("Erro ao verificar dependências do cliente:", error);
+            showNotify("Erro ao verificar dependências do cliente.", "error");
             setDeleteModalState('closed');
         }
     };
@@ -417,13 +438,12 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
         setDeleteModalState('deleting');
 
         try {
-            // Exclui contatos primeiro (caso existam e não tenham ON DELETE CASCADE)
-            await supabase
-                .from('client_contacts')
+            // Exclui contatos primeiro (caso existam)
+            await (supabase.from('client_contacts' as any) as any)
                 .delete()
                 .eq('client_id', clientToDelete.id);
 
-            // Exclui o cliente
+            // Exclui o cliente sem dependências
             const { error } = await supabase
                 .from('clients')
                 .delete()
@@ -433,10 +453,11 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
             // Remove o cliente da lista local
             setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
+            showNotify(`Cliente ${clientToDelete.companyName} excluído com sucesso!`, "success");
 
         } catch (err: any) {
             console.error("Erro ao excluir cliente:", err);
-            showNotify("Ocorreu um erro ao excluir o cliente. Verifique o console.", "error");
+            showNotify("Ocorreu um erro ao excluir o cliente.", "error");
         } finally {
             setDeleteModalState('closed');
             setClientToDelete(null);
@@ -915,21 +936,97 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             <tr key={client.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                                 <td className="px-6 py-4 font-mono text-slate-500">{client.code}</td>
                                                 <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                                                    <div className="flex flex-col">
-                                                        <span className={isAllUppercase(client.companyName || '') ? "text-[11px] tracking-wide" : ""}>{client.companyName}</span>
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span 
+                                                                onClick={(e) => handleCopyData(client.companyName, 'Razão Social', e)}
+                                                                className={`group/copy inline-flex items-center gap-1.5 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${isAllUppercase(client.companyName || '') ? "text-[11px] tracking-wide" : ""}`}
+                                                                title="Clique para copiar a Razão Social"
+                                                            >
+                                                                <span>{client.companyName}</span>
+                                                                <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                            </span>
+                                                            <span className={`text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded border shadow-2xs shrink-0 ${
+                                                                (client.establishment_type || 'Matriz').toLowerCase() === 'filial'
+                                                                    ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-500/30'
+                                                                    : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-500/30'
+                                                            }`}>
+                                                                {client.establishment_type || 'Matriz'}
+                                                            </span>
+                                                        </div>
                                                         {(client.city || client.state) && (
-                                                            <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-                                                                <MapPin size={10} className="text-slate-400" />
+                                                            <div 
+                                                                onClick={(e) => handleCopyData(`${client.city || ''}${client.city && client.state ? ', ' : ''}${client.state || ''}`, 'Localização', e)}
+                                                                className="group/copy inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                                title="Clique para copiar a Localização"
+                                                            >
+                                                                <MapPin size={10} className="text-slate-400 shrink-0" />
                                                                 <span>{client.city}{client.city && client.state ? ', ' : ''}{client.state}</span>
+                                                                <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                                                             </div>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-[11px]">{client.document}</td>
-                                                <td className="px-6 py-4">{client.contactName}</td>
-                                                <td className="px-6 py-4 text-[11px]">{client.phoneFixed}</td>
-                                                <td className="px-6 py-4 text-[11px]">{client.phoneMobile}</td>
-                                                <td className="px-6 py-4">{client.email}</td>
+                                                <td 
+                                                    onClick={(e) => client.document && handleCopyData(client.document, 'CPF/CNPJ', e)}
+                                                    className={`px-6 py-4 text-[11px] ${client.document ? 'cursor-pointer group/copy' : ''}`}
+                                                    title={client.document ? "Clique para copiar CPF/CNPJ" : ""}
+                                                >
+                                                    {client.document ? (
+                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
+                                                            <span>{client.document}</span>
+                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td 
+                                                    onClick={(e) => client.contactName && handleCopyData(client.contactName, 'Nome do contato', e)}
+                                                    className={`px-6 py-4 text-[11px] ${client.contactName ? 'cursor-pointer group/copy' : ''}`}
+                                                    title={client.contactName ? "Clique para copiar contato" : ""}
+                                                >
+                                                    {client.contactName ? (
+                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
+                                                            <span>{client.contactName}</span>
+                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td 
+                                                    onClick={(e) => client.phoneFixed && handleCopyData(client.phoneFixed, 'Telefone fixo', e)}
+                                                    className={`px-6 py-4 text-[11px] ${client.phoneFixed ? 'cursor-pointer group/copy' : ''}`}
+                                                    title={client.phoneFixed ? "Clique para copiar telefone fixo" : ""}
+                                                >
+                                                    {client.phoneFixed ? (
+                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
+                                                            <span>{client.phoneFixed}</span>
+                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td 
+                                                    onClick={(e) => client.phoneMobile && handleCopyData(client.phoneMobile, 'Celular', e)}
+                                                    className={`px-6 py-4 text-[11px] ${client.phoneMobile ? 'cursor-pointer group/copy' : ''}`}
+                                                    title={client.phoneMobile ? "Clique para copiar celular" : ""}
+                                                >
+                                                    {client.phoneMobile ? (
+                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
+                                                            <span>{client.phoneMobile}</span>
+                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td 
+                                                    onClick={(e) => client.email && handleCopyData(client.email, 'E-mail', e)}
+                                                    className={`px-6 py-4 text-[11px] ${client.email ? 'cursor-pointer group/copy' : ''}`}
+                                                    title={client.email ? "Clique para copiar e-mail" : ""}
+                                                >
+                                                    {client.email ? (
+                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors truncate max-w-[220px]">
+                                                            <span className="truncate">{client.email}</span>
+                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
                                                 <td className="px-6 py-4 relative">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
                                                         {client.status}
@@ -994,13 +1091,23 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             </span>
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <h3 className={`font-extrabold text-slate-800 dark:text-white line-clamp-2 leading-tight ${isAllUppercase(client.companyName || '') ? 'text-[11px] tracking-wide' : 'text-[13px]'}`}>
-                                                {client.companyName}
+                                            <h3 
+                                                onClick={(e) => handleCopyData(client.companyName, 'Razão Social', e)}
+                                                title="Clique para copiar Razão Social"
+                                                className={`group/copy font-extrabold text-slate-800 dark:text-white line-clamp-2 leading-tight cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors inline-flex items-center gap-1.5 ${isAllUppercase(client.companyName || '') ? 'text-[11px] tracking-wide' : 'text-[13px]'}`}
+                                            >
+                                                <span>{client.companyName}</span>
+                                                <Copy size={11} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                                             </h3>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-xs font-mono text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1.5 shadow-sm">
+                                                <span 
+                                                    onClick={(e) => client.document && handleCopyData(client.document, 'CPF/CNPJ', e)}
+                                                    title={client.document ? "Clique para copiar CPF/CNPJ" : ""}
+                                                    className={`text-xs font-mono text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1.5 shadow-sm ${client.document ? 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 group/copy' : ''}`}
+                                                >
                                                     <FileText size={10} className="opacity-50" />
-                                                    {client.document || 'Sem Documento'}
+                                                    <span>{client.document || 'Sem Documento'}</span>
+                                                    {client.document && <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />}
                                                 </span>
                                                 <span className="text-[9px] uppercase tracking-widest font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-500/20 shadow-sm">
                                                     {client.establishment_type || 'Matriz'}
@@ -1011,21 +1118,31 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                     
                                     {/* Secao 2: Contatos */}
                                     <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-1 flex flex-col justify-center">
-                                        <h4 className="text-[9px] uppercase tracking-widest font-black text-slate-400 dark:text-slate-500 mb-2.5">Contatos</h4>
+                                        <h4 className="text-[9px] uppercase tracking-widest font-black text-slate-400 dark:text-slate-500 mb-2.5">Contato Principal</h4>
                                         
                                         <div className="flex flex-col gap-2.5">
                                             {/* Nome principal */}
                                             {client.contactName && (
-                                                <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200 font-semibold truncate leading-none">
+                                                <div 
+                                                    onClick={(e) => handleCopyData(client.contactName, 'Nome do contato', e)}
+                                                    title="Clique para copiar contato"
+                                                    className="group/copy flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200 font-semibold truncate leading-none cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                >
                                                     <User size={13} className="text-slate-400 shrink-0" />
                                                     <span className="truncate">{client.contactName}</span>
+                                                    <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                                                 </div>
                                             )}
                                             {/* E-mail */}
                                             {client.email ? (
-                                                <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-none truncate">
+                                                <div 
+                                                    onClick={(e) => handleCopyData(client.email, 'E-mail', e)}
+                                                    title="Clique para copiar e-mail"
+                                                    className="group/copy flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-none truncate cursor-pointer"
+                                                >
                                                     <Mail size={13} className="shrink-0" />
                                                     <span className="truncate tracking-wide">{client.email}</span>
+                                                    <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center gap-2 text-[11px] text-slate-300 dark:text-slate-600 italic leading-none isolate">
@@ -1037,9 +1154,14 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             {/* Telefones */}
                                             <div className="grid grid-cols-2 gap-2 mt-1">
                                                 {client.phoneFixed ? (
-                                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                    <div 
+                                                        onClick={(e) => handleCopyData(client.phoneFixed, 'Telefone fixo', e)}
+                                                        title="Clique para copiar telefone fixo"
+                                                        className="group/copy flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 transition-colors"
+                                                    >
                                                         <Phone size={11} className="text-slate-400 shrink-0" />
                                                         <span className="whitespace-nowrap tracking-tight">{client.phoneFixed}</span>
+                                                        <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                                                     </div>
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 text-[10px] text-slate-300 dark:text-slate-600 italic bg-slate-50/50 dark:bg-slate-800/20 px-2 py-1.5 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
@@ -1048,13 +1170,18 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                     </div>
                                                 )}
                                                 {client.phoneMobile ? (
-                                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                                                        <Phone size={11} className="text-slate-400 shrink-0" />
+                                                    <div 
+                                                        onClick={(e) => handleCopyData(client.phoneMobile, 'Celular', e)}
+                                                        title="Clique para copiar celular"
+                                                        className="group/copy flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 transition-colors"
+                                                    >
+                                                        <Smartphone size={11} className="text-slate-400 shrink-0" />
                                                         <span className="whitespace-nowrap tracking-tight">{client.phoneMobile}</span>
+                                                        <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                                                     </div>
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 text-[10px] text-slate-300 dark:text-slate-600 italic bg-slate-50/50 dark:bg-slate-800/20 px-2 py-1.5 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
-                                                        <Phone size={11} className="opacity-50 shrink-0" />
+                                                        <Smartphone size={11} className="opacity-50 shrink-0" />
                                                         <span>S/ Celular</span>
                                                     </div>
                                                 )}
@@ -1064,9 +1191,14 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
                                     {/* Secao 3: Localizacao e Acoes */}
                                     <div className="p-3 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row items-center justify-between gap-3 relative">
-                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase w-full sm:w-auto overflow-hidden bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded shadow-sm">
+                                        <div 
+                                            onClick={(e) => (client.city || client.state) && handleCopyData(`${client.city || ''}${client.city && client.state ? ', ' : ''}${client.state || ''}`, 'Localização', e)}
+                                            title={(client.city || client.state) ? "Clique para copiar localização" : ""}
+                                            className={`group/copy flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase w-full sm:w-auto overflow-hidden bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded shadow-sm ${(client.city || client.state) ? 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors' : ''}`}
+                                        >
                                             <MapPin size={12} className="text-indigo-400 shrink-0" />
                                             <span className="truncate">{client.city || 'N/A'}, {client.state || 'N/A'}</span>
+                                            {(client.city || client.state) && <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />}
                                         </div>
                                         
                                         <div className="flex items-center justify-end w-full sm:w-auto gap-1">
@@ -1106,7 +1238,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 )}
             </div>
 
-            {/* Modais de Exclusão */}
+            {/* Modais de Exclusão / Inativação */}
             <Modal
                 isOpen={deleteModalState !== 'closed'}
                 onClose={() => {
@@ -1114,10 +1246,30 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         setDeleteModalState('closed');
                     }
                 }}
-                title={deleteModalState === 'cannot_delete' ? "Exclusão Bloqueada" : "Confirmar Exclusão"}
+                title={deleteModalState === 'cannot_delete' ? "Exclusão Bloqueada por Segurança" : "Confirmar Exclusão"}
                 size="md"
                 footer={
-                    deleteModalState === 'can_delete' ? (
+                    deleteModalState === 'cannot_delete' ? (
+                        <>
+                            <Button variant="secondary" onClick={() => setDeleteModalState('closed')}>
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    if (clientToDelete) {
+                                        const targetClient = clientToDelete;
+                                        setDeleteModalState('closed');
+                                        setClientToDelete(null);
+                                        handleEdit(targetClient);
+                                    }
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2"
+                            >
+                                <Pencil className="w-4 h-4" />
+                                Editar Cadastro
+                            </Button>
+                        </>
+                    ) : deleteModalState === 'can_delete' ? (
                         <>
                             <Button variant="secondary" onClick={() => setDeleteModalState('closed')}>
                                 Cancelar
@@ -1127,7 +1279,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                 onClick={confirmDelete}
                                 className="bg-red-600 hover:bg-red-700 text-white"
                             >
-                                Excluir Cliente
+                                Excluir Definitivamente
                             </Button>
                         </>
                     ) : deleteModalState === 'deleting' ? (
@@ -1137,7 +1289,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         </Button>
                     ) : (
                         <Button variant="secondary" onClick={() => setDeleteModalState('closed')}>
-                            Entendi
+                            Fechar
                         </Button>
                     )
                 }
@@ -1145,36 +1297,44 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 {deleteModalState === 'checking' && (
                     <div className="flex flex-col items-center justify-center py-6 text-slate-500 dark:text-slate-400">
                         <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-600" />
-                        <p>Verificando dependências do cliente...</p>
+                        <p className="text-sm font-medium">Verificando histórico e dependências do cliente...</p>
                     </div>
                 )}
 
                 {deleteModalState === 'cannot_delete' && (
-                    <div className="py-4 text-slate-700 dark:text-slate-300">
-                        <div className="flex items-center gap-3 mb-4 text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-500/10 p-4 rounded-lg">
-                            <ListFilter className="w-6 h-6 shrink-0" />
-                            <p className="font-medium">
-                                Não é possível excluir <strong>{clientToDelete?.companyName}</strong>.
-                            </p>
+                    <div className="py-2 text-slate-700 dark:text-slate-300 space-y-4">
+                        <div className="flex items-start gap-3 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 p-4 rounded-xl border border-amber-200/80 dark:border-amber-500/20">
+                            <ShieldAlert className="w-6 h-6 shrink-0 mt-0.5" />
+                            <div>
+                                <h4 className="font-semibold text-base mb-1">
+                                    Não é possível excluir {clientToDelete?.companyName}
+                                </h4>
+                                <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                                    Este cliente possui <strong>{dependencyCount} registro(s) vinculado(s)</strong> no sistema (tarefas, histórico de conversas, certificados, acessos ou documentos).
+                                </p>
+                            </div>
                         </div>
-                        <p>
-                            Este cliente possui <strong>tarefas vinculadas</strong> no módulo de Tarefas.
-                            Para manter o histórico íntegro, a exclusão sistêmica foi bloqueada.
+                        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Para garantir a segurança fiscal e a auditabilidade do escritório, o sistema impede a exclusão permanente de cadastros com histórico.
                         </p>
-                        <p className="mt-4 text-sm text-slate-500">
-                            Caso ele não seja mais um cliente ativo, recomendamos alterar a Situação dele para <strong>Inativo</strong> através da edição.
-                        </p>
+                        <div className="bg-slate-100 dark:bg-slate-800/60 p-3.5 rounded-lg text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                            <Pencil className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <span>
+                                Clique no botão <strong>editar</strong> para inativar o cadastro.
+                            </span>
+                        </div>
                     </div>
                 )}
 
                 {deleteModalState === 'can_delete' && (
-                    <div className="py-4 text-slate-700 dark:text-slate-300">
-                        <p>
+                    <div className="py-2 text-slate-700 dark:text-slate-300 space-y-3">
+                        <p className="text-sm">
                             Você tem certeza que deseja excluir permanentemente o cliente <strong>{clientToDelete?.companyName}</strong>?
                         </p>
-                        <p className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded border border-red-100 dark:border-red-900/50">
-                            Esta ação é irreversível e todos os dados de contato vinculados também serão apagados.
-                        </p>
+                        <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg border border-red-100 dark:border-red-900/50 flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            <span>Este cliente não possui nenhum histórico vinculado. A exclusão é permanente e irreversível.</span>
+                        </div>
                     </div>
                 )}
             </Modal>
