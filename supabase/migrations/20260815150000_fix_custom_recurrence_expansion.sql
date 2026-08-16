@@ -1,107 +1,7 @@
--- 1. Restrição Única de Idempotência
-CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_task_client_competence 
-ON public.tasks (client_id, task_name, competence);
+-- Migração para corrigir o motor de tarefas recorrentes:
+-- Exclui o tipo 'personalizado' da expansão contínua do ciclo de auto-cura/cron,
+-- garantindo que a quantidade de repetições configurada na criação seja rigorosamente respeitada.
 
--- 2. Tabela de Logs de Auditoria do Cron
-CREATE TABLE IF NOT EXISTS public.recurring_task_cron_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    executed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    tasks_created_count INTEGER DEFAULT 0 NOT NULL,
-    errors_count INTEGER DEFAULT 0 NOT NULL,
-    status TEXT NOT NULL DEFAULT 'success',
-    details JSONB
-);
-
-ALTER TABLE public.recurring_task_cron_logs ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Permitir leitura de logs por membros da org" ON public.recurring_task_cron_logs;
-CREATE POLICY "Permitir leitura de logs por membros da org" ON public.recurring_task_cron_logs
-    FOR SELECT USING (true);
-
--- 3. Função de Verificação de Dia Útil (Finais de semana e Feriados Nacionais/Facultativos)
-CREATE OR REPLACE FUNCTION public.is_brazilian_business_day(p_date DATE)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-IMMUTABLE
-AS $$
-DECLARE
-    v_dow INT;
-    v_mm_dd TEXT;
-BEGIN
-    IF p_date IS NULL THEN
-        RETURN false;
-    END IF;
-
-    -- 1 = Segunda, 6 = Sábado, 7 = Domingo (ISO DOW)
-    v_dow := EXTRACT(ISODOW FROM p_date);
-    IF v_dow = 6 OR v_dow = 7 THEN
-        RETURN false;
-    END IF;
-
-    v_mm_dd := to_char(p_date, 'MM-DD');
-
-    -- Feriados fixos e recorrentes comuns
-    IF v_mm_dd IN (
-        '01-01', -- Confraternização Universal
-        '02-12', -- Carnaval
-        '02-13', -- Carnaval
-        '03-29', -- Sexta-feira Santa
-        '04-21', -- Tiradentes
-        '05-01', -- Dia do Trabalho
-        '05-30', -- Corpus Christi
-        '09-07', -- Independência do Brasil
-        '10-12', -- Nossa Senhora Aparecida
-        '11-02', -- Finados
-        '11-15', -- Proclamação da República
-        '11-20', -- Consciência Negra
-        '12-25'  -- Natal
-    ) THEN
-        RETURN false;
-    END IF;
-
-    RETURN true;
-END;
-$$;
-
--- 4. Função de Ajuste da Data de Vencimento de Acordo com Regras Variáveis
-CREATE OR REPLACE FUNCTION public.calculate_adjusted_due_date(p_base_date DATE, p_rule TEXT)
-RETURNS DATE
-LANGUAGE plpgsql
-IMMUTABLE
-AS $$
-DECLARE
-    v_curr_date DATE;
-    v_direction INT := 1;
-BEGIN
-    IF p_base_date IS NULL THEN
-        RETURN NULL;
-    END IF;
-
-    IF p_rule IS NULL OR LOWER(p_rule) IN ('nao_aplica', 'none', '') THEN
-        RETURN p_base_date;
-    END IF;
-
-    v_curr_date := p_base_date;
-
-    IF public.is_brazilian_business_day(v_curr_date) THEN
-        RETURN v_curr_date;
-    END IF;
-
-    IF LOWER(p_rule) = 'antecipar' THEN
-        v_direction := -1;
-    ELSE
-        v_direction := 1; -- postergar, prorrogar, proximo_dia_util
-    END IF;
-
-    WHILE NOT public.is_brazilian_business_day(v_curr_date) LOOP
-        v_curr_date := (v_curr_date + (v_direction || ' day')::INTERVAL)::DATE;
-    END LOOP;
-
-    RETURN v_curr_date;
-END;
-$$;
-
--- 5. Função Universal para Recomposição do Ciclo de Tarefas Recorrentes
 CREATE OR REPLACE FUNCTION public.process_recurring_tasks_cycle()
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -152,6 +52,8 @@ BEGIN
     v_target_limit_comp := to_char(v_target_limit_date, 'YYYY-MM');
 
     -- Agrupar tarefas recorrentes por cliente e nome da tarefa
+    -- WHITELIST ESTRITA: Apenas tipos de repetição contínua e infinita são expandidos pelo motor.
+    -- Tipos 'personalizado', 'personalizada', 'unico', 'avulso' NUNCA são expandidos pelo cron/RPC.
     FOR t_rec IN 
         SELECT DISTINCT ON (client_id, task_name)
             t.client_id,
@@ -177,7 +79,11 @@ BEGIN
         JOIN public.clients c ON c.id = t.client_id
         WHERE c.status = 'Ativo'
         AND t.recurrence IS NOT NULL 
-        AND LOWER(t.recurrence) NOT IN ('', 'unico', 'unica', 'única', 'nao_recorre', 'none', 'personalizado')
+        AND (
+            LOWER(TRIM(t.recurrence)) IN ('mensal', 'bimestral', 'trimestral', 'semestral', 'anual')
+            OR (t.recurrence_months IS NOT NULL AND array_length(t.recurrence_months, 1) > 0)
+        )
+        AND LOWER(TRIM(t.recurrence)) NOT IN ('', 'unico', 'unica', 'única', 'nao_recorre', 'none', 'personalizado', 'personalizada', 'personalizados', 'personalizadas', 'custom', 'avulso', 'avulsa')
         ORDER BY client_id, task_name, competence DESC
     LOOP
         BEGIN
@@ -220,35 +126,35 @@ BEGIN
             -- Loop de geração até atingir a data limite do horizonte (12 meses à frente)
             LOOP
                 -- Calcular o próximo mês/ano com base no tipo de recorrência
-                IF LOWER(t_rec.recurrence) = 'mensal' THEN
+                IF LOWER(TRIM(t_rec.recurrence)) = 'mensal' THEN
                     v_next_month := v_next_month + 1;
                     IF v_next_month > 12 THEN
                         v_next_month := 1;
                         v_next_year := v_next_year + 1;
                     END IF;
 
-                ELSIF LOWER(t_rec.recurrence) = 'bimestral' THEN
+                ELSIF LOWER(TRIM(t_rec.recurrence)) = 'bimestral' THEN
                     v_next_month := v_next_month + 2;
                     IF v_next_month > 12 THEN
                         v_next_month := v_next_month - 12;
                         v_next_year := v_next_year + 1;
                     END IF;
 
-                ELSIF LOWER(t_rec.recurrence) = 'trimestral' THEN
+                ELSIF LOWER(TRIM(t_rec.recurrence)) = 'trimestral' THEN
                     v_next_month := v_next_month + 3;
                     IF v_next_month > 12 THEN
                         v_next_month := v_next_month - 12;
                         v_next_year := v_next_year + 1;
                     END IF;
 
-                ELSIF LOWER(t_rec.recurrence) = 'semestral' THEN
+                ELSIF LOWER(TRIM(t_rec.recurrence)) = 'semestral' THEN
                     v_next_month := v_next_month + 6;
                     IF v_next_month > 12 THEN
                         v_next_month := v_next_month - 12;
                         v_next_year := v_next_year + 1;
                     END IF;
 
-                ELSIF LOWER(t_rec.recurrence) = 'anual' THEN
+                ELSIF LOWER(TRIM(t_rec.recurrence)) = 'anual' THEN
                     v_next_year := v_next_year + 1;
 
                 ELSIF t_rec.recurrence_months IS NOT NULL AND array_length(t_rec.recurrence_months, 1) > 0 THEN
@@ -268,11 +174,8 @@ BEGIN
                         v_next_month := v_months_arr[1];
                     END IF;
                 ELSE
-                    v_next_month := v_next_month + 1;
-                    IF v_next_month > 12 THEN
-                        v_next_month := 1;
-                        v_next_year := v_next_year + 1;
-                    END IF;
+                    -- Se a recorrência não corresponder a um tipo suportado para expansão contínua, encerra o loop
+                    EXIT;
                 END IF;
 
                 -- Formatar a nova competência (YYYY-MM)
@@ -400,43 +303,9 @@ BEGIN
     RETURN jsonb_build_object(
         'status', 'success',
         'tasks_created', v_tasks_created,
-        'errors', v_errors_count
+        'errors', v_errors_count,
+        'target_limit_comp', v_target_limit_comp
     );
 END;
 $$;
 
--- 6. Agendar a execução diária no pg_cron se a extensão estiver ativa
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-        PERFORM cron.schedule(
-            'process_recurring_tasks_daily',
-            '0 5 * * *',
-            'SELECT public.process_recurring_tasks_cycle();'
-        );
-    END IF;
-EXCEPTION WHEN OTHERS THEN
-    NULL;
-END $$;
-
--- 7. Função RPC para cancelar tarefas pendentes de clientes inativados
-CREATE OR REPLACE FUNCTION public.cancel_inactivated_client_tasks(p_client_id UUID)
-RETURNS integer
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_deleted_count INTEGER;
-    v_current_comp TEXT;
-BEGIN
-    v_current_comp := to_char(timezone('America/Sao_Paulo', now()), 'YYYY-MM');
-
-    DELETE FROM public.tasks
-    WHERE client_id = p_client_id
-    AND status = 'Pendente'
-    AND competence >= v_current_comp;
-
-    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
-    RETURN v_deleted_count;
-END;
-$$;

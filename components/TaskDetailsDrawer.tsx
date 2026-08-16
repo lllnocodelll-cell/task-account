@@ -25,7 +25,8 @@ import {
   FileStack,
   Scale,
   Copy,
-  GripVertical
+  GripVertical,
+  Loader2
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
@@ -51,6 +52,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
   const [shouldRender, setShouldRender] = useState(false);
   const [localTask, setLocalTask] = useState<Task | null>(task);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
 
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     task: true,
@@ -115,27 +117,74 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     setTimeout(() => setCopyFeedback(null), 2000);
   };
 
-  const handleDownload = async (url: string, fileName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleDownloadFile = async (file: { name: string; url?: string; storage_path?: string }, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+      setDownloadingFile(file.name);
       
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
+      // 1. Tenta baixar via Storage path no bucket client-documents
+      if (file.storage_path) {
+        let { data, error } = await supabase.storage
+          .from('client-documents')
+          .download(file.storage_path);
+
+        if (error || !data) {
+          // Fallback 1: gerar signedUrl e baixar o blob
+          const { data: signedData, error: signedError } = await supabase.storage
+            .from('client-documents')
+            .createSignedUrl(file.storage_path, 300);
+
+          if (signedData?.signedUrl && !signedError) {
+            try {
+              const resp = await fetch(signedData.signedUrl);
+              if (resp.ok) {
+                data = await resp.blob();
+                error = null;
+              }
+            } catch (fetchErr) {
+              console.warn('Fallback fetch signedUrl error:', fetchErr);
+            }
+          }
+        }
+
+        if (data && !error) {
+          const blobUrl = window.URL.createObjectURL(data);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.setAttribute('download', file.name);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+          return;
+        }
+      }
+
+      // 2. Se tiver URL direta (externa ou pública)
+      if (file.url) {
+        const response = await fetch(file.url);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+        return;
+      }
+
+      throw new Error('Arquivo não encontrado no armazenamento.');
+    } catch (error: any) {
       console.error('Erro ao baixar arquivo:', error);
-      // Fallback: abre em nova aba se o fetch falhar
-      window.open(url, '_blank');
+      alert('Erro ao baixar arquivo: ' + (error.message || 'Arquivo não encontrado'));
+    } finally {
+      setDownloadingFile(null);
     }
   };
 
@@ -623,44 +672,48 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 space-y-2">
                   {localTask.attachments && localTask.attachments.length > 0 ? (
-                    localTask.attachments.map((file, idx) => (
-                      <div 
-                        key={idx} 
-                        className="group flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all"
-                      >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-indigo-500 shadow-sm border border-slate-100 dark:border-slate-700">
-                            <FileBadge size={16} />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</span>
-                            <span className="text-[10px] text-slate-400 font-medium">{(file.size / 1024).toFixed(1)} KB</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {file.url && (
-                             <div className="flex items-center gap-1">
-                              <a 
-                                href={file.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
-                                title="Visualizar"
-                              >
-                                <ExternalLink size={14} />
-                              </a>
-                              <button 
-                                onClick={(e) => handleDownload(file.url, file.name, e)}
-                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-emerald-500/10 rounded-lg transition-all"
-                                title="Download"
-                              >
-                                <Download size={14} />
-                              </button>
+                    localTask.attachments.map((file, idx) => {
+                      const isDownloading = downloadingFile === file.name;
+                      return (
+                        <div 
+                          key={idx} 
+                          onClick={(e) => !isDownloading && handleDownloadFile(file, e)}
+                          className={`group flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 rounded-xl hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/30 hover:shadow-sm cursor-pointer transition-all active:scale-[0.99] select-none ${
+                            isDownloading ? 'opacity-70 pointer-events-none' : ''
+                          }`}
+                          title="Clique para baixar o arquivo"
+                        >
+                          <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
+                            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-indigo-500 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:border-indigo-200 dark:group-hover:border-indigo-500/30 transition-colors shrink-0">
+                              {isDownloading ? (
+                                <Loader2 size={16} className="animate-spin text-indigo-600 dark:text-indigo-400" />
+                              ) : (
+                                <FileBadge size={16} />
+                              )}
                             </div>
-                          )}
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                {file.name}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 pl-2 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors shrink-0">
+                            {isDownloading ? (
+                              <span className="text-[10px] font-bold text-indigo-500 animate-pulse">Baixando...</span>
+                            ) : (
+                              <div className="flex items-center gap-1 text-[10px] font-bold opacity-70 group-hover:opacity-100 transition-opacity">
+                                <Download size={13} />
+                                <span className="hidden sm:inline">Baixar</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="text-center py-4 text-slate-400 text-xs italic">Nenhum anexo disponível</div>
                   )}

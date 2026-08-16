@@ -39,26 +39,66 @@
         background-color: #0f172a;
         color: #f8fafc;
       }
-      /* Custom scrollbar */
+      /* Custom scrollbar global */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
+        background: transparent;
+        border-radius: 9999px;
       }
-      .dark ::-webkit-scrollbar-track {
-        background: #1e293b;
+
+      /* Custom scrollbar para widgets e containers: Invisível no repouso, visível no hover */
+      .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: transparent transparent;
+        transition: scrollbar-color 0.2s ease;
       }
-      .dark ::-webkit-scrollbar-thumb {
-        background: #475569;
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
       }
-      .dark ::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: transparent;
+        border-radius: 9999px;
+        transition: background-color 0.2s ease;
+      }
+
+      /* Revela a barra suavemente quando o mouse estiver sobre o elemento ou card */
+      .custom-scrollbar:hover,
+      .group:hover .custom-scrollbar,
+      .hover-scrollbar:hover {
+        scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+      }
+      .custom-scrollbar:hover::-webkit-scrollbar-thumb,
+      .group:hover .custom-scrollbar::-webkit-scrollbar-thumb,
+      .hover-scrollbar:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(148, 163, 184, 0.4);
+      }
+      .dark .custom-scrollbar:hover,
+      .dark .group:hover .custom-scrollbar,
+      .dark .hover-scrollbar:hover {
+        scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
+      }
+      .dark .custom-scrollbar:hover::-webkit-scrollbar-thumb,
+      .dark .group:hover .custom-scrollbar::-webkit-scrollbar-thumb,
+      .dark .hover-scrollbar:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(100, 116, 139, 0.5);
+      }
+
+      /* Destaque quando o cursor estiver interagindo diretamente no thumb */
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(99, 102, 241, 0.6) !important;
+      }
+      .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(129, 140, 248, 0.6) !important;
       }
 
       /* Custom CSS Tooltips */

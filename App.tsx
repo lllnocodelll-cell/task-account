@@ -10,7 +10,6 @@ import { Profile } from './pages/Profile';
 import { Notifications } from './pages/Notifications';
 import { ClientPortal } from './pages/ClientPortal';
 import { Chat } from './pages/Chat';
-import { Notes } from './pages/Notes';
 import { LandingPage } from './pages/LandingPage';
 import { UserRole, Client } from './types';
 import { supabase } from './utils/supabaseClient';
@@ -332,8 +331,6 @@ function App() {
         );
       case 'chat':
         return <Chat />;
-      case 'notes':
-        return <Notes />;
       case 'settings':
         return <Settings userProfile={userProfile} />;
       case 'profile':

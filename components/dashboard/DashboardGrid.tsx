@@ -25,6 +25,7 @@ import { OperationsCalendarWidget } from './widgets/OperationsCalendarWidget';
 import { ClientCertificatesWidget } from './widgets/ClientCertificatesWidget';
 import { ClientLicensesWidget } from './widgets/ClientLicensesWidget';
 import { CollaboratorPerformanceWidget } from './widgets/CollaboratorPerformanceWidget';
+import { NotesWidget } from './widgets/NotesWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -114,6 +115,11 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'VENCIMENTO LICENÇAS',
         component: ClientLicensesWidget,
         defaultLayout: { i: 'clientLicenses', x: 6, y: 65, w: 6, h: 7, minW: 3, minH: 5 }
+    },
+    notes: {
+        name: 'ANOTAÇÕES',
+        component: NotesWidget,
+        defaultLayout: { i: 'notes', x: 0, y: 72, w: 6, h: 8, minW: 3, minH: 5 }
     }
 };
 
@@ -122,7 +128,7 @@ const DEFAULT_ACTIVE_WIDGETS = [
     'upcomingDeadlines', 'topTasks', 'documentAlerts',
     'clientStatus', 'taxRegimes', 'loggedUsers',
     'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices', 'operationsCalendar',
-    'clientCertificates', 'clientLicenses'
+    'clientCertificates', 'clientLicenses', 'notes'
 ];
 
 interface DashboardGridProps {
@@ -153,7 +159,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
         'topTasks', 'uncompletedTasks', 'clientStatus', 
         'notifiedExclusion', 'topSegments', 'monthlyEvolution', 'economicIndices', 'operationsCalendar',
-        'clientCertificates', 'clientLicenses'
+        'clientCertificates', 'clientLicenses', 'notes'
     ];
 
     const allWidgets = Object.keys(WIDGET_REGISTRY).filter(id => 
@@ -866,6 +872,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                                     case 'operationsCalendar': return 'Calendário tributário simplificado.';
                                     case 'clientCertificates': return 'Painel de controle de vencimento de certificado digital.';
                                     case 'clientLicenses': return 'Painel de controle de vencimento de licenças.';
+                                    case 'notes': return 'Painel de anotações e lembretes importantes.';
                                     default: return 'Painel informativo customizável.';
                                 }
                             };

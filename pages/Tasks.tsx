@@ -1518,6 +1518,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       dueDate: '',
       dueDateFrom: '',
       dueDateTo: '',
+      recurrence: '',
       taxRegime: '',
       selectedAnnex: '',
       exceededSublimit: false,
@@ -1564,6 +1565,14 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       competenceMatch = task.competence.toLowerCase().includes(filters.competence.toLowerCase());
     }
 
+    const recurrenceMatch = !filters.recurrence || (() => {
+      const rec = (task.recurrence || '').trim().toLowerCase();
+      if (filters.recurrence === 'unica') {
+        return !rec || rec === 'unica' || rec === 'única';
+      }
+      return rec === filters.recurrence.toLowerCase();
+    })();
+
     return (
       task.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) &&
       (filters.clientDocument === '' || (task.clientDocument ?? '').toLowerCase().includes(filters.clientDocument.toLowerCase())) &&
@@ -1573,6 +1582,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       (!filters.noMovement || task.noMovement === true) &&
       (!filters.hasTag || !!task.temporary_tag) &&
       competenceMatch &&
+      recurrenceMatch &&
       (() => {
         if (rangeMode) {
           if (filters.dueDateFrom && filters.dueDateTo) {
@@ -1610,6 +1620,14 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   // Base de tarefas para o Kanban: ignora filtros de data/competência e status
   // para permitir que os filtros internos de cada coluna funcionem sem conflito.
   const kanbanBaseTasks = tasks.filter((task) => {
+    const recurrenceMatch = !filters.recurrence || (() => {
+      const rec = (task.recurrence || '').trim().toLowerCase();
+      if (filters.recurrence === 'unica') {
+        return !rec || rec === 'unica' || rec === 'única';
+      }
+      return rec === filters.recurrence.toLowerCase();
+    })();
+
     return (
       task.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) &&
       (filters.clientDocument === '' || (task.clientDocument ?? '').toLowerCase().includes(filters.clientDocument.toLowerCase())) &&
@@ -1617,6 +1635,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       (filters.clientState === '' || task.clientState === filters.clientState) &&
       task.taskName.toLowerCase().includes(filters.taskName.toLowerCase()) &&
       (!filters.noMovement || task.noMovement === true) &&
+      recurrenceMatch &&
       (filters.taxRegime === '' || task.taxRegime === filters.taxRegime) &&
       (filters.selectedAnnex === '' || (task.selectedAnnexes ?? []).includes(filters.selectedAnnex)) &&
       (!filters.exceededSublimit || task.exceededSublimit === true) &&
@@ -1658,6 +1677,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       dueDate: '',
       dueDateFrom: '',
       dueDateTo: '',
+      recurrence: '',
       taxRegime: '',
       selectedAnnex: '',
       exceededSublimit: false,
@@ -2632,10 +2652,11 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
 
                     {/* == PERÍODO == */}
                     {(() => {
-                      const periodActive = !!(filters.competence || filters.competenceFrom || filters.competenceTo || filters.dueDate || filters.dueDateFrom || filters.dueDateTo);
+                      const periodActive = !!(filters.competence || filters.competenceFrom || filters.competenceTo || filters.dueDate || filters.dueDateFrom || filters.dueDateTo || filters.recurrence);
                       const periodCount = [
                         (filters.competence || filters.competenceFrom || filters.competenceTo) ? 'c' : '',
-                        (filters.dueDate || filters.dueDateFrom || filters.dueDateTo) ? 'd' : ''
+                        (filters.dueDate || filters.dueDateFrom || filters.dueDateTo) ? 'd' : '',
+                        filters.recurrence ? 'r' : ''
                       ].filter(Boolean).length;
                       return (
                         <th className={`px-6 py-4 align-top min-w-[130px] ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
@@ -2708,6 +2729,24 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                   </div>
                                 )}
                               </div>
+                              {/* Recorrência */}
+                              <div>
+                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Tipo de Recorrência</label>
+                                <select 
+                                  className={headerInputClass} 
+                                  value={filters.recurrence} 
+                                  onChange={e => handleFilterChange('recurrence', e.target.value)}
+                                >
+                                  <option value="">Todas as recorrências</option>
+                                  <option value="unica">Única</option>
+                                  <option value="mensal">Mensal</option>
+                                  <option value="bimestral">Bimestral</option>
+                                  <option value="trimestral">Trimestral</option>
+                                  <option value="semestral">Semestral</option>
+                                  <option value="anual">Anual</option>
+                                  <option value="personalizado">Personalizada</option>
+                                </select>
+                              </div>
                               {/* Limpar */}
                               {periodActive && (
                                 <button onClick={() => { 
@@ -2717,6 +2756,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                                   handleFilterChange('dueDate', ''); 
                                   handleFilterChange('dueDateFrom', ''); 
                                   handleFilterChange('dueDateTo', ''); 
+                                  handleFilterChange('recurrence', ''); 
                                   setRangeMode(false); 
                                 }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
                                   Limpar filtros
@@ -3345,17 +3385,16 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         onClose={() => {
           setReopenModalOpen(false);
           setReopenModalTask(null);
-          setReopenModalNewStatus(null);
         }}
         title="Reabrir Tarefa"
-        size="md"
+        size={reopenModalTask?.attachments && reopenModalTask.attachments.length > 0 ? "lg" : "md"}
         footer={
           reopenModalTask?.attachments && reopenModalTask.attachments.length > 0 ? (
-            <div className="flex justify-between w-full gap-2">
+            <div className="flex flex-col-reverse sm:flex-row justify-between w-full gap-2">
               <Button variant="ghost" onClick={() => setReopenModalOpen(false)}>Cancelar</Button>
-              <div className="flex gap-2">
-                <Button onClick={() => handleReopenTask(false)} className="bg-slate-700 hover:bg-slate-800 text-white whitespace-normal h-auto py-2">Reabrir e Manter</Button>
-                <Button variant="danger" onClick={() => handleReopenTask(true)} className="whitespace-normal h-auto py-2">Reabrir e Excluir</Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={() => handleReopenTask(false)} className="bg-slate-700 hover:bg-slate-800 text-white whitespace-normal h-auto py-2 text-center">Reabrir e Manter Documento</Button>
+                <Button variant="danger" onClick={() => handleReopenTask(true)} className="whitespace-normal h-auto py-2 text-center">Reabrir e Excluir Documento</Button>
               </div>
             </div>
           ) : (
@@ -3366,24 +3405,24 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           )
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {reopenModalTask?.attachments && reopenModalTask.attachments.length > 0 ? (
             <>
-               <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl">
-                 <div className="flex gap-3">
-                   <AlertTriangle className="text-amber-500 shrink-0" size={24} />
-                   <div>
-                      <h4 className="font-bold text-amber-800 dark:text-amber-400 mb-1">Atenção: Documentos Vinculados</h4>
-                      <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+               <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl min-w-0 overflow-hidden">
+                 <div className="flex items-start gap-3 min-w-0">
+                   <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={22} />
+                   <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-amber-800 dark:text-amber-400 mb-1 leading-tight">Atenção: Documentos Vinculados</h4>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mb-3 break-words leading-relaxed">
                         Esta tarefa possui documentos enviados ao portal do cliente. O que você deseja fazer com eles ao reabrir a tarefa?
                       </p>
                       
-                      <div className="bg-white/60 dark:bg-black/20 rounded-lg p-2 flex flex-col gap-2">
+                      <div className="bg-white/60 dark:bg-black/20 rounded-lg p-2 flex flex-col gap-2 min-w-0">
                         {reopenModalTask.attachments.map((file, idx) => {
                           const docStatus = reopenModalDocsStatus.find(d => d.name === file.name)?.status || 'Pendente';
                           return (
-                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2 rounded border border-amber-100 dark:border-amber-800/50 shadow-sm">
-                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate pr-2" title={file.name}>{file.name}</span>
+                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-amber-100 dark:border-amber-800/50 shadow-sm gap-2 min-w-0">
+                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate min-w-0 flex-1" title={file.name}>{file.name}</span>
                               {docStatus === 'Lido' ? (
                                 <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white uppercase tracking-tighter">LIDO</span>
                               ) : (
@@ -3398,7 +3437,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                </div>
                
                <div className="text-sm text-slate-600 dark:text-slate-300 ml-1">
-                 <ul className="list-disc pl-5 space-y-3">
+                 <ul className="list-disc pl-5 space-y-2.5 leading-relaxed">
                    <li><strong>Reabrir e Manter:</strong> A tarefa volta para Pendente, mas o arquivo continuará acessível para o cliente.</li>
                    <li><strong>Reabrir e Excluir:</strong> A tarefa volta para Pendente, e o arquivo será bloqueado e marcado como Excluído no portal do cliente e removido do provedor de armazenamento.</li>
                  </ul>
@@ -3420,14 +3459,14 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           setTaskToDelete(null);
         }}
         title="Excluir Tarefa"
-        size="md"
+        size={taskToDelete?.attachments && taskToDelete.attachments.length > 0 ? "lg" : "md"}
         footer={
           taskToDelete?.attachments && taskToDelete.attachments.length > 0 ? (
-            <div className="flex justify-between w-full gap-2">
+            <div className="flex flex-col-reverse sm:flex-row justify-between w-full gap-2">
               <Button variant="ghost" onClick={() => setDeleteModalOpen(false)}>Cancelar</Button>
-              <div className="flex gap-2">
-                <Button onClick={() => executeDeleteWithChoice(false)} className="bg-slate-700 hover:bg-slate-800 text-white whitespace-normal h-auto py-2">Excluir Tarefa e Manter Documento</Button>
-                <Button variant="danger" onClick={() => executeDeleteWithChoice(true)} className="whitespace-normal h-auto py-2">Excluir Tarefa e Documentos</Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={() => executeDeleteWithChoice(false)} className="bg-slate-700 hover:bg-slate-800 text-white whitespace-normal h-auto py-2 text-center">Excluir Tarefa e Manter Documento</Button>
+                <Button variant="danger" onClick={() => executeDeleteWithChoice(true)} className="whitespace-normal h-auto py-2 text-center">Excluir Tarefa e Documentos</Button>
               </div>
             </div>
           ) : (
@@ -3438,24 +3477,24 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
           )
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {taskToDelete?.attachments && taskToDelete.attachments.length > 0 ? (
             <>
-               <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl">
-                 <div className="flex gap-3">
-                   <AlertTriangle className="text-red-500 shrink-0" size={24} />
-                   <div>
-                      <h4 className="font-bold text-red-800 dark:text-red-400 mb-1">Atenção: Documentos Vinculados</h4>
-                      <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+               <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl min-w-0 overflow-hidden">
+                 <div className="flex items-start gap-3 min-w-0">
+                   <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={22} />
+                   <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-red-800 dark:text-red-400 mb-1 leading-tight">Atenção: Documentos Vinculados</h4>
+                      <p className="text-sm text-red-700 dark:text-red-300 mb-3 break-words leading-relaxed">
                         Aviso: Esta tarefa possui documentos enviados ao portal do cliente. Deseja limpá-los do portal também?
                       </p>
                       
-                      <div className="bg-white/60 dark:bg-black/20 rounded-lg p-2 flex flex-col gap-2">
+                      <div className="bg-white/60 dark:bg-black/20 rounded-lg p-2 flex flex-col gap-2 min-w-0">
                         {taskToDelete.attachments.map((file, idx) => {
                           const docStatus = deleteModalDocsStatus.find(d => d.name === file.name)?.status || 'Pendente';
                           return (
-                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2 rounded border border-red-100 dark:border-red-800/50 shadow-sm">
-                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate pr-2" title={file.name}>{file.name}</span>
+                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-red-100 dark:border-red-800/50 shadow-sm gap-2 min-w-0">
+                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate min-w-0 flex-1" title={file.name}>{file.name}</span>
                               {docStatus === 'Lido' ? (
                                 <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white uppercase tracking-tighter">LIDO</span>
                               ) : (
@@ -3470,7 +3509,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                </div>
                
                <div className="text-sm text-slate-600 dark:text-slate-300 ml-1">
-                 <ul className="list-disc pl-5 space-y-3">
+                 <ul className="list-disc pl-5 space-y-2.5 leading-relaxed">
                    <li><strong>Excluir Tarefa e Manter Documento:</strong> A tarefa some, mas o documento continuará perfeitamente acessível ao cliente no Portal.</li>
                    <li><strong>Excluir Tarefa e Documentos:</strong> A tarefa some, e o arquivo será apagado fisicamente do Portal.</li>
                  </ul>
@@ -3497,6 +3536,27 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
         }
       >
         <div className="space-y-4">
+          {(() => {
+            const task = tasks.find(t => t.id === selectedTaskForConclude);
+            const pendingMandatory = task?.workflows?.filter(wf => wf.is_mandatory && !wf.is_completed) || [];
+            if (pendingMandatory.length > 0) {
+              return (
+                <div className="flex items-start gap-3 p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl text-rose-700 dark:text-rose-300 animate-in fade-in duration-200">
+                  <AlertCircle size={18} className="text-rose-500 shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-bold">Atenção: Existem {pendingMandatory.length} workflow(s) obrigatório(s) pendente(s):</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-[11px] opacity-90">
+                      {pendingMandatory.map((wf, idx) => (
+                        <li key={idx} className="truncate">{wf.description}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           <p className="text-slate-600 dark:text-slate-300">
             Tem certeza que deseja marcar esta tarefa como concluída? Você pode anexar arquivos de comprovante abaixo se desejar.
           </p>

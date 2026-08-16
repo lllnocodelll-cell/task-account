@@ -19,7 +19,9 @@ import {
   FileCheck2,
   Plus,
   GitCompareArrows,
-  SquarePen
+  SquarePen,
+  MousePointerClick,
+  Sparkles
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -512,7 +514,8 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                 finalTasksToInsert.push(createIterationPayload(m, y));
               }
             } else if (t.recurrence === 'personalizado') {
-              for (let i = 0; i < (t.repetitions || 1); i++) {
+              const repCount = Math.max(1, parseInt(t.repetitions) || 1);
+              for (let i = 0; i < repCount; i++) {
                 let currentMonth = startMonth + i;
                 let currentYear = startYear;
                 while (currentMonth > 12) {
@@ -631,11 +634,18 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
           const files = clientAttachmentsMap[payload.client_name];
           if (files && files.length > 0) {
             for (const file of files) {
+              const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
+              const storagePath = `tasks/${taskData.id}/${Date.now()}_${safeName}`;
+              
+              await supabase.storage
+                .from('client-documents')
+                .upload(storagePath, file);
+
               await (supabase.from('task_attachments') as any).insert({
                 task_id: taskData.id,
                 file_name: file.name,
                 file_size: file.size,
-                storage_path: `tasks/${taskData.id}/${file.name}`,
+                storage_path: storagePath,
                 is_conclude_attachment: false
               });
             }
@@ -675,11 +685,18 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
             const files = clientAttachmentsMap[task.client_name];
             if (files && files.length > 0) {
               for (const file of files) {
+                const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
+                const storagePath = `tasks/${task.id}/${Date.now()}_${safeName}`;
+
+                await supabase.storage
+                  .from('client-documents')
+                  .upload(storagePath, file);
+
                 finalAttachmentsToInsert.push({
                   task_id: task.id,
                   file_name: file.name,
                   file_size: file.size,
-                  storage_path: `tasks/${task.id}/${file.name}`,
+                  storage_path: storagePath,
                   is_conclude_attachment: false
                 });
               }
@@ -1318,18 +1335,32 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                       value={tempTask.recurrence}
                       onChange={(e) => {
                         const val = e.target.value;
-                        const defaultMonths: Record<string, number[]> = {
-                          mensal: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-                          bimestral: [2, 4, 6, 8, 10, 12],
-                          trimestral: [3, 6, 9, 12],
-                          semestral: [6, 12],
-                          anual: [],
-                          personalizado: [],
-                        };
+                        let initialMonths: number[] = [];
+                        
+                        if (val === 'mensal') {
+                          initialMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                        } else if (val === 'bimestral') {
+                          initialMonths = [2, 4, 6, 8, 10, 12];
+                        } else if (val === 'trimestral') {
+                          initialMonths = [3, 6, 9, 12];
+                        } else if (val === 'semestral') {
+                          initialMonths = [6, 12];
+                        } else if (val === 'anual') {
+                          if (tempTask.competence) {
+                            const compMonth = parseInt(tempTask.competence.split('-')[1], 10);
+                            if (!isNaN(compMonth) && compMonth >= 1 && compMonth <= 12) {
+                              initialMonths = [compMonth];
+                            }
+                          }
+                          if (initialMonths.length === 0) {
+                            initialMonths = [new Date().getMonth() + 1];
+                          }
+                        }
+                        
                         setTempTask(prev => ({
                           ...prev,
                           recurrence: val,
-                          months: defaultMonths[val] ?? []
+                          months: initialMonths
                         }));
                       }}
                     />
@@ -1395,37 +1426,97 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                 </div>
 
                 {/* MONTH SELECTOR */}
-                {tempTask.recurrence !== 'personalizado' && (
+                {tempTask.recurrence && tempTask.recurrence !== 'personalizado' && (
                   <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 block">
-                      Selecione os meses de repetição
-                    </label>
-                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2">
-                      {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((month, idx) => {
-                        const monthNum = idx + 1;
-                        return (
-                          <button
-                            key={month}
-                            type="button"
-                            disabled={isEditing}
-                            onClick={() => {
-                              setTempTask(prev => ({
-                                ...prev,
-                                months: prev.months.includes(monthNum)
-                                  ? prev.months.filter(m => m !== monthNum)
-                                  : [...prev.months, monthNum]
-                              }));
-                            }}
-                            className={`py-2 px-1 rounded-lg border text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${tempTask.months.includes(monthNum)
-                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-indigo-300'
-                              }`}
-                          >
-                            {month}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {(() => {
+                      const isFixed = ['mensal', 'bimestral', 'trimestral', 'semestral'].includes(tempTask.recurrence);
+                      const isAnnual = tempTask.recurrence === 'anual';
+                      
+                      return (
+                        <div className={isAnnual ? "p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/60 shadow-sm transition-all" : ""}>
+                          <div className="flex items-center justify-between mb-3">
+                            {isAnnual ? (
+                              <div className="flex items-center gap-2">
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-600"></span>
+                                </span>
+                                <label className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.1em] flex items-center gap-1.5">
+                                  <Sparkles size={12} className="text-indigo-500" />
+                                  Selecione o mês de ocorrência anual
+                                </label>
+                              </div>
+                            ) : (
+                              <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em] block">
+                                Meses de repetição ({tempTask.recurrence})
+                              </label>
+                            )}
+
+                            {isAnnual ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700/50 shadow-sm animate-pulse">
+                                <MousePointerClick size={11} />
+                                Clique para escolher
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                                Definido pelo sistema
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2">
+                            {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((month, idx) => {
+                              const monthNum = idx + 1;
+                              const isSelected = tempTask.months.includes(monthNum);
+
+                              if (isFixed) {
+                                return (
+                                  <div
+                                    key={month}
+                                    className={`py-2 px-1 rounded-lg border text-xs font-bold text-center select-none transition-all ${
+                                      isSelected
+                                        ? 'bg-indigo-600/90 border-indigo-600 text-white shadow-sm'
+                                        : 'bg-slate-100/60 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-600 opacity-40'
+                                    }`}
+                                  >
+                                    {month}
+                                  </div>
+                                );
+                              }
+
+                              // Anual: interativo, chamativo e selecionável pelo usuário
+                              return (
+                                <button
+                                  key={month}
+                                  type="button"
+                                  disabled={isEditing}
+                                  onClick={() => {
+                                    setTempTask(prev => ({
+                                      ...prev,
+                                      months: [monthNum]
+                                    }));
+                                  }}
+                                  className={`py-2 px-1 rounded-lg border text-xs font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                                    isSelected
+                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900 scale-105'
+                                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:scale-105 active:scale-95 shadow-sm'
+                                  }`}
+                                >
+                                  {month}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                            {isAnnual 
+                              ? '👉 Clique sobre o mês em que a obrigação anual deve ser gerada automaticamente a cada ano.' 
+                              : 'Os meses de repetição deste ciclo são sincronizados e processados de forma fixa pelo sistema.'
+                            }
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -1498,10 +1589,14 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                           <div className="flex items-center gap-2 mb-1.5">
                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-200">
                               <Repeat size={12} className="text-indigo-500 shrink-0" />
-                              <span className="capitalize">{task.recurrence}</span>
+                              <span className="capitalize">
+                                {task.recurrence === 'personalizado' 
+                                  ? `Personalizado (${task.repetitions || 1}x)` 
+                                  : task.recurrence}
+                              </span>
                             </div>
                           </div>
-                          {task.months.length > 0 && task.recurrence !== 'mensal' && (
+                          {task.months.length > 0 && task.recurrence !== 'mensal' && task.recurrence !== 'personalizado' && (
                             <div className="flex flex-wrap gap-1">
                               {task.months.map((m: number) => (
                                 <span key={m} className="px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-800 text-[8px] font-bold text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 uppercase tracking-tighter shadow-sm">

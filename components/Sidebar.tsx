@@ -11,7 +11,6 @@ import {
   ChevronRight,
   MessageSquareMore,
   ListTodo,
-  StickyNote,
   UserCircle,
   Sun,
   Moon
@@ -43,18 +42,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isDarkMode,
   toggleTheme
 }) => {
-  const [notesCount, setNotesCount] = useState<number>(0);
   const [chatsCount, setChatsCount] = useState<number>(0);
   const chatSubsRef = useRef<any[]>([]);
   const pollIntervalRef = useRef<any>(null);
 
   useEffect(() => {
-    fetchNotesCount();
     fetchChatsCountAndSetupRealtime();
 
-    // Polling unificado para ambos os badges (notas + chats)
+    // Polling unificado para badges (chats)
     pollIntervalRef.current = setInterval(() => {
-      fetchNotesCount();
       fetchChatsCount();
     }, 5000);
 
@@ -64,32 +60,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
   }, []);
 
-  const fetchNotesCount = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { count, error } = await supabase
-        .from('notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_archived', false);
-
-      if (!error && count !== null) {
-        setNotesCount(count);
-      }
-    } catch (error) {
-      console.error('Error fetching notes count:', error);
-    }
-  };
-
   const fetchChatsCount = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: memberData } = await supabase
-        .from('chat_channel_members')
+      const { data: memberData } = await (supabase
+        .from('chat_channel_members') as any)
         .select('channel_id, last_read_at')
         .eq('user_id', user.id);
 
@@ -102,8 +79,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       await Promise.all(
         memberData.map(async (m: any) => {
           const lastRead = m.last_read_at || '2000-01-01T00:00:00Z';
-          const { count, error } = await supabase
-            .from('chat_messages')
+          const { count, error } = await (supabase
+            .from('chat_messages') as any)
             .select('*', { count: 'exact', head: true })
             .eq('channel_id', m.channel_id)
             .neq('sender_id', user.id)
@@ -232,12 +209,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
         { id: 'tasks', label: 'Tarefas', icon: <ListTodo size={20} /> },
         { id: 'clients', label: 'Cadastros', icon: <Users size={20} /> },
-        {
-          id: 'notes',
-          label: 'Anotações',
-          icon: <StickyNote size={20} />,
-          badge: notesCount > 0 ? notesCount : undefined
-        },
         {
           id: 'chat',
           label: 'Chat',
