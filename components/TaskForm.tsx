@@ -668,10 +668,12 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
         }
       }
 
-      // EXECUÇÃO DAS INSERÇÕES EM LOTE (Criação)
+      // EXECUÇÃO DAS INSERÇÕES/ATUALIZAÇÕES EM LOTE (Upsert com resolução de conflito)
       if (finalTasksToInsert.length > 0) {
         const { data, error: insertError } = await (supabase as any).from('tasks')
-          .insert(finalTasksToInsert)
+          .upsert(finalTasksToInsert, {
+            onConflict: 'client_id,task_name,competence'
+          })
           .select();
 
         const insertedTasks = data as any[];
@@ -704,6 +706,9 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
             
             const wfs = clientConfigs[task.client_name]?.workflows;
             if (wfs && wfs.length > 0) {
+              // Limpa workflows pré-existentes se a tarefa foi atualizada via upsert
+              await (supabase as any).from('task_workflows').delete().eq('task_id', task.id);
+
               wfs.forEach((wf: any, idx: number) => {
                 finalWorkflowsToInsert.push({
                   task_id: task.id,
@@ -735,7 +740,11 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
       onBack();
     } catch (error: any) {
       console.error('Error saving tasks:', error);
-      showNotify('Erro ao salvar tarefas: ' + (error.message || 'Erro desconhecido'), 'error');
+      let errorMsg = error.message || 'Erro desconhecido';
+      if (errorMsg.includes('idx_unique_task_client_competence') || error.code === '23505') {
+        errorMsg = 'Já existe uma tarefa com este mesmo nome cadastrada para esta empresa nesta competência.';
+      }
+      showNotify('Erro ao salvar tarefas: ' + errorMsg, 'error');
     } finally {
       setIsSaving(false);
       setLoadingData(false);

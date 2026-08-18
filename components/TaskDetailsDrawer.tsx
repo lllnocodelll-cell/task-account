@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { TaskTimer } from './tasks/TaskTimer';
 
 interface TaskDetailsDrawerProps {
   isOpen: boolean;
@@ -451,12 +452,22 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         localTask.status === TaskStatus.CONCLUIDA ? 'text-emerald-500' :
                         localTask.status === TaskStatus.ATRASADA ? 'text-rose-500' :
                         localTask.status === TaskStatus.INICIADA ? 'text-blue-500' :
-                        'text-amber-500'
+                        localTask.status === TaskStatus.PAUSADA ? 'text-amber-500' :
+                        'text-slate-500'
                       }`}>
                         {localTask.status === TaskStatus.CONCLUIDA ? 'Concluída' :
                          localTask.status === TaskStatus.ATRASADA ? 'Atrasada' :
                          localTask.status === TaskStatus.INICIADA ? 'Iniciada' :
+                         localTask.status === TaskStatus.PAUSADA ? 'Pausada' :
                          'Pendente'}
+                      </div>
+                      <div className="mt-1">
+                        <TaskTimer
+                          status={localTask.status}
+                          timerStartedAt={localTask.timerStartedAt}
+                          totalTimeSpentSeconds={localTask.totalTimeSpentSeconds}
+                          variant="table"
+                        />
                       </div>
                     </div>
 

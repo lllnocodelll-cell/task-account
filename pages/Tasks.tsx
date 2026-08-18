@@ -48,7 +48,8 @@ import {
   Building2,
   Scale,
   CheckCircle2,
-  SquarePlus
+  SquarePlus,
+  Pause
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -65,6 +66,7 @@ import { Tooltip } from '../components/ui/Tooltip';
 import { Notification, NotificationType } from '../components/ui/Notification';
 import { TaskInfoDrawer } from '../components/TaskInfoDrawer';
 import { TaskDetailsDrawer } from '../components/TaskDetailsDrawer';
+import { TaskTimer } from '../components/tasks/TaskTimer';
 import TaskForm from '../components/TaskForm';
 
 // --- CONFIGS ---
@@ -325,13 +327,33 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
           </Tooltip>
         ) : (
           <>
-            {task.status !== TaskStatus.INICIADA && (
+            {task.status === TaskStatus.INICIADA && (
+              <Tooltip content="Pausar Tarefa">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, TaskStatus.PAUSADA); setIsOpen(false); }}
+                  className="p-1.5 rounded-full hover:bg-amber-50 dark:hover:bg-amber-500/20 text-amber-500 transition-colors shrink-0"
+                >
+                  <Pause size={16} className="fill-current" />
+                </button>
+              </Tooltip>
+            )}
+            {task.status === TaskStatus.PAUSADA && (
+              <Tooltip content="Retomar Tarefa">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, TaskStatus.INICIADA); setIsOpen(false); }}
+                  className="p-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-500/20 text-blue-500 transition-colors shrink-0"
+                >
+                  <Play size={16} className="fill-current" />
+                </button>
+              </Tooltip>
+            )}
+            {(task.status === TaskStatus.PENDENTE || task.status === TaskStatus.ATRASADA) && (
               <Tooltip content="Iniciar">
                 <button
                   onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, TaskStatus.INICIADA); setIsOpen(false); }}
                   className="p-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-500/20 text-blue-500 transition-colors shrink-0"
                 >
-                  <Play size={16} />
+                  <Play size={16} className="fill-current" />
                 </button>
               </Tooltip>
             )}
@@ -343,15 +365,19 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
                 <CheckCircle size={16} />
               </button>
             </Tooltip>
-            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0" />
-            <Tooltip content="Cancelar">
-              <button
-                onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, TaskStatus.PENDENTE); setIsOpen(false); }}
-                className="p-1.5 rounded-full hover:bg-amber-50 dark:hover:bg-amber-500/20 text-amber-500 transition-colors shrink-0"
-              >
-                <XCircle size={16} />
-              </button>
-            </Tooltip>
+            {(task.status === TaskStatus.INICIADA || task.status === TaskStatus.PAUSADA) && (
+              <>
+                <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-0.5 shrink-0" />
+                <Tooltip content="Cancelar (Voltar para Pendente)">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, TaskStatus.PENDENTE); setIsOpen(false); }}
+                    className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+                  >
+                    <XCircle size={16} />
+                  </button>
+                </Tooltip>
+              </>
+            )}
           </>
         )}
         {task.status !== TaskStatus.CONCLUIDA && (
@@ -1181,6 +1207,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   {task.priority}
                 </span>
 
+                {task.status === TaskStatus.PAUSADA && (
+                  <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-500/10 text-[9px] text-amber-700 dark:text-amber-400 font-bold whitespace-nowrap border border-amber-200 dark:border-amber-500/30 rounded-md shadow-sm flex items-center gap-1">
+                    <Pause size={9} className="fill-current" /> Pausada
+                  </span>
+                )}
+
                 {task.noMovement && (
                   <span className="px-2 py-0.5 bg-red-50 dark:bg-red-500/10 text-[9px] text-red-600 dark:text-red-400 font-black whitespace-nowrap border border-red-100 dark:border-red-900/30 rounded-md shadow-sm">
                     Sem Movimento
@@ -1363,22 +1395,84 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700/50 rounded-b-xl">
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700/50 rounded-b-xl gap-2">
+                {/* Cronômetro no Rodapé do Kanban */}
+                <div className="flex items-center">
+                  <TaskTimer
+                    status={task.status}
+                    timerStartedAt={task.timerStartedAt}
+                    totalTimeSpentSeconds={task.totalTimeSpentSeconds}
+                    variant="kanban"
+                  />
+                </div>
+
                 <div className="flex items-center gap-1.5 transition-all">
-                  {status === TaskStatus.INICIADA && (
-                    <Tooltip content="Voltar para Pendente" position="top">
+                  {task.status === TaskStatus.INICIADA && (
+                    <Tooltip content="Pausar Tarefa" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, TaskStatus.PAUSADA);
+                        }}
+                        className="text-amber-600 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-400 dark:hover:bg-amber-900/60 p-1.5 rounded-lg transition-all shadow-sm"
+                      >
+                        <Pause size={14} className="fill-current" />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {task.status === TaskStatus.PAUSADA && (
+                    <Tooltip content="Retomar Tarefa" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, TaskStatus.INICIADA);
+                        }}
+                        className="text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:hover:bg-blue-900/60 p-1.5 rounded-lg transition-all shadow-sm"
+                      >
+                        <Play size={14} className="fill-current" />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {task.status === TaskStatus.PENDENTE && (
+                    <Tooltip content="Iniciar Tarefa" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStatusChange(task.id, TaskStatus.INICIADA);
+                        }}
+                        className="text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:hover:bg-blue-900/60 p-1.5 rounded-lg transition-all shadow-sm"
+                      >
+                        <Play size={14} className="fill-current" />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {(task.status === TaskStatus.INICIADA || task.status === TaskStatus.PAUSADA || (task.status !== TaskStatus.CONCLUIDA && task.status !== TaskStatus.PENDENTE)) && (
+                    <Tooltip content="Concluir Tarefa" position="top">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConclude(task.id);
+                        }}
+                        className="text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:hover:bg-emerald-900/60 p-1.5 rounded-lg transition-all shadow-sm"
+                      >
+                        <CheckCircle size={15} />
+                      </button>
+                    </Tooltip>
+                  )}
+                  {(task.status === TaskStatus.INICIADA || task.status === TaskStatus.PAUSADA) && (
+                    <Tooltip content="Cancelar (Voltar para Pendente)" position="top">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onStatusChange(task.id, TaskStatus.PENDENTE);
                         }}
-                        className="text-slate-600 bg-slate-200/60 hover:bg-slate-300/80 dark:bg-slate-800 dark:text-slate-400 p-1.5 rounded-lg transition-all shadow-sm"
+                        className="text-slate-500 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 p-1.5 rounded-lg transition-all shadow-sm"
                       >
-                        <ChevronLeft size={16} />
+                        <XCircle size={15} />
                       </button>
                     </Tooltip>
                   )}
-                  {status === TaskStatus.CONCLUIDA && (
+                  {task.status === TaskStatus.CONCLUIDA && (
                     <Tooltip content="Reabrir Tarefa" position="top">
                       <button
                         onClick={(e) => {
@@ -1391,57 +1485,18 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       </button>
                     </Tooltip>
                   )}
-                  {status === TaskStatus.PENDENTE && (
-                    <Tooltip content="Iniciar Tarefa" position="top">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onStatusChange(task.id, TaskStatus.INICIADA);
-                        }}
-                        className="text-blue-600 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:hover:bg-blue-900/60 p-1.5 rounded-lg transition-all shadow-sm"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </Tooltip>
-                  )}
-                  {status === TaskStatus.INICIADA && (
-                    <Tooltip content="Concluir Tarefa" position="top">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onConclude(task.id);
-                        }}
-                        className="text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:hover:bg-emerald-900/60 p-1.5 rounded-lg transition-all shadow-sm"
-                      >
-                        <CheckCircle size={16} />
-                      </button>
-                    </Tooltip>
-                  )}
-                  {status !== TaskStatus.CONCLUIDA && status !== TaskStatus.PENDENTE && status !== TaskStatus.INICIADA && (
-                    <Tooltip content="Concluir Rápido" position="top">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onConclude(task.id);
-                        }}
-                        className="text-emerald-700 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:hover:bg-emerald-900/60 p-1.5 rounded-lg transition-all shadow-sm"
-                      >
-                        <CheckCircle size={14} />
-                      </button>
-                    </Tooltip>
-                  )}
+                  <Tooltip content="Excluir" position="top">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(task);
+                      }}
+                      className="text-red-600 bg-red-100/60 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-400 dark:hover:bg-red-900/60 p-1.5 rounded-lg transition-all shadow-sm"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </Tooltip>
                 </div>
-                <Tooltip content="Excluir" position="top">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(task);
-                    }}
-                    className="text-red-600 bg-red-100/60 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-400 dark:hover:bg-red-900/60 p-1.5 rounded-lg transition-all shadow-sm"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </Tooltip>
               </div>
             </div>
           );
@@ -1828,7 +1883,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             workflows: t.workflows?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)) || [],
             createdAt: t.created_at,
             startedAt: t.started_at,
-            completedAt: t.completed_at
+            completedAt: t.completed_at,
+            totalTimeSpentSeconds: t.total_time_spent_seconds || 0,
+            timerStartedAt: t.timer_started_at || null
           };
         });
         setTasks(mappedTasks);
@@ -2029,28 +2086,71 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
   const executeTaskStatusUpdate = async (id: string, newStatus: TaskStatus) => {
     const currentTask = tasks.find(t => t.id === id);
     const oldStatus = currentTask ? currentTask.status : null;
+    const oldTimeSpent = currentTask?.totalTimeSpentSeconds || 0;
+    const oldTimerStartedAt = currentTask?.timerStartedAt;
+
+    let updatedTimeSpent = oldTimeSpent;
+    let updatedTimerStartedAt = oldTimerStartedAt;
+
+    if (newStatus === TaskStatus.INICIADA) {
+      updatedTimerStartedAt = new Date().toISOString();
+    } else if (currentTask?.status === TaskStatus.INICIADA) {
+      if (oldTimerStartedAt) {
+        const delta = Math.max(0, Math.floor((Date.now() - new Date(oldTimerStartedAt).getTime()) / 1000));
+        updatedTimeSpent = oldTimeSpent + delta;
+      }
+      updatedTimerStartedAt = null;
+    }
 
     // Atualização otimista: imediata no estado local do React
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    setTasks(prev => prev.map(t => t.id === id ? { 
+      ...t, 
+      status: newStatus,
+      totalTimeSpentSeconds: updatedTimeSpent,
+      timerStartedAt: updatedTimerStartedAt
+    } : t));
     
     if (selectedTaskForDetails?.id === id) {
-      setSelectedTaskForDetails(prev => prev ? { ...prev, status: newStatus } : null);
+      setSelectedTaskForDetails(prev => prev ? { 
+        ...prev, 
+        status: newStatus,
+        totalTimeSpentSeconds: updatedTimeSpent,
+        timerStartedAt: updatedTimerStartedAt
+      } : null);
     }
 
     try {
-      const { error } = await (supabase
+      const { data, error } = await (supabase
         .from('tasks') as any)
         .update({ status: newStatus })
-        .eq('id', id);
+        .eq('id', id)
+        .select('total_time_spent_seconds, timer_started_at, started_at, completed_at')
+        .single();
 
       if (error) throw error;
+
+      if (data) {
+        setTasks(prev => prev.map(t => t.id === id ? {
+          ...t,
+          totalTimeSpentSeconds: data.total_time_spent_seconds ?? updatedTimeSpent,
+          timerStartedAt: data.timer_started_at ?? updatedTimerStartedAt
+        } : t));
+
+        if (selectedTaskForDetails?.id === id) {
+          setSelectedTaskForDetails(prev => prev ? {
+            ...prev,
+            totalTimeSpentSeconds: data.total_time_spent_seconds ?? updatedTimeSpent,
+            timerStartedAt: data.timer_started_at ?? updatedTimerStartedAt
+          } : null);
+        }
+      }
     } catch (error) {
       console.error('Error in executeTaskStatusUpdate:', error);
       // Reverte se a chamada ao Supabase falhar
-      if (oldStatus) {
-        setTasks(prev => prev.map(t => t.id === id ? { ...t, status: oldStatus } : t));
+      if (currentTask) {
+        setTasks(prev => prev.map(t => t.id === id ? currentTask : t));
         if (selectedTaskForDetails?.id === id) {
-          setSelectedTaskForDetails(prev => prev ? { ...prev, status: oldStatus } : null);
+          setSelectedTaskForDetails(currentTask);
         }
       }
       showNotify('Erro ao atualizar status no servidor. Operação revertida.', 'error');
@@ -2928,6 +3028,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       const statOptions = [
                         { value: TaskStatus.PENDENTE,  label: 'Pendente',  color: 'bg-slate-500/10 border-slate-300 dark:border-slate-500/40 text-slate-600 dark:text-slate-300' },
                         { value: TaskStatus.INICIADA,  label: 'Iniciada',  color: 'bg-blue-500/10 border-blue-300 dark:border-blue-500/40 text-blue-700 dark:text-blue-400' },
+                        { value: TaskStatus.PAUSADA,   label: 'Pausada',   color: 'bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' },
                         { value: TaskStatus.ATRASADA,  label: 'Atrasada',  color: 'bg-rose-500/10 border-rose-300 dark:border-rose-500/40 text-rose-700 dark:text-rose-400' },
                         { value: TaskStatus.CONCLUIDA, label: 'Concluída', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
                       ];
@@ -3221,17 +3322,29 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${task.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
-                            task.status === TaskStatus.ATRASADA ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
+                          <div className="flex flex-col gap-1.5 items-start">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                              task.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                              task.status === TaskStatus.ATRASADA ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20' :
                               task.status === TaskStatus.INICIADA ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20' :
-                                'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                              task.status === TaskStatus.PAUSADA ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20' :
+                              'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                             }`}>
-                            {task.status === TaskStatus.CONCLUIDA && <CheckCircle size={12} />}
-                            {task.status === TaskStatus.ATRASADA && <XCircle size={12} />}
-                            {task.status === TaskStatus.INICIADA && <Play size={12} />}
-                            {task.status === TaskStatus.PENDENTE && <Clock size={12} />}
-                            {task.status}
-                          </span>
+                              {task.status === TaskStatus.CONCLUIDA && <CheckCircle size={12} />}
+                              {task.status === TaskStatus.ATRASADA && <XCircle size={12} />}
+                              {task.status === TaskStatus.INICIADA && <Play size={12} />}
+                              {task.status === TaskStatus.PAUSADA && <Pause size={12} className="fill-current" />}
+                              {task.status === TaskStatus.PENDENTE && <Clock size={12} />}
+                              {task.status}
+                            </span>
+
+                            <TaskTimer
+                              status={task.status}
+                              timerStartedAt={task.timerStartedAt}
+                              totalTimeSpentSeconds={task.totalTimeSpentSeconds}
+                              variant="table"
+                            />
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <ActionMenu
@@ -3287,8 +3400,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                   onUpdateTag={handleUpdateTaskTag}
                   title="Iniciadas"
                   status={TaskStatus.INICIADA}
-                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA).slice(0, MAX_RENDER_KANBAN)}
-                  percent={kanbanBaseTasks.length > 0 ? Math.round((kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA).length / kanbanBaseTasks.length) * 100) : 0}
+                  tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA || t.status === TaskStatus.PAUSADA).slice(0, MAX_RENDER_KANBAN)}
+                  percent={kanbanBaseTasks.length > 0 ? Math.round((kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA || t.status === TaskStatus.PAUSADA).length / kanbanBaseTasks.length) * 100) : 0}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
                   onDelete={handleDeleteTask}

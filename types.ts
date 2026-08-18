@@ -61,6 +61,7 @@ export const TAX_REGIME_LABELS: Record<string, string> = {
 export enum TaskStatus {
   PENDENTE = 'Pendente',
   INICIADA = 'Iniciada',
+  PAUSADA = 'Pausada',
   ATRASADA = 'Atrasada',
   CONCLUIDA = 'Concluída',
 }
@@ -121,6 +122,8 @@ export interface Task {
   createdAt?: string;
   startedAt?: string;
   completedAt?: string;
+  totalTimeSpentSeconds?: number;
+  timerStartedAt?: string | null;
 }
 
 export interface Client {

@@ -362,8 +362,8 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
               placeholder="Escreva sua anotação ou lembrete..."
               value={currentNote.content || ''}
               onChange={(e) => setCurrentNote(prev => ({ ...prev, content: e.target.value }))}
-              className="w-full bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 min-h-[60px] max-h-[120px] resize-y custom-scrollbar"
-              rows={2}
+              className="w-full bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 min-h-[160px] max-h-[320px] resize-y custom-scrollbar leading-relaxed"
+              rows={6}
             />
 
             <div className="flex items-center justify-between pt-1">
@@ -440,7 +440,8 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: '0.625rem'
+                gap: '0.625rem',
+                alignItems: 'start'
               }}
             >
               {filteredNotes.map((note) => {
@@ -458,7 +459,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
                           {note.is_pinned && (
                             <Pin size={11} className="text-amber-500 shrink-0 fill-amber-500 rotate-45" />
                           )}
-                          <h4 className={`text-xs font-black truncate ${colorConfig.header}`}>
+                          <h4 className={`text-xs font-black break-words ${colorConfig.header}`}>
                             {note.title || 'Sem título'}
                           </h4>
                         </div>
@@ -510,7 +511,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
 
                       {/* Conteúdo da Anotação */}
                       {note.content && (
-                        <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed whitespace-pre-wrap font-normal">
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-normal break-words">
                           {note.content}
                         </p>
                       )}

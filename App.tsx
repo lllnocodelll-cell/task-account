@@ -11,6 +11,7 @@ import { Notifications } from './pages/Notifications';
 import { ClientPortal } from './pages/ClientPortal';
 import { Chat } from './pages/Chat';
 import { LandingPage } from './pages/LandingPage';
+import { LandingPagePro } from './pages/LandingPagePro';
 import { UserRole, Client } from './types';
 import { supabase } from './utils/supabaseClient';
 import { Loader2 } from 'lucide-react';
@@ -379,7 +380,13 @@ function App() {
         </div>
       );
     }
-    return <LandingPage onLoginClick={() => setShowAuth(true)} />;
+    return (
+      <LandingPagePro
+        onLoginClick={() => setShowAuth(true)}
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
+      />
+    );
   }
 
   return (

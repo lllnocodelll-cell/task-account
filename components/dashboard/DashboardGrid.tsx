@@ -25,6 +25,7 @@ import { OperationsCalendarWidget } from './widgets/OperationsCalendarWidget';
 import { ClientCertificatesWidget } from './widgets/ClientCertificatesWidget';
 import { ClientLicensesWidget } from './widgets/ClientLicensesWidget';
 import { CollaboratorPerformanceWidget } from './widgets/CollaboratorPerformanceWidget';
+import { ClientTimeSpentWidget } from './widgets/ClientTimeSpentWidget';
 import { NotesWidget } from './widgets/NotesWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -35,6 +36,11 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'DESEMPENHO POR COLABORADOR',
         component: CollaboratorPerformanceWidget,
         defaultLayout: { i: 'collaboratorPerformance', x: 0, y: 0, w: 12, h: 9, minW: 4, minH: 6 }
+    },
+    clientTimeSpent: {
+        name: 'TEMPO POR CLIENTE & GARGALOS',
+        component: ClientTimeSpentWidget,
+        defaultLayout: { i: 'clientTimeSpent', x: 0, y: 9, w: 12, h: 9, minW: 4, minH: 6 }
     },
     topSegments: {
         name: 'RANKING SEGMENTOS',
@@ -124,7 +130,7 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
-    'collaboratorPerformance', 'topSegments', 'statusByUser', 'monthlyEvolution',
+    'collaboratorPerformance', 'clientTimeSpent', 'topSegments', 'statusByUser', 'monthlyEvolution',
     'upcomingDeadlines', 'topTasks', 'documentAlerts',
     'clientStatus', 'taxRegimes', 'loggedUsers',
     'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices', 'operationsCalendar',
@@ -156,7 +162,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     const scenarioDropdownRef = useRef<HTMLDivElement>(null);
 
     const OPERACIONAL_ALLOWED_WIDGETS = [
-        'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
+        'clientTimeSpent', 'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
         'topTasks', 'uncompletedTasks', 'clientStatus', 
         'notifiedExclusion', 'topSegments', 'monthlyEvolution', 'economicIndices', 'operationsCalendar',
         'clientCertificates', 'clientLicenses', 'notes'

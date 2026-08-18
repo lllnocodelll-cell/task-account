@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Users, Calendar, ChevronLeft, ChevronRight, Zap, Clock, CheckCircle2, Award, TrendingUp, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import { Users, Calendar, ChevronLeft, ChevronRight, Zap, Clock, CheckCircle2, Award, TrendingUp, AlertTriangle, ArrowUpDown, Timer, Pause } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
 import { Tooltip } from '../../ui/Tooltip';
@@ -15,9 +15,11 @@ interface CollaboratorMetric {
   completed: number;
   pending: number;
   inProgress: number;
+  paused: number;
   delayed: number;
   onTimeCompleted: number;
-  avgCompletionHours: number | null; // Tempo médio do início/criação até a conclusão em horas
+  totalSecondsSpent: number; // Tempo total trabalhado no mês em segundos
+  avgCompletionSeconds: number | null; // Tempo médio gasto por tarefa concluída
   avgDailyRate: number; // Média diária de conclusões no mês
   punctualityRate: number; // % de entregas no prazo
   completionRate: number; // % concluídas vs atribuídas
@@ -37,6 +39,16 @@ const AVATAR_COLORS = [
 const avatarColor = (name: string) =>
   AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 
+export const formatSecondsToFriendly = (totalSec: number | null): string => {
+  if (totalSec === null || isNaN(totalSec) || totalSec <= 0) return '-';
+  if (totalSec < 60) return `${Math.round(totalSec)}s`;
+  const minutes = totalSec / 60;
+  if (minutes < 60) return `${Math.round(minutes)}m`;
+  const hours = totalSec / 3600;
+  if (hours < 10) return `${hours.toFixed(1)}h`;
+  return `${Math.round(hours)}h`;
+};
+
 export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove }) => {
   const now = new Date();
   const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -45,8 +57,8 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
   const [metrics, setMetrics] = useState<CollaboratorMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(defaultPeriod);
-  const [sortBy, setSortBy] = useState<'completed' | 'speed' | 'punctuality'>('completed');
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<'completed' | 'speed' | 'hours' | 'punctuality'>('completed');
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const navigatePeriod = (direction: 'prev' | 'next') => {
     const base = period || defaultPeriod;
@@ -84,12 +96,12 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
   const fetchData = useCallback(async () => {
     if (!orgId) return;
     setLoading(true);
-    setSelectedIndex(null);
+    setHoveredIndex(null);
 
     try {
       let query = (supabase as any)
         .from('tasks')
-        .select('responsible, status, due_date, created_at, started_at, completed_at')
+        .select('responsible, status, due_date, created_at, started_at, completed_at, total_time_spent_seconds, timer_started_at')
         .eq('org_id', orgId);
 
       if (period) query = query.eq('competence', period);
@@ -104,10 +116,14 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
           completed: number;
           pending: number;
           inProgress: number;
+          paused: number;
           delayed: number;
           onTimeCompleted: number;
-          durationsHours: number[];
+          completedDurationsSec: number[];
+          allTotalSecondsSpent: number;
         }> = {};
+
+        const nowMs = Date.now();
 
         result.forEach((row: any) => {
           const resp = row.responsible || 'Sem responsável';
@@ -117,20 +133,56 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
               completed: 0,
               pending: 0,
               inProgress: 0,
+              paused: 0,
               delayed: 0,
               onTimeCompleted: 0,
-              durationsHours: []
+              completedDurationsSec: [],
+              allTotalSecondsSpent: 0
             };
           }
 
           const item = grouped[resp];
           item.total += 1;
 
-          if (row.status === 'Pendente') item.pending += 1;
-          else if (row.status === 'Iniciada') item.inProgress += 1;
-          else if (row.status === 'Atrasada') item.delayed += 1;
-          else if (row.status === 'Concluída') {
+          // Cálculo dos segundos trabalhados nesta tarefa
+          let taskSeconds = row.total_time_spent_seconds || 0;
+
+          // Se estiver em andamento com cronômetro ativo agora
+          if (row.status === 'Iniciada' && row.timer_started_at) {
+            const startMs = new Date(row.timer_started_at).getTime();
+            const currentLiveSec = Math.max(0, Math.floor((nowMs - startMs) / 1000));
+            taskSeconds += currentLiveSec;
+          }
+
+          // Fallback para tarefas antigas concluídas sem cronômetro (calcula pela diferença de datas)
+          if (taskSeconds === 0 && row.status === 'Concluída') {
+            const startFallback = row.started_at
+              ? new Date(row.started_at).getTime()
+              : row.created_at
+                ? new Date(row.created_at).getTime()
+                : null;
+            const completedFallback = row.completed_at ? new Date(row.completed_at).getTime() : null;
+            if (startFallback && completedFallback && completedFallback > startFallback) {
+              taskSeconds = Math.floor((completedFallback - startFallback) / 1000);
+            }
+          }
+
+          item.allTotalSecondsSpent += taskSeconds;
+
+          if (row.status === 'Pendente') {
+            item.pending += 1;
+          } else if (row.status === 'Iniciada') {
+            item.inProgress += 1;
+          } else if (row.status === 'Pausada') {
+            item.paused += 1;
+          } else if (row.status === 'Atrasada') {
+            item.delayed += 1;
+          } else if (row.status === 'Concluída') {
             item.completed += 1;
+
+            if (taskSeconds > 0) {
+              item.completedDurationsSec.push(taskSeconds);
+            }
 
             // Verifica se foi concluída no prazo (se due_date existir e completed_at <= due_date + 1 dia)
             const dueDate = row.due_date ? new Date(row.due_date) : null;
@@ -139,27 +191,12 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
             if (!dueDate || !completedDate || completedDate <= new Date(dueDate.getTime() + 86400000)) {
               item.onTimeCompleted += 1;
             }
-
-            // Calcula tempo de execução (usando started_at ou created_at até completed_at)
-            const startTime = row.started_at
-              ? new Date(row.started_at).getTime()
-              : row.created_at
-                ? new Date(row.created_at).getTime()
-                : null;
-
-            if (startTime && completedDate) {
-              const diffMs = completedDate.getTime() - startTime;
-              if (diffMs > 0) {
-                const diffHours = diffMs / (1000 * 60 * 60);
-                item.durationsHours.push(diffHours);
-              }
-            }
           }
         });
 
         const calculatedMetrics: CollaboratorMetric[] = Object.entries(grouped).map(([name, data]) => {
-          const avgHours = data.durationsHours.length > 0
-            ? data.durationsHours.reduce((acc, curr) => acc + curr, 0) / data.durationsHours.length
+          const avgSec = data.completedDurationsSec.length > 0
+            ? data.completedDurationsSec.reduce((acc, curr) => acc + curr, 0) / data.completedDurationsSec.length
             : null;
 
           const avgDaily = data.completed / workingDays;
@@ -172,9 +209,11 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
             completed: data.completed,
             pending: data.pending,
             inProgress: data.inProgress,
+            paused: data.paused,
             delayed: data.delayed,
             onTimeCompleted: data.onTimeCompleted,
-            avgCompletionHours: avgHours,
+            totalSecondsSpent: data.allTotalSecondsSpent,
+            avgCompletionSeconds: avgSec,
             avgDailyRate: avgDaily,
             punctualityRate,
             completionRate
@@ -198,9 +237,12 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
   const sortedMetrics = useMemo(() => {
     return [...metrics].sort((a, b) => {
       if (sortBy === 'speed') {
-        if (a.avgCompletionHours === null) return 1;
-        if (b.avgCompletionHours === null) return -1;
-        return a.avgCompletionHours - b.avgCompletionHours; // Menor tempo = mais rápido
+        if (a.avgCompletionSeconds === null) return 1;
+        if (b.avgCompletionSeconds === null) return -1;
+        return a.avgCompletionSeconds - b.avgCompletionSeconds; // Menor tempo = mais rápido
+      }
+      if (sortBy === 'hours') {
+        return b.totalSecondsSpent - a.totalSecondsSpent; // Mais tempo trabalhado
       }
       if (sortBy === 'punctuality') {
         return b.punctualityRate - a.punctualityRate;
@@ -214,41 +256,37 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
     let totalCompleted = 0;
     let totalAssigned = 0;
     let totalOnTime = 0;
-    let sumHours = 0;
-    let countHours = 0;
+    let sumSec = 0;
+    let countSec = 0;
+    let totalTeamSeconds = 0;
 
     metrics.forEach(m => {
       totalCompleted += m.completed;
       totalAssigned += m.total;
       totalOnTime += m.onTimeCompleted;
-      if (m.avgCompletionHours !== null) {
-        sumHours += m.avgCompletionHours;
-        countHours += 1;
+      totalTeamSeconds += m.totalSecondsSpent;
+      if (m.avgCompletionSeconds !== null) {
+        sumSec += m.avgCompletionSeconds;
+        countSec += 1;
       }
     });
 
     const workingDays = getWorkingDaysInMonth(period);
     const avgDailyTeam = totalCompleted / workingDays;
-    const avgTeamHours = countHours > 0 ? sumHours / countHours : null;
+    const avgTeamSec = countSec > 0 ? sumSec / countSec : null;
     const teamPunctuality = totalCompleted > 0 ? (totalOnTime / totalCompleted) * 100 : 100;
 
     return {
       totalCompleted,
       totalAssigned,
+      totalTeamSeconds,
       avgDailyTeam,
-      avgTeamHours,
+      avgTeamSec,
       teamPunctuality
     };
   }, [metrics, period, getWorkingDaysInMonth]);
 
   const periodLabel = period ? `${period.split('-')[1]}/${period.split('-')[0]}` : 'Todos';
-
-  const formatHoursOrDays = (hours: number | null) => {
-    if (hours === null || isNaN(hours)) return 'N/A';
-    if (hours < 24) return `${hours.toFixed(1)}h`;
-    const days = hours / 24;
-    return `${days.toFixed(1)}d`;
-  };
 
   return (
     <WidgetContainer
@@ -260,13 +298,19 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
           <Tooltip content="Alternar critério de ordenação" position="top">
             <button
               onClick={() => {
-                setSortBy(prev => prev === 'completed' ? 'speed' : prev === 'speed' ? 'punctuality' : 'completed');
+                setSortBy(prev => 
+                  prev === 'completed' ? 'speed' : 
+                  prev === 'speed' ? 'hours' : 
+                  prev === 'hours' ? 'punctuality' : 'completed'
+                );
               }}
-              className="h-6 px-1.5 flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+              className="h-6 px-1.5 flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
             >
               <ArrowUpDown size={10} />
               <span>
-                {sortBy === 'completed' ? 'Entregas' : sortBy === 'speed' ? 'Velocidade' : 'Pontualidade'}
+                {sortBy === 'completed' ? 'Entregas' : 
+                 sortBy === 'speed' ? 'Velocidade' : 
+                 sortBy === 'hours' ? 'Horas' : 'Pontualidade'}
               </span>
             </button>
           </Tooltip>
@@ -316,7 +360,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
       {loading ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <div className="w-10 h-10 rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-indigo-500 animate-spin" />
-          <div className="text-xs text-slate-400 font-medium animate-pulse">Carregando métricas da equipe...</div>
+          <div className="text-xs text-slate-400 font-medium animate-pulse">Carregando telemetria da equipe...</div>
         </div>
       ) : sortedMetrics.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm gap-3">
@@ -349,19 +393,19 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
 
             <div className="bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 rounded-xl p-2 flex flex-col">
               <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1">
-                <Clock size={10} /> Tempo Médio
+                <Timer size={10} /> Tempo Médio
               </span>
               <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {formatHoursOrDays(teamTotals.avgTeamHours)}
+                {formatSecondsToFriendly(teamTotals.avgTeamSec)}
               </span>
             </div>
 
             <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 rounded-xl p-2 flex flex-col">
               <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Award size={10} /> Pontualidade
+                <Clock size={10} /> Total Equipe
               </span>
               <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {teamTotals.teamPunctuality.toFixed(0)}%
+                {formatSecondsToFriendly(teamTotals.totalTeamSeconds)}
               </span>
             </div>
           </div>
@@ -369,16 +413,17 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
           {/* Lista de Colaboradores */}
           <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-2 min-h-0">
             {sortedMetrics.map((item, idx) => {
-              const isSelected = selectedIndex === idx;
+              const isHovered = hoveredIndex === idx;
               const isPunctual = item.punctualityRate >= 90;
               const isWarning = item.delayed > 0 || item.punctualityRate < 75;
 
               return (
                 <div
                   key={idx}
-                  onClick={() => setSelectedIndex(prev => prev === idx ? null : idx)}
-                  className={`w-full rounded-xl p-3 border transition-all duration-200 cursor-pointer ${
-                    isSelected
+                  onMouseEnter={() => setHoveredIndex(idx)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  className={`w-full rounded-xl p-3 border transition-all duration-200 ${
+                    isHovered
                       ? 'bg-white dark:bg-slate-800 border-indigo-300 dark:border-indigo-700 shadow-md ring-1 ring-indigo-400/30'
                       : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
@@ -421,8 +466,15 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
 
                       <div className="flex flex-col items-end">
                         <span className="text-[9px] text-slate-400 uppercase font-semibold">Tempo Médio</span>
-                        <span className="text-xs font-black text-slate-700 dark:text-slate-200">
-                          {formatHoursOrDays(item.avgCompletionHours)}
+                        <span className="text-xs font-black text-slate-700 dark:text-slate-200 font-mono">
+                          {formatSecondsToFriendly(item.avgCompletionSeconds)}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Total Dedicado</span>
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatSecondsToFriendly(item.totalSecondsSpent)}
                         </span>
                       </div>
 
@@ -445,16 +497,20 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
                     />
                   </div>
 
-                  {/* Detalhes Expandidos ao Clicar */}
-                  {isSelected && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 grid grid-cols-4 gap-2 text-center text-[10px] animate-in fade-in zoom-in-95 duration-150">
+                  {/* Detalhes Expandidos ao Passar o Mouse */}
+                  {isHovered && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 grid grid-cols-5 gap-2 text-center text-[10px] animate-in fade-in zoom-in-95 duration-150">
                       <div className="bg-slate-100/60 dark:bg-slate-800/60 p-1.5 rounded-lg">
                         <span className="text-slate-400 block font-medium">Pendentes</span>
-                        <span className="font-bold text-amber-600 dark:text-amber-400">{item.pending}</span>
+                        <span className="font-bold text-slate-600 dark:text-slate-300">{item.pending}</span>
                       </div>
                       <div className="bg-slate-100/60 dark:bg-slate-800/60 p-1.5 rounded-lg">
                         <span className="text-slate-400 block font-medium">Em Andamento</span>
                         <span className="font-bold text-blue-600 dark:text-blue-400">{item.inProgress}</span>
+                      </div>
+                      <div className="bg-slate-100/60 dark:bg-slate-800/60 p-1.5 rounded-lg">
+                        <span className="text-slate-400 block font-medium">Pausadas</span>
+                        <span className="font-bold text-amber-600 dark:text-amber-400">{item.paused}</span>
                       </div>
                       <div className="bg-slate-100/60 dark:bg-slate-800/60 p-1.5 rounded-lg">
                         <span className="text-slate-400 block font-medium">Atrasadas</span>
