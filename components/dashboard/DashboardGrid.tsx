@@ -38,7 +38,7 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         defaultLayout: { i: 'collaboratorPerformance', x: 0, y: 0, w: 12, h: 9, minW: 4, minH: 6 }
     },
     clientTimeSpent: {
-        name: 'TEMPO POR CLIENTE & GARGALOS',
+        name: 'TEMPO POR CLIENTE E TAREFA',
         component: ClientTimeSpentWidget,
         defaultLayout: { i: 'clientTimeSpent', x: 0, y: 9, w: 12, h: 9, minW: 4, minH: 6 }
     },
@@ -862,6 +862,8 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                             // Descrição em português para cada widget
                             const getWidgetDescription = (widgetId: string) => {
                                 switch (widgetId) {
+                                    case 'collaboratorPerformance': return 'Monitore o desempenho por colaborador na execução de tarefas.';
+                                    case 'clientTimeSpent': return 'Monitore o tempo total e médio dedicado por cliente e suas respectivas tarefas.';
                                     case 'topSegments': return 'Gráfico dos segmentos atendidos com maior representatividade.';
                                     case 'statusByUser': return 'Monitor em tempo real de tarefas concluídas, pendentes e em andamento por colaborador.';
                                     case 'upcomingDeadlines': return 'Listagem ordenada com os prazos de obrigações fiscais prestes a vencer.';

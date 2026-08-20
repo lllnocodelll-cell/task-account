@@ -17,6 +17,7 @@ import {
   TrendingUp, 
   CheckCircle2, 
   Flame,
+  Zap,
   PieChart,
   BarChart2
 } from 'lucide-react';
@@ -51,24 +52,35 @@ interface ClientMetric {
   totalSecondsSpent: number;
   totalTasksCount: number;
   avgSecondsPerTask: number; // Média de tempo por tarefa deste cliente
-  criticalTasksCount: number; // Tarefas que superam o limiar
+  criticalTasksCount: number; // Tarefas que cumprem o limiar selecionado
   tasks: ClientTaskItem[];
 }
 
 type FilterMode = 'task' | 'client';
 
 const TASK_THRESHOLD_OPTIONS = [
-  { value: 900, label: '≥ 15 min (Padrão)' },
-  { value: 1800, label: '≥ 30 min' },
-  { value: 3600, label: '≥ 1 hora' },
+  // Gargalos / Demoradas
+  { value: 1800, label: '🔥 ≥ 30 min (Gargalos - Padrão)' },
+  { value: 3600, label: '🔥 ≥ 1 hora (Críticos)' },
+  { value: 7200, label: '🔥 ≥ 2 horas' },
+  { value: 900, label: '🔥 ≥ 15 min' },
+  // Alta Performance / Rápidas
+  { value: -1800, label: '⚡ < 30 min (Alta Performance)' },
+  { value: -900, label: '⚡ < 15 min (Super Rápidas)' },
+  // Todas
   { value: 0, label: 'Todas as tarefas' },
 ];
 
 const CLIENT_THRESHOLD_OPTIONS = [
-  { value: 1800, label: '≥ 30 min' },
-  { value: 3600, label: '≥ 1 hora (Padrão)' },
-  { value: 7200, label: '≥ 2 horas' },
-  { value: 18000, label: '≥ 5 horas' },
+  // Maior Consumo
+  { value: 3600, label: '⏱️ ≥ 1 hora (Padrão)' },
+  { value: 7200, label: '⏱️ ≥ 2 horas' },
+  { value: 18000, label: '⏱️ ≥ 5 horas' },
+  { value: 1800, label: '⏱️ ≥ 30 min' },
+  // Baixo Consumo / Alta Performance
+  { value: -1800, label: '⚡ < 30 min (Alta Performance)' },
+  { value: -3600, label: '⚡ < 1 hora (Ágeis)' },
+  // Todos
   { value: 0, label: 'Todos os clientes' },
 ];
 
@@ -81,7 +93,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(defaultPeriod);
   const [filterMode, setFilterMode] = useState<FilterMode>('task');
-  const [taskThreshold, setTaskThreshold] = useState<number>(900); // 15 min padrão para tarefa
+  const [taskThreshold, setTaskThreshold] = useState<number>(1800); // 30 min padrão para tarefa
   const [clientThreshold, setClientThreshold] = useState<number>(3600); // 1h padrão para cliente
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'time' | 'avg' | 'critical' | 'name'>('time');
@@ -95,8 +107,6 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
   };
 
   const resetToDefaultPeriod = () => setPeriod(defaultPeriod);
-
-  const activeThreshold = filterMode === 'task' ? taskThreshold : clientThreshold;
 
   const fetchData = useCallback(async () => {
     if (!orgId) return;
@@ -207,6 +217,9 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
           });
         });
 
+        const isTaskLessThan = taskThreshold < 0;
+        const absTaskThreshold = Math.abs(taskThreshold);
+
         // Calcula métricas e porcentagens
         const calculated: ClientMetric[] = Object.values(clientMap).map(c => {
           const clientTotalSec = c.totalSeconds;
@@ -220,7 +233,12 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             }))
             .sort((a, b) => b.secondsSpent - a.secondsSpent);
 
-          const criticalCount = processedTasks.filter(t => t.secondsSpent >= taskThreshold).length;
+          const matchingCount = processedTasks.filter(t => {
+            if (taskThreshold === 0) return true;
+            if (isTaskLessThan) return t.secondsSpent > 0 && t.secondsSpent < absTaskThreshold;
+            return t.secondsSpent >= taskThreshold;
+          }).length;
+
           const avgSec = processedTasks.length > 0 ? Math.round(clientTotalSec / processedTasks.length) : 0;
 
           return {
@@ -233,7 +251,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             totalSecondsSpent: clientTotalSec,
             totalTasksCount: processedTasks.length,
             avgSecondsPerTask: avgSec,
-            criticalTasksCount: criticalCount,
+            criticalTasksCount: matchingCount,
             tasks: processedTasks
           };
         });
@@ -253,17 +271,23 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
   // Filtro e ordenação dos clientes conforme o modo selecionado
   const filteredAndSortedMetrics = useMemo(() => {
+    const isClientLessThan = clientThreshold < 0;
+    const absClientThreshold = Math.abs(clientThreshold);
+
     return metrics
       .filter(m => {
-        // Modo 1: Filtrar por tarefas individuais (gargalos >= X min)
+        // Modo 1: Filtrar por tarefas individuais (gargalos >= X min OU alta performance < X min)
         if (filterMode === 'task') {
-          if (taskThreshold > 0 && m.criticalTasksCount === 0) {
+          if (taskThreshold !== 0 && m.criticalTasksCount === 0) {
             return false;
           }
         } 
-        // Modo 2: Filtrar pelo tempo total acumulado do cliente (total >= X min/horas)
+        // Modo 2: Filtrar pelo tempo total acumulado do cliente
         else if (filterMode === 'client') {
           if (clientThreshold > 0 && m.totalSecondsSpent < clientThreshold) {
+            return false;
+          }
+          if (clientThreshold < 0 && (m.totalSecondsSpent === 0 || m.totalSecondsSpent >= absClientThreshold)) {
             return false;
           }
         }
@@ -284,7 +308,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
           return b.avgSecondsPerTask - a.avgSecondsPerTask; // Maior média por tarefa
         }
         if (sortBy === 'critical') {
-          return b.criticalTasksCount - a.criticalTasksCount; // Mais tarefas gargalo
+          return b.criticalTasksCount - a.criticalTasksCount; // Mais tarefas no critério
         }
         return a.clientName.localeCompare(b.clientName); // Alfabética
       });
@@ -326,9 +350,14 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     return Math.max(...metrics.map(m => m.totalSecondsSpent), 1);
   }, [metrics]);
 
+  const isTaskLessThan = taskThreshold < 0;
+  const absTaskThreshold = Math.abs(taskThreshold);
+  const isClientLessThan = clientThreshold < 0;
+  const absClientThreshold = Math.abs(clientThreshold);
+
   return (
     <WidgetContainer
-      title="TEMPO POR CLIENTE & GARGALOS DE FECHAMENTO"
+      title="TEMPO POR CLIENTE E TAREFA"
       icon={<Building2 size={14} className="text-indigo-500" />}
       onRemove={onRemove}
       headerActions={
@@ -359,7 +388,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
           {/* Seletor de Limiar Dinâmico conforme o Modo */}
           <Tooltip 
-            content={filterMode === 'task' ? "Filtra clientes com pelo menos 1 tarefa acima deste tempo" : "Filtra clientes cujo tempo total somado atinge este valor"} 
+            content={filterMode === 'task' ? "Filtra tarefas e clientes pelo tempo de execução" : "Filtra clientes pelo tempo total acumulado"} 
             position="top"
           >
             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
@@ -410,7 +439,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
               <span>
                 {sortBy === 'time' ? 'Tempo Total' : 
                  sortBy === 'avg' ? 'Média/Tarefa' : 
-                 sortBy === 'critical' ? 'Gargalos' : 'Nome A-Z'}
+                 sortBy === 'critical' ? (isTaskLessThan ? 'Mais Rápidas' : 'Mais Demoradas') : 'Nome A-Z'}
               </span>
             </button>
           </Tooltip>
@@ -471,7 +500,19 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             <Building2 size={24} className="text-slate-300 dark:text-slate-600" />
           </div>
           <span className="text-xs text-center px-4">
-            Nenhum cliente encontrado para o filtro ({filterMode === 'task' ? `Tarefas ≥ ${Math.round(taskThreshold / 60)} min` : `Total Cliente ≥ ${formatSecondsToFriendly(clientThreshold)}`}) em <strong>{periodLabel}</strong>
+            Nenhum cliente encontrado para o filtro ({
+              filterMode === 'task' 
+                ? (taskThreshold === 0 
+                    ? 'Todas as tarefas' 
+                    : isTaskLessThan 
+                      ? `Tarefas < ${Math.round(absTaskThreshold / 60)} min` 
+                      : `Tarefas ≥ ${Math.round(taskThreshold / 60)} min`)
+                : (clientThreshold === 0 
+                    ? 'Todos os clientes' 
+                    : isClientLessThan 
+                      ? `Total Cliente < ${formatSecondsToFriendly(absClientThreshold)}` 
+                      : `Total Cliente ≥ ${formatSecondsToFriendly(clientThreshold)}`)
+            }) em <strong>{periodLabel}</strong>
           </span>
         </div>
       ) : (
@@ -505,12 +546,72 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
               </span>
             </div>
 
-            <div className="bg-rose-50/70 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                <Flame size={10} /> Gargalos ({taskThreshold > 0 ? `≥${Math.round(taskThreshold/60)}m` : 'Totais'})
+            <div className={`border rounded-xl p-2 flex flex-col transition-all ${
+              filterMode === 'task'
+                ? (taskThreshold < 0 
+                    ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/40' 
+                    : taskThreshold > 0 
+                      ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-100 dark:border-rose-900/40'
+                      : 'bg-slate-50/70 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700')
+                : (clientThreshold < 0 
+                    ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/40' 
+                    : clientThreshold > 0 
+                      ? 'bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/40'
+                      : 'bg-slate-50/70 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700')
+            }`}>
+              <span className={`text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                filterMode === 'task'
+                  ? (taskThreshold < 0 
+                      ? 'text-emerald-600 dark:text-emerald-400' 
+                      : taskThreshold > 0 
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : 'text-slate-600 dark:text-slate-400')
+                  : (clientThreshold < 0 
+                      ? 'text-emerald-600 dark:text-emerald-400' 
+                      : clientThreshold > 0 
+                        ? 'text-indigo-600 dark:text-indigo-400'
+                        : 'text-slate-600 dark:text-slate-400')
+              }`}>
+                {filterMode === 'task' ? (
+                  taskThreshold < 0 ? (
+                    <>
+                      <Zap size={10} /> Alta Performance (&lt;{Math.round(absTaskThreshold/60)}m)
+                    </>
+                  ) : taskThreshold > 0 ? (
+                    <>
+                      <Flame size={10} /> Gargalos (≥{Math.round(taskThreshold/60)}m)
+                    </>
+                  ) : (
+                    <>
+                      <Clock size={10} /> Tarefas Totais
+                    </>
+                  )
+                ) : (
+                  clientThreshold < 0 ? (
+                    <>
+                      <Zap size={10} /> Alta Performance (&lt;{formatSecondsToFriendly(absClientThreshold)})
+                    </>
+                  ) : clientThreshold > 0 ? (
+                    <>
+                      <Clock size={10} /> Total Cliente (≥{formatSecondsToFriendly(clientThreshold)})
+                    </>
+                  ) : (
+                    <>
+                      <Building2 size={10} /> Todos os Clientes
+                    </>
+                  )
+                )}
               </span>
               <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {totals.sumCriticalTasks} <span className="text-[10px] font-normal text-slate-400">tarefas</span>
+                {filterMode === 'task' ? (
+                  <>
+                    {totals.sumCriticalTasks} <span className="text-[10px] font-normal text-slate-400">tarefas</span>
+                  </>
+                ) : (
+                  <>
+                    {filteredAndSortedMetrics.length} <span className="text-[10px] font-normal text-slate-400">clientes</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -529,14 +630,19 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             </div>
           </div>
 
-          {/* Lista de Clientes e suas Tarefas Mais Demoradas */}
+          {/* Lista de Clientes e suas Tarefas */}
           <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-2.5 min-h-0">
             {filteredAndSortedMetrics.map((client) => {
               const isExpanded = expandedClientId === client.clientId;
               const relativePercent = Math.min(100, Math.round((client.totalSecondsSpent / maxClientSeconds) * 100));
               
-              // Filtra tarefas que cumprem o limiar de tarefa
-              const visibleTasks = client.tasks.filter(t => taskThreshold === 0 || t.secondsSpent >= taskThreshold);
+              // No modo 'client', exibe todas as tarefas do cliente. No modo 'task', filtra pelo limiar
+              const visibleTasks = client.tasks.filter(t => {
+                if (filterMode === 'client') return true;
+                if (taskThreshold === 0) return true;
+                if (isTaskLessThan) return t.secondsSpent > 0 && t.secondsSpent < absTaskThreshold;
+                return t.secondsSpent >= taskThreshold;
+              });
 
               return (
                 <div
@@ -566,9 +672,21 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                               {TAX_REGIME_LABELS[client.taxRegime] || client.taxRegime}
                             </span>
                           )}
-                          {client.criticalTasksCount > 0 && (
-                            <span className="px-1.5 py-0.2 text-[8.5px] font-black rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40 flex items-center gap-0.5">
-                              <Flame size={8} className="fill-current" /> {client.criticalTasksCount} demorada(s)
+                          {filterMode === 'task' && client.criticalTasksCount > 0 && (
+                            <span className={`px-1.5 py-0.2 text-[8.5px] font-black rounded-full border flex items-center gap-0.5 ${
+                              isTaskLessThan 
+                                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
+                                : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/40'
+                            }`}>
+                              {isTaskLessThan ? (
+                                <>
+                                  <Zap size={8} className="fill-current" /> {client.criticalTasksCount} rápida(s)
+                                </>
+                              ) : (
+                                <>
+                                  <Flame size={8} className="fill-current" /> {client.criticalTasksCount} demorada(s)
+                                </>
+                              )}
                             </span>
                           )}
                         </div>
@@ -576,7 +694,6 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                           {client.document && <span>CNPJ: {client.document}</span>}
                           {client.city && <span>• {client.city}{client.state ? `/${client.state}` : ''}</span>}
                           <span>• {client.totalTasksCount} tarefa(s)</span>
-                          <span className="text-sky-600 dark:text-sky-400 font-semibold">• Média: {formatSecondsToFriendly(client.avgSecondsPerTask)}/tarefa</span>
                         </div>
                       </div>
                     </div>
@@ -609,28 +726,50 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                   <div className="px-3 pb-2">
                     <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-indigo-500 to-rose-500 rounded-full transition-all duration-500"
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          (filterMode === 'task' && isTaskLessThan) || (filterMode === 'client' && isClientLessThan)
+                            ? 'bg-gradient-to-r from-emerald-500 to-sky-500' 
+                            : 'bg-gradient-to-r from-indigo-500 to-rose-500'
+                        }`}
                         style={{ width: `${relativePercent}%` }}
                       />
                     </div>
                   </div>
 
-                  {/* Detalhes / Tarefas que mais tomaram tempo (Visível quando expandido) */}
+                  {/* Detalhes / Tarefas (Visível quando expandido) */}
                   {isExpanded && (
                     <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-3 animate-in fade-in duration-150">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          <Clock size={11} className="text-indigo-500" /> Tarefas Mais Demoradas ({taskThreshold > 0 ? `≥ ${Math.round(taskThreshold / 60)} min` : 'Todas'})
+                          {filterMode === 'client' ? (
+                            <>
+                              <Clock size={11} className="text-indigo-500" /> Todas as Tarefas do Cliente
+                            </>
+                          ) : isTaskLessThan ? (
+                            <>
+                              <Zap size={11} className="text-emerald-500" /> Tarefas de Alta Performance (&lt; {Math.round(absTaskThreshold / 60)} min)
+                            </>
+                          ) : (
+                            <>
+                              <Clock size={11} className="text-indigo-500" /> Tarefas {taskThreshold > 0 ? `Mais Demoradas (≥ ${Math.round(taskThreshold / 60)} min)` : 'do Cliente'}
+                            </>
+                          )}
                         </span>
                         <span className="text-[9.5px] text-slate-400 font-medium">
-                          {visibleTasks.length} de {client.tasks.length} tarefa(s) • Média do cliente: {formatSecondsToFriendly(client.avgSecondsPerTask)}
+                          {visibleTasks.length} {filterMode === 'task' ? `de ${client.tasks.length}` : ''} tarefa(s) • Média do cliente: {formatSecondsToFriendly(client.avgSecondsPerTask)}
                         </span>
                       </div>
 
                       {visibleTasks.length === 0 ? (
                         <div className="py-3 text-center text-xs text-slate-400 flex items-center justify-center gap-1.5 bg-white/40 dark:bg-slate-800/40 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
                           <CheckCircle2 size={13} className="text-emerald-500" />
-                          <span>Todas as tarefas deste cliente foram rápidas (&lt; {Math.round(taskThreshold / 60)} min)</span>
+                          <span>
+                            {filterMode === 'client'
+                              ? 'Nenhuma tarefa vinculada a este cliente neste período'
+                              : isTaskLessThan 
+                                ? `Nenhuma tarefa deste cliente levou menos de ${Math.round(absTaskThreshold / 60)} min`
+                                : `Todas as tarefas deste cliente foram rápidas (< ${Math.round(taskThreshold / 60)} min)`}
+                          </span>
                         </div>
                       ) : (
                         <div className="space-y-1.5">
@@ -661,7 +800,11 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
                               {/* Tempo da Tarefa e % do Cliente */}
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-[9px] font-bold text-indigo-700 dark:text-indigo-300 rounded border border-indigo-100 dark:border-indigo-900/30">
+                                <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded border ${
+                                  (filterMode === 'task' && isTaskLessThan) || (filterMode === 'client' && isClientLessThan)
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-900/30'
+                                    : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-100 dark:border-indigo-900/30'
+                                }`}>
                                   {task.percentageOfClientTime}% do cliente
                                 </span>
                                 <div className="text-right font-mono font-black text-slate-800 dark:text-slate-100 text-xs">
@@ -683,3 +826,4 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     </WidgetContainer>
   );
 };
+

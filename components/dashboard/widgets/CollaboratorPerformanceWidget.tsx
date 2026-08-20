@@ -20,7 +20,8 @@ interface CollaboratorMetric {
   onTimeCompleted: number;
   totalSecondsSpent: number; // Tempo total trabalhado no mês em segundos
   avgCompletionSeconds: number | null; // Tempo médio gasto por tarefa concluída
-  avgDailyRate: number; // Média diária de conclusões no mês
+  avgDailyRate: number; // Média diária nos dias ativos de entrega
+  activeDaysCount: number; // Quantidade de dias em que concluiu tarefas
   punctualityRate: number; // % de entregas no prazo
   completionRate: number; // % concluídas vs atribuídas
 }
@@ -42,11 +43,15 @@ const avatarColor = (name: string) =>
 export const formatSecondsToFriendly = (totalSec: number | null): string => {
   if (totalSec === null || isNaN(totalSec) || totalSec <= 0) return '-';
   if (totalSec < 60) return `${Math.round(totalSec)}s`;
-  const minutes = totalSec / 60;
-  if (minutes < 60) return `${Math.round(minutes)}m`;
-  const hours = totalSec / 3600;
-  if (hours < 10) return `${hours.toFixed(1)}h`;
-  return `${Math.round(hours)}h`;
+  
+  const totalMinutes = Math.round(totalSec / 60);
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
 };
 
 export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove }) => {
@@ -69,30 +74,6 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
 
   const resetToDefaultPeriod = () => setPeriod(defaultPeriod);
 
-  // Calcula dias úteis transcorridos no mês selecionado
-  const getWorkingDaysInMonth = useCallback((periodStr: string) => {
-    const [yearStr, monthStr] = periodStr.split('-');
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10) - 1; // 0-indexed
-
-    const today = new Date();
-    const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
-
-    const startDate = new Date(year, month, 1);
-    const endDate = isCurrentMonth ? today : new Date(year, month + 1, 0);
-
-    let workingDays = 0;
-    const cur = new Date(startDate);
-    while (cur <= endDate) {
-      const dayOfWeek = cur.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Ignora sábado e domingo
-        workingDays++;
-      }
-      cur.setDate(cur.getDate() + 1);
-    }
-    return Math.max(workingDays, 1);
-  }, []);
-
   const fetchData = useCallback(async () => {
     if (!orgId) return;
     setLoading(true);
@@ -110,7 +91,6 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
       if (error) throw error;
 
       if (result) {
-        const workingDays = getWorkingDaysInMonth(period);
         const grouped: Record<string, {
           total: number;
           completed: number;
@@ -121,6 +101,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
           onTimeCompleted: number;
           completedDurationsSec: number[];
           allTotalSecondsSpent: number;
+          activeDates: Set<string>;
         }> = {};
 
         const nowMs = Date.now();
@@ -137,7 +118,8 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
               delayed: 0,
               onTimeCompleted: 0,
               completedDurationsSec: [],
-              allTotalSecondsSpent: 0
+              allTotalSecondsSpent: 0,
+              activeDates: new Set<string>()
             };
           }
 
@@ -184,6 +166,15 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
               item.completedDurationsSec.push(taskSeconds);
             }
 
+            // Registra a data em que a tarefa foi concluída para cálculo dos dias ativos
+            const completedDateRaw = row.completed_at || row.started_at || row.created_at;
+            if (completedDateRaw) {
+              const dStr = typeof completedDateRaw === 'string' 
+                ? completedDateRaw.substring(0, 10) 
+                : new Date(completedDateRaw).toISOString().split('T')[0];
+              item.activeDates.add(dStr);
+            }
+
             // Verifica se foi concluída no prazo (se due_date existir e completed_at <= due_date + 1 dia)
             const dueDate = row.due_date ? new Date(row.due_date) : null;
             const completedDate = row.completed_at ? new Date(row.completed_at) : null;
@@ -199,7 +190,8 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
             ? data.completedDurationsSec.reduce((acc, curr) => acc + curr, 0) / data.completedDurationsSec.length
             : null;
 
-          const avgDaily = data.completed / workingDays;
+          const activeDays = data.activeDates.size > 0 ? data.activeDates.size : (data.completed > 0 ? 1 : 0);
+          const avgDaily = activeDays > 0 ? data.completed / activeDays : 0;
           const punctualityRate = data.completed > 0 ? (data.onTimeCompleted / data.completed) * 100 : 100;
           const completionRate = data.total > 0 ? (data.completed / data.total) * 100 : 0;
 
@@ -215,6 +207,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
             totalSecondsSpent: data.allTotalSecondsSpent,
             avgCompletionSeconds: avgSec,
             avgDailyRate: avgDaily,
+            activeDaysCount: activeDays,
             punctualityRate,
             completionRate
           };
@@ -227,7 +220,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
     } finally {
       setLoading(false);
     }
-  }, [orgId, period, getWorkingDaysInMonth]);
+  }, [orgId, period]);
 
   useEffect(() => {
     fetchData();
@@ -259,6 +252,8 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
     let sumSec = 0;
     let countSec = 0;
     let totalTeamSeconds = 0;
+    let sumAvgDaily = 0;
+    let countActiveCollaborators = 0;
 
     metrics.forEach(m => {
       totalCompleted += m.completed;
@@ -269,10 +264,13 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
         sumSec += m.avgCompletionSeconds;
         countSec += 1;
       }
+      if (m.completed > 0) {
+        sumAvgDaily += m.avgDailyRate;
+        countActiveCollaborators += 1;
+      }
     });
 
-    const workingDays = getWorkingDaysInMonth(period);
-    const avgDailyTeam = totalCompleted / workingDays;
+    const avgDailyTeam = countActiveCollaborators > 0 ? sumAvgDaily / countActiveCollaborators : 0;
     const avgTeamSec = countSec > 0 ? sumSec / countSec : null;
     const teamPunctuality = totalCompleted > 0 ? (totalOnTime / totalCompleted) * 100 : 100;
 
@@ -284,7 +282,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
       avgTeamSec,
       teamPunctuality
     };
-  }, [metrics, period, getWorkingDaysInMonth]);
+  }, [metrics]);
 
   const periodLabel = period ? `${period.split('-')[1]}/${period.split('-')[0]}` : 'Todos';
 
@@ -387,7 +385,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
                 <Zap size={10} /> Média Diária
               </span>
               <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {teamTotals.avgDailyTeam.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">/dia</span>
+                {teamTotals.avgDailyTeam % 1 === 0 ? teamTotals.avgDailyTeam.toFixed(0) : teamTotals.avgDailyTeam.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">/dia</span>
               </span>
             </div>
 
@@ -457,12 +455,14 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
 
                     {/* Métricas do Colaborador */}
                     <div className="flex items-center gap-3 shrink-0">
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Média Diária</span>
-                        <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
-                          {item.avgDailyRate.toFixed(1)}/dia
-                        </span>
-                      </div>
+                      <Tooltip content={`Média de ${item.completed} tarefa(s) concluída(s) em ${item.activeDaysCount} dia(s) trabalhado(s)`} position="top">
+                        <div className="flex flex-col items-end">
+                          <span className="text-[9px] text-slate-400 uppercase font-semibold">Média Diária</span>
+                          <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
+                            {item.avgDailyRate % 1 === 0 ? item.avgDailyRate.toFixed(0) : item.avgDailyRate.toFixed(1)}/dia
+                          </span>
+                        </div>
+                      </Tooltip>
 
                       <div className="flex flex-col items-end">
                         <span className="text-[9px] text-slate-400 uppercase font-semibold">Tempo Médio</span>
