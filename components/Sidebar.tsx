@@ -83,7 +83,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             .from('chat_messages') as any)
             .select('*', { count: 'exact', head: true })
             .eq('channel_id', m.channel_id)
-            .neq('sender_id', user.id)
             .gt('created_at', lastRead);
 
           if (!error && count) {
@@ -123,7 +122,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               .from('chat_messages')
               .select('*', { count: 'exact', head: true })
               .eq('channel_id', m.channel_id)
-              .neq('sender_id', user.id)
               .gt('created_at', lastRead);
 
             if (!error && count) {

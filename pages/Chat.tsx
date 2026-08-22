@@ -30,7 +30,14 @@ import {
   Building2,
   MousePointerClick,
   UserCog,
-  Zap
+  Zap,
+  Palmtree,
+  Utensils,
+  Clock,
+  MinusCircle,
+  CheckCircle2,
+  CircleOff,
+  ChevronDown
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -78,13 +85,142 @@ interface Profile {
 }
 
 
+export type UserChatStatus = 'disponível' | 'ocupado' | 'ausente' | 'almoço' | 'férias' | 'offline';
+
+export const STATUS_CONFIG: Record<string, {
+  label: string;
+  dotColor: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  iconBg: string;
+  iconText: string;
+  icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
+  description: string;
+}> = {
+  'disponível': {
+    label: 'Disponível',
+    dotColor: 'bg-emerald-500',
+    badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    badgeText: 'text-emerald-700 dark:text-emerald-300',
+    badgeBorder: 'border-emerald-200 dark:border-emerald-800/50',
+    iconBg: 'bg-emerald-100 dark:bg-emerald-900/50',
+    iconText: 'text-emerald-600 dark:text-emerald-400',
+    icon: CheckCircle2,
+    description: 'Online e pronto para atender'
+  },
+  'ocupado': {
+    label: 'Ocupado',
+    dotColor: 'bg-rose-500',
+    badgeBg: 'bg-rose-50 dark:bg-rose-950/40',
+    badgeText: 'text-rose-700 dark:text-rose-300',
+    badgeBorder: 'border-rose-200 dark:border-rose-800/50',
+    iconBg: 'bg-rose-100 dark:bg-rose-900/50',
+    iconText: 'text-rose-600 dark:text-rose-400',
+    icon: MinusCircle,
+    description: 'Em reunião ou foco total'
+  },
+  'ausente': {
+    label: 'Ausente',
+    dotColor: 'bg-amber-500',
+    badgeBg: 'bg-amber-50 dark:bg-amber-950/40',
+    badgeText: 'text-amber-700 dark:text-amber-300',
+    badgeBorder: 'border-amber-200 dark:border-amber-800/50',
+    iconBg: 'bg-amber-100 dark:bg-amber-900/50',
+    iconText: 'text-amber-600 dark:text-amber-400',
+    icon: Clock,
+    description: 'Temporariamente afastado'
+  },
+  'almoço': {
+    label: 'Almoço',
+    dotColor: 'bg-blue-500',
+    badgeBg: 'bg-blue-50 dark:bg-blue-950/40',
+    badgeText: 'text-blue-700 dark:text-blue-300',
+    badgeBorder: 'border-blue-200 dark:border-blue-800/50',
+    iconBg: 'bg-blue-100 dark:bg-blue-900/50',
+    iconText: 'text-blue-600 dark:text-blue-400',
+    icon: Utensils,
+    description: 'Em intervalo de almoço'
+  },
+  'férias': {
+    label: 'Férias',
+    dotColor: 'bg-teal-500',
+    badgeBg: 'bg-teal-50 dark:bg-teal-950/40',
+    badgeText: 'text-teal-700 dark:text-teal-300',
+    badgeBorder: 'border-teal-200 dark:border-teal-800/50',
+    iconBg: 'bg-teal-100 dark:bg-teal-900/50',
+    iconText: 'text-teal-600 dark:text-teal-400',
+    icon: Palmtree,
+    description: 'Em período de férias/recesso'
+  },
+  'offline': {
+    label: 'Offline',
+    dotColor: 'bg-slate-400 dark:bg-slate-500',
+    badgeBg: 'bg-slate-100 dark:bg-slate-800/60',
+    badgeText: 'text-slate-600 dark:text-slate-400',
+    badgeBorder: 'border-slate-200 dark:border-slate-700/50',
+    iconBg: 'bg-slate-200 dark:bg-slate-700',
+    iconText: 'text-slate-500 dark:text-slate-400',
+    icon: CircleOff,
+    description: 'Desconectado'
+  }
+};
+
 const STATUS_COLORS: Record<string, string> = {
   'disponível': 'bg-emerald-500',
-  'ocupado': 'bg-red-500',
+  'ocupado': 'bg-rose-500',
   'ausente': 'bg-amber-500',
   'almoço': 'bg-blue-500',
-  'férias': 'bg-slate-400',
-  'offline': 'bg-slate-300 dark:bg-slate-600'
+  'férias': 'bg-teal-500',
+  'offline': 'bg-slate-400 dark:bg-slate-500'
+};
+
+const RenderStatusBadge: React.FC<{ status?: string; showLabel?: boolean; size?: 'xs' | 'sm' | 'md' }> = ({
+  status = 'disponível',
+  showLabel = true,
+  size = 'sm'
+}) => {
+  const normStatus = (status || 'disponível').toLowerCase();
+  const config = STATUS_CONFIG[normStatus] || STATUS_CONFIG['disponível'];
+  const IconComponent = config.icon;
+
+  const iconSize = size === 'xs' ? 10 : size === 'sm' ? 11 : 13;
+  const paddingClass = size === 'xs' ? 'px-1.5 py-0.5 text-[9px]' : size === 'sm' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs';
+
+  return (
+    <span className={`inline-flex items-center gap-1 font-semibold rounded-md border ${config.badgeBg} ${config.badgeText} ${config.badgeBorder} ${paddingClass} leading-none whitespace-nowrap`}>
+      <IconComponent size={iconSize} className="shrink-0" strokeWidth={2.2} />
+      {showLabel && <span>{config.label}</span>}
+    </span>
+  );
+};
+
+const StatusDot: React.FC<{ status?: string; className?: string; size?: 'sm' | 'md' }> = ({
+  status = 'disponível',
+  className = '',
+  size = 'md'
+}) => {
+  const normStatus = (status || 'disponível').toLowerCase();
+  const config = STATUS_CONFIG[normStatus] || STATUS_CONFIG['disponível'];
+  const IconComponent = config.icon;
+
+  if (normStatus === 'férias' || normStatus === 'almoço') {
+    return (
+      <div 
+        title={`Status: ${config.label}`}
+        className={`absolute bottom-0 right-0 ${size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4'} rounded-full border-2 border-white dark:border-slate-800 ${config.dotColor} flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 ${className}`}
+      >
+        <IconComponent size={size === 'sm' ? 8 : 9} strokeWidth={2.5} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      title={`Status: ${config.label}`}
+      className={`absolute bottom-0 right-0 ${size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} border-2 border-white dark:border-slate-800 rounded-full ${config.dotColor} shadow-sm ${className}`}
+    />
+  );
 };
 
 export interface Reaction {
@@ -1445,12 +1581,11 @@ export const Chat: React.FC = () => {
 
           const lastRead = lastReadMap[c.id] || '2000-01-01T00:00:00Z';
 
-          // Contar mensagens após last_read_at que não foram enviadas por mim
+          // Contar mensagens após last_read_at
           const { count, error: countError } = await supabase
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
             .eq('channel_id', c.id)
-            .neq('sender_id', targetUid)
             .gt('created_at', lastRead);
 
           // Buscar IDs das mensagens deste canal para checar reações
@@ -1466,7 +1601,6 @@ export const Chat: React.FC = () => {
               .from('chat_reactions')
               .select('*', { count: 'exact', head: true })
               .in('message_id', mIds)
-              .neq('user_id', targetUid)
               .gt('created_at', lastRead);
             reactionCount = rCount || 0;
           }
@@ -1591,6 +1725,9 @@ export const Chat: React.FC = () => {
   const markMessageAsUnread = async (messageId: string, channelId: string) => {
     if (!userId) return;
     try {
+      // 1. Desmarcar o canal aberto imediatamente para evitar re-execução do markChannelAsRead
+      setSelectedChannelId(null);
+
       const { data: message } = await supabase
         .from('chat_messages')
         .select('created_at')
@@ -1610,15 +1747,66 @@ export const Chat: React.FC = () => {
         .eq('channel_id', channelId)
         .eq('user_id', userId);
 
+      // Calcular contagem de mensagens a partir desse timestamp
+      const { count } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('channel_id', channelId)
+        .gt('created_at', unreadTimestamp);
+
+      const calculatedCount = Math.max(count || 1, 1);
+
       setChannels(prev =>
         prev.map(ch =>
-          ch.id === channelId ? { ...ch, unreadCount: Math.max(ch.unreadCount || 1, 1) } : ch
+          ch.id === channelId ? { ...ch, unreadCount: calculatedCount } : ch
         )
       );
-
-      setSelectedChannelId(null);
     } catch (error) {
       console.error('Error marking message as unread:', error);
+    }
+  };
+
+  const markChannelAsUnread = async (channelId: string) => {
+    if (!userId) return;
+    try {
+      setSelectedChannelId(null);
+
+      const { data: lastMsg } = await supabase
+        .from('chat_messages')
+        .select('created_at')
+        .eq('channel_id', channelId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let unreadTimestamp = new Date(Date.now() - 1000).toISOString();
+      if (lastMsg) {
+        const dt = new Date(lastMsg.created_at);
+        dt.setMilliseconds(dt.getMilliseconds() - 1);
+        unreadTimestamp = dt.toISOString();
+      }
+
+      await supabase
+        .from('chat_channel_members')
+        .update({ last_read_at: unreadTimestamp } as any)
+        .eq('channel_id', channelId)
+        .eq('user_id', userId);
+
+      const { count } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('channel_id', channelId)
+        .gt('created_at', unreadTimestamp);
+
+      const calculatedCount = Math.max(count || 1, 1);
+
+      setChannels(prev =>
+        prev.map(ch =>
+          ch.id === channelId ? { ...ch, unreadCount: calculatedCount } : ch
+        )
+      );
+    } catch (error) {
+      console.error('Error marking channel as unread:', error);
     }
   };
 
@@ -2741,6 +2929,9 @@ export const Chat: React.FC = () => {
         });
 
       if (error) throw error;
+
+      // Manter last_read_at atualizado ao enviar mensagem
+      markChannelAsRead(selectedChannelId);
     } catch (error) {
       console.error('Error sending message:', error);
       // Remover a mensagem otimista em caso de falha
@@ -2947,28 +3138,67 @@ export const Chat: React.FC = () => {
             <div className="flex gap-2">
               <div className="tooltip-container tooltip-bottom tooltip-left">
                 <div className="relative" ref={statusMenuRef}>
-                  <button
-                    onClick={() => setShowStatusMenu(!showStatusMenu)}
-                    className="flex items-center gap-2 h-[38px] px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <div className={`w-2.5 h-2.5 rounded-full ${STATUS_COLORS[currentUser?.chat_status || 'disponível']}`} />
-                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300 capitalize hidden sm:inline-block">
-                      {currentUser?.chat_status || 'Disponível'}
-                    </span>
-                  </button>
+                  {(() => {
+                    const currentStatusKey = (currentUser?.chat_status || 'disponível').toLowerCase();
+                    const currentConfig = STATUS_CONFIG[currentStatusKey] || STATUS_CONFIG['disponível'];
+                    const CurrentIcon = currentConfig.icon;
+
+                    return (
+                      <button
+                        onClick={() => setShowStatusMenu(!showStatusMenu)}
+                        className={`flex items-center gap-2 h-[38px] px-3 bg-white dark:bg-slate-900 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all shadow-sm ${
+                          showStatusMenu ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-md ${currentConfig.iconBg} ${currentConfig.iconText} flex items-center justify-center shrink-0`}>
+                          <CurrentIcon size={12} strokeWidth={2.5} />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 capitalize hidden sm:inline-block">
+                          {currentConfig.label}
+                        </span>
+                        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${showStatusMenu ? 'rotate-180 text-indigo-600 dark:text-indigo-400' : ''}`} />
+                      </button>
+                    );
+                  })()}
 
                   {showStatusMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-36 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1 z-50">
-                      {(['disponível', 'ocupado', 'ausente', 'almoço', 'férias'] as const).map(status => (
-                        <button
-                          key={status}
-                          onClick={() => updateChatStatus(status)}
-                          className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
-                        >
-                          <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[status]}`} />
-                          <span className="capitalize">{status}</span>
-                        </button>
-                      ))}
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Definir meu status</p>
+                      </div>
+                      {(['disponível', 'ocupado', 'ausente', 'almoço', 'férias'] as const).map(status => {
+                        const config = STATUS_CONFIG[status];
+                        const Icon = config.icon;
+                        const isSelected = (currentUser?.chat_status || 'disponível').toLowerCase() === status;
+
+                        return (
+                          <button
+                            key={status}
+                            onClick={() => {
+                              updateChatStatus(status);
+                              setShowStatusMenu(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-colors flex items-center justify-between group ${
+                              isSelected 
+                                ? 'bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 font-semibold' 
+                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={`w-6 h-6 rounded-md ${config.iconBg} ${config.iconText} flex items-center justify-center shrink-0 shadow-xs`}>
+                                <Icon size={13} strokeWidth={2.4} />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-semibold leading-none mb-0.5">{config.label}</span>
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate leading-none">{config.description}</span>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <Check size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0 ml-1" strokeWidth={2.5} />
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -3277,7 +3507,7 @@ export const Chat: React.FC = () => {
                     )}
                   </div>
                   {item.type === 'direct' && (
-                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-800 rounded-full ${(item as any).contactStatus ? STATUS_COLORS[(item as any).contactStatus] : STATUS_COLORS['disponível']}`} />
+                    <StatusDot status={(item as any).contactStatus || 'disponível'} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
@@ -3326,7 +3556,7 @@ export const Chat: React.FC = () => {
                     )}
                   </div>
                   {(channel.type === 'direct' || channel.type === 'support') && (channel as any).contactStatus && (
-                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-800 rounded-full ${STATUS_COLORS[(channel as any).contactStatus]}`} />
+                    <StatusDot status={(channel as any).contactStatus} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
@@ -3421,9 +3651,8 @@ export const Chat: React.FC = () => {
                         isProfileOffline = false;
                       }
                     }
-                    return (
-                      <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white dark:border-slate-800 rounded-full ${STATUS_COLORS[isProfileOffline ? 'offline' : (profile.chat_status || 'disponível')]}`} />
-                    );
+                    const currentStatus = isProfileOffline ? 'offline' : (profile.chat_status || 'disponível');
+                    return <StatusDot status={currentStatus} />;
                   })()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -3432,9 +3661,26 @@ export const Chat: React.FC = () => {
                       {profile.full_name || 'Usuário Sem Nome'}
                     </h3>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {profile.sector || 'Sem Setor'}
-                  </p>
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {profile.sector || 'Sem Setor'}
+                    </p>
+                    {(() => {
+                      let isProfileOffline = true;
+                      if (profile.current_session_start) {
+                        const sessionStart = new Date(profile.current_session_start).getTime();
+                        const lastActive = profile.last_active_at ? new Date(profile.last_active_at).getTime() : sessionStart;
+                        if (Date.now() - lastActive < 30 * 60 * 1000) {
+                          isProfileOffline = false;
+                        }
+                      }
+                      const currentStatus = isProfileOffline ? 'offline' : (profile.chat_status || 'disponível');
+                      if (currentStatus !== 'disponível' && currentStatus !== 'offline') {
+                        return <RenderStatusBadge status={currentStatus} size="xs" />;
+                      }
+                      return null;
+                    })()}
+                  </div>
                 </div>
               </button>
             ))
@@ -3468,7 +3714,7 @@ export const Chat: React.FC = () => {
                 </div>
               )}
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                   {selectedChannel.type === 'support' && currentUser?.role === 'cliente' 
                     ? currentUser?.full_name 
                     : selectedChannel.name}
@@ -3476,6 +3722,9 @@ export const Chat: React.FC = () => {
                     <span className="text-xs font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                       {selectedChannel.name}
                     </span>
+                  )}
+                  {selectedChannel.type === 'direct' && (selectedChannel as any).contactStatus && (
+                    <RenderStatusBadge status={(selectedChannel as any).contactStatus} size="xs" />
                   )}
                 </h3>
                 {selectedChannel.type === 'support' && activeChannelCompanies.length > 0 && (
