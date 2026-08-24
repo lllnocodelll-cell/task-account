@@ -37,7 +37,10 @@ import {
   MinusCircle,
   CheckCircle2,
   CircleOff,
-  ChevronDown
+  ChevronDown,
+  Pin,
+  PinOff,
+  GripVertical
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -48,6 +51,7 @@ import { VideoCallModal } from '../components/chat/VideoCallModal';
 import { getOrCreateDailyRoom } from '../utils/dailyApi';
 import EmojiPicker, { EmojiClickData, Theme, SkinTones } from 'emoji-picker-react';
 import { formatMessageText, stripFormatting } from '../utils/stringUtils';
+import { Tooltip } from '../components/ui/Tooltip';
 
 interface Channel {
   id: string;
@@ -65,6 +69,9 @@ interface Channel {
   support_status?: string | null;
   created_by?: string | null;
   created_at?: string;
+  opened_at?: string | null;
+  resolved_at?: string | null;
+  last_duration_seconds?: number | null;
   is_notification?: boolean;
 }
 
@@ -195,6 +202,60 @@ const RenderStatusBadge: React.FC<{ status?: string; showLabel?: boolean; size?:
   );
 };
 
+const formatSupportDuration = (openedAt?: string | null, durationSeconds?: number | null) => {
+  if (durationSeconds !== undefined && durationSeconds !== null) {
+    const mins = Math.floor(durationSeconds / 60);
+    if (mins < 1) return '1m';
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    if (hrs < 24) return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
+    const days = Math.floor(hrs / 24);
+    const remHrs = hrs % 24;
+    return remHrs > 0 ? `${days}d ${remHrs}h` : `${days}d`;
+  }
+
+  if (!openedAt) return '0m';
+  const start = new Date(openedAt).getTime();
+  if (isNaN(start)) return '0m';
+
+  const diffMinutes = Math.floor(Math.max(0, Date.now() - start) / (1000 * 60));
+
+  if (diffMinutes < 1) return 'Agora';
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  const remainingMinutes = diffMinutes % 60;
+
+  if (diffHours < 24) {
+    return remainingMinutes > 0 ? `${diffHours}h ${remainingMinutes}m` : `${diffHours}h`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  const remainingHours = diffHours % 24;
+  return remainingHours > 0 ? `${diffDays}d ${remainingHours}h` : `${diffDays}d`;
+};
+
+const getSupportSlaBadgeStyle = (openedAt?: string | null, isResolved?: boolean) => {
+  if (isResolved) {
+    return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+  }
+
+  if (!openedAt) return 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-slate-700/50';
+  const start = new Date(openedAt).getTime();
+  if (isNaN(start)) return 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200/50 dark:border-slate-700/50';
+
+  const diffMinutes = Math.floor((Date.now() - start) / (1000 * 60));
+
+  if (diffMinutes < 15) {
+    return 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/40';
+  }
+  if (diffMinutes < 60) {
+    return 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40';
+  }
+  return 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border-rose-200/60 dark:border-rose-800/40 animate-pulse';
+};
+
 const StatusDot: React.FC<{ status?: string; className?: string; size?: 'sm' | 'md' }> = ({
   status = 'disponível',
   className = '',
@@ -204,22 +265,27 @@ const StatusDot: React.FC<{ status?: string; className?: string; size?: 'sm' | '
   const config = STATUS_CONFIG[normStatus] || STATUS_CONFIG['disponível'];
   const IconComponent = config.icon;
 
+  const dotSizeClass = size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5';
+  const iconDotSizeClass = size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4';
+
   if (normStatus === 'férias' || normStatus === 'almoço') {
     return (
-      <div 
-        title={`Status: ${config.label}`}
-        className={`absolute bottom-0 right-0 ${size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4'} rounded-full border-2 border-white dark:border-slate-800 ${config.dotColor} flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 ${className}`}
-      >
-        <IconComponent size={size === 'sm' ? 8 : 9} strokeWidth={2.5} />
-      </div>
+      <Tooltip content={`Status: ${config.label}`} position="top" className="absolute bottom-0 right-0 z-10">
+        <div 
+          className={`${iconDotSizeClass} rounded-full border-2 border-white dark:border-slate-800 ${config.dotColor} flex items-center justify-center text-white shadow-sm ring-1 ring-black/5 translate-x-1/4 translate-y-1/4 ${className}`}
+        >
+          <IconComponent size={size === 'sm' ? 8 : 9} strokeWidth={2.5} />
+        </div>
+      </Tooltip>
     );
   }
 
   return (
-    <div
-      title={`Status: ${config.label}`}
-      className={`absolute bottom-0 right-0 ${size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} border-2 border-white dark:border-slate-800 rounded-full ${config.dotColor} shadow-sm ${className}`}
-    />
+    <Tooltip content={`Status: ${config.label}`} position="top" className="absolute bottom-0 right-0 z-10">
+      <div
+        className={`${dotSizeClass} border-2 border-white dark:border-slate-800 rounded-full ${config.dotColor} shadow-sm translate-x-1/4 translate-y-1/4 ${className}`}
+      />
+    </Tooltip>
   );
 };
 
@@ -419,6 +485,7 @@ export const Chat: React.FC = () => {
   const [showSidebarOnMobile, setShowSidebarOnMobile] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [groupMemberCount, setGroupMemberCount] = useState<number | null>(null);
   
   // Atendimentos (Support)
   const [isSupportCreateModalOpen, setIsSupportCreateModalOpen] = useState(false);
@@ -427,7 +494,7 @@ export const Chat: React.FC = () => {
   const [sectors, setSectors] = useState<any[]>([]);
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [clientSubTab, setClientSubTab] = useState<'atendimento' | 'notificacao'>('atendimento');
-  const [supportSubTab, setSupportSubTab] = useState<'queue' | 'mine' | 'alerts' | 'all'>('queue');
+  const [supportSubTab, setSupportSubTab] = useState<'queue' | 'mine' | 'alerts' | 'all'>('mine');
 
   // Atendimento iniciado pelo escritório
   const [isStaffSupportModalOpen, setIsStaffSupportModalOpen] = useState(false);
@@ -439,6 +506,135 @@ export const Chat: React.FC = () => {
   // Favoritos
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [favoritedMessages, setFavoritedMessages] = useState<string[]>([]);
+
+  // Conversas Fixadas (Pinned Channels)
+  const [pinnedChannelIds, setPinnedChannelIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`chat_pinned_channels_${userId || 'default'}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const saved = localStorage.getItem(`chat_pinned_channels_${userId}`);
+      if (saved) {
+        setPinnedChannelIds(JSON.parse(saved));
+      }
+    } catch {
+      // Silent ignore
+    }
+  }, [userId]);
+
+  const togglePinChannel = (channelId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setPinnedChannelIds(prev => {
+      const isPinned = prev.includes(channelId);
+      const updated = isPinned ? prev.filter(id => id !== channelId) : [...prev, channelId];
+      if (userId) {
+        localStorage.setItem(`chat_pinned_channels_${userId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  // Ordenação personalizada via Drag and Drop
+  const [customChannelOrder, setCustomChannelOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`chat_custom_order_${userId || 'default'}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [draggedChannelId, setDraggedChannelId] = useState<string | null>(null);
+  const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(null);
+  const [draggableChannelId, setDraggableChannelId] = useState<string | null>(null);
+  const [, setSupportTimerTicker] = useState(0);
+
+  // Ticker para atualizar tempo de atendimento a cada minuto
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSupportTimerTicker(prev => prev + 1);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const saved = localStorage.getItem(`chat_custom_order_${userId}`);
+      if (saved) {
+        setCustomChannelOrder(JSON.parse(saved));
+      }
+    } catch {
+      // Silent ignore
+    }
+  }, [userId]);
+
+  const handleChannelDrop = (draggedId: string, targetId: string, currentItems: { id: string }[]) => {
+    if (!draggedId || !targetId || draggedId === targetId) return;
+
+    let baseOrder = [...customChannelOrder];
+    currentItems.forEach(item => {
+      if (!baseOrder.includes(item.id)) {
+        baseOrder.push(item.id);
+      }
+    });
+
+    const fromIndex = baseOrder.indexOf(draggedId);
+    const toIndex = baseOrder.indexOf(targetId);
+
+    if (fromIndex !== -1 && toIndex !== -1) {
+      const newOrder = [...baseOrder];
+      const [moved] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, moved);
+
+      setCustomChannelOrder(newOrder);
+      if (userId) {
+        localStorage.setItem(`chat_custom_order_${userId}`, JSON.stringify(newOrder));
+      }
+    }
+  };
+
+  const getChannelDragProps = (channelId: string, currentItems: { id: string }[]) => {
+    return {
+      draggable: draggableChannelId === channelId,
+      onDragStart: (e: React.DragEvent) => {
+        setDraggedChannelId(channelId);
+        e.dataTransfer.setData('text/plain', channelId);
+        e.dataTransfer.effectAllowed = 'move';
+      },
+      onDragEnd: () => {
+        setDraggedChannelId(null);
+        setDragOverChannelId(null);
+        setDraggableChannelId(null);
+      },
+      onDragOver: (e: React.DragEvent) => {
+        e.preventDefault();
+        if (draggedChannelId && draggedChannelId !== channelId) {
+          setDragOverChannelId(channelId);
+        }
+      },
+      onDragLeave: () => {
+        if (dragOverChannelId === channelId) {
+          setDragOverChannelId(null);
+        }
+      },
+      onDrop: (e: React.DragEvent) => {
+        e.preventDefault();
+        if (draggedChannelId) {
+          handleChannelDrop(draggedChannelId, channelId, currentItems);
+        }
+        setDraggedChannelId(null);
+        setDragOverChannelId(null);
+        setDraggableChannelId(null);
+      }
+    };
+  };
 
   // Resposta a
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -593,7 +789,7 @@ export const Chat: React.FC = () => {
         setShowTemplatePicker(false);
       }
       if (reactionMessageId && reactionPickerRef.current && !reactionPickerRef.current.contains(target)) {
-        const isReactButtonClick = (target as HTMLElement).closest('button[title="Reagir"]');
+        const isReactButtonClick = (target as HTMLElement).closest('[data-action="react"]');
         if (!isReactButtonClick) {
           setReactionMessageId(null);
         }
@@ -1135,7 +1331,35 @@ export const Chat: React.FC = () => {
       }
     };
 
+    const fetchGroupMemberCount = async () => {
+      if (!selectedChannelId) {
+        setGroupMemberCount(null);
+        return;
+      }
+      const ch = channels.find(c => c.id === selectedChannelId);
+      if (!ch || (ch.type !== 'group' && ch.type !== 'sector')) {
+        setGroupMemberCount(null);
+        return;
+      }
+
+      try {
+        const { count, error } = await supabase
+          .from('chat_channel_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('channel_id', selectedChannelId);
+
+        if (!error && count !== null) {
+          setGroupMemberCount(count);
+        } else {
+          setGroupMemberCount(null);
+        }
+      } catch (e) {
+        setGroupMemberCount(null);
+      }
+    };
+
     fetchActiveChannelCompanies();
+    fetchGroupMemberCount();
   }, [selectedChannelId, channels, profiles, currentUser]);
 
   useEffect(() => {
@@ -1641,6 +1865,9 @@ export const Chat: React.FC = () => {
             support_status: c.support_status,
             created_by: c.created_by,
             created_at: c.created_at,
+            opened_at: (c as any).opened_at || c.created_at,
+            resolved_at: (c as any).resolved_at,
+            last_duration_seconds: (c as any).last_duration_seconds,
             is_notification: c.is_notification
           };
         })
@@ -1975,10 +2202,16 @@ export const Chat: React.FC = () => {
       if (createError) throw createError;
       const channelId = newChannel.id;
 
-      // UPDATE separado para as colunas novas (sector_id e status) 
+      // UPDATE separado para as colunas novas (sector_id, status e opened_at) 
       await supabase
         .from('chat_channels')
-        .update({ sector_id: supportSectorId, status: 'open' } as any)
+        .update({ 
+          sector_id: supportSectorId, 
+          status: 'open',
+          opened_at: new Date().toISOString(),
+          resolved_at: null,
+          last_duration_seconds: null 
+        } as any)
         .eq('id', channelId);
 
       // Pegar todos os usuários do escritório (não-clientes)
@@ -2181,10 +2414,17 @@ export const Chat: React.FC = () => {
         if (createError) throw createError;
         const channelId = newChannel.id;
 
-        // UPDATE separado para as colunas novas (sector_id e status) 
+        // UPDATE separado para as colunas novas (sector_id, status e opened_at) 
         await supabase
           .from('chat_channels')
-          .update({ sector_id: activeChannel.sector_id, status: 'open', is_notification: false } as any)
+          .update({ 
+            sector_id: activeChannel.sector_id, 
+            status: 'open', 
+            is_notification: false,
+            opened_at: new Date().toISOString(),
+            resolved_at: null,
+            last_duration_seconds: null
+          } as any)
           .eq('id', channelId);
 
         // Pegar todos os usuários do escritório (não-clientes)
@@ -2253,13 +2493,21 @@ export const Chat: React.FC = () => {
         });
       }
 
+      const nowIso = new Date().toISOString();
+      const updatePayload: any = { 
+        assigned_to: userId,
+        support_status: 'in_progress',
+        status: 'open'
+      };
+      if (wasResolved) {
+        updatePayload.opened_at = nowIso;
+        updatePayload.resolved_at = null;
+        updatePayload.last_duration_seconds = null;
+      }
+
       const { error } = await supabase
         .from('chat_channels')
-        .update({ 
-          assigned_to: userId,
-          support_status: 'in_progress',
-          status: 'open'
-        } as any)
+        .update(updatePayload)
         .eq('id', channelId);
         
       if (error) throw error;
@@ -2294,9 +2542,18 @@ export const Chat: React.FC = () => {
         .eq('id', userId)
         .single();
 
+      const activeChan = enrichedChannels.find(c => c.id === finishedChannelId);
+      const now = new Date();
+      const openedAtMs = activeChan?.opened_at 
+        ? new Date(activeChan.opened_at).getTime() 
+        : (activeChan?.created_at ? new Date(activeChan.created_at).getTime() : now.getTime());
+      const durationSeconds = Math.max(0, Math.floor((now.getTime() - openedAtMs) / 1000));
+
       await supabase.from('chat_channels').update({ 
         support_status: 'resolved',
-        assigned_to: null
+        assigned_to: null,
+        resolved_at: now.toISOString(),
+        last_duration_seconds: durationSeconds
       } as any).eq('id', finishedChannelId);
       
       await supabase.from('chat_messages').insert({
@@ -2798,12 +3055,16 @@ export const Chat: React.FC = () => {
 
         if (isUserClient && isClosed) {
           console.log("[Reabertura] Reabrindo atendimento pelo cliente/criador...");
+          const nowIso = new Date().toISOString();
           const { error: updateError } = await supabase
             .from('chat_channels')
             .update({
               status: 'open',
               support_status: 'pending',
-              assigned_to: null
+              assigned_to: null,
+              opened_at: nowIso,
+              resolved_at: null,
+              last_duration_seconds: null
             } as any)
             .eq('id', selectedChannelId);
 
@@ -2846,13 +3107,21 @@ export const Chat: React.FC = () => {
             });
           }
 
+          const nowIso = new Date().toISOString();
+          const updatePayload: any = {
+            status: 'open',
+            support_status: 'in_progress',
+            assigned_to: userId
+          };
+          if (isClosed) {
+            updatePayload.opened_at = nowIso;
+            updatePayload.resolved_at = null;
+            updatePayload.last_duration_seconds = null;
+          }
+
           const { error: updateError } = await supabase
             .from('chat_channels')
-            .update({
-              status: 'open',
-              support_status: 'in_progress',
-              assigned_to: userId
-            } as any)
+            .update(updatePayload)
             .eq('id', selectedChannelId);
 
           if (updateError) {
@@ -2984,6 +3253,20 @@ export const Chat: React.FC = () => {
     });
 
     return combined.sort((a, b) => {
+      const aPinned = pinnedChannelIds.includes(a.id);
+      const bPinned = pinnedChannelIds.includes(b.id);
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+
+      const aCustomIdx = customChannelOrder.indexOf(a.id);
+      const bCustomIdx = customChannelOrder.indexOf(b.id);
+
+      if (aCustomIdx !== -1 && bCustomIdx !== -1) {
+        return aCustomIdx - bCustomIdx;
+      }
+      if (aCustomIdx !== -1) return -1;
+      if (bCustomIdx !== -1) return 1;
+
       if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
       if (a.lastMessageTime && b.lastMessageTime) {
         return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
@@ -2992,7 +3275,7 @@ export const Chat: React.FC = () => {
       if (b.lastMessageTime) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [enrichedChannels, profiles, contactSearchTerm, currentUser, userId]);
+  }, [enrichedChannels, profiles, contactSearchTerm, currentUser, userId, pinnedChannelIds, customChannelOrder]);
 
   // Função para verificar se o canal foi criado por um cliente
   const isChannelCreatedByClient = React.useCallback((ch: Channel) => {
@@ -3085,6 +3368,20 @@ export const Chat: React.FC = () => {
   const sortedFilteredChannels = React.useMemo(() => {
     const list = [...filteredChannels];
     list.sort((a, b) => {
+      const aPinned = pinnedChannelIds.includes(a.id);
+      const bPinned = pinnedChannelIds.includes(b.id);
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+
+      const aCustomIdx = customChannelOrder.indexOf(a.id);
+      const bCustomIdx = customChannelOrder.indexOf(b.id);
+
+      if (aCustomIdx !== -1 && bCustomIdx !== -1) {
+        return aCustomIdx - bCustomIdx;
+      }
+      if (aCustomIdx !== -1) return -1;
+      if (bCustomIdx !== -1) return 1;
+
       const aIsClosed = a.support_status === 'resolved' || a.status === 'closed';
       const bIsClosed = b.support_status === 'resolved' || b.status === 'closed';
       
@@ -3093,10 +3390,10 @@ export const Chat: React.FC = () => {
       
       const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
       const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return aTime - bTime;
+      return bTime - aTime;
     });
     return list;
-  }, [filteredChannels]);
+  }, [filteredChannels, pinnedChannelIds, customChannelOrder]);
 
   const filteredProfiles = profiles.filter(profile => {
     const matchesSearch = profile.full_name?.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
@@ -3118,14 +3415,15 @@ export const Chat: React.FC = () => {
           <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              <div className="tooltip-container tooltip-bottom tooltip-left">
-                <button 
-                  className="hidden md:flex p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
-                  onClick={() => setIsSidebarCollapsed(true)}
-                >
-                  <PanelLeft size={18} />
-                </button>
-                <span className="tooltip-content">Recolher</span>
+              <div className="hidden md:flex">
+                <Tooltip content="Recolher" position="bottom">
+                  <button 
+                    className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
+                    onClick={() => setIsSidebarCollapsed(true)}
+                  >
+                    <PanelLeft size={18} />
+                  </button>
+                </Tooltip>
               </div>
               
               <div className="flex flex-col text-left">
@@ -3136,7 +3434,7 @@ export const Chat: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <div className="tooltip-container tooltip-bottom tooltip-left">
+              <Tooltip content="Alterar Status" position="bottom">
                 <div className="relative" ref={statusMenuRef}>
                   {(() => {
                     const currentStatusKey = (currentUser?.chat_status || 'disponível').toLowerCase();
@@ -3202,47 +3500,43 @@ export const Chat: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <span className="tooltip-content">Alterar Status</span>
-              </div>
+              </Tooltip>
               {currentUser?.role !== 'cliente' ? (
                 <>
                   {activeTab === 'support' ? (
-                    <div className="tooltip-container tooltip-bottom tooltip-right">
+                    <Tooltip content="Novo Atendimento" position="bottom">
                       <button
                         onClick={() => { fetchClients(); setIsStaffSupportModalOpen(true); }}
                         className="w-[38px] h-[38px] flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
                       >
                         <Plus size={18} />
                       </button>
-                      <span className="tooltip-content">Novo Atendimento</span>
-                    </div>
+                    </Tooltip>
                   ) : (
-                    <div className="tooltip-container tooltip-bottom tooltip-right">
+                    <Tooltip content="Novo Grupo" position="bottom">
                       <button
                         onClick={() => setIsCreateModalOpen(true)}
                         className="w-[38px] h-[38px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                       >
                         <Plus size={18} />
                       </button>
-                      <span className="tooltip-content">Novo Grupo</span>
-                    </div>
+                    </Tooltip>
                   )}
                 </>
               ) : (
-                <div className="tooltip-container tooltip-bottom tooltip-right">
+                <Tooltip content="Novo Atendimento" position="bottom">
                   <button
                     onClick={() => setIsSupportCreateModalOpen(true)}
                     className="w-[38px] h-[38px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                   >
                     <Plus size={18} />
                   </button>
-                  <span className="tooltip-content">Novo Atendimento</span>
-                </div>
+                </Tooltip>
               )}
             </div>
           </div>
           
-          <div className="p-4 space-y-3">
+          <div className="px-3 py-2.5 space-y-2">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <input
@@ -3250,12 +3544,12 @@ export const Chat: React.FC = () => {
                 placeholder={activeTab === 'contacts' ? "Buscar equipe..." : "Buscar conversas..."}
                 value={contactSearchTerm}
                 onChange={(e) => setContactSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+              <Search className="absolute left-2.5 top-2 text-slate-400" size={14} />
             </div>
             {activeTab === 'support' && currentUser?.role !== 'cliente' && (
-              <div className="tooltip-container tooltip-bottom tooltip-right">
+              <Tooltip content="Filtros" position="bottom">
                 <button
                   type="button"
                   onClick={() => setShowSectorFilter(!showSectorFilter)}
@@ -3267,8 +3561,7 @@ export const Chat: React.FC = () => {
                 >
                   <SlidersHorizontal size={18} />
                 </button>
-                <span className="tooltip-content">Filtros</span>
-              </div>
+              </Tooltip>
             )}
           </div>
 
@@ -3344,19 +3637,20 @@ export const Chat: React.FC = () => {
           )}
 
           {activeTab === 'support' && currentUser?.role !== 'cliente' && (
-            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="grid grid-cols-4 gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
               <button
                 type="button"
                 onClick={() => setSupportSubTab('queue')}
-                className={`py-1.5 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1 px-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 ${
                   supportSubTab === 'queue'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
+                title="Em fila"
               >
-                <span>Em fila</span>
+                <span className="truncate">Fila</span>
                 {supportCounts.queue > 0 && (
-                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full transition-colors ${
+                  <span className={`px-1 py-0.2 text-[8px] font-bold rounded-full shrink-0 ${
                     supportSubTab === 'queue'
                       ? 'bg-indigo-600 text-white dark:bg-indigo-500'
                       : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
@@ -3368,15 +3662,16 @@ export const Chat: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSupportSubTab('mine')}
-                className={`py-1.5 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1 px-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 ${
                   supportSubTab === 'mine'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
+                title="Minhas"
               >
-                <span>Minhas</span>
+                <span className="truncate">Minhas</span>
                 {supportCounts.mine > 0 && (
-                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full transition-colors ${
+                  <span className={`px-1 py-0.2 text-[8px] font-bold rounded-full shrink-0 ${
                     supportSubTab === 'mine'
                       ? 'bg-indigo-600 text-white dark:bg-indigo-500'
                       : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
@@ -3388,15 +3683,16 @@ export const Chat: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSupportSubTab('all')}
-                className={`py-1.5 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1 px-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 ${
                   supportSubTab === 'all'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
+                title="Todos"
               >
-                <span>Todos</span>
+                <span className="truncate">Todas</span>
                 {supportCounts.all > 0 && (
-                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full transition-colors ${
+                  <span className={`px-1 py-0.2 text-[8px] font-bold rounded-full shrink-0 ${
                     supportSubTab === 'all'
                       ? 'bg-indigo-600 text-white dark:bg-indigo-500'
                       : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
@@ -3408,15 +3704,16 @@ export const Chat: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSupportSubTab('alerts')}
-                className={`py-1.5 px-2 text-[11px] font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
+                className={`py-1 px-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 ${
                   supportSubTab === 'alerts'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
+                title="Notificação"
               >
-                <span>Notificação</span>
+                <span className="truncate">Alertas</span>
                 {supportCounts.alerts > 0 && (
-                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full transition-colors ${
+                  <span className={`px-1 py-0.2 text-[8px] font-bold rounded-full shrink-0 ${
                     supportSubTab === 'alerts'
                       ? 'bg-indigo-600 text-white dark:bg-indigo-500'
                       : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
@@ -3482,145 +3779,240 @@ export const Chat: React.FC = () => {
           {activeTab === 'chats' && currentUser?.role !== 'cliente' ? (
             teamItems.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">Nenhum membro ou grupo encontrado.</div>
-            ) : teamItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if ((item as any).isProfile) {
-                    handleStartDirectChat((item as any).profileId);
-                  } else {
-                    setSelectedChannelId(item.id);
-                  }
-                  setShowSidebarOnMobile(false);
-                }}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${selectedChannelId === item.id
-                  ? 'bg-indigo-50 dark:bg-indigo-500/10'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-              >
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
-                    {item.avatar_url ? (
-                      <img src={item.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      item.fallbackAvatar
-                    )}
-                  </div>
-                  {item.type === 'direct' && (
-                    <StatusDot status={(item as any).contactStatus || 'disponível'} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex justify-between items-baseline mb-0.5">
-                    <h3 className={`text-sm font-semibold truncate ${selectedChannelId === item.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
-                      {item.name}
-                    </h3>
-                    <span className="text-[10px] text-slate-400 shrink-0">
-                      {item.lastMessageTime ? new Date(item.lastMessageTime).toLocaleDateString('pt-BR') : ''}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1">
-                    <p className={`text-xs truncate ${item.unreadCount > 0 ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-500'}`}>
-                      {item.lastMessage}
-                    </p>
-                    {item.unreadCount > 0 && (
-                      <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
-                        {item.unreadCount}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))
-          ) : (activeTab === 'support' || currentUser?.role === 'cliente') ? (
-            sortedFilteredChannels.length === 0 ? (
-              <div className="p-4 text-center text-sm text-slate-500">Nenhuma conversa encontrada.</div>
-            ) : sortedFilteredChannels.map(channel => (
-              <button
-                key={channel.id}
-                onClick={() => {
-                  setSelectedChannelId(channel.id);
-                  setShowSidebarOnMobile(false);
-                }}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${selectedChannelId === channel.id
-                  ? 'bg-indigo-50 dark:bg-indigo-500/10'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-              >
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
-                    {channel.avatar_url ? (
-                      <img src={channel.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      channel.fallbackAvatar
-                    )}
-                  </div>
-                  {(channel.type === 'direct' || channel.type === 'support') && (channel as any).contactStatus && (
-                    <StatusDot status={(channel as any).contactStatus} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex justify-between items-baseline mb-0.5">
-                    <h3 className={`text-sm font-semibold truncate ${selectedChannelId === channel.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
-                      {channel.name}
-                    </h3>
-                    <span className="text-[10px] text-slate-400 shrink-0">
-                      {channel.lastMessageTime ? new Date(channel.lastMessageTime).toLocaleDateString('pt-BR') : ''}
-                    </span>
-                  </div>
-                  {channel.type === 'support' && (
-                    <div className="flex items-center gap-1.5 mb-1 animate-in fade-in duration-200">
-                      {/* Badge de Atribuição (só para equipe) */}
-                      {currentUser?.role !== 'cliente' && (
-                        channel.assigned_to ? (
-                          <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium border border-slate-200/50 dark:border-slate-700/50">
-                            {channel.assigned_to === userId 
-                              ? (currentUser?.full_name?.split(' ')[0] || 'Eu') 
-                              : (profiles.find(p => p.id === channel.assigned_to)?.full_name?.split(' ')[0] || 'Atendente')}
-                          </span>
-                        ) : (
-                          channel.support_status !== 'resolved' && !channel.is_notification && (
-                            <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-indigo-100/50 dark:border-indigo-900/30">
-                              Fila
-                            </span>
-                          )
-                        )
-                      )}
+            ) : teamItems.map(item => {
+              const isPinned = pinnedChannelIds.includes(item.id);
+              const dragProps = getChannelDragProps(item.id, teamItems);
+              const isDragOver = dragOverChannelId === item.id;
+              const isDragging = draggedChannelId === item.id;
 
-                      {/* Badge do Setor (para todos: equipe e cliente) */}
-                      {channel.sector_id && (
-                        <span className="text-[9px] bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-semibold border border-blue-100/50 dark:border-blue-900/30">
-                          {sectors.find(s => s.id === channel.sector_id)?.name || 'Suporte'}
-                        </span>
-                      )}
+              return (
+                <button
+                  key={item.id}
+                  {...dragProps}
+                  onClick={() => {
+                    if ((item as any).isProfile) {
+                      handleStartDirectChat((item as any).profileId);
+                    } else {
+                      setSelectedChannelId(item.id);
+                    }
+                    setShowSidebarOnMobile(false);
+                  }}
+                  className={`group/item w-full flex items-center gap-2 py-2 px-2.5 rounded-lg transition-all ${
+                    selectedChannelId === item.id
+                      ? 'bg-indigo-50 dark:bg-indigo-500/10'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                  } ${isDragOver ? 'border-2 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : 'border border-transparent'} ${
+                    isDragging ? 'opacity-40 scale-95' : ''
+                  }`}
+                >
+                  <span
+                    className="p-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-slate-500 transition-all shrink-0 -ml-1"
+                    onMouseDown={() => setDraggableChannelId(item.id)}
+                    title="Arrastar para reordenar"
+                  >
+                    <GripVertical size={13} />
+                  </span>
 
-                      {/* Badge de Status (para todos: equipe e cliente) */}
-                      {channel.is_notification ? (
-                        <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-semibold border border-indigo-100/50 dark:border-indigo-900/30 animate-pulse">
-                          Notificação
-                        </span>
-                      ) : channel.support_status === 'resolved' ? (
-                        <span className="text-[9px] bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded font-semibold border border-rose-100/50 dark:border-rose-900/30">
-                          Fechado
-                        </span>
+                  <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
+                      {item.avatar_url ? (
+                        <img src={item.avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-[9px] bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-semibold border border-emerald-100/50 dark:border-emerald-900/30">
-                          Aberto
+                        item.fallbackAvatar
+                      )}
+                    </div>
+                    {item.type === 'direct' && (
+                      <StatusDot status={(item as any).contactStatus || 'disponível'} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 text-left flex flex-col justify-center gap-0.5">
+                    <div className="flex justify-between items-center gap-1 leading-none">
+                      <h3 className={`text-sm font-semibold leading-snug truncate flex items-center gap-1.5 min-w-0 ${selectedChannelId === item.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
+                        {isPinned && (
+                          <Pin size={11} className="text-amber-500 fill-amber-500 shrink-0" />
+                        )}
+                        <span className="truncate">{item.name}</span>
+                      </h3>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] text-slate-400">
+                          {item.lastMessageTime ? new Date(item.lastMessageTime).toLocaleDateString('pt-BR') : ''}
+                        </span>
+                        <Tooltip content={isPinned ? "Desfixar conversa" : "Fixar conversa"} position="top">
+                          <span
+                            role="button"
+                            onClick={(e) => togglePinChannel(item.id, e)}
+                            className={`p-1 rounded-md transition-all ${
+                              isPinned
+                                ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 opacity-100'
+                                : 'text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-indigo-600 hover:bg-slate-200/60 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            {isPinned ? <PinOff size={12} /> : <Pin size={12} />}
+                          </span>
+                        </Tooltip>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className={`text-xs leading-snug truncate ${item.unreadCount > 0 ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-500'}`}>
+                        {item.lastMessage}
+                      </p>
+                      {item.unreadCount > 0 && (
+                        <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
+                          {item.unreadCount}
                         </span>
                       )}
                     </div>
-                  )}
-                  <p className={`text-xs truncate ${selectedChannelId === channel.id ? 'text-indigo-700/70 dark:text-indigo-300/70' : 'text-slate-500 dark:text-slate-400'}`}>
-                    {channel.lastMessage}
-                  </p>
-                </div>
-                {channel.unreadCount > 0 && (
-                  <div className="shrink-0 w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {channel.unreadCount}
                   </div>
-                )}
-              </button>
-            ))
+                </button>
+              );
+            })
+          ) : (activeTab === 'support' || currentUser?.role === 'cliente') ? (
+            sortedFilteredChannels.length === 0 ? (
+              <div className="p-4 text-center text-sm text-slate-500">Nenhuma conversa encontrada.</div>
+            ) : sortedFilteredChannels.map(channel => {
+              const isPinned = pinnedChannelIds.includes(channel.id);
+              const dragProps = getChannelDragProps(channel.id, sortedFilteredChannels);
+              const isDragOver = dragOverChannelId === channel.id;
+              const isDragging = draggedChannelId === channel.id;
+
+              return (
+                <button
+                  key={channel.id}
+                  {...dragProps}
+                  onClick={() => {
+                    setSelectedChannelId(channel.id);
+                    setShowSidebarOnMobile(false);
+                  }}
+                  className={`group/item w-full flex items-center gap-2 py-2 px-2.5 rounded-lg transition-all ${
+                    selectedChannelId === channel.id
+                      ? 'bg-indigo-50 dark:bg-indigo-500/10'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                  } ${isDragOver ? 'border-2 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : 'border border-transparent'} ${
+                    isDragging ? 'opacity-40 scale-95' : ''
+                  }`}
+                >
+                  <span
+                    className="p-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-slate-500 transition-all shrink-0 -ml-1"
+                    onMouseDown={() => setDraggableChannelId(channel.id)}
+                    title="Arrastar para reordenar"
+                  >
+                    <GripVertical size={13} />
+                  </span>
+
+                  <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
+                      {channel.avatar_url ? (
+                        <img src={channel.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        channel.fallbackAvatar
+                      )}
+                    </div>
+                    {(channel.type === 'direct' || channel.type === 'support') && (channel as any).contactStatus && (
+                      <StatusDot status={(channel as any).contactStatus} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 text-left flex flex-col justify-center gap-0.5">
+                    <div className="flex justify-between items-center gap-1 leading-none">
+                      <h3 className={`text-sm font-semibold leading-snug truncate flex items-center gap-1.5 min-w-0 ${selectedChannelId === channel.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
+                        {isPinned && (
+                          <Pin size={11} className="text-amber-500 fill-amber-500 shrink-0" />
+                        )}
+                        <span className="truncate">{channel.name}</span>
+                      </h3>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] text-slate-400">
+                          {channel.lastMessageTime ? new Date(channel.lastMessageTime).toLocaleDateString('pt-BR') : ''}
+                        </span>
+                        <Tooltip content={isPinned ? "Desfixar conversa" : "Fixar conversa"} position="top">
+                          <span
+                            role="button"
+                            onClick={(e) => togglePinChannel(channel.id, e)}
+                            className={`p-1 rounded-md transition-all ${
+                              isPinned
+                                ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 opacity-100'
+                                : 'text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-indigo-600 hover:bg-slate-200/60 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            {isPinned ? <PinOff size={12} /> : <Pin size={12} />}
+                          </span>
+                        </Tooltip>
+                      </div>
+                    </div>
+                    {channel.type === 'support' && (
+                      <div className="flex items-center gap-1 flex-wrap leading-none animate-in fade-in duration-200">
+                        {/* Badge de Atribuição (só para equipe) */}
+                        {currentUser?.role !== 'cliente' && (
+                          channel.assigned_to ? (
+                            <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-medium border border-slate-200/50 dark:border-slate-700/50">
+                              {channel.assigned_to === userId 
+                                ? (currentUser?.full_name?.split(' ')[0] || 'Eu') 
+                                : (profiles.find(p => p.id === channel.assigned_to)?.full_name?.split(' ')[0] || 'Atendente')}
+                            </span>
+                          ) : (
+                            channel.support_status !== 'resolved' && !channel.is_notification && (
+                              <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-indigo-100/50 dark:border-indigo-900/30">
+                                Fila
+                              </span>
+                            )
+                          )
+                        )}
+
+                        {/* Badge do Setor (para todos: equipe e cliente) */}
+                        {channel.sector_id && (
+                          <span className="text-[9px] bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded font-semibold border border-blue-100/50 dark:border-blue-900/30">
+                            {sectors.find(s => s.id === channel.sector_id)?.name || 'Suporte'}
+                          </span>
+                        )}
+
+                        {/* Badge de Status (para todos: equipe e cliente) */}
+                        {channel.is_notification ? (
+                          <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-semibold border border-indigo-100/50 dark:border-indigo-900/30 animate-pulse">
+                            Notificação
+                          </span>
+                        ) : channel.support_status === 'resolved' ? (
+                          <span className="text-[9px] bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded font-semibold border border-rose-100/50 dark:border-rose-900/30">
+                            Fechado
+                          </span>
+                        ) : (
+                          <span className="text-[9px] bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-semibold border border-emerald-100/50 dark:border-emerald-900/30">
+                            Aberto
+                          </span>
+                        )}
+
+                        {/* Badge de Tempo de Atendimento (SLA) */}
+                        {!channel.is_notification && (
+                          channel.support_status === 'resolved' ? (
+                            channel.last_duration_seconds ? (
+                              <Tooltip content={`Atendimento concluído. Duração total: ${formatSupportDuration(null, channel.last_duration_seconds)}`} position="top">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold border flex items-center gap-0.5 leading-none bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                                  <Clock size={9} className="shrink-0 text-slate-500" />
+                                  <span>{formatSupportDuration(null, channel.last_duration_seconds)}</span>
+                                </span>
+                              </Tooltip>
+                            ) : null
+                          ) : (
+                            <Tooltip content={`Atendimento aberto há ${formatSupportDuration(channel.opened_at || channel.created_at)}`} position="top">
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold border flex items-center gap-0.5 leading-none ${getSupportSlaBadgeStyle(channel.opened_at || channel.created_at)}`}>
+                                <Clock size={9} className="shrink-0" />
+                                <span>{formatSupportDuration(channel.opened_at || channel.created_at)}</span>
+                              </span>
+                            </Tooltip>
+                          )
+                        )}
+                      </div>
+                    )}
+                    <p className={`text-xs leading-snug truncate ${selectedChannelId === channel.id ? 'text-indigo-700/70 dark:text-indigo-300/70' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {channel.lastMessage}
+                    </p>
+                  </div>
+                  {channel.unreadCount > 0 && (
+                    <div className="shrink-0 w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {channel.unreadCount}
+                    </div>
+                  )}
+                </button>
+              );
+            })
           ) : (
             filteredProfiles.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">Nenhum contato encontrado.</div>
@@ -3703,52 +4095,83 @@ export const Chat: React.FC = () => {
                 <ArrowLeft size={20} />
               </button>
               {isSidebarCollapsed && (
-                <div className="tooltip-container tooltip-bottom tooltip-left">
+                <Tooltip content="Expandir" position="bottom">
                   <button 
                     className="hidden md:flex p-1.5 mr-1 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
                     onClick={() => setIsSidebarCollapsed(false)}
                   >
                     <PanelLeft size={20} />
                   </button>
-                  <span className="tooltip-content">Expandir</span>
-                </div>
+                </Tooltip>
               )}
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
-                  {selectedChannel.type === 'support' && currentUser?.role === 'cliente' 
-                    ? currentUser?.full_name 
-                    : selectedChannel.name}
-                  {selectedChannel.type === 'support' && currentUser?.role === 'cliente' && (
-                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                      {selectedChannel.name}
-                    </span>
-                  )}
+                <div className="flex flex-col items-start gap-1">
+                  {/* 1. Nome */}
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
+                    {selectedChannel.type === 'support' && currentUser?.role === 'cliente' 
+                      ? currentUser?.full_name 
+                      : selectedChannel.name}
+                    {selectedChannel.type === 'support' && currentUser?.role === 'cliente' && (
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                        {selectedChannel.name}
+                      </span>
+                    )}
+                  </h3>
                   {selectedChannel.type === 'direct' && (selectedChannel as any).contactStatus && (
                     <RenderStatusBadge status={(selectedChannel as any).contactStatus} size="xs" />
                   )}
-                </h3>
-                {selectedChannel.type === 'support' && activeChannelCompanies.length > 0 && (
-                  <div className="flex flex-col gap-1 mt-1">
-                    {activeChannelCompanies.map((company, index) => {
-                      const isInactive = company.status !== 'Ativo';
-                      return (
-                        <div 
-                          key={index} 
-                          className={`flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded border w-fit leading-none ${
-                            isInactive 
-                              ? 'text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20 border-rose-100/60 dark:border-rose-900/40' 
-                              : 'text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800/40'
-                          }`}
-                        >
-                          <Building2 size={12} className={isInactive ? 'text-rose-500/70 dark:text-rose-400/70 shrink-0' : 'text-indigo-500/70 dark:text-indigo-400/70 shrink-0'} />
-                          <span className="truncate max-w-[200px] sm:max-w-[320px]">
-                            {company.company_name}{isInactive && ' (Inativa)'}
+                  {(selectedChannel.type === 'group' || selectedChannel.type === 'sector') && groupMemberCount !== null && (
+                    <span className="inline-flex items-center gap-1 font-semibold rounded-md border bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/50 px-1.5 py-0.5 text-[9px] leading-none whitespace-nowrap">
+                      <Users size={10} className="shrink-0 text-indigo-600 dark:text-indigo-400" strokeWidth={2.2} />
+                      <span>{groupMemberCount} {groupMemberCount === 1 ? 'participante' : 'participantes'}</span>
+                    </span>
+                  )}
+
+                  {/* 2. Empresas vinculadas */}
+                  {selectedChannel.type === 'support' && activeChannelCompanies.length > 0 && (
+                    <div className="flex flex-col gap-1 my-0.5">
+                      {activeChannelCompanies.map((company, index) => {
+                        const isInactive = company.status !== 'Ativo';
+                        return (
+                          <div 
+                            key={index} 
+                            className={`flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded border w-fit leading-none ${
+                              isInactive 
+                                ? 'text-rose-600 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/20 border-rose-100/60 dark:border-rose-900/40' 
+                                : 'text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/40 border-slate-100 dark:border-slate-800/40'
+                            }`}
+                          >
+                            <Building2 size={12} className={isInactive ? 'text-rose-500/70 dark:text-rose-400/70 shrink-0' : 'text-indigo-500/70 dark:text-indigo-400/70 shrink-0'} />
+                            <span className="truncate max-w-[200px] sm:max-w-[320px]">
+                              {company.company_name}{isInactive && ' (Inativa)'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* 3. Tempo de atendimento */}
+                  {selectedChannel.type === 'support' && (
+                    selectedChannel.support_status === 'resolved' ? (
+                      selectedChannel.last_duration_seconds ? (
+                        <Tooltip content={`Atendimento concluído. Duração total: ${formatSupportDuration(null, selectedChannel.last_duration_seconds)}`} position="bottom">
+                          <span className="inline-flex items-center gap-1 font-semibold rounded-md border px-1.5 py-0.5 text-[9px] leading-none whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                            <Clock size={10} className="shrink-0 text-slate-500" />
+                            <span>Concluído em {formatSupportDuration(null, selectedChannel.last_duration_seconds)}</span>
                           </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        </Tooltip>
+                      ) : null
+                    ) : (
+                      <Tooltip content={`Atendimento aberto há ${formatSupportDuration(selectedChannel.opened_at || selectedChannel.created_at)}`} position="bottom">
+                        <span className={`inline-flex items-center gap-1 font-semibold rounded-md border px-1.5 py-0.5 text-[9px] leading-none whitespace-nowrap ${getSupportSlaBadgeStyle(selectedChannel.opened_at || selectedChannel.created_at)}`}>
+                          <Clock size={10} className="shrink-0" />
+                          <span>Aberto há {formatSupportDuration(selectedChannel.opened_at || selectedChannel.created_at)}</span>
+                        </span>
+                      </Tooltip>
+                    )
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -3765,30 +4188,28 @@ export const Chat: React.FC = () => {
                   className="pl-9 pr-4 py-2 w-40 lg:w-48 bg-slate-50 dark:bg-slate-950/50 border border-transparent focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg text-sm text-slate-900 dark:text-white transition-all outline-none placeholder:text-slate-400"
                 />
               </div>
-              <div className="tooltip-container tooltip-bottom tooltip-right">
+              <Tooltip content={showFavoritesOnly ? "Mostrar Todas" : "Favoritos"} position="bottom">
                 <button
                   onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
                   className={`p-2 rounded-lg transition-colors ${showFavoritesOnly ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-500/10' : 'text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                 >
                   <Star size={20} fill={showFavoritesOnly ? 'currentColor' : 'none'} />
                 </button>
-                <span className="tooltip-content">Favoritos</span>
-              </div>
+              </Tooltip>
 
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
               {/* Menu de Chamada de Áudio e Vídeo */}
               {!selectedChannel.is_notification && (
                 <div className="relative" ref={callMenuRef}>
-                  <div className="tooltip-container tooltip-bottom tooltip-right">
+                  <Tooltip content="Chamada" position="bottom">
                     <button
                       onClick={() => setShowCallMenu(!showCallMenu)}
                       className={`p-2 rounded-lg transition-colors ${showCallMenu ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                     >
                       <PhoneOutgoing size={20} />
                     </button>
-                    <span className="tooltip-content">Chamada</span>
-                  </div>
+                  </Tooltip>
 
                   {showCallMenu && (
                     <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -3818,29 +4239,27 @@ export const Chat: React.FC = () => {
               )}
 
               {selectedChannel.type === 'group' && (
-                <div className="tooltip-container tooltip-bottom tooltip-right">
+                <Tooltip content="Configurações do Grupo" position="bottom">
                   <button
                     onClick={() => setIsGroupSettingsOpen(true)}
                     className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   >
                     <UserCog size={20} />
                   </button>
-                  <span className="tooltip-content">Configurações do Grupo</span>
-                </div>
+                </Tooltip>
               )}
 
               {/* Menu de Ações de Atendimento (Assumir, Transferir, Concluir) */}
               {selectedChannel.type === 'support' && currentUser?.role !== 'cliente' && !selectedChannel.is_notification && (
                 <div className="relative animate-in fade-in duration-200" ref={supportActionsMenuRef}>
-                  <div className="tooltip-container tooltip-bottom tooltip-right">
+                  <Tooltip content="Ações de Atendimento" position="bottom">
                     <button
                       onClick={() => setShowSupportActionsMenu(!showSupportActionsMenu)}
                       className={`p-2 rounded-lg transition-colors ${showSupportActionsMenu ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                     >
                       <MoreVertical size={20} />
                     </button>
-                    <span className="tooltip-content">Ações de Atendimento</span>
-                  </div>
+                  </Tooltip>
 
                   {showSupportActionsMenu && (
                     <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -4050,36 +4469,41 @@ export const Chat: React.FC = () => {
 
                           {/* Botões flutuantes Hover */}
                           <div className={`absolute -top-3 ${msg.isMe ? '-left-8' : '-right-8'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20`}>
-                            <button
-                              onClick={() => setReactionMessageId(reactionMessageId === msg.id ? null : msg.id)}
-                              title="Reagir"
-                              className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
-                            >
-                              <Smile size={14} className="text-slate-400 hover:text-indigo-500" />
-                            </button>
-                            {!selectedChannel?.is_notification && (
+                            <Tooltip content="Reagir" position="top">
                               <button
-                                onClick={() => setReplyingTo(msg)}
-                                title="Responder"
+                                data-action="react"
+                                onClick={() => setReactionMessageId(reactionMessageId === msg.id ? null : msg.id)}
                                 className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
                               >
-                                <Reply size={14} className="text-slate-400 hover:text-indigo-500" />
+                                <Smile size={14} className="text-slate-400 hover:text-indigo-500" />
                               </button>
+                            </Tooltip>
+                            {!selectedChannel?.is_notification && (
+                              <Tooltip content="Responder" position="top">
+                                <button
+                                  onClick={() => setReplyingTo(msg)}
+                                  className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                                >
+                                  <Reply size={14} className="text-slate-400 hover:text-indigo-500" />
+                                </button>
+                              </Tooltip>
                             )}
-                            <button
-                              onClick={() => markMessageAsUnread(msg.id, selectedChannelId!)}
-                              title="Marcar como não lido"
-                              className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
-                            >
-                              <EyeOff size={14} className="text-slate-400 hover:text-indigo-500" />
-                            </button>
-                            <button
-                              onClick={() => toggleFavorite(msg.id)}
-                              title={favoritedMessages.includes(msg.id) ? "Remover dos Favoritos" : "Adicionar aos Favoritos"}
-                              className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
-                            >
-                              <Star size={14} className={favoritedMessages.includes(msg.id) ? 'text-yellow-500' : 'text-slate-400 hover:text-yellow-500'} fill={favoritedMessages.includes(msg.id) ? 'currentColor' : 'none'} />
-                            </button>
+                            <Tooltip content="Marcar como não lido" position="top">
+                              <button
+                                onClick={() => markMessageAsUnread(msg.id, selectedChannelId!)}
+                                className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                              >
+                                <EyeOff size={14} className="text-slate-400 hover:text-indigo-500" />
+                              </button>
+                            </Tooltip>
+                            <Tooltip content={favoritedMessages.includes(msg.id) ? "Remover dos Favoritos" : "Adicionar aos Favoritos"} position="top">
+                              <button
+                                onClick={() => toggleFavorite(msg.id)}
+                                className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                              >
+                                <Star size={14} className={favoritedMessages.includes(msg.id) ? 'text-yellow-500' : 'text-slate-400 hover:text-yellow-500'} fill={favoritedMessages.includes(msg.id) ? 'currentColor' : 'none'} />
+                              </button>
+                            </Tooltip>
                           </div>
 
                           {/* Emoji Picker Popover */}
@@ -4130,6 +4554,9 @@ export const Chat: React.FC = () => {
                              />
                            )}
                           <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
+                            {favoritedMessages.includes(msg.id) && (
+                              <Star size={11} className={msg.isMe ? "text-amber-300 fill-amber-300 shrink-0" : "text-amber-500 fill-amber-500 shrink-0"} />
+                            )}
                             <span>{msg.created_at}</span>
                             {msg.isMe && (
                               <span>
@@ -4231,7 +4658,6 @@ export const Chat: React.FC = () => {
                         key={t.id}
                         type="button"
                         onClick={() => handleSelectTemplate(t)}
-                        title="Clique para usar este modelo"
                         className="w-full text-left p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/50 hover:bg-indigo-50/40 dark:bg-slate-950/20 dark:hover:bg-indigo-950/15 hover:border-indigo-200 dark:hover:border-indigo-900/50 group transition-all"
                       >
                         <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate mb-1">
@@ -4250,7 +4676,7 @@ export const Chat: React.FC = () => {
             {showEmojiPicker && (
               <div 
                 ref={emojiPickerRef}
-                className="absolute bottom-[calc(100%+0.5rem)] right-4 z-50 shadow-xl rounded-xl custom-scrollbar overflow-hidden border border-slate-200 dark:border-slate-800"
+                className="absolute bottom-[calc(100%+0.5rem)] right-4 z-50 shadow-2xl rounded-2xl custom-scrollbar overflow-hidden border border-slate-200 dark:border-slate-800 scale-90 origin-bottom-right"
               >
                 <EmojiPicker
                   onEmojiClick={onEmojiClick}
@@ -4261,6 +4687,8 @@ export const Chat: React.FC = () => {
                     setSelectedSkinTone(skinTone);
                     localStorage.setItem('chat_emoji_skin_tone', skinTone);
                   }}
+                  width={300}
+                  height={350}
                 />
               </div>
             )}
@@ -4370,28 +4798,32 @@ export const Chat: React.FC = () => {
                     accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip"
                   />
                   <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950/50 p-2 rounded-xl border border-transparent transition-all">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                    >
-                      <Paperclip size={20} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (fileInputRef.current) {
-                          fileInputRef.current.accept = "image/*";
-                          fileInputRef.current.click();
-                          setTimeout(() => {
-                            if (fileInputRef.current) fileInputRef.current.accept = "image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip";
-                          }, 100);
-                        }
-                      }}
-                      className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors hidden sm:block"
-                    >
-                      <ImageIcon size={20} />
-                    </button>
+                    <Tooltip content="Anexar arquivo" position="top">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        <Paperclip size={20} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Anexar imagem" position="top">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (fileInputRef.current) {
+                            fileInputRef.current.accept = "image/*";
+                            fileInputRef.current.click();
+                            setTimeout(() => {
+                              if (fileInputRef.current) fileInputRef.current.accept = "image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip";
+                            }, 100);
+                          }
+                        }}
+                        className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors hidden sm:block"
+                      >
+                        <ImageIcon size={20} />
+                      </button>
+                    </Tooltip>
                     <textarea
                       ref={textareaRef}
                       value={messageInput}
@@ -4408,44 +4840,49 @@ export const Chat: React.FC = () => {
                     />
 
                     {currentUser?.role !== 'cliente' && (
-                      <button
-                        ref={templateButtonRef}
-                        type="button"
-                        onClick={() => {
-                          setShowTemplatePicker(!showTemplatePicker);
-                          setShowEmojiPicker(false);
-                        }}
-                        className={`p-2 rounded-lg transition-colors hidden sm:block ${showTemplatePicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-                        title="Mensagens Modelos (Envio Rápido)"
-                      >
-                        <Zap size={20} className={showTemplatePicker ? 'text-indigo-500 fill-indigo-500' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'} />
-                      </button>
+                      <Tooltip content="Mensagens Modelos (Envio Rápido)" position="top">
+                        <button
+                          ref={templateButtonRef}
+                          type="button"
+                          onClick={() => {
+                            setShowTemplatePicker(!showTemplatePicker);
+                            setShowEmojiPicker(false);
+                          }}
+                          className={`p-2 rounded-lg transition-colors hidden sm:block ${showTemplatePicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                        >
+                          <Zap size={20} className={showTemplatePicker ? 'text-indigo-500 fill-indigo-500' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'} />
+                        </button>
+                      </Tooltip>
                     )}
 
-                    <button
-                      ref={emojiButtonRef}
-                      type="button"
-                      onClick={() => {
-                        setShowEmojiPicker(!showEmojiPicker);
-                        setShowTemplatePicker(false);
-                      }}
-                      className={`p-2 rounded-lg transition-colors hidden sm:block ${showEmojiPicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
-                    >
-                      <Smile size={20} />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={(!messageInput.trim() && !selectedFile)}
-                      className="relative p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm overflow-hidden shrink-0"
-                    >
-                      {uploadProgress > 0 && uploadProgress < 100 && (
-                        <div
-                          className="absolute inset-0 bg-indigo-800 opacity-50 transition-all duration-300"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      )}
-                      <Send size={18} className="relative z-10" />
-                    </button>
+                    <Tooltip content="Inserir emoji" position="top">
+                      <button
+                        ref={emojiButtonRef}
+                        type="button"
+                        onClick={() => {
+                          setShowEmojiPicker(!showEmojiPicker);
+                          setShowTemplatePicker(false);
+                        }}
+                        className={`p-2 rounded-lg transition-colors hidden sm:block ${showEmojiPicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                      >
+                        <Smile size={20} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Enviar mensagem" position="top">
+                      <button
+                        type="submit"
+                        disabled={(!messageInput.trim() && !selectedFile)}
+                        className="relative p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm overflow-hidden shrink-0"
+                      >
+                        {uploadProgress > 0 && uploadProgress < 100 && (
+                          <div
+                            className="absolute inset-0 bg-indigo-800 opacity-50 transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        )}
+                        <Send size={18} className="relative z-10" />
+                      </button>
+                    </Tooltip>
                   </div>
                   <div className="text-center mt-2">
                     <p className="text-[10px] text-slate-400 font-medium">
@@ -4468,14 +4905,15 @@ export const Chat: React.FC = () => {
               <ArrowLeft size={20} />
             </button>
             {isSidebarCollapsed && (
-              <div className="tooltip-container tooltip-bottom tooltip-left hidden md:flex">
-                <button
-                  className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
-                  onClick={() => setIsSidebarCollapsed(false)}
-                >
-                  <PanelLeft size={18} />
-                </button>
-                <span className="tooltip-content">Expandir</span>
+              <div className="hidden md:flex">
+                <Tooltip content="Expandir" position="bottom">
+                  <button
+                    className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors border border-indigo-100 dark:border-indigo-800/50"
+                    onClick={() => setIsSidebarCollapsed(false)}
+                  >
+                    <PanelLeft size={18} />
+                  </button>
+                </Tooltip>
               </div>
             )}
           </div>
@@ -4505,6 +4943,15 @@ export const Chat: React.FC = () => {
         onSuccess={() => {
           setIsGroupSettingsOpen(false);
           if (userId) fetchChannels(userId);
+          if (selectedChannelId) {
+            supabase
+              .from('chat_channel_members')
+              .select('*', { count: 'exact', head: true })
+              .eq('channel_id', selectedChannelId)
+              .then(({ count }) => {
+                if (count !== null) setGroupMemberCount(count);
+              });
+          }
         }}
       />
 

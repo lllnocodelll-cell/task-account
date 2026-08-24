@@ -108,6 +108,9 @@ export type Database = {
           created_by: string | null
           id: string
           name: string
+          opened_at: string | null
+          resolved_at: string | null
+          last_duration_seconds: number | null
           sector_id: string | null
           status: string | null
           support_status: string | null
@@ -119,6 +122,9 @@ export type Database = {
           created_by?: string | null
           id?: string
           name: string
+          opened_at?: string | null
+          resolved_at?: string | null
+          last_duration_seconds?: number | null
           sector_id?: string | null
           status?: string | null
           support_status?: string | null
@@ -130,6 +136,9 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+          opened_at?: string | null
+          resolved_at?: string | null
+          last_duration_seconds?: number | null
           sector_id?: string | null
           status?: string | null
           support_status?: string | null

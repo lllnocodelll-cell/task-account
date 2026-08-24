@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Loader2, Users, Trash2, UserPlus, UserMinus, Pencil, AlertTriangle, UserCog } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip';
 
 interface Profile {
     id: string;
@@ -317,13 +318,14 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                                         </div>
                                     </div>
                                     {isAdmin && member.user_id !== currentUserId && (
-                                        <button
-                                            onClick={() => handleRemoveMember(member.user_id)}
-                                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                            title="Remover participante"
-                                        >
-                                            <UserMinus size={16} />
-                                        </button>
+                                        <Tooltip content="Remover participante" position="left">
+                                            <button
+                                                onClick={() => handleRemoveMember(member.user_id)}
+                                                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            >
+                                                <UserMinus size={16} />
+                                            </button>
+                                        </Tooltip>
                                     )}
                                 </div>
                             ))}
