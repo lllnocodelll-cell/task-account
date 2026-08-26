@@ -40,6 +40,8 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     const [showAddMembers, setShowAddMembers] = useState(false);
     const [selectedNewMembers, setSelectedNewMembers] = useState<string[]>([]);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [memberToRemove, setMemberToRemove] = useState<{ userId: string; name: string } | null>(null);
+    const [isRemovingMember, setIsRemovingMember] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
 
@@ -86,10 +88,8 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
             // 1) role = 'admin' na tabela de membros do grupo, OU
             // 2) criador do grupo (created_by), OU
             // 3) perfil de 'gestor' na aplicação (admin geral)
-            const myMembership = memberData?.find((m: any) => m.user_id === user.id);
-            const isCreator = channelInfo?.created_by === user.id;
             const isGestor = myProfile?.role === 'gestor';
-            setIsAdmin(myMembership?.role === 'admin' || isCreator || isGestor);
+            setIsAdmin(isGestor);
 
             // Fetch profiles for members
             const memberIds = memberData?.map((m: any) => m.user_id) || [];
@@ -107,11 +107,12 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 
             setMembers(enrichedMembers);
 
-            // Fetch all profiles for "add members"
+            // Fetch all profiles for "add members" (apenas colaboradores, excluindo clientes)
             const { data: allProfileData } = await supabase
                 .from('profiles')
                 .select('*')
                 .neq('id', user.id)
+                .neq('role', 'cliente')
                 .order('full_name');
 
             setAllProfiles(allProfileData || []);
@@ -142,20 +143,24 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
         }
     };
 
-    const handleRemoveMember = async (memberUserId: string) => {
-        if (!confirm('Deseja remover este participante do grupo?')) return;
+    const confirmRemoveMember = async () => {
+        if (!memberToRemove) return;
+        setIsRemovingMember(true);
         try {
             const { error } = await supabase
                 .from('chat_channel_members')
                 .delete()
                 .eq('channel_id', channelId)
-                .eq('user_id', memberUserId);
+                .eq('user_id', memberToRemove.userId);
 
             if (error) throw error;
-            setMembers(prev => prev.filter(m => m.user_id !== memberUserId));
+            setMembers(prev => prev.filter(m => m.user_id !== memberToRemove.userId));
+            setMemberToRemove(null);
         } catch (error: any) {
             console.error('Error removing member:', error);
             alert('Erro ao remover participante: ' + error.message);
+        } finally {
+            setIsRemovingMember(false);
         }
     };
 
@@ -235,6 +240,7 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
     if (channelType === 'direct') return null;
 
     return (
+        <>
         <Modal
             isOpen={isOpen}
             onClose={onClose}
@@ -318,14 +324,14 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                                         </div>
                                     </div>
                                     {isAdmin && member.user_id !== currentUserId && (
-                                        <Tooltip content="Remover participante" position="left">
-                                            <button
-                                                onClick={() => handleRemoveMember(member.user_id)}
-                                                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                            >
-                                                <UserMinus size={16} />
-                                            </button>
-                                        </Tooltip>
+                                         <Tooltip content="Remover participante" position="left">
+                                             <button
+                                                 onClick={() => setMemberToRemove({ userId: member.user_id, name: member.profile?.full_name || 'este participante' })}
+                                                 className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                             >
+                                                 <UserMinus size={16} />
+                                             </button>
+                                         </Tooltip>
                                     )}
                                 </div>
                             ))}
@@ -427,5 +433,35 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
                 </div>
             )}
         </Modal>
+
+        {/* Modal Confirmar Remoção de Participante */}
+        <Modal
+            isOpen={!!memberToRemove}
+            onClose={() => !isRemovingMember && setMemberToRemove(null)}
+            title="Remover Participante"
+        >
+            <div className="space-y-4">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                    Deseja realmente remover <strong className="text-slate-900 dark:text-white">{memberToRemove?.name}</strong> deste grupo de trabalho?
+                </p>
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                    <Button
+                        variant="secondary"
+                        onClick={() => setMemberToRemove(null)}
+                        disabled={isRemovingMember}
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={confirmRemoveMember}
+                        disabled={isRemovingMember}
+                        className="bg-rose-600 hover:bg-rose-700 text-white"
+                    >
+                        {isRemovingMember ? 'Removendo...' : 'Remover Participante'}
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+        </>
     );
 };

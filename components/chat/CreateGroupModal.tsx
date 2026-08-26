@@ -73,6 +73,19 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('User not authenticated');
 
+            // Verificar se o usuário possui perfil Gestor
+            const { data: myProfile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .single();
+
+            if (myProfile?.role !== 'gestor') {
+                alert('Apenas usuários com perfil de Gestor podem criar grupos com colaboradores.');
+                onClose();
+                return;
+            }
+
             // 1. Create channel
             const { data: channel, error: channelError } = await supabase
                 .from('chat_channels')

@@ -40,7 +40,10 @@ import {
   ChevronDown,
   Pin,
   PinOff,
-  GripVertical
+  GripVertical,
+  Lock,
+  Unlock,
+  CornerUpRight
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -73,6 +76,7 @@ interface Channel {
   resolved_at?: string | null;
   last_duration_seconds?: number | null;
   is_notification?: boolean;
+  is_private?: boolean;
 }
 
 interface Profile {
@@ -310,6 +314,8 @@ interface Message {
   reactions?: Reaction[];
   is_system?: boolean;
   rawCreatedAt?: string;
+  is_private?: boolean;
+  is_forwarded?: boolean;
 }
 const getSectorScope = (sectorName: string): string[] => {
   if (!sectorName) return [];
@@ -318,59 +324,63 @@ const getSectorScope = (sectorName: string): string[] => {
   // Fiscal: "Fiscal", "tax", "tributário" e "Tributos"
   if (name.includes('fiscal') || name.includes('tax') || name.includes('tributario') || name.includes('tributos')) {
     return [
-      'Emissão de nota fiscal',
-      'Impostos sobre as vendas',
-      'Certidão negativa de débitos',
-      'Análise tributária',
-      'Declaração de faturamento',
-      'Outros assuntos tributários'
+      'Impostos sobre compra e venda;',
+      'Emissão de nota fiscal;',
+      'Emissão de certidão negativa de débitos;',
+      'Parcelamento de impostos;',
+      'Declaração de faturamento;',
+      'Imposto de renda pessoa física e jurídica;',
+      'Planejamento tributário;',
+      'Demais assuntos relacionados a área tributária.'
     ];
   }
 
   // Folha: "folha", "folha de pagamento", "DP", "departamento pessoal", "pessoal" e "RH"
   if (name.includes('folha') || name.includes('dp') || name.includes('departamento pessoal') || name.includes('pessoal') || name.includes('rh')) {
     return [
-      'Admissão ou rescisão de funcionários',
-      'Férias e 13º salários',
-      'Convenção coletiva de trabalho',
-      'FGTS e INSS',
-      'Holerites',
-      'Outros assuntos trabalhistas'
+      'Registro: documentação necessária, modalidades de contratação, contrato de trabalho e exame médico;',
+      'Cálculos trabalhistas: folha de pagamento colaboradores, pró-labore sócios, hora extra, férias, décimo terceiro, dissídio, adicional noturno, adicional insalubridade, licença maternidade, afastamento por doença, rescisão de contrato, FGTS, INSS e IRRF;',
+      'Gestão de benefícios: vale transporte, vale refeição e alimentação;',
+      'Sindicato e convenção coletiva de trabalho: enquadramento sindical, contribuição assistencial, salário base, benefícios e demais exigências sindical;',
+      'Extratos e recibos das obrigações acessórias: eSocial, Reinf, DCTFWeb e DIRF;',
+      'Gestão de Saúde e Segurança do Trabalho (SST);',
+      'Demais assuntos relacionados a gestão de pessoas.'
     ];
   }
 
   // Contábil: "contábil", "contabil", "contabilidade" e "account"
   if (name.includes('contabil') || name.includes('contabilidade') || name.includes('account')) {
     return [
-      'Balanço patrimonial',
-      'Demonstração de Resultado do Exercício',
-      'EFD e ECF',
-      'Indicadores econômicos contábeis',
-      'Outros assuntos contábeis'
+      'Demonstrações contábeis: balanço patrimonial, livro diário, balancete, demonstração de resultado do exercício (DRE) e demonstração de fluxo de caixa (DFC);',
+      'Apuração de IRPJ e CSLL sobre o Lucro Real - Lalur/Lacs;',
+      'Apuração de IRRF retido sobre distribuição de lucros e dividendos;',
+      'Planejamento contábil e análise das demonstrações;',
+      'Controle e gestão de ativo imobilizado;',
+      'Extratos e recibos das obrigações acessórias DEFIS, ECD e ECF;',
+      'Demais assuntos relacionados a área contábil.'
     ];
   }
 
-  // Societário: "societário", "legalização", "paralegal" e "regulatório"
-  if (name.includes('societario') || name.includes('legalizacao') || name.includes('paralegal') || name.includes('regulatorio')) {
+  // Societário: "societário", "legalização", "paralegal", "regulatório", "licenças", "alvarás" e "vigilância"
+  if (name.includes('societario') || name.includes('legalizacao') || name.includes('paralegal') || name.includes('regulatorio') || name.includes('licenca') || name.includes('alvara') || name.includes('vigilancia')) {
     return [
-      'Abertura e alteração de empresa',
-      'Licença de funcionamento',
-      'Certificado digital',
-      'Contrato social',
-      'Inscrição municipal e estadual',
-      'Outros assuntos societários'
+      'Abertura, alteração ou encerramento de empresa;',
+      'Transformação de MEI para ME;',
+      'Licenças de Funcionamento: alvará, vigilância sanitária e licença ambiental;',
+      'Registro em conselho de classe profissional;',
+      'Contrato social e inscrições da empresa;',
+      'Emissão ou renovação de certificado digital;',
+      'Demais assuntos relacionados a legalização empresarial.'
     ];
   }
 
   // Financeiro: "financeiro", "finanças", "cobrança" e "finance"
   if (name.includes('financeiro') || name.includes('financas') || name.includes('cobranca') || name.includes('finance')) {
     return [
-      'Boleto mensalidade',
-      'Negociar mensalidade',
-      'Baixa de protestos',
-      'Contrato de prestação',
-      'Cancelamento de contrato',
-      'Outros assuntos financeiros'
+      'Mensalidade: envio de boleto, prorrogação de vencimento, reembolso, baixa ou cancelamento;',
+      'Acordos: negociação de mensalidades em aberto e baixa de protesto;',
+      'Contrato de Prestação: cópia do contrato, reajustes, alteração ou Cancelamento;',
+      'Demais assuntos relacionados ao financeiro.'
     ];
   }
 
@@ -516,6 +526,16 @@ export const Chat: React.FC = () => {
       return [];
     }
   });
+
+  // Encaminhar Mensagens
+  const [forwardMessageModal, setForwardMessageModal] = useState<{ isOpen: boolean; message: Message | null }>({
+    isOpen: false,
+    message: null
+  });
+  const [selectedForwardChannels, setSelectedForwardChannels] = useState<string[]>([]);
+  const [forwardSearchTerm, setForwardSearchTerm] = useState('');
+  const [forwardTab, setForwardTab] = useState<'team' | 'clients'>('team');
+  const [isForwarding, setIsForwarding] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -677,7 +697,7 @@ export const Chat: React.FC = () => {
     }
     return SkinTones.NEUTRAL;
   });
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Chamadas
@@ -999,12 +1019,24 @@ export const Chat: React.FC = () => {
 
   const fetchClients = async () => {
     try {
-      const { data } = await supabase
+      // Buscar emails de membros ativos com a role 'cliente'
+      const { data: activeMembers } = await supabase
+        .from('members')
+        .select('email')
+        .eq('role', 'cliente')
+        .neq('status', 'Inativo');
+
+      const activeEmails = (activeMembers || []).map((m: any) => m.email?.toLowerCase()).filter(Boolean);
+
+      const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, full_name')
         .eq('role', 'cliente')
         .order('full_name');
-      if (data) setClientProfiles(data);
+
+      if (profilesData) {
+        setClientProfiles(profilesData);
+      }
     } catch (e) {
       console.error('Error fetching clients:', e);
     }
@@ -1400,7 +1432,9 @@ export const Chat: React.FC = () => {
               file_type: newMsg.file_type,
               reply_to_id: newMsg.reply_to_id,
               is_system: newMsg.is_system,
-              rawCreatedAt: newMsg.created_at
+              rawCreatedAt: newMsg.created_at,
+              is_private: newMsg.is_private ?? false,
+              is_forwarded: newMsg.is_forwarded ?? false
             };
 
             // Se sou EU que enviei, substituir a msg otimista (temp-xxx) pela versão real
@@ -1534,7 +1568,9 @@ export const Chat: React.FC = () => {
         reply_to_id: msg.reply_to_id,
         reactions: msg.chat_reactions || [],
         is_system: msg.is_system,
-        rawCreatedAt: msg.created_at
+        rawCreatedAt: msg.created_at,
+        is_private: msg.is_private ?? false,
+        is_forwarded: msg.is_forwarded ?? false
       })).reverse();
 
       setMessages(prev => ({
@@ -1587,7 +1623,9 @@ export const Chat: React.FC = () => {
           reply_to_id: msg.reply_to_id,
           reactions: msg.chat_reactions || [],
           is_system: msg.is_system,
-          rawCreatedAt: msg.created_at
+          rawCreatedAt: msg.created_at,
+          is_private: msg.is_private ?? false,
+          is_forwarded: msg.is_forwarded ?? false
         })).reverse();
 
         const container = messagesContainerRef.current;
@@ -1868,7 +1906,8 @@ export const Chat: React.FC = () => {
             opened_at: (c as any).opened_at || c.created_at,
             resolved_at: (c as any).resolved_at,
             last_duration_seconds: (c as any).last_duration_seconds,
-            is_notification: c.is_notification
+            is_notification: c.is_notification,
+            is_private: c.is_private ?? false
           };
         })
       );
@@ -2503,6 +2542,7 @@ export const Chat: React.FC = () => {
         updatePayload.opened_at = nowIso;
         updatePayload.resolved_at = null;
         updatePayload.last_duration_seconds = null;
+        updatePayload.is_private = false;
       }
 
       const { error } = await supabase
@@ -2532,6 +2572,13 @@ export const Chat: React.FC = () => {
 
   const executeFinishSupportTicket = async () => {
     if (!selectedChannelId || !userId) return;
+
+    const selectedChannel = channels.find(c => c.id === selectedChannelId);
+    if (currentUser?.role === 'operacional' && selectedChannel?.assigned_to && selectedChannel.assigned_to !== userId) {
+      alert('Apenas o colaborador responsável por este atendimento (ou um Gestor) pode concluí-lo.');
+      setIsFinishModalOpen(false);
+      return;
+    }
     
     setIsFinishingSupport(true);
     const finishedChannelId = selectedChannelId;
@@ -2552,6 +2599,7 @@ export const Chat: React.FC = () => {
       await supabase.from('chat_channels').update({ 
         support_status: 'resolved',
         assigned_to: null,
+        is_private: false,
         resolved_at: now.toISOString(),
         last_duration_seconds: durationSeconds
       } as any).eq('id', finishedChannelId);
@@ -2578,48 +2626,60 @@ export const Chat: React.FC = () => {
   };
 
   const handleTransferSupportTicket = async () => {
-    if (!selectedChannelId || !userId || !transferUserId || !transferSectorId) return;
+    if (!selectedChannelId || !userId || !transferSectorId) return;
+
+    const currentChannel = channels.find(c => c.id === selectedChannelId);
+    if (currentUser?.role === 'operacional' && currentChannel?.assigned_to && currentChannel.assigned_to !== userId) {
+      alert('Apenas o colaborador responsável por este atendimento (ou um Gestor) pode transferi-lo.');
+      return;
+    }
 
     setIsTransferring(true);
     try {
-      const currentChannel = channels.find(c => c.id === selectedChannelId);
       const targetUser = profiles.find(p => p.id === transferUserId);
       const targetSector = sectors.find(s => s.id === transferSectorId);
-      if (!targetUser || !targetSector) throw new Error('Colaborador ou setor de destino inválido');
+      if (!targetSector) throw new Error('Setor de destino inválido');
 
       const isSameSector = currentChannel && currentChannel.sector_id === transferSectorId;
+      const isAssignedToUser = !!transferUserId;
+      const newStatus = isAssignedToUser ? 'in_progress' : 'pending';
+      const newAssignedTo = isAssignedToUser ? transferUserId : null;
 
       if (isSameSector) {
-        // Apenas reatribui o operador e mantém a conversa aberta
+        // Apenas reatribui o operador / fila no mesmo setor
         await supabase
           .from('chat_channels')
           .update({
-            assigned_to: transferUserId,
-            support_status: 'in_progress'
+            assigned_to: newAssignedTo,
+            support_status: newStatus
           } as any)
           .eq('id', selectedChannelId);
 
-        // Garantir que o novo atendente é membro do canal
-        const { data: isMember } = await supabase
-          .from('chat_channel_members')
-          .select('*')
-          .eq('channel_id', selectedChannelId)
-          .eq('user_id', transferUserId)
-          .maybeSingle();
+        if (isAssignedToUser && transferUserId) {
+          const { data: isMember } = await supabase
+            .from('chat_channel_members')
+            .select('*')
+            .eq('channel_id', selectedChannelId)
+            .eq('user_id', transferUserId)
+            .maybeSingle();
 
-        if (!isMember) {
-          await supabase.from('chat_channel_members').insert({
-            channel_id: selectedChannelId,
-            user_id: transferUserId,
-            role: 'member'
-          });
+          if (!isMember) {
+            await supabase.from('chat_channel_members').insert({
+              channel_id: selectedChannelId,
+              user_id: transferUserId,
+              role: 'member'
+            });
+          }
         }
 
-        // Mensagem de sistema no mesmo canal
+        const systemMsgText = isAssignedToUser
+          ? `Atendimento transferido para ${targetUser?.full_name || 'Operador'}.`
+          : `Atendimento retornado para a fila do setor ${targetSector.name}.`;
+
         await supabase.from('chat_messages').insert({
           channel_id: selectedChannelId,
           sender_id: userId,
-          text: `Atendimento transferido para o colaborador ${targetUser.full_name} no mesmo setor (${targetSector.name}).`,
+          text: systemMsgText,
           status: 'sent',
           is_system: true
         } as any);
@@ -2631,7 +2691,7 @@ export const Chat: React.FC = () => {
         return;
       }
 
-      // 1. Obter membros do canal de origem de forma plana
+      // Transferência para setor diferente
       const { data: members, error: membersErr } = await (supabase
         .from('chat_channel_members') as any)
         .select('user_id')
@@ -2641,9 +2701,8 @@ export const Chat: React.FC = () => {
         throw new Error('Não foi possível obter os membros do canal');
       }
 
-      const memberIds = members.map(m => m.user_id).filter(Boolean) as string[];
+      const memberIds = members.map((m: any) => m.user_id).filter(Boolean) as string[];
 
-      // Buscar o perfil do cliente entre esses membros
       const { data: dbProfiles, error: profilesErr } = await (supabase
         .from('profiles') as any)
         .select('id, full_name, role')
@@ -2657,8 +2716,6 @@ export const Chat: React.FC = () => {
       const clientId = dbProfiles[0].id;
       const clientName = dbProfiles[0].full_name;
 
-      // 2. Procurar se o cliente já possui um canal de suporte para o setor de destino (humano, não-notificação)
-      // A. Achar todos os canais de suporte para o setor de destino que não sejam notificações
       const { data: targetSectorChannels, error: channelsErr } = await (supabase
         .from('chat_channels') as any)
         .select('id, status, support_status, name')
@@ -2672,8 +2729,6 @@ export const Chat: React.FC = () => {
 
       if (targetSectorChannels && targetSectorChannels.length > 0) {
         const channelIds = targetSectorChannels.map(c => c.id);
-        
-        // B. Verificar se o cliente é membro de algum desses canais
         const { data: clientMemberships, error: membersCheckErr } = await supabase
           .from('chat_channel_members')
           .select('channel_id')
@@ -2690,33 +2745,32 @@ export const Chat: React.FC = () => {
       const hasExisting = !!targetChannelId;
 
       if (hasExisting) {
-        // 3. Canal existente encontrado
         await supabase
           .from('chat_channels')
           .update({
             status: 'open',
-            support_status: 'in_progress',
-            assigned_to: transferUserId
+            support_status: newStatus,
+            assigned_to: newAssignedTo
           } as any)
           .eq('id', targetChannelId);
 
-        // Garantir que o atendente de destino é membro
-        const { data: isMember } = await supabase
-          .from('chat_channel_members')
-          .select('*')
-          .eq('channel_id', targetChannelId)
-          .eq('user_id', transferUserId)
-          .maybeSingle();
+        if (isAssignedToUser && transferUserId) {
+          const { data: isMember } = await supabase
+            .from('chat_channel_members')
+            .select('*')
+            .eq('channel_id', targetChannelId)
+            .eq('user_id', transferUserId)
+            .maybeSingle();
 
-        if (!isMember) {
-          await supabase.from('chat_channel_members').insert({
-            channel_id: targetChannelId,
-            user_id: transferUserId,
-            role: 'member'
-          });
+          if (!isMember) {
+            await supabase.from('chat_channel_members').insert({
+              channel_id: targetChannelId,
+              user_id: transferUserId,
+              role: 'member'
+            });
+          }
         }
       } else {
-        // 4. Canal de destino não existe: criar do zero
         const channelName = `Atendimento - ${clientName} (${targetSector.name})`;
         
         const { data: newChannel, error: createError } = await supabase
@@ -2726,8 +2780,8 @@ export const Chat: React.FC = () => {
             type: 'support',
             created_by: userId,
             status: 'open',
-            support_status: 'in_progress',
-            assigned_to: transferUserId,
+            support_status: newStatus,
+            assigned_to: newAssignedTo,
             sector_id: transferSectorId
           } as any])
           .select()
@@ -2736,7 +2790,6 @@ export const Chat: React.FC = () => {
         if (createError) throw createError;
         targetChannelId = newChannel.id;
 
-        // Inserir os membros no novo canal (Cliente + todos os staff)
         const { data: staffMembers } = await supabase
           .from('profiles')
           .select('id')
@@ -2751,7 +2804,7 @@ export const Chat: React.FC = () => {
             membersToInsert.push({
               channel_id: targetChannelId,
               user_id: staff.id,
-              role: staff.id === transferUserId ? 'admin' : 'member'
+              role: (isAssignedToUser && staff.id === transferUserId) ? 'admin' : 'member'
             });
           });
         }
@@ -2759,22 +2812,24 @@ export const Chat: React.FC = () => {
         await supabase.from('chat_channel_members').insert(membersToInsert);
       }
 
-      // 5. Encerrar o canal de origem
+      // Encerrar o canal antigo voltando para o modo normal
       await supabase
         .from('chat_channels')
-        .update({ support_status: 'resolved' } as any)
+        .update({ support_status: 'resolved', is_private: false } as any)
         .eq('id', selectedChannelId);
 
-      // 6. Mensagem de sistema no canal antigo
+      const transferMsgText = isAssignedToUser
+        ? `Atendimento transferido para o setor ${targetSector.name} aos cuidados de ${targetUser?.full_name || 'Operador'}.`
+        : `Atendimento transferido para a fila do setor ${targetSector.name}.`;
+
       await supabase.from('chat_messages').insert({
         channel_id: selectedChannelId,
         sender_id: userId,
-        text: `Atendimento transferido para o setor ${targetSector.name} aos cuidados de ${targetUser.full_name}.`,
+        text: transferMsgText,
         status: 'sent',
         is_system: true
       } as any);
 
-      // 7. Mensagem de sistema no canal novo
       await supabase.from('chat_messages').insert({
         channel_id: targetChannelId,
         sender_id: userId,
@@ -2783,7 +2838,6 @@ export const Chat: React.FC = () => {
         is_system: true
       } as any);
 
-      // 8. Atualizar interface e selecionar novo canal
       setIsTransferModalOpen(false);
       setTransferUserId('');
       setTransferSectorId('');
@@ -2794,6 +2848,114 @@ export const Chat: React.FC = () => {
       alert('Erro ao transferir atendimento.');
     } finally {
       setIsTransferring(false);
+    }
+  };
+
+  const teamForwardDestinations = React.useMemo(() => {
+    const groups = channels
+      .filter(c => c.type === 'group' && c.status !== 'closed' && c.id !== selectedChannelId)
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        subText: 'Grupo de Trabalho',
+        avatar: c.avatar_url
+      }));
+
+    const staff = profiles
+      .filter(p => (p.role === 'gestor' || p.role === 'operacional') && p.id !== userId)
+      .map(p => {
+        const existingChannel = channels.find(c => c.type === 'direct' && c.rawName.includes(p.id));
+        return {
+          id: existingChannel ? existingChannel.id : `profile-${p.id}`,
+          name: p.full_name || 'Colaborador',
+          subText: p.sector || (p.role === 'gestor' ? 'Gestor' : 'Operacional'),
+          avatar: p.avatar_url
+        };
+      });
+
+    return [...groups, ...staff].filter(item =>
+      item.name.toLowerCase().includes(forwardSearchTerm.toLowerCase()) ||
+      item.subText.toLowerCase().includes(forwardSearchTerm.toLowerCase())
+    );
+  }, [channels, profiles, userId, selectedChannelId, forwardSearchTerm]);
+
+  const clientForwardDestinations = React.useMemo(() => {
+    const supportChannels = channels
+      .filter(c => c.type === 'support' && c.id !== selectedChannelId)
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        subText: c.support_status === 'resolved' ? 'Atendimento Concluído' : 'Atendimento Ativo',
+        avatar: c.avatar_url
+      }));
+
+    return supportChannels.filter(item =>
+      item.name.toLowerCase().includes(forwardSearchTerm.toLowerCase()) ||
+      item.subText.toLowerCase().includes(forwardSearchTerm.toLowerCase())
+    );
+  }, [channels, selectedChannelId, forwardSearchTerm]);
+
+  const currentForwardList = forwardTab === 'team' ? teamForwardDestinations : clientForwardDestinations;
+
+  const handleSendForward = async () => {
+    if (!forwardMessageModal.message || selectedForwardChannels.length === 0 || !userId) return;
+
+    setIsForwarding(true);
+    try {
+      const msg = forwardMessageModal.message;
+      for (const rawTargetId of selectedForwardChannels) {
+        let channelId = rawTargetId;
+
+        // Se for um perfil direto que ainda não possui canal ativo criado
+        if (rawTargetId.startsWith('profile-')) {
+          const targetProfileId = rawTargetId.replace('profile-', '');
+          const existingDirect = channels.find(c => c.type === 'direct' && c.rawName.includes(targetProfileId));
+          if (existingDirect) {
+            channelId = existingDirect.id;
+          } else {
+            const rawName = `${userId}_${targetProfileId}`;
+            const { data: newChan } = await supabase
+              .from('chat_channels')
+              .insert({
+                name: rawName,
+                type: 'direct',
+                created_by: userId
+              } as any)
+              .select('id')
+              .single();
+
+            if (newChan) {
+              channelId = newChan.id;
+              await supabase.from('chat_channel_members').insert([
+                { channel_id: channelId, user_id: userId, role: 'member' },
+                { channel_id: channelId, user_id: targetProfileId, role: 'member' }
+              ] as any);
+            }
+          }
+        }
+
+        await supabase.from('chat_messages').insert({
+          channel_id: channelId,
+          contact_id: null as any,
+          sender_id: userId,
+          text: msg.text || '',
+          attachment_url: msg.attachment_url || null,
+          file_name: msg.file_name || null,
+          file_type: msg.file_type || null,
+          status: 'sent',
+          is_me: true,
+          is_forwarded: true
+        } as any);
+      }
+
+      setForwardMessageModal({ isOpen: false, message: null });
+      setSelectedForwardChannels([]);
+      await fetchChannels(userId);
+    } catch (err) {
+      console.error('Error forwarding message:', err);
+      alert('Falha ao encaminhar mensagem');
+    } finally {
+      setIsForwarding(false);
     }
   };
 
@@ -2850,21 +3012,59 @@ export const Chat: React.FC = () => {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const validFiles: File[] = [];
+    for (const file of files) {
       if (file.size > 50 * 1024 * 1024) { // 50MB
-        alert('O arquivo selecionado é muito grande. Tamanho máximo: 50MB');
-        return;
+        alert(`O arquivo "${file.name}" excede o tamanho máximo de 50MB.`);
+      } else {
+        validFiles.push(file);
       }
-      setSelectedFile(file);
+    }
+
+    if (validFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  const clearSelectedFile = () => {
-    setSelectedFile(null);
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearSelectedFiles = () => {
+    setSelectedFiles([]);
     setUploadProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const pastedFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) {
+          if (file.size > 50 * 1024 * 1024) {
+            alert(`O arquivo "${file.name}" excede o tamanho máximo de 50MB.`);
+          } else {
+            pastedFiles.push(file);
+          }
+        }
+      }
+    }
+
+    if (pastedFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...pastedFiles]);
     }
   };
 
@@ -3009,20 +3209,20 @@ export const Chat: React.FC = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!messageInput.trim() && !selectedFile) || !selectedChannelId || !userId) return;
+    if ((!messageInput.trim() && selectedFiles.length === 0) || !selectedChannelId || !userId) return;
 
     const selectedChannel = enrichedChannels.find(c => c.id === selectedChannelId);
     const isSupport = selectedChannel?.type === 'support';
     const isClosed = selectedChannel?.status === 'closed' || selectedChannel?.support_status === 'resolved';
 
     const textToSend = messageInput.trim();
-    const tempId = `temp-${Date.now()}`;
-    const fileToSend = selectedFile;
+    const filesToSend = [...selectedFiles];
 
     setMessageInput('');
-    clearSelectedFile();
+    clearSelectedFiles();
     setShowEmojiPicker(false);
 
+    const tempId = `temp-${Date.now()}`;
     const optimisticMsg: Message = {
       id: tempId,
       sender_id: userId,
@@ -3151,53 +3351,60 @@ export const Chat: React.FC = () => {
         }
       }
 
-      let attachmentUrl = null;
-      let fileType = null;
-      let fileName = null;
-      let fileSize = null;
-
-      if (fileToSend) {
-        setUploadProgress(10);
-        const fileExt = fileToSend.name.split('.').pop();
-        const filePath = `${selectedChannelId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-        const { error: uploadError, data } = await supabase.storage
-          .from('chat_attachments')
-          .upload(filePath, fileToSend);
-
-        // OBS: o SDK do supabase.storage client em algumas versões não suporta o parâmetro onUploadProgress no método upload() nativamente.
-        // Simulando o carregamento rápido para UX
-        setUploadProgress(100);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('chat_attachments')
-          .getPublicUrl(filePath);
-
-        attachmentUrl = publicUrl;
-        fileName = fileToSend.name;
-        fileType = fileToSend.type;
-        fileSize = fileToSend.size;
+      // 1. Enviar mensagem com o texto (se digitado)
+      if (textToSend) {
+        await supabase
+          .from('chat_messages')
+          .insert({
+            channel_id: selectedChannelId,
+            contact_id: null as any,
+            sender_id: userId,
+            text: textToSend,
+            status: 'sent',
+            is_me: true,
+            reply_to_id: optimisticMsg.reply_to_id || null,
+            is_private: selectedChannel?.is_private ?? false
+          } as any);
       }
 
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert({
-          channel_id: selectedChannelId,
-          contact_id: null as any,
-          sender_id: userId,
-          text: textToSend,
-          status: 'sent',
-          is_me: true,
-          attachment_url: attachmentUrl,
-          file_name: fileName,
-          file_type: fileType,
-          file_size: fileSize,
-          reply_to_id: optimisticMsg.reply_to_id || null
-        });
+      // 2. Enviar cada um dos arquivos anexados sequencialmente
+      if (filesToSend.length > 0) {
+        setUploadProgress(10);
+        for (let i = 0; i < filesToSend.length; i++) {
+          const fileToSend = filesToSend[i];
+          const fileExt = fileToSend.name.split('.').pop();
+          const filePath = `${selectedChannelId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-      if (error) throw error;
+          const { error: uploadError } = await supabase.storage
+            .from('chat_attachments')
+            .upload(filePath, fileToSend);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('chat_attachments')
+            .getPublicUrl(filePath);
+
+          await supabase
+            .from('chat_messages')
+            .insert({
+              channel_id: selectedChannelId,
+              contact_id: null as any,
+              sender_id: userId,
+              text: '',
+              status: 'sent',
+              is_me: true,
+              attachment_url: publicUrl,
+              file_name: fileToSend.name,
+              file_type: fileToSend.type,
+              file_size: fileToSend.size,
+              is_private: selectedChannel?.is_private ?? false
+            } as any);
+
+          setUploadProgress(Math.round(((i + 1) / filesToSend.length) * 100));
+        }
+        setTimeout(() => setUploadProgress(0), 1000);
+      }
 
       // Manter last_read_at atualizado ao enviar mensagem
       markChannelAsRead(selectedChannelId);
@@ -3340,6 +3547,10 @@ export const Chat: React.FC = () => {
         if (channel.type !== 'support') {
           return false;
         }
+        // Ocultar chamadas em modo privado para usuários com perfil operacional enquanto ativas
+        if (channel.is_private && currentUser?.role === 'operacional' && channel.support_status !== 'resolved') {
+          return false;
+        }
         // Sub-filtros de atendimento para staff
         if (supportSubTab === 'queue') {
           return !channel.assigned_to && 
@@ -3368,11 +3579,20 @@ export const Chat: React.FC = () => {
   const sortedFilteredChannels = React.useMemo(() => {
     const list = [...filteredChannels];
     list.sort((a, b) => {
+      // 1. Status do Atendimento: Abertos no topo, Encerrados/Concluídos para BAIXO
+      const aIsClosed = a.support_status === 'resolved' || a.status === 'closed';
+      const bIsClosed = b.support_status === 'resolved' || b.status === 'closed';
+
+      if (!aIsClosed && bIsClosed) return -1;
+      if (aIsClosed && !bIsClosed) return 1;
+
+      // 2. Canais Fixados (Pinned)
       const aPinned = pinnedChannelIds.includes(a.id);
       const bPinned = pinnedChannelIds.includes(b.id);
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
 
+      // 3. Ordem Personalizada (Drag & Drop)
       const aCustomIdx = customChannelOrder.indexOf(a.id);
       const bCustomIdx = customChannelOrder.indexOf(b.id);
 
@@ -3382,14 +3602,14 @@ export const Chat: React.FC = () => {
       if (aCustomIdx !== -1) return -1;
       if (bCustomIdx !== -1) return 1;
 
-      const aIsClosed = a.support_status === 'resolved' || a.status === 'closed';
-      const bIsClosed = b.support_status === 'resolved' || b.status === 'closed';
-      
-      if (aIsClosed && !bIsClosed) return 1;
-      if (!aIsClosed && bIsClosed) return -1;
-      
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      // 4. Data de Última Atividade / Mensagem
+      const aTime = a.lastMessageTime 
+        ? new Date(a.lastMessageTime).getTime() 
+        : (a.opened_at ? new Date(a.opened_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0));
+      const bTime = b.lastMessageTime 
+        ? new Date(b.lastMessageTime).getTime() 
+        : (b.opened_at ? new Date(b.opened_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0));
+
       return bTime - aTime;
     });
     return list;
@@ -3513,14 +3733,16 @@ export const Chat: React.FC = () => {
                       </button>
                     </Tooltip>
                   ) : (
-                    <Tooltip content="Novo Grupo" position="bottom">
-                      <button
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="w-[38px] h-[38px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                      >
-                        <Plus size={18} />
-                      </button>
-                    </Tooltip>
+                    currentUser?.role === 'gestor' && (
+                      <Tooltip content="Novo Grupo" position="bottom">
+                        <button
+                          onClick={() => setIsCreateModalOpen(true)}
+                          className="w-[38px] h-[38px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </Tooltip>
+                    )
                   )}
                 </>
               ) : (
@@ -4150,27 +4372,6 @@ export const Chat: React.FC = () => {
                       })}
                     </div>
                   )}
-
-                  {/* 3. Tempo de atendimento */}
-                  {selectedChannel.type === 'support' && (
-                    selectedChannel.support_status === 'resolved' ? (
-                      selectedChannel.last_duration_seconds ? (
-                        <Tooltip content={`Atendimento concluído. Duração total: ${formatSupportDuration(null, selectedChannel.last_duration_seconds)}`} position="bottom">
-                          <span className="inline-flex items-center gap-1 font-semibold rounded-md border px-1.5 py-0.5 text-[9px] leading-none whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700">
-                            <Clock size={10} className="shrink-0 text-slate-500" />
-                            <span>Concluído em {formatSupportDuration(null, selectedChannel.last_duration_seconds)}</span>
-                          </span>
-                        </Tooltip>
-                      ) : null
-                    ) : (
-                      <Tooltip content={`Atendimento aberto há ${formatSupportDuration(selectedChannel.opened_at || selectedChannel.created_at)}`} position="bottom">
-                        <span className={`inline-flex items-center gap-1 font-semibold rounded-md border px-1.5 py-0.5 text-[9px] leading-none whitespace-nowrap ${getSupportSlaBadgeStyle(selectedChannel.opened_at || selectedChannel.created_at)}`}>
-                          <Clock size={10} className="shrink-0" />
-                          <span>Aberto há {formatSupportDuration(selectedChannel.opened_at || selectedChannel.created_at)}</span>
-                        </span>
-                      </Tooltip>
-                    )
-                  )}
                 </div>
               </div>
             </div>
@@ -4196,6 +4397,56 @@ export const Chat: React.FC = () => {
                   <Star size={20} fill={showFavoritesOnly ? 'currentColor' : 'none'} />
                 </button>
               </Tooltip>
+
+              {/* Botão de Alternância de Atendimento Privado (Visível apenas para Gestores no Atendimento de Suporte) */}
+              {selectedChannel.type === 'support' && currentUser?.role === 'gestor' && (
+                <Tooltip content={selectedChannel.is_private ? "Desativar Modo Privado (Tornar Público)" : "Ativar Modo Privado (Visível Apenas para Gestores e Cliente)"} position="bottom">
+                  <button
+                    onClick={async () => {
+                      const nextPrivateState = !selectedChannel.is_private;
+                      const { error } = await supabase
+                        .from('chat_channels')
+                        .update({ is_private: nextPrivateState } as any)
+                        .eq('id', selectedChannel.id);
+
+                      if (!error) {
+                        const updated = { ...selectedChannel, is_private: nextPrivateState };
+                        setChannels(prev => prev.map(c => c.id === selectedChannel.id ? updated : c));
+                        
+                        // Mensagem de sistema informando a alteração de privacidade
+                        await supabase
+                          .from('chat_messages')
+                          .insert({
+                            channel_id: selectedChannel.id,
+                            sender_id: userId,
+                            text: nextPrivateState 
+                              ? `🔒 Atendimento alterado para MODO PRIVADO por ${currentUser?.full_name || 'Gestor'}.`
+                              : `🔓 Atendimento alterado para MODO PÚBLICO por ${currentUser?.full_name || 'Gestor'}.`,
+                            status: 'sent',
+                            is_system: true
+                          } as any);
+                      }
+                    }}
+                    className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${
+                      selectedChannel.is_private 
+                        ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 shadow-sm' 
+                        : 'text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {selectedChannel.is_private ? (
+                      <>
+                        <Lock size={16} className="text-amber-500 shrink-0" />
+                        <span className="hidden md:inline">Modo Privado</span>
+                      </>
+                    ) : (
+                      <>
+                        <Unlock size={16} className="shrink-0" />
+                        <span className="hidden md:inline">Tornar Privado</span>
+                      </>
+                    )}
+                  </button>
+                </Tooltip>
+              )}
 
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
@@ -4238,7 +4489,7 @@ export const Chat: React.FC = () => {
                 </div>
               )}
 
-              {selectedChannel.type === 'group' && (
+              {selectedChannel.type === 'group' && currentUser?.role === 'gestor' && (
                 <Tooltip content="Configurações do Grupo" position="bottom">
                   <button
                     onClick={() => setIsGroupSettingsOpen(true)}
@@ -4262,60 +4513,138 @@ export const Chat: React.FC = () => {
                   </Tooltip>
 
                   {showSupportActionsMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                      {selectedChannel.support_status === 'resolved' ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleAssignToMe(selectedChannel.id);
-                            setShowSupportActionsMenu(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 flex items-center gap-2 font-semibold"
-                        >
-                          <Users size={16} />
-                          <span>Reabrir e Assumir</span>
-                        </button>
-                      ) : (
-                        <>
-                          {selectedChannel.assigned_to !== userId && (
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                      {(() => {
+                        const isGestor = currentUser?.role === 'gestor';
+                        const isAssignedToMe = selectedChannel.assigned_to === userId;
+                        const isAssigned = !!selectedChannel.assigned_to;
+                        const isResolved = selectedChannel.support_status === 'resolved';
+
+                        if (isResolved) {
+                          return (
                             <button
                               type="button"
                               onClick={() => {
                                 handleAssignToMe(selectedChannel.id);
                                 setShowSupportActionsMenu(false);
                               }}
-                              className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
+                              className="w-full text-left px-4 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 flex items-center gap-2 font-semibold"
                             >
-                              <Users size={16} className="text-indigo-500" />
-                              <span>Assumir</span>
+                              <Users size={16} />
+                              <span>Reabrir e Assumir</span>
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTransferSectorId(selectedChannel.sector_id || '');
-                              setTransferUserId('');
-                              setIsTransferModalOpen(true);
-                              setShowSupportActionsMenu(false);
-                            }}
-                            className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
-                          >
-                            <Shuffle size={16} className="text-slate-500" />
-                            <span>Transferir</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsFinishModalOpen(true);
-                              setShowSupportActionsMenu(false);
-                            }}
-                            className="w-full text-left px-4 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2 font-semibold"
-                          >
-                            <CheckCheck size={16} />
-                            <span>Concluir</span>
-                          </button>
-                        </>
-                      )}
+                          );
+                        }
+
+                        // Se for Gestor: Permissão Total em qualquer estado do atendimento
+                        if (isGestor) {
+                          return (
+                            <>
+                              {!isAssignedToMe && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleAssignToMe(selectedChannel.id);
+                                    setShowSupportActionsMenu(false);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 flex items-center gap-2 font-semibold"
+                                >
+                                  <Users size={16} />
+                                  <span>{isAssigned ? 'Reatribuir a Mim' : 'Assumir'}</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTransferSectorId(selectedChannel.sector_id || '');
+                                  setTransferUserId('');
+                                  setIsTransferModalOpen(true);
+                                  setShowSupportActionsMenu(false);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
+                              >
+                                <Shuffle size={16} className="text-slate-500" />
+                                <span>Transferir</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsFinishModalOpen(true);
+                                  setShowSupportActionsMenu(false);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2 font-semibold"
+                              >
+                                <CheckCheck size={16} />
+                                <span>Concluir</span>
+                              </button>
+                            </>
+                          );
+                        }
+
+                        // Se for Operacional:
+                        // 1. Chamado em Fila -> Pode Apenas Assumir
+                        if (!isAssigned) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleAssignToMe(selectedChannel.id);
+                                setShowSupportActionsMenu(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 flex items-center gap-2 font-semibold"
+                            >
+                              <Users size={16} />
+                              <span>Assumir Atendimento</span>
+                            </button>
+                          );
+                        }
+
+                        // 2. Chamado Assumido por Mim -> Pode Transferir e Concluir
+                        if (isAssignedToMe) {
+                          return (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTransferSectorId(selectedChannel.sector_id || '');
+                                  setTransferUserId('');
+                                  setIsTransferModalOpen(true);
+                                  setShowSupportActionsMenu(false);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
+                              >
+                                <Shuffle size={16} className="text-slate-500" />
+                                <span>Transferir</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsFinishModalOpen(true);
+                                  setShowSupportActionsMenu(false);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2 font-semibold"
+                              >
+                                <CheckCheck size={16} />
+                                <span>Concluir</span>
+                              </button>
+                            </>
+                          );
+                        }
+
+                        // 3. Chamado Assumido por Outro Colega -> Exibir aviso informativo
+                        const assignedProfile = profiles.find(p => p.id === selectedChannel.assigned_to);
+                        return (
+                          <div className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                            <div className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                              <Lock size={13} className="text-amber-500 shrink-0" />
+                              <span>Em Andamento</span>
+                            </div>
+                            <p className="leading-relaxed">
+                              Atendimento sob responsabilidade de <strong className="text-slate-700 dark:text-slate-200">{assignedProfile?.full_name || 'outro atendente'}</strong>.
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -4323,6 +4652,19 @@ export const Chat: React.FC = () => {
 
             </div>
           </div>
+
+          {/* Banner de Atendimento Privado */}
+          {selectedChannel.is_private && (
+            <div className="px-4 py-2 bg-amber-500/10 dark:bg-amber-950/40 border-b border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold flex items-center justify-between gap-2 shadow-sm animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <Lock size={14} className="text-amber-500 shrink-0" />
+                <span>Atendimento em Modo Privado — Visível apenas para Gestores e o Cliente.</span>
+              </div>
+              <span className="text-[10px] font-medium bg-amber-500/20 px-2 py-0.5 rounded-full text-amber-800 dark:text-amber-200">
+                🔒 Confidencial
+              </span>
+            </div>
+          )}
 
           {/* Connection Status Banner */}
           {connectionStatus !== 'online' && (
@@ -4412,6 +4754,10 @@ export const Chat: React.FC = () => {
                           bgClass = "bg-rose-50/75 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/40 text-rose-700 dark:text-rose-300 shadow-sm shadow-rose-100/10";
                           IconComponent = CheckCheck;
                           iconColor = "text-rose-500 dark:text-rose-400";
+                        } else if (textLower.includes('modo privado') || textLower.includes('modo público')) {
+                          bgClass = "bg-amber-50/75 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/40 text-amber-700 dark:text-amber-300 shadow-sm shadow-amber-100/10";
+                          IconComponent = Lock;
+                          iconColor = "text-amber-500 dark:text-amber-400";
                         }
 
                         return (
@@ -4426,6 +4772,14 @@ export const Chat: React.FC = () => {
                           </div>
                         );
                       })()
+                    ) : msg.is_private && currentUser?.role === 'operacional' ? (
+                      <div className="flex justify-center w-full my-2.5 animate-in fade-in duration-200">
+                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/40 text-amber-700 dark:text-amber-300 rounded-2xl text-xs font-medium shadow-sm max-w-[85%] text-center">
+                          <Lock size={14} className="text-amber-500 shrink-0" />
+                          <span>[Trecho reservado à gestão - Conteúdo confidencial]</span>
+                          <span className="text-[10px] opacity-60 ml-1 border-l border-amber-500/20 pl-2 shrink-0">{msg.created_at}</span>
+                        </div>
+                      </div>
                     ) : (
                       <div
                         className={`flex gap-3 max-w-[80%] ${msg.isMe ? 'ml-auto flex-row-reverse' : ''}`}
@@ -4446,6 +4800,14 @@ export const Chat: React.FC = () => {
                             <span className={`text-[10px] font-bold mb-1 ${msg.isMe ? 'text-indigo-100/90' : 'text-indigo-600 dark:text-indigo-400'}`}>
                               {senderName}
                             </span>
+                          )}
+
+                          {/* Badge de Mensagem Encaminhada */}
+                          {msg.is_forwarded && (
+                            <div className={`flex items-center gap-1 text-[11px] font-semibold mb-1 italic ${msg.isMe ? 'text-indigo-200/90' : 'text-slate-400 dark:text-slate-500'}`}>
+                              <CornerUpRight size={12} className="shrink-0" />
+                              <span>Encaminhada</span>
+                            </div>
                           )}
 
                           {/* Msg Reply Render */}
@@ -4485,6 +4847,21 @@ export const Chat: React.FC = () => {
                                   className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
                                 >
                                   <Reply size={14} className="text-slate-400 hover:text-indigo-500" />
+                                </button>
+                              </Tooltip>
+                            )}
+                            {!selectedChannel?.is_notification && currentUser?.role !== 'cliente' && (
+                              <Tooltip content="Encaminhar" position="top">
+                                <button
+                                  onClick={() => {
+                                    setForwardMessageModal({ isOpen: true, message: msg });
+                                    setSelectedForwardChannels([]);
+                                    setForwardSearchTerm('');
+                                    setForwardTab('team');
+                                  }}
+                                  className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                                >
+                                  <CornerUpRight size={14} className="text-slate-400 hover:text-indigo-500" />
                                 </button>
                               </Tooltip>
                             )}
@@ -4554,6 +4931,11 @@ export const Chat: React.FC = () => {
                              />
                            )}
                           <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
+                            {msg.is_private && (
+                              <Tooltip content="Mensagem trocada em modo privado" position="top">
+                                <Lock size={11} className={msg.isMe ? "text-indigo-200 shrink-0" : "text-amber-500 shrink-0"} />
+                              </Tooltip>
+                            )}
                             {favoritedMessages.includes(msg.id) && (
                               <Star size={11} className={msg.isMe ? "text-amber-300 fill-amber-300 shrink-0" : "text-amber-500 fill-amber-500 shrink-0"} />
                             )}
@@ -4693,30 +5075,30 @@ export const Chat: React.FC = () => {
               </div>
             )}
 
-            {selectedFile && (
-              <div className="mb-3 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl relative flex items-center gap-3 w-fit pr-10">
-                <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 overflow-hidden">
-                  {selectedFile.type.startsWith('image/') ? (
-                    <img src={URL.createObjectURL(selectedFile)} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <Paperclip size={20} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate max-w-[200px]">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearSelectedFile}
-                  className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <X size={14} />
-                </button>
+            {selectedFiles.length > 0 && (
+              <div className="mb-3 p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center gap-2 overflow-x-auto custom-scrollbar">
+                {selectedFiles.map((file, idx) => (
+                  <div key={idx} className="relative group shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
+                    {file.type.startsWith('image/') ? (
+                      <img src={URL.createObjectURL(file)} alt="Preview" className="w-8 h-8 object-cover rounded shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded flex items-center justify-center shrink-0">
+                        <Paperclip size={16} />
+                      </div>
+                    )}
+                    <div className="max-w-[130px] truncate text-xs font-medium text-slate-700 dark:text-slate-200">
+                      <div className="truncate">{file.name}</div>
+                      <div className="text-[10px] opacity-60">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSelectedFile(idx)}
+                      className="p-1 text-slate-400 hover:text-rose-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -4795,6 +5177,7 @@ export const Chat: React.FC = () => {
                     ref={fileInputRef}
                     onChange={handleFileSelect}
                     className="hidden"
+                    multiple
                     accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip"
                   />
                   <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950/50 p-2 rounded-xl border border-transparent transition-all">
@@ -4828,13 +5211,14 @@ export const Chat: React.FC = () => {
                       ref={textareaRef}
                       value={messageInput}
                       onChange={(e) => setMessageInput(e.target.value)}
+                      onPaste={handlePaste}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           handleSendMessage(e);
                         }
                       }}
-                      placeholder="Digite sua mensagem..."
+                      placeholder="Digite sua mensagem ou cole (Ctrl + V)..."
                       className="flex-1 bg-transparent border-0 focus:ring-0 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none py-2.5 max-h-32 min-h-[44px]"
                       rows={1}
                     />
@@ -4871,7 +5255,7 @@ export const Chat: React.FC = () => {
                     <Tooltip content="Enviar mensagem" position="top">
                       <button
                         type="submit"
-                        disabled={(!messageInput.trim() && !selectedFile)}
+                        disabled={(!messageInput.trim() && selectedFiles.length === 0)}
                         className="relative p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm overflow-hidden shrink-0"
                       >
                         {uploadProgress > 0 && uploadProgress < 100 && (
@@ -4978,7 +5362,7 @@ export const Chat: React.FC = () => {
                 </Button>
                 <Button 
                   onClick={handleTransferSupportTicket} 
-                  disabled={isTransferring || !transferUserId || !transferSectorId}
+                  disabled={isTransferring || !transferSectorId}
                   icon={isTransferring ? <Loader2 size={16} className="animate-spin" /> : <Shuffle size={16} />}
                 >
                   {isTransferring ? 'Transferindo...' : 'Transferir'}
@@ -4988,22 +5372,21 @@ export const Chat: React.FC = () => {
           >
             <div className="space-y-4">
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Selecione o colaborador para quem deseja transferir o atendimento e o novo setor responsável.
+                Selecione o setor de destino e, opcionalmente, o colaborador específico. Deixe o colaborador em branco para disponibilizar na fila do setor.
               </p>
               
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Colaborador <span className="text-rose-500">*</span>
+                  Colaborador <span className="text-slate-400 text-[10px] lowercase font-normal italic">(opcional - em branco para Fila)</span>
                 </label>
                 <select
                   value={transferUserId}
                   onChange={(e) => {
                     setTransferUserId(e.target.value);
-                    setTransferSectorId('');
                   }}
                   className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">Selecione o Colaborador</option>
+                  <option value="">Nenhum (Transferir para a Fila do Setor)</option>
                   {profiles
                     .filter(p => p.role !== 'cliente' && p.id !== userId && isUserAvailableForTransfer(p))
                     .map(p => (
@@ -5015,14 +5398,13 @@ export const Chat: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider font-semibold">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
                   Setor <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={transferSectorId}
                   onChange={(e) => setTransferSectorId(e.target.value)}
                   className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  disabled={!transferUserId}
                 >
                   <option value="">Selecione o Setor</option>
                   {allowedSectors.map(sector => (
@@ -5305,6 +5687,131 @@ export const Chat: React.FC = () => {
           </div>
         </div>
       </Modal>
+      {/* Modal Encaminhar Mensagem */}
+      {forwardMessageModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300 max-h-[85vh]">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                  <CornerUpRight size={18} className="text-slate-500 dark:text-slate-400" />
+                </div>
+                <div className="flex flex-col text-left">
+                  <h2 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                    Encaminhar Mensagem
+                  </h2>
+                  <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+                </div>
+              </div>
+              <button
+                onClick={() => setForwardMessageModal({ isOpen: false, message: null })}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Abas: Equipe vs Clientes */}
+            <div className="flex border-b border-slate-100 dark:border-slate-800 px-6 pt-3">
+              <button
+                onClick={() => setForwardTab('team')}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 text-center transition-all flex items-center justify-center gap-1.5 ${
+                  forwardTab === 'team'
+                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                }`}
+              >
+                <Users size={14} />
+                <span>Equipe ({teamForwardDestinations.length})</span>
+              </button>
+              <button
+                onClick={() => setForwardTab('clients')}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 text-center transition-all flex items-center justify-center gap-1.5 ${
+                  forwardTab === 'clients'
+                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                }`}
+              >
+                <Building2 size={14} />
+                <span>Clientes ({clientForwardDestinations.length})</span>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3 flex-1 overflow-y-auto">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={forwardTab === 'team' ? "Pesquisar colaborador ou grupo..." : "Pesquisar cliente ou chamado..."}
+                  value={forwardSearchTerm}
+                  onChange={(e) => setForwardSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                />
+              </div>
+
+              <div className="space-y-1 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                {currentForwardList.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-slate-400">
+                    Nenhum destino encontrado.
+                  </div>
+                ) : (
+                  currentForwardList.map(item => {
+                    const isSelected = selectedForwardChannels.includes(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          setSelectedForwardChannels(prev => 
+                            isSelected ? prev.filter(id => id !== item.id) : [...prev, item.id]
+                          );
+                        }}
+                        className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all border ${
+                          isSelected 
+                            ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/60 text-indigo-900 dark:text-indigo-200' 
+                            : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            {item.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div className="truncate">
+                            <div className="text-xs font-semibold truncate">{item.name}</div>
+                            <div className="text-[10px] opacity-60 capitalize">{item.subText}</div>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="h-4 w-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 pointer-events-none"
+                        />
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-950/20">
+              <button
+                onClick={() => setForwardMessageModal({ isOpen: false, message: null })}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSendForward}
+                disabled={selectedForwardChannels.length === 0 || isForwarding}
+                className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 rounded-xl transition-all shadow-md flex items-center gap-1.5"
+              >
+                <CornerUpRight size={14} />
+                <span>{isForwarding ? 'Encaminhando...' : `Encaminhar (${selectedForwardChannels.length})`}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
