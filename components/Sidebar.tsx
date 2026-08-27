@@ -30,6 +30,16 @@ interface SidebarProps {
   toggleTheme?: () => void;
 }
 
+interface MenuItemProps {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  restrictedTo?: string[];
+  badge?: number;
+  badgeInternal?: number;
+  badgeSupport?: number;
+}
+
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
@@ -42,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isDarkMode,
   toggleTheme
 }) => {
-  const [chatsCount, setChatsCount] = useState<number>(0);
+  const [unreadCounts, setUnreadCounts] = useState<{ internal: number; support: number }>({ internal: 0, support: 0 });
   const chatSubsRef = useRef<any[]>([]);
   const pollIntervalRef = useRef<any>(null);
 
@@ -70,27 +80,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
         .select('channel_id, last_read_at')
         .eq('user_id', user.id);
 
-      if (!memberData || memberData.length === 0) {
-        setChatsCount(0);
-        return;
+      const memberChannelIds = (memberData || []).map((m: any) => m.channel_id);
+      const lastReadMap = new Map((memberData || []).map((m: any) => [m.channel_id, m.last_read_at || '2000-01-01T00:00:00Z']));
+
+      let channelData: any[] = [];
+      if (userRole !== 'cliente') {
+        const memberFilterStr = memberChannelIds.length > 0 ? memberChannelIds.join(',') : '00000000-0000-0000-0000-000000000000';
+        const { data } = await supabase
+          .from('chat_channels')
+          .select('id, type, assigned_to, support_status, status, is_notification')
+          .or(`type.eq.support,id.in.(${memberFilterStr})`);
+        channelData = data || [];
+      } else {
+        if (memberChannelIds.length > 0) {
+          const { data } = await supabase
+            .from('chat_channels')
+            .select('id, type, assigned_to, support_status, status, is_notification')
+            .in('id', memberChannelIds);
+          channelData = data || [];
+        }
       }
 
-      let total = 0;
+      let internalTotal = 0;
+      let supportTotal = 0;
+
       await Promise.all(
-        memberData.map(async (m: any) => {
-          const lastRead = m.last_read_at || '2000-01-01T00:00:00Z';
+        channelData.map(async (ch: any) => {
+          if (ch.type === 'support') {
+            const isClosed = ch.support_status === 'resolved' || ch.status === 'closed';
+            if (isClosed) return;
+            // Para staff: não soma atendimentos que estão com outros colegas
+            if (userRole !== 'cliente' && ch.assigned_to && ch.assigned_to !== user.id) {
+              return;
+            }
+          }
+
+          const lastRead = lastReadMap.get(ch.id) || '2000-01-01T00:00:00Z';
           const { count, error } = await (supabase
             .from('chat_messages') as any)
             .select('*', { count: 'exact', head: true })
-            .eq('channel_id', m.channel_id)
-            .gt('created_at', lastRead);
+            .eq('channel_id', ch.id)
+            .gt('created_at', lastRead)
+            .neq('sender_id', user.id);
 
           if (!error && count) {
-            total += count;
+            if (ch.type === 'support') {
+              supportTotal += count;
+            } else {
+              internalTotal += count;
+            }
           }
         })
       );
-      setChatsCount(total);
+      setUnreadCounts({ internal: internalTotal, support: supportTotal });
     } catch (error) {
       console.error('Error polling chats count:', error);
     }
@@ -101,65 +143,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: memberData, error: memberError } = await supabase
-        .from('chat_channel_members')
-        .select('channel_id, last_read_at')
-        .eq('user_id', user.id);
-
-      if (memberError || !memberData || memberData.length === 0) {
-        setChatsCount(0);
-        return;
-      }
-
-      const channelIds = memberData.map(m => m.channel_id);
-
-      const calculateTotalUnread = async (members: any[]) => {
-        let total = 0;
-        await Promise.all(
-          members.map(async (m: any) => {
-            const lastRead = m.last_read_at || '2000-01-01T00:00:00Z';
-            const { count, error } = await supabase
-              .from('chat_messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('channel_id', m.channel_id)
-              .gt('created_at', lastRead);
-
-            if (!error && count) {
-              total += count;
-            }
-          })
-        );
-        return total;
-      };
-
-      const initialCount = await calculateTotalUnread(memberData);
-      setChatsCount(initialCount);
+      await fetchChatsCount();
 
       // Limpar antigos listeners antes de instanciar novos
       chatSubsRef.current.forEach(sub => supabase.removeChannel(sub));
       chatSubsRef.current = [];
 
-      // Subscriptions individuais por canal (padrão eq que funciona com RLS)
-      const channelSubs = channelIds.map(chId => {
-        return supabase
-          .channel(`sidebar-msg-${chId}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'chat_messages',
-              filter: `channel_id=eq.${chId}`
-            },
-            (payload) => {
-              const newMsg = payload.new as any;
-              if (newMsg.sender_id !== user.id) {
-                setChatsCount(prev => prev + 1);
-              }
-            }
-          )
-          .subscribe();
-      });
+      // Ouvinte de mensagens novas em tempo real
+      const messagesSub = supabase
+        .channel(`sidebar-all-messages-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages',
+          },
+          () => {
+            fetchChatsCount();
+          }
+        )
+        .subscribe();
 
       // Ouvinte para atualizações de leitura (last_read_at)
       const memberSub = supabase
@@ -167,40 +171,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
         .on(
           'postgres_changes',
           {
-            event: 'UPDATE',
+            event: '*',
             schema: 'public',
             table: 'chat_channel_members',
-            filter: `user_id=eq.${user.id}`
           },
-          async () => {
-            const { data: updatedMemberData } = await supabase
-              .from('chat_channel_members')
-              .select('channel_id, last_read_at')
-              .eq('user_id', user.id);
-
-            if (updatedMemberData) {
-              const newTotal = await calculateTotalUnread(updatedMemberData);
-              setChatsCount(newTotal);
-            }
+          () => {
+            fetchChatsCount();
           }
         )
         .subscribe();
 
-      chatSubsRef.current = [...channelSubs, memberSub];
+      // Ouvinte para mudanças de atribuição nos canais
+      const channelsSub = supabase
+        .channel(`sidebar-channels-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'chat_channels',
+          },
+          () => {
+            fetchChatsCount();
+          }
+        )
+        .subscribe();
 
+      chatSubsRef.current = [messagesSub, memberSub, channelsSub];
     } catch (error) {
-      console.error('Error fetching chats count:', error);
+      console.error('Error setting up sidebar realtime:', error);
     }
   };
 
-  const mainMenuItems = userRole === 'cliente' 
+  const mainMenuItems: MenuItemProps[] = userRole === 'cliente' 
     ? [
         { id: 'client-portal', label: 'Área do Cliente', icon: <UserCircle size={20} /> },
         {
           id: 'chat',
           label: 'Atendimento',
           icon: <MessageSquareMore size={20} />,
-          badge: chatsCount > 0 ? chatsCount : undefined
+          badge: unreadCounts.support > 0 ? unreadCounts.support : undefined
         },
       ]
     : [
@@ -211,19 +221,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'chat',
           label: 'Chat',
           icon: <MessageSquareMore size={20} />,
-          badge: chatsCount > 0 ? chatsCount : undefined
+          badgeInternal: unreadCounts.internal > 0 ? unreadCounts.internal : undefined,
+          badgeSupport: unreadCounts.support > 0 ? unreadCounts.support : undefined,
         },
       ];
 
-  const bottomMenuItems = [
+  const bottomMenuItems: MenuItemProps[] = [
     { id: 'settings', label: 'Configurações', icon: <Settings size={20} />, restrictedTo: ['gestor'] },
     ...(userRole !== 'cliente' ? [{ id: 'support', label: 'Suporte', icon: <HelpCircle size={20} /> }] : [])
   ];
 
-  const renderMenuItem = (item: { id: string; label: string; icon: React.ReactNode; restrictedTo?: string[]; badge?: number }) => {
+  const renderMenuItem = (item: MenuItemProps) => {
     if (item.restrictedTo && !item.restrictedTo.includes(userRole)) {
       return null;
     }
+
+    const hasDualBadges = item.badgeInternal !== undefined || item.badgeSupport !== undefined;
+    const hasSingleBadge = item.badge !== undefined;
 
     return (
       <button
@@ -237,10 +251,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex items-center gap-3 min-w-0">
           <div className="shrink-0 relative">
             {item.icon}
-            {item.badge !== undefined && isCollapsed && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-indigo-500 text-white rounded-full text-[9px] font-bold px-1 ring-2 ring-white dark:ring-slate-900 z-10">
-                {item.badge > 99 ? '99+' : item.badge}
-              </span>
+
+            {/* Badges para modo recolhido (Collapsed) */}
+            {isCollapsed && (
+              <>
+                {/* Badge duplo para equipe no modo recolhido */}
+                {hasDualBadges && (
+                  <div className="absolute -top-2 -right-3.5 flex items-center shadow-md rounded-full overflow-hidden ring-2 ring-white dark:ring-slate-900 z-10 text-[8px] font-black leading-none">
+                    {item.badgeInternal !== undefined && (
+                      <span
+                        title="Equipe"
+                        className="px-1 py-0.5 bg-indigo-600 text-white flex items-center justify-center min-w-[13px] h-[15px]"
+                      >
+                        {item.badgeInternal > 99 ? '99+' : item.badgeInternal}
+                      </span>
+                    )}
+                    {item.badgeInternal !== undefined && item.badgeSupport !== undefined && (
+                      <span className="w-[1px] h-[15px] bg-white/30 dark:bg-slate-900/40" />
+                    )}
+                    {item.badgeSupport !== undefined && (
+                      <span
+                        title="Atendimento"
+                        className="px-1 py-0.5 bg-emerald-600 text-white flex items-center justify-center min-w-[13px] h-[15px]"
+                      >
+                        {item.badgeSupport > 99 ? '99+' : item.badgeSupport}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Badge simples (cliente ou padrão) no modo recolhido */}
+                {hasSingleBadge && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-indigo-500 text-white rounded-full text-[9px] font-bold px-1 ring-2 ring-white dark:ring-slate-900 z-10">
+                    {item.badge! > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </>
             )}
           </div>
           <span className={`transition-all duration-300 truncate ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
@@ -248,16 +294,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </span>
         </div>
 
-        {item.badge !== undefined && !isCollapsed && (
-          <span className={`shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 py-0.5 px-2 rounded-full text-xs font-bold transition-all duration-300`}>
-            {item.badge}
-          </span>
+        {/* Badges para modo expandido (Sidebar aberta) */}
+        {!isCollapsed && (
+          <>
+            {/* Badges duplos para equipe */}
+            {hasDualBadges && (
+              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                {item.badgeInternal !== undefined && (
+                  <span
+                    title="Mensagens internas da equipe"
+                    className="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 rounded-full text-[10px] font-black tracking-tight transition-all shadow-xs"
+                  >
+                    {item.badgeInternal > 99 ? '99+' : item.badgeInternal}
+                  </span>
+                )}
+                {item.badgeSupport !== undefined && (
+                  <span
+                    title="Atendimentos de clientes"
+                    className="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 rounded-full text-[10px] font-black tracking-tight transition-all shadow-xs"
+                  >
+                    {item.badgeSupport > 99 ? '99+' : item.badgeSupport}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Badge simples (cliente ou outros menus) */}
+            {hasSingleBadge && (
+              <span className="shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 py-0.5 px-2 rounded-full text-xs font-bold transition-all duration-300">
+                {item.badge}
+              </span>
+            )}
+          </>
         )}
 
-        {/* Tooltip */}
+        {/* Tooltip rica ao hover no modo recolhido */}
         {isCollapsed && (
-          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
-            {item.label}
+          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-bold">{item.label}</span>
+              {hasDualBadges && (
+                <div className="flex items-center gap-2 text-[10px] text-slate-300 font-normal border-t border-slate-700/80 pt-1 mt-0.5">
+                  {item.badgeInternal !== undefined && (
+                    <span className="flex items-center gap-1 text-indigo-300 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                      {item.badgeInternal} equipe
+                    </span>
+                  )}
+                  {item.badgeSupport !== undefined && (
+                    <span className="flex items-center gap-1 text-emerald-300 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                      {item.badgeSupport} suporte
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </button>

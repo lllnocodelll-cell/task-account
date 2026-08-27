@@ -43,7 +43,9 @@ import {
   GripVertical,
   Lock,
   Unlock,
-  CornerUpRight
+  CornerUpRight,
+  Copy,
+  RefreshCw
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -55,6 +57,7 @@ import { getOrCreateDailyRoom } from '../utils/dailyApi';
 import EmojiPicker, { EmojiClickData, Theme, SkinTones } from 'emoji-picker-react';
 import { formatMessageText, stripFormatting } from '../utils/stringUtils';
 import { Tooltip } from '../components/ui/Tooltip';
+import { useToast } from '../contexts/ToastContext';
 
 interface Channel {
   id: string;
@@ -480,10 +483,13 @@ const formatDateLabel = (isoString?: string) => {
 };
 
 export const Chat: React.FC = () => {
+  const { addToast } = useToast();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [messageSearchTerm, setMessageSearchTerm] = useState('');
   const [contactSearchTerm, setContactSearchTerm] = useState('');
@@ -939,6 +945,11 @@ export const Chat: React.FC = () => {
             const isNotificationTab = !!c.is_notification;
             if (isNotificationTab) {
               staffNotif += (c.unreadCount || 0);
+            } else {
+              // Para equipe: somar na aba principal apenas atendimentos da Fila (não atribuídos) ou atribuídos a MIM
+              if (!c.assigned_to || c.assigned_to === userId) {
+                support += (c.unreadCount || 0);
+              }
             }
           }
         }
@@ -1132,22 +1143,49 @@ export const Chat: React.FC = () => {
             const newMsg = payload.new as any;
             const currentUserId = userIdRef.current;
             const currentSelectedChannelId = selectedChannelIdRef.current;
+            const currentChannels = channelsRef.current;
+            const targetChannel = currentChannels.find(c => c.id === newMsg.channel_id);
             
-            // Só incrementar se NÃO for minha mensagem e NÃO estiver com o canal aberto no momento
-            if (newMsg.sender_id !== currentUserId && newMsg.channel_id !== currentSelectedChannelId) {
+            // Só incrementar se NÃO estiver com o canal aberto no momento
+            if (newMsg.channel_id === currentSelectedChannelId) return;
+
+            // Se for canal de suporte:
+            if (targetChannel && targetChannel.type === 'support') {
+              // Se a mensagem foi enviada pelo responsável pelo atendimento, não conta como não lida para outros
+              if (targetChannel.assigned_to && newMsg.sender_id === targetChannel.assigned_to) {
+                return;
+              }
+              // Se a mensagem foi enviada pelo próprio usuário logado
+              if (newMsg.sender_id === currentUserId) {
+                return;
+              }
+
+              // Incrementar contagem
               setChannels(prev =>
                 prev.map(ch =>
                   ch.id === newMsg.channel_id
-                    ? { ...ch, unreadCount: (ch.unreadCount || 0) + 1 }
+                    ? { ...ch, unreadCount: (ch.unreadCount || 0) + 1, lastMessage: newMsg.text || '📎 Anexo', lastMessageTime: newMsg.created_at }
                     : ch
                 )
               );
+            } else {
+              // Canais normais (direct, group): só incrementa se não for minha mensagem
+              if (newMsg.sender_id !== currentUserId) {
+                setChannels(prev =>
+                  prev.map(ch =>
+                    ch.id === newMsg.channel_id
+                      ? { ...ch, unreadCount: (ch.unreadCount || 0) + 1, lastMessage: newMsg.text || '📎 Anexo', lastMessageTime: newMsg.created_at }
+                      : ch
+                  )
+                );
+              }
+            }
               
-              // Tocar som de notificação
+            // Tocar som de notificação se não foi enviado por mim
+            if (newMsg.sender_id !== currentUserId) {
               playNotificationSound();
               
               // Buscar canal e remetente para exibir na notificação do sistema
-              const currentChannels = channelsRef.current;
               const currentProfiles = profilesRef.current;
               const ch = currentChannels.find(c => c.id === newMsg.channel_id);
               const sender = currentProfiles.find(p => p.id === newMsg.sender_id);
@@ -1217,19 +1255,18 @@ export const Chat: React.FC = () => {
     };
   }, [userId, channelIdsStr]);
 
-  // Listener para novos canais (quando o usuário é adicionado, removido ou grupo deletado)
+  // Listener para novos canais e atualizações de leitura em tempo real
   useEffect(() => {
     if (!userId) return;
 
     const memberSub = supabase
-      .channel('my-memberships')
+      .channel('all-channel-memberships')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'chat_channel_members',
-          filter: `user_id=eq.${userId}`,
         },
         () => {
           fetchChannels(userId);
@@ -1263,6 +1300,58 @@ export const Chat: React.FC = () => {
 
     return () => {
       supabase.removeChannel(channelSub);
+    };
+  }, [userId]);
+
+  // Auto-sync inteligente ao retornar à aba (visibilitychange / focus) ou reconectar à rede (online)
+  useEffect(() => {
+    if (!userId) return;
+
+    let lastSyncTime = Date.now();
+
+    const handleAutoSync = async () => {
+      const now = Date.now();
+      if (now - lastSyncTime < 2500) return; // Debounce de 2.5 segundos
+      lastSyncTime = now;
+
+      try {
+        if (supabase.realtime && typeof (supabase.realtime as any).connect === 'function') {
+          (supabase.realtime as any).connect();
+        }
+
+        await fetchChannels(userId);
+
+        if (selectedChannelIdRef.current) {
+          await fetchMessages(selectedChannelIdRef.current);
+        }
+      } catch (e) {
+        console.error('Erro no auto-sync de retorno à aba:', e);
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleAutoSync();
+      }
+    };
+
+    const onWindowFocus = () => {
+      handleAutoSync();
+    };
+
+    const onOnline = () => {
+      handleAutoSync();
+      addToast('info', 'Conexão restabelecida', 'O chat foi reconectado à rede.');
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onWindowFocus);
+    window.addEventListener('online', onOnline);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onWindowFocus);
+      window.removeEventListener('online', onOnline);
     };
   }, [userId]);
 
@@ -1834,6 +1923,26 @@ export const Chat: React.FC = () => {
         }
       }
 
+      // Se for staff, buscar last_read_at dos colaboradores atribuídos aos canais de suporte
+      let assigneeMembersMap: Record<string, string> = {};
+      if (isStaff) {
+        const supportAssignedChannels = channelData.filter((c: any) => c.type === 'support' && c.assigned_to);
+        const supportChannelIds = supportAssignedChannels.map((c: any) => c.id);
+
+        if (supportChannelIds.length > 0) {
+          const { data: assigneeData } = await supabase
+            .from('chat_channel_members')
+            .select('channel_id, user_id, last_read_at')
+            .in('channel_id', supportChannelIds);
+
+          (assigneeData || []).forEach((m: any) => {
+            if (m.user_id && m.channel_id) {
+              assigneeMembersMap[`${m.channel_id}_${m.user_id}`] = m.last_read_at || '2000-01-01T00:00:00Z';
+            }
+          });
+        }
+      }
+
       // Contar mensagens não lidas para cada canal
       const channelsWithUnread: Channel[] = await Promise.all(
         channelData.map(async (c: any) => {
@@ -1841,14 +1950,40 @@ export const Chat: React.FC = () => {
           let channelName = c.name;
           if (isDirect) channelName = 'Chat Individual';
 
-          const lastRead = lastReadMap[c.id] || '2000-01-01T00:00:00Z';
+          let effectiveLastRead = lastReadMap[c.id] || '2000-01-01T00:00:00Z';
+          let excludeSenderId: string | null = targetUid;
 
-          // Contar mensagens após last_read_at
-          const { count, error: countError } = await supabase
+          if (isStaff && c.type === 'support') {
+            if (c.assigned_to) {
+              if (c.assigned_to === targetUid) {
+                // Atendimento está comigo: meu last_read_at
+                effectiveLastRead = lastReadMap[c.id] || '2000-01-01T00:00:00Z';
+                excludeSenderId = targetUid;
+              } else {
+                // Atendimento está com outro colaborador: o status de "lido" segue o colaborador responsável!
+                const assigneeLastRead = assigneeMembersMap[`${c.id}_${c.assigned_to}`] || '2000-01-01T00:00:00Z';
+                effectiveLastRead = assigneeLastRead;
+                excludeSenderId = c.assigned_to;
+              }
+            } else {
+              // Atendimento na Fila (não atribuído a ninguém):
+              effectiveLastRead = lastReadMap[c.id] || '2000-01-01T00:00:00Z';
+              excludeSenderId = targetUid;
+            }
+          }
+
+          // Contar mensagens após effectiveLastRead (desconsiderando mensagens enviadas pelo próprio leitor)
+          let msgQuery = supabase
             .from('chat_messages')
             .select('*', { count: 'exact', head: true })
             .eq('channel_id', c.id)
-            .gt('created_at', lastRead);
+            .gt('created_at', effectiveLastRead);
+
+          if (excludeSenderId) {
+            msgQuery = msgQuery.neq('sender_id', excludeSenderId);
+          }
+
+          const { count, error: countError } = await msgQuery;
 
           // Buscar IDs das mensagens deste canal para checar reações
           const { data: messagesIds } = await supabase
@@ -1863,7 +1998,7 @@ export const Chat: React.FC = () => {
               .from('chat_reactions')
               .select('*', { count: 'exact', head: true })
               .in('message_id', mIds)
-              .gt('created_at', lastRead);
+              .gt('created_at', effectiveLastRead);
             reactionCount = rCount || 0;
           }
 
@@ -2032,6 +2167,54 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const handleCopyMessage = async (msg: Message) => {
+    const textToCopy = msg.text || msg.attachment_url || '';
+    if (!textToCopy) return;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopiedMessageId(msg.id);
+      addToast('success', 'Mensagem copiada', 'O texto da mensagem foi copiado para a área de transferência.');
+      setTimeout(() => {
+        setCopiedMessageId(prev => prev === msg.id ? null : prev);
+      }, 2000);
+    } catch (err) {
+      console.error('Erro ao copiar mensagem:', err);
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopiedMessageId(msg.id);
+        addToast('success', 'Mensagem copiada', 'O texto da mensagem foi copiado para a área de transferência.');
+        setTimeout(() => {
+          setCopiedMessageId(prev => prev === msg.id ? null : prev);
+        }, 2000);
+      } catch (fallbackErr) {
+        addToast('error', 'Erro ao copiar', 'Não foi possível copiar o conteúdo da mensagem.');
+      }
+    }
+  };
+
   const markChannelAsUnread = async (channelId: string) => {
     if (!userId) return;
     try {
@@ -2073,6 +2256,29 @@ export const Chat: React.FC = () => {
       );
     } catch (error) {
       console.error('Error marking channel as unread:', error);
+    }
+  };
+
+  const handleManualSync = async () => {
+    if (!userId || isSyncing) return;
+    setIsSyncing(true);
+    try {
+      if (supabase.realtime && typeof (supabase.realtime as any).connect === 'function') {
+        (supabase.realtime as any).connect();
+      }
+
+      await Promise.all([
+        fetchChannels(userId),
+        fetchProfiles(userId),
+        selectedChannelIdRef.current ? fetchMessages(selectedChannelIdRef.current) : Promise.resolve()
+      ]);
+
+      addToast('success', 'Conversas sincronizadas', 'Lista de canais e mensagens atualizadas com sucesso.');
+    } catch (err) {
+      console.error('Erro ao sincronizar:', err);
+      addToast('error', 'Falha ao sincronizar', 'Não foi possível atualizar as conversas.');
+    } finally {
+      setTimeout(() => setIsSyncing(false), 500);
     }
   };
 
@@ -2386,6 +2592,7 @@ export const Chat: React.FC = () => {
       setStaffSupportClientId('');
       setStaffSupportSectorId('');
       setActiveTab('support');
+      setSupportSubTab('mine');
     } catch (error) {
       console.error('Error creating support ticket for client:', error);
       alert('Falha ao iniciar atendimento.');
@@ -2565,6 +2772,7 @@ export const Chat: React.FC = () => {
       } as any);
       
       await fetchChannels(userId);
+      setSupportSubTab('mine');
     } catch (e) {
       console.error('Error assigning support ticket to me:', e);
     }
@@ -3759,32 +3967,42 @@ export const Chat: React.FC = () => {
           </div>
           
           <div className="px-3 py-2.5 space-y-2">
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1.5">
             <div className="relative flex-1">
               <input
                 type="text"
                 placeholder={activeTab === 'contacts' ? "Buscar equipe..." : "Buscar conversas..."}
                 value={contactSearchTerm}
                 onChange={(e) => setContactSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full h-8 pl-8 pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
-              <Search className="absolute left-2.5 top-2 text-slate-400" size={14} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             </div>
             {activeTab === 'support' && currentUser?.role !== 'cliente' && (
               <Tooltip content="Filtros" position="bottom">
                 <button
                   type="button"
                   onClick={() => setShowSectorFilter(!showSectorFilter)}
-                  className={`p-2 rounded-lg border transition-all flex items-center justify-center shrink-0 ${
+                  className={`w-8 h-8 rounded-lg border transition-all flex items-center justify-center shrink-0 ${
                     showSectorFilter || selectedSectorFilterId
                       ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400'
                       : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:hover:text-slate-300'
                   }`}
                 >
-                  <SlidersHorizontal size={18} />
+                  <SlidersHorizontal size={15} />
                 </button>
               </Tooltip>
             )}
+            <Tooltip content="Sincronizar conversas" position="bottom">
+              <button
+                type="button"
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center shrink-0 disabled:opacity-50"
+              >
+                <RefreshCw size={15} className={isSyncing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''} />
+              </button>
+            </Tooltip>
           </div>
 
           {currentUser?.role === 'cliente' && (
@@ -4838,6 +5056,18 @@ export const Chat: React.FC = () => {
                                 className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
                               >
                                 <Smile size={14} className="text-slate-400 hover:text-indigo-500" />
+                              </button>
+                            </Tooltip>
+                            <Tooltip content={copiedMessageId === msg.id ? "Copiado!" : "Copiar mensagem"} position="top">
+                              <button
+                                onClick={() => handleCopyMessage(msg)}
+                                className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
+                              >
+                                {copiedMessageId === msg.id ? (
+                                  <Check size={14} className="text-emerald-500" />
+                                ) : (
+                                  <Copy size={14} className="text-slate-400 hover:text-indigo-500" />
+                                )}
                               </button>
                             </Tooltip>
                             {!selectedChannel?.is_notification && (
