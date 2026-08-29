@@ -196,7 +196,7 @@ BEGIN
                         v_msg_text := replace(v_msg_text, '{vencimento_tarefa}', 'Data limite');
                     END IF;
 
-                    -- 3. Localizar ou criar o canal de suporte
+                    -- 3. Localizar ou criar o canal de suporte exclusivo para notificações
                     v_channel_id := NULL;
                     
                     SELECT ch.id INTO v_channel_id 
@@ -204,16 +204,18 @@ BEGIN
                     JOIN public.chat_channel_members chm ON ch.id = chm.channel_id 
                     WHERE chm.user_id = v_profile_id 
                     AND ch.type = 'support' 
+                    AND ch.is_notification = true
                     AND (v_sector_id IS NULL OR ch.sector_id = v_sector_id)
                     LIMIT 1;
 
                     IF v_channel_id IS NULL AND v_sector_id IS NULL THEN
-                        -- Pega qualquer canal de suporte ativo do cliente
+                        -- Pega qualquer canal de notificação ativo do cliente
                         SELECT ch.id INTO v_channel_id 
                         FROM public.chat_channels ch 
                         JOIN public.chat_channel_members chm ON ch.id = chm.channel_id 
                         WHERE chm.user_id = v_profile_id 
                         AND ch.type = 'support' 
+                        AND ch.is_notification = true
                         LIMIT 1;
                     END IF;
 

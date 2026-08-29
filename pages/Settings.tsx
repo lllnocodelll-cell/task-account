@@ -2045,6 +2045,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const formContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -2234,6 +2235,15 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setSendEmailCopy(template.send_email_copy);
     setEmailSubject(template.email_subject || '');
     setIsFormExpanded(true);
+
+    // Transição suave para o topo do formulário de edição
+    setTimeout(() => {
+      if (formContainerRef.current) {
+        formContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 60);
   };
 
   const clearForm = () => {
@@ -2506,36 +2516,28 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
               if (memberships && memberships.length > 0) {
                 const channelIds = memberships.map(m => m.channel_id);
                 
-                // Priorizar canais de suporte vinculados ao setor do template, se houver
-                let queryCh = supabase
+                // Priorizar canais de NOTIFICAÇÃO vinculados ao setor do template ou Geral (sem setor)
+                let queryCh: any = supabase
                   .from('chat_channels')
                   .select('id, sector_id')
                   .eq('type', 'support')
+                  .eq('is_notification', true)
                   .in('id', channelIds);
                 
                 if (targetSectorId) {
                   queryCh = queryCh.eq('sector_id', targetSectorId);
+                } else {
+                  queryCh = queryCh.is('sector_id', null);
                 }
 
                 const { data: existingChannels } = await queryCh;
                 
                 if (existingChannels && existingChannels.length > 0) {
                   channelId = existingChannels[0].id;
-                } else if (!targetSectorId) {
-                  // Fallback: pega o primeiro canal de suporte encontrado para o cliente
-                  const { data: fallbackCh } = await supabase
-                    .from('chat_channels')
-                    .select('id')
-                    .eq('type', 'support')
-                    .in('id', channelIds)
-                    .limit(1)
-                    .maybeSingle();
-                  
-                  if (fallbackCh) channelId = fallbackCh.id;
                 }
               }
 
-              // Criar canal de suporte se não houver
+              // Criar canal de notificação exclusivo se não houver
               if (!channelId) {
                 const sectorName = template.target_sectors && template.target_sectors.length > 0
                   ? (sectors.find(s => s.id === template.target_sectors[0])?.name || 'Geral')
@@ -2629,7 +2631,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   return (
     <div className="space-y-8">
       {/* 1. Cadastrar / Editar Template */}
-      <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+      <div ref={formContainerRef} className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div 
           className="flex items-center justify-between mb-4 cursor-pointer group/header"
           onClick={() => setIsFormExpanded(!isFormExpanded)}
@@ -3047,20 +3049,22 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 </Button>
                 
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => startEditing(tmpl)}
-                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"
-                    title="Editar modelo"
-                  >
-                    <Edit3 size={16} />
-                  </button>
-                  <button
-                    onClick={() => initDelete(tmpl)}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-                    title="Remover modelo"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <Tooltip content="Editar modelo" position="top">
+                    <button
+                      onClick={() => startEditing(tmpl)}
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip content="Remover modelo" position="top">
+                    <button
+                      onClick={() => initDelete(tmpl)}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
             </div>

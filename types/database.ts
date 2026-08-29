@@ -115,6 +115,8 @@ export type Database = {
           status: string | null
           support_status: string | null
           type: string
+          is_notification: boolean | null
+          is_private: boolean | null
         }
         Insert: {
           assigned_to?: string | null
@@ -129,6 +131,8 @@ export type Database = {
           status?: string | null
           support_status?: string | null
           type: string
+          is_notification?: boolean | null
+          is_private?: boolean | null
         }
         Update: {
           assigned_to?: string | null
@@ -143,6 +147,8 @@ export type Database = {
           status?: string | null
           support_status?: string | null
           type?: string
+          is_notification?: boolean | null
+          is_private?: boolean | null
         }
         Relationships: [
           {
@@ -1156,6 +1162,7 @@ export type Database = {
           org_id: string
           role: string | null
           sector_id: string | null
+          sector_ids: string[] | null
           status: string | null
         }
         Insert: {
@@ -1169,6 +1176,7 @@ export type Database = {
           org_id: string
           role?: string | null
           sector_id?: string | null
+          sector_ids?: string[] | null
           status?: string | null
         }
         Update: {
@@ -1182,6 +1190,7 @@ export type Database = {
           org_id?: string
           role?: string | null
           sector_id?: string | null
+          sector_ids?: string[] | null
           status?: string | null
         }
         Relationships: [
@@ -1304,6 +1313,7 @@ export type Database = {
           client_ids: string[] | null
           created_at: string | null
           current_session_start: string | null
+          email: string | null
           full_name: string | null
           id: string
           job_title: string | null
@@ -1323,6 +1333,7 @@ export type Database = {
           client_ids?: string[] | null
           created_at?: string | null
           current_session_start?: string | null
+          email?: string | null
           full_name?: string | null
           id: string
           job_title?: string | null
@@ -1342,6 +1353,7 @@ export type Database = {
           client_ids?: string[] | null
           created_at?: string | null
           current_session_start?: string | null
+          email?: string | null
           full_name?: string | null
           id?: string
           job_title?: string | null

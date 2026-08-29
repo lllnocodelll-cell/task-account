@@ -58,6 +58,7 @@ import EmojiPicker, { EmojiClickData, Theme, SkinTones } from 'emoji-picker-reac
 import { formatMessageText, stripFormatting } from '../utils/stringUtils';
 import { Tooltip } from '../components/ui/Tooltip';
 import { useToast } from '../contexts/ToastContext';
+import { MessageTemplatesDrawer } from '../components/chat/MessageTemplatesDrawer';
 
 interface Channel {
   id: string;
@@ -507,6 +508,23 @@ export const Chat: React.FC = () => {
   const [isSupportCreateModalOpen, setIsSupportCreateModalOpen] = useState(false);
   const [supportSectorId, setSupportSectorId] = useState('');
   const [isCreatingSupport, setIsCreatingSupport] = useState(false);
+  const [isInitiatingSupport, setIsInitiatingSupport] = useState(false);
+  const [assignSectorModalState, setAssignSectorModalState] = useState<{
+    isOpen: boolean;
+    channelId: string;
+    channelName: string;
+    currentSectorId?: string | null;
+    allowedSectors: any[];
+    selectedSectorId: string;
+  }>({
+    isOpen: false,
+    channelId: '',
+    channelName: '',
+    currentSectorId: null,
+    allowedSectors: [],
+    selectedSectorId: ''
+  });
+  const [isAssigningSector, setIsAssigningSector] = useState(false);
   const [sectors, setSectors] = useState<any[]>([]);
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [clientSubTab, setClientSubTab] = useState<'atendimento' | 'notificacao'>('atendimento');
@@ -729,7 +747,7 @@ export const Chat: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [activeChannelCompanies, setActiveChannelCompanies] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
-  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [isTemplateDrawerOpen, setIsTemplateDrawerOpen] = useState(false);
   const [templateSearchTerm, setTemplateSearchTerm] = useState('');
   const PAGE_LIMIT = 40;
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -811,9 +829,6 @@ export const Chat: React.FC = () => {
       if (showEmojiPicker && emojiPickerRef.current && !emojiPickerRef.current.contains(target) && emojiButtonRef.current && !emojiButtonRef.current.contains(target)) {
         setShowEmojiPicker(false);
       }
-      if (showTemplatePicker && templatePickerRef.current && !templatePickerRef.current.contains(target) && templateButtonRef.current && !templateButtonRef.current.contains(target)) {
-        setShowTemplatePicker(false);
-      }
       if (reactionMessageId && reactionPickerRef.current && !reactionPickerRef.current.contains(target)) {
         const isReactButtonClick = (target as HTMLElement).closest('[data-action="react"]');
         if (!isReactButtonClick) {
@@ -826,7 +841,7 @@ export const Chat: React.FC = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showCallMenu, showSupportActionsMenu, showStatusMenu, showEmojiPicker, showTemplatePicker, reactionMessageId]);
+  }, [showCallMenu, showSupportActionsMenu, showStatusMenu, showEmojiPicker, reactionMessageId]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -2602,51 +2617,140 @@ export const Chat: React.FC = () => {
   };
 
   const handleInitiateSupportFromNotification = async (activeChannel: Channel) => {
-    if (!userId || !currentUser || !activeChannel.sector_id) return;
+    if (!userId || !currentUser || isInitiatingSupport) return;
 
+    setIsInitiatingSupport(true);
     try {
-      // 1. Procurar nas conversas existentes do cliente um canal de suporte humano (!is_notification) para este setor
-      const existingHumanChannel = channels.find(c => 
-        c.type === 'support' && 
-        !c.is_notification && 
-        c.sector_id === activeChannel.sector_id
-      );
+      const targetSectorId = activeChannel.sector_id || null;
 
-      if (existingHumanChannel) {
-        // Se existir, redireciona o cliente para lá
-        setSelectedChannelId(existingHumanChannel.id);
-        setClientSubTab('atendimento');
-        
-        // Se estiver resolvido/fechado, reabre o canal para o cliente
-        const isClosed = existingHumanChannel.support_status === 'resolved' || existingHumanChannel.status === 'closed';
+      // 1. Consultar diretamente no Supabase se este cliente já possui um canal de suporte humano para este setor (ou geral)
+      const { data: clientMemberships } = await supabase
+        .from('chat_channel_members')
+        .select('channel_id')
+        .eq('user_id', userId);
+
+      let existingChannelId: string | null = null;
+      let existingChannelStatus: string | null = null;
+      let existingSupportStatus: string | null = null;
+
+      if (clientMemberships && clientMemberships.length > 0) {
+        const memberChannelIds = clientMemberships.map(m => m.channel_id);
+
+        let query: any = (supabase.from('chat_channels') as any)
+          .select('id, status, support_status, is_notification, sector_id')
+          .eq('type', 'support')
+          .or('is_notification.is.null,is_notification.eq.false')
+          .in('id', memberChannelIds);
+
+        if (targetSectorId) {
+          // Para setores fixos: busca o canal do setor (aberto ou fechado para reabertura)
+          query = query.eq('sector_id', targetSectorId);
+        } else {
+          // Para comunicados gerais: busca apenas se já houver um chamado geral ABERTO e NÃO resolvido
+          query = query.is('sector_id', null)
+            .eq('status', 'open')
+            .neq('support_status', 'resolved');
+        }
+
+        const { data: dbExistingChannels } = await query
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (dbExistingChannels && dbExistingChannels.length > 0) {
+          existingChannelId = dbExistingChannels[0].id;
+          existingChannelStatus = dbExistingChannels[0].status;
+          existingSupportStatus = dbExistingChannels[0].support_status;
+        }
+      }
+
+      // Buscar a última mensagem de notificação deste canal para contextualizar o assunto do chamado
+      let notifText = '';
+      let notifAttachmentUrl: string | undefined = undefined;
+      let notifFileName: string | undefined = undefined;
+
+      const localList = messages[activeChannel.id] || currentMessages || [];
+      const validLocal = [...localList].reverse().find(m => !m.is_system && (m.text || m.attachment_url || m.file_name));
+      if (validLocal) {
+        notifText = validLocal.text || '';
+        notifAttachmentUrl = validLocal.attachment_url;
+        notifFileName = validLocal.file_name;
+      }
+
+      if (!notifText && !notifAttachmentUrl && !notifFileName) {
+        const { data: dbNotifList } = await (supabase
+          .from('chat_messages') as any)
+          .select('text, attachment_url, file_name, is_system')
+          .eq('channel_id', activeChannel.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        const validDb = (dbNotifList || []).find((m: any) => !m.is_system && (m.text || m.attachment_url || m.file_name)) || dbNotifList?.[0];
+        if (validDb) {
+          notifText = validDb.text || '';
+          notifAttachmentUrl = validDb.attachment_url;
+          notifFileName = validDb.file_name;
+        }
+      }
+
+      let clientContextText = '';
+      if (notifText) {
+        clientContextText = `📌 **Dúvida referente ao Comunicado:**\n> "${notifText.trim()}"`;
+      } else if (notifFileName) {
+        clientContextText = `📌 **Dúvida referente ao Anexo:** ${notifFileName}`;
+      } else {
+        clientContextText = `📌 **Dúvida sobre Comunicado / Notificação Geral**`;
+      }
+
+      if (existingChannelId) {
+        // Se existir canal ativo ou canal de setor a ser reaberto
+        const isClosed = existingSupportStatus === 'resolved' || existingChannelStatus === 'closed';
         if (isClosed) {
           await supabase
             .from('chat_channels')
             .update({
               status: 'open',
               support_status: 'pending',
-              assigned_to: null
+              assigned_to: null,
+              opened_at: new Date().toISOString()
             } as any)
-            .eq('id', existingHumanChannel.id);
+            .eq('id', existingChannelId);
 
+          const restartText = targetSectorId
+            ? `Atendimento retomado pelo cliente a partir de uma notificação.`
+            : `Atendimento retomado pelo cliente a partir de um comunicado geral.`;
+
+          // 1. Mensagem de sistema de reabertura
           await supabase
             .from('chat_messages')
             .insert({
-              channel_id: existingHumanChannel.id,
+              channel_id: existingChannelId,
               sender_id: userId,
-              text: `Atendimento retomado pelo cliente via canal de notificação.`,
+              text: restartText,
               status: 'sent',
               is_system: true
             } as any);
 
-          await fetchChannels(userId);
+          // 2. Mensagem de contexto com o assunto da notificação
+          await supabase
+            .from('chat_messages')
+            .insert({
+              channel_id: existingChannelId,
+              sender_id: userId,
+              text: clientContextText,
+              status: 'sent',
+              is_system: false
+            } as any);
         }
+
+        await fetchChannels(userId);
+        setSelectedChannelId(existingChannelId);
+        setClientSubTab('atendimento');
+        setActiveTab('support');
       } else {
-        // 2. Se não existir, criar um novo atendimento de suporte para esse setor
-        const sector = sectors.find(s => s.id === activeChannel.sector_id);
+        // 2. Se NÃO existir canal ativo (ou se for novo ciclo de comunicado geral), criar NOVO chamado na Fila
+        const sector = targetSectorId ? sectors.find(s => s.id === targetSectorId) : null;
         const channelName = `Atendimento - ${currentUser.full_name} (${sector?.name || 'Geral'})`;
 
-        // INSERT apenas com as colunas originais para evitar erro 400 de cache do PostgREST
         const { data: newChannel, error: createError } = await supabase
           .from('chat_channels')
           .insert([{
@@ -2660,12 +2764,12 @@ export const Chat: React.FC = () => {
         if (createError) throw createError;
         const channelId = newChannel.id;
 
-        // UPDATE separado para as colunas novas (sector_id, status e opened_at) 
         await supabase
           .from('chat_channels')
           .update({ 
-            sector_id: activeChannel.sector_id, 
+            sector_id: targetSectorId, 
             status: 'open', 
+            support_status: 'pending',
             is_notification: false,
             opened_at: new Date().toISOString(),
             resolved_at: null,
@@ -2695,86 +2799,325 @@ export const Chat: React.FC = () => {
 
         if (membersError) throw membersError;
 
+        // 1. Inserir mensagem de sistema informando a criação do chamado
+        const systemMsgText = targetSectorId
+          ? `Atendimento com o setor ${sector?.name || 'Responsável'} iniciado a partir de uma notificação.`
+          : `Atendimento geral iniciado a partir de um comunicado. Aguardando triagem na fila.`;
+
+        await supabase
+          .from('chat_messages')
+          .insert({
+            channel_id: channelId,
+            sender_id: userId,
+            text: systemMsgText,
+            status: 'sent',
+            is_system: true
+          } as any);
+
+        // 2. Inserir mensagem de contexto visível do cliente contendo o assunto do comunicado
+        await supabase
+          .from('chat_messages')
+          .insert({
+            channel_id: channelId,
+            sender_id: userId,
+            text: clientContextText,
+            status: 'sent',
+            is_system: false
+          } as any);
+
         await fetchChannels(userId);
         setSelectedChannelId(channelId);
         setClientSubTab('atendimento');
+        setActiveTab('support');
       }
     } catch (error) {
       console.error('Error initiating support from notification:', error);
-      alert('Falha ao direcionar para o atendimento.');
+      addToast('error', 'Atendimento', 'Falha ao direcionar para o atendimento.');
+    } finally {
+      setIsInitiatingSupport(false);
     }
   };
 
   const handleAssignToMe = async (channelId: string) => {
     if (!userId) return;
     try {
-      const { data: userProfile } = await supabase
-        .from('profiles')
+      const { data: userProfile } = await (supabase
+        .from('profiles') as any)
+        .select('full_name, email, role')
+        .eq('id', userId)
+        .single();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email || userProfile?.email || '';
+
+      // Buscar o canal atual
+      const { data: currentChannel } = await (supabase
+        .from('chat_channels') as any)
+        .select('name, support_status, sector_id')
+        .eq('id', channelId)
+        .single();
+
+      if (!currentChannel) return;
+
+      const isGestor = currentUser?.role === 'gestor' || currentUser?.role === 'admin' || userProfile?.role === 'gestor' || userProfile?.role === 'admin';
+
+      // Descobrir os setores disponíveis para o usuário
+      let userAllowedSectors: any[] = [];
+
+      if (isGestor) {
+        // Gestor/Admin tem acesso a todos os setores cadastrados da empresa
+        userAllowedSectors = [...sectors];
+      } else {
+        // Colaborador operacional: buscar setores vinculados na tabela members
+        const { data: memberRecord } = await (supabase
+          .from('members') as any)
+          .select('sector_id, sector_ids')
+          .eq('email', userEmail)
+          .maybeSingle();
+
+        const sIds: string[] = [];
+        if (memberRecord?.sector_ids && Array.isArray(memberRecord.sector_ids) && memberRecord.sector_ids.length > 0) {
+          sIds.push(...memberRecord.sector_ids);
+        } else if (memberRecord?.sector_id) {
+          sIds.push(memberRecord.sector_id);
+        }
+
+        userAllowedSectors = sectors.filter(s => sIds.includes(s.id));
+        if (userAllowedSectors.length === 0) {
+          userAllowedSectors = [...sectors];
+        }
+      }
+
+      // Condição para abrir o Modal:
+      // 1. Usuário é Gestor/Admin; OU
+      // 2. Usuário possui múltiplos setores vinculados; OU
+      // 3. O chamado está sem setor definido (Geral); OU
+      // 4. O setor atual do chamado não é o setor do colaborador
+      const shouldOpenModal = isGestor || userAllowedSectors.length > 1 || !currentChannel.sector_id;
+
+      if (shouldOpenModal) {
+        setAssignSectorModalState({
+          isOpen: true,
+          channelId,
+          channelName: currentChannel.name || 'Atendimento',
+          currentSectorId: currentChannel.sector_id || null,
+          allowedSectors: userAllowedSectors,
+          selectedSectorId: currentChannel.sector_id || userAllowedSectors[0]?.id || ''
+        });
+        return;
+      }
+
+      // Se for operador com 1 único setor e o chamado já for desse setor:
+      const targetSectorId = userAllowedSectors[0]?.id || currentChannel.sector_id || null;
+      await executeAssignWithSector(channelId, targetSectorId);
+    } catch (e) {
+      console.error('Error in handleAssignToMe:', e);
+      addToast('error', 'Erro', 'Não foi possível carregar os dados para assumir o atendimento.');
+    }
+  };
+
+  const executeAssignWithSector = async (channelId: string, chosenSectorId: string | null) => {
+    if (!userId) return;
+    setIsAssigningSector(true);
+    try {
+      const { data: userProfile } = await (supabase
+        .from('profiles') as any)
         .select('full_name')
         .eq('id', userId)
         .single();
 
-      // Buscar o status atual do canal para saber se estava resolvido
-      const { data: currentChannel } = await supabase
-        .from('chat_channels')
-        .select('support_status')
+      const { data: currentChannel } = await (supabase
+        .from('chat_channels') as any)
+        .select('name, support_status, sector_id')
         .eq('id', channelId)
         .single();
 
       const wasResolved = currentChannel?.support_status === 'resolved';
 
-      // Garantir que o operador é membro do canal antes de assumir e enviar a mensagem de sistema
-      const { data: isMember } = await supabase
+      // 1. Identificar o cliente associado a este canal (canal da fila)
+      const { data: channelMembers } = await supabase
         .from('chat_channel_members')
-        .select('id')
-        .eq('channel_id', channelId)
-        .eq('user_id', userId)
+        .select('user_id')
+        .eq('channel_id', channelId);
+
+      const memberUserIds = channelMembers?.map(m => m.user_id) || [];
+
+      // Buscar perfil do cliente
+      const { data: clientMemberProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', memberUserIds)
+        .eq('role', 'cliente')
         .maybeSingle();
 
-      if (!isMember) {
-        await supabase.from('chat_channel_members').insert({
-          channel_id: channelId,
-          user_id: userId,
-          role: 'member'
-        });
+      const clientUserId = clientMemberProfile?.id;
+
+      // 2. Se um setor foi escolhido e identificamos o cliente, verificar se esse cliente JÁ POSSUI outro canal deste setor
+      let existingSectorChannelId: string | null = null;
+      if (chosenSectorId && clientUserId) {
+        const { data: clientMemberships } = await supabase
+          .from('chat_channel_members')
+          .select('channel_id')
+          .eq('user_id', clientUserId);
+
+        const clientOtherChannelIds = (clientMemberships || [])
+          .map(m => m.channel_id)
+          .filter(id => id !== channelId);
+
+        if (clientOtherChannelIds.length > 0) {
+          const { data: existingChannels } = await (supabase
+            .from('chat_channels') as any)
+            .select('id, name, status, support_status, sector_id')
+            .eq('type', 'support')
+            .or('is_notification.is.null,is_notification.eq.false')
+            .eq('sector_id', chosenSectorId)
+            .in('id', clientOtherChannelIds)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (existingChannels && existingChannels.length > 0) {
+            existingSectorChannelId = existingChannels[0].id;
+          }
+        }
+      }
+
+      // Identificar o nome do setor escolhido
+      let assignedSectorName = '';
+      let updatedChannelName = currentChannel?.name || 'Atendimento';
+
+      if (chosenSectorId) {
+        const sObj = sectors.find(s => s.id === chosenSectorId);
+        assignedSectorName = sObj?.name || '';
+        if (assignedSectorName && updatedChannelName) {
+          if (/\(Geral\)$/i.test(updatedChannelName)) {
+            updatedChannelName = updatedChannelName.replace(/\(Geral\)$/i, `(${assignedSectorName})`);
+          } else if (/\(.+?\)$/.test(updatedChannelName)) {
+            updatedChannelName = updatedChannelName.replace(/\(.+?\)$/, `(${assignedSectorName})`);
+          }
+        }
       }
 
       const nowIso = new Date().toISOString();
-      const updatePayload: any = { 
-        assigned_to: userId,
-        support_status: 'in_progress',
-        status: 'open'
-      };
-      if (wasResolved) {
-        updatePayload.opened_at = nowIso;
-        updatePayload.resolved_at = null;
-        updatePayload.last_duration_seconds = null;
-        updatePayload.is_private = false;
-      }
+      let targetChannelId = channelId;
 
-      const { error } = await supabase
-        .from('chat_channels')
-        .update(updatePayload)
-        .eq('id', channelId);
+      if (existingSectorChannelId) {
+        // CENÁRIO A: Já existia um canal anterior para este setor (ex: canal do Fiscal que estava fechado).
+        // 1. Reabrir e atribuir o canal existente
+        targetChannelId = existingSectorChannelId;
+        await (supabase.from('chat_channels') as any)
+          .update({
+            assigned_to: userId,
+            support_status: 'in_progress',
+            status: 'open',
+            opened_at: nowIso,
+            resolved_at: null,
+            last_duration_seconds: null,
+            is_private: false
+          })
+          .eq('id', existingSectorChannelId);
+
+        // 2. Garantir que o atendente é membro do canal existente
+        const { data: isMemberExisting } = await supabase
+          .from('chat_channel_members')
+          .select('id')
+          .eq('channel_id', existingSectorChannelId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (!isMemberExisting) {
+          await supabase.from('chat_channel_members').insert({
+            channel_id: existingSectorChannelId,
+            user_id: userId,
+            role: 'member'
+          });
+        }
+
+        // 3. Mover mensagens do canal temporário para o canal existente
+        await (supabase.from('chat_messages') as any)
+          .update({ channel_id: existingSectorChannelId })
+          .eq('channel_id', channelId);
+
+        // 4. Inserir mensagem de sistema no canal existente
+        const systemText = `${userProfile?.full_name || 'Operador'} assumiu o atendimento a partir de um comunicado e o vinculou a este canal do setor ${assignedSectorName}.`;
+        await supabase.from('chat_messages').insert({
+          channel_id: existingSectorChannelId,
+          sender_id: userId,
+          text: systemText,
+          status: 'sent',
+          is_system: true
+        } as any);
+
+        // 5. Excluir o canal temporário da fila para não gerar duplicidade na lista do cliente
+        await supabase.from('chat_channel_members').delete().eq('channel_id', channelId);
+        await supabase.from('chat_channels').delete().eq('id', channelId);
+
+      } else {
+        // CENÁRIO B: Não existia canal anterior para este setor.
+        // O canal atual da fila passa a ser o canal oficial do setor.
+        const { data: isMember } = await supabase
+          .from('chat_channel_members')
+          .select('id')
+          .eq('channel_id', channelId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (!isMember) {
+          await supabase.from('chat_channel_members').insert({
+            channel_id: channelId,
+            user_id: userId,
+            role: 'member'
+          });
+        }
+
+        const updatePayload: any = { 
+          assigned_to: userId,
+          support_status: 'in_progress',
+          status: 'open',
+          sector_id: chosenSectorId || null,
+          name: updatedChannelName
+        };
+
+        if (wasResolved) {
+          updatePayload.opened_at = nowIso;
+          updatePayload.resolved_at = null;
+          updatePayload.last_duration_seconds = null;
+          updatePayload.is_private = false;
+        }
+
+        const { error } = await (supabase
+          .from('chat_channels') as any)
+          .update(updatePayload)
+          .eq('id', channelId);
+          
+        if (error) throw error;
         
-      if (error) throw error;
-      
-      const systemText = wasResolved
-        ? `Atendimento retomado por ${userProfile?.full_name || 'Operador'}.`
-        : `${userProfile?.full_name || 'Operador'} iniciou o atendimento.`;
+        let systemText = wasResolved
+          ? `Atendimento retomado por ${userProfile?.full_name || 'Operador'}.`
+          : `${userProfile?.full_name || 'Operador'} assumiu o atendimento.`;
 
-      await supabase.from('chat_messages').insert({
-        channel_id: channelId,
-        sender_id: userId,
-        text: systemText,
-        status: 'sent',
-        is_system: true
-      } as any);
+        if (assignedSectorName) {
+          systemText = `${userProfile?.full_name || 'Operador'} assumiu o atendimento e o vinculou ao setor ${assignedSectorName}.`;
+        }
+
+        await supabase.from('chat_messages').insert({
+          channel_id: channelId,
+          sender_id: userId,
+          text: systemText,
+          status: 'sent',
+          is_system: true
+        } as any);
+      }
       
+      setAssignSectorModalState(prev => ({ ...prev, isOpen: false }));
       await fetchChannels(userId);
+      setSelectedChannelId(targetChannelId);
       setSupportSubTab('mine');
+      addToast('success', 'Atendimento Assumido', `Atendimento vinculado ${assignedSectorName ? `ao setor ${assignedSectorName}` : ''} com sucesso.`);
     } catch (e) {
-      console.error('Error assigning support ticket to me:', e);
+      console.error('Error executing assign with sector:', e);
+      addToast('error', 'Erro', 'Falha ao assumir o atendimento.');
+    } finally {
+      setIsAssigningSector(false);
     }
   };
 
@@ -3402,8 +3745,7 @@ export const Chat: React.FC = () => {
   const handleSelectTemplate = async (template: any) => {
     const textProcessed = await replaceTemplatePlaceholders(template.content, template);
     setMessageInput(textProcessed);
-    setShowTemplatePicker(false);
-    setTemplateSearchTerm('');
+    setIsTemplateDrawerOpen(false);
     
     // Focar no textarea e ajustar a altura dele
     setTimeout(() => {
@@ -3496,10 +3838,8 @@ export const Chat: React.FC = () => {
             throw systemMsgError;
           }
           await fetchChannels(userId);
-        } else if (isStaff && (isClosed || selectedChannel?.support_status === 'pending' || selectedChannel?.assigned_to === null)) {
-          console.log("[Reabertura] Atribuindo/Retomando atendimento pelo operador...");
-          
-          // Garantir associação de membro do operador no canal
+        } else if (isStaff) {
+          // Garantir que o colaborador é membro do canal sem forçar auto-atribuição
           const { data: isMember } = await supabase
             .from('chat_channel_members')
             .select('id')
@@ -3514,48 +3854,6 @@ export const Chat: React.FC = () => {
               role: 'member'
             });
           }
-
-          const nowIso = new Date().toISOString();
-          const updatePayload: any = {
-            status: 'open',
-            support_status: 'in_progress',
-            assigned_to: userId
-          };
-          if (isClosed) {
-            updatePayload.opened_at = nowIso;
-            updatePayload.resolved_at = null;
-            updatePayload.last_duration_seconds = null;
-          }
-
-          const { error: updateError } = await supabase
-            .from('chat_channels')
-            .update(updatePayload)
-            .eq('id', selectedChannelId);
-
-          if (updateError) {
-            console.error("[Reabertura] Erro ao atualizar canal pelo operador:", updateError);
-            throw updateError;
-          }
-
-          const systemText = isClosed 
-            ? `Atendimento retomado por ${userProfile?.full_name || 'Operador'}.`
-            : `Atendimento assumido por ${userProfile?.full_name || 'Operador'}.`;
-
-          const { error: systemMsgError } = await supabase
-            .from('chat_messages')
-            .insert({
-              channel_id: selectedChannelId,
-              sender_id: userId,
-              text: systemText,
-              status: 'sent',
-              is_system: true
-            } as any);
-
-          if (systemMsgError) {
-            console.error("[Reabertura] Erro ao inserir mensagem de sistema pelo operador:", systemMsgError);
-            throw systemMsgError;
-          }
-          await fetchChannels(userId);
         }
       }
 
@@ -5217,74 +5515,6 @@ export const Chat: React.FC = () => {
 
           {/* Input Area */}
           <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 relative">
-            {showTemplatePicker && (
-              <div 
-                ref={templatePickerRef}
-                className="absolute bottom-[calc(100%+0.5rem)] right-4 sm:right-16 z-50 shadow-2xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 w-80 p-3.5 flex flex-col gap-3 animate-in slide-in-from-bottom-2 duration-200 animate-out duration-150"
-              >
-                {/* Cabeçalho do Picker */}
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
-                    <Zap size={14} className="text-amber-500 fill-amber-500" />
-                    <span>Mensagens Modelos</span>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => setShowTemplatePicker(false)}
-                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-
-                {/* Input de Pesquisa */}
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar modelo..."
-                    value={templateSearchTerm}
-                    onChange={(e) => setTemplateSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
-                  />
-                </div>
-
-                {/* Lista de Templates */}
-                <div className="max-h-60 overflow-y-auto space-y-1.5 pr-0.5 custom-scrollbar">
-                  {(() => {
-                    const filtered = templates.filter(t => 
-                      t.title.toLowerCase().includes(templateSearchTerm.toLowerCase()) ||
-                      t.content.toLowerCase().includes(templateSearchTerm.toLowerCase())
-                    );
-
-                    if (filtered.length === 0) {
-                      return (
-                        <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-500 font-medium">
-                          Nenhum modelo encontrado
-                        </div>
-                      );
-                    }
-
-                    return filtered.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => handleSelectTemplate(t)}
-                        className="w-full text-left p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-slate-50/50 hover:bg-indigo-50/40 dark:bg-slate-950/20 dark:hover:bg-indigo-950/15 hover:border-indigo-200 dark:hover:border-indigo-900/50 group transition-all"
-                      >
-                        <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate mb-1">
-                          {t.title}
-                        </p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-2 leading-relaxed">
-                          {t.content}
-                        </p>
-                      </button>
-                    ));
-                  })()}
-                </div>
-              </div>
-            )}
-
             {showEmojiPicker && (
               <div 
                 ref={emojiPickerRef}
@@ -5358,6 +5588,52 @@ export const Chat: React.FC = () => {
 
               if (isNotification) {
                 if (isClient) {
+                  const isGeneralNotif = !selectedChannel?.sector_id;
+                  const openSupportChannel = enrichedChannels.find(c => 
+                    c.type === 'support' && 
+                    !c.is_notification && 
+                    c.status === 'open' && 
+                    c.support_status !== 'resolved' &&
+                    (isGeneralNotif ? !c.sector_id : c.sector_id === selectedChannel.sector_id)
+                  );
+
+                  if (openSupportChannel) {
+                    const isPendingInQueue = openSupportChannel.support_status === 'pending';
+                    return (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-indigo-50/80 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/60 rounded-xl p-4 animate-in fade-in duration-200 shadow-sm">
+                        <div className="flex items-center gap-3 text-left w-full sm:w-auto">
+                          <div className="p-2 rounded-lg bg-indigo-600 text-white shrink-0 shadow-xs">
+                            <Check size={18} strokeWidth={2.5} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                              {isPendingInQueue
+                                ? 'Dúvida enviada para a Fila de Atendimento'
+                                : 'Atendimento em andamento com a equipe'}
+                            </p>
+                            <p className="text-[11px] text-indigo-700/80 dark:text-indigo-400 mt-0.5">
+                              {isPendingInQueue
+                                ? 'Sua solicitação já está na fila aguardando um colaborador assumir.'
+                                : 'Um operador já está atendendo sua solicitação.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedChannelId(openSupportChannel.id);
+                            setClientSubTab('atendimento');
+                          }}
+                          className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm hover:shadow transition-all shrink-0"
+                        >
+                          <MessageSquare size={14} />
+                          <span>Ver Atendimento Aberto</span>
+                        </button>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div className="flex flex-col items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-4 text-center animate-in fade-in duration-200">
                       <div className="flex items-center gap-2 mb-3 text-indigo-700 dark:text-indigo-400 font-semibold text-sm">
@@ -5366,11 +5642,25 @@ export const Chat: React.FC = () => {
                       </div>
                       <button
                         type="button"
+                        disabled={isInitiatingSupport}
                         onClick={() => handleInitiateSupportFromNotification(selectedChannel)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-md hover:shadow-lg transition-all animate-bounce"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs shadow-md hover:shadow-lg transition-all"
                       >
-                        <MessageSquare size={16} />
-                        <span>Tirar Dúvidas com o Setor {sectors.find(s => s.id === selectedChannel.sector_id)?.name || 'Responsável'}</span>
+                        {isInitiatingSupport ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            <span>{selectedChannel?.sector_id ? 'Conectando ao setor...' : 'Conectando à equipe...'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <MessageSquare size={16} />
+                            <span>
+                              {selectedChannel?.sector_id
+                                ? `Tirar Dúvidas com o Setor ${sectors.find(s => s.id === selectedChannel.sector_id)?.name || 'Responsável'}`
+                                : 'Tirar Dúvidas com a Equipe'}
+                            </span>
+                          </>
+                        )}
                       </button>
                     </div>
                   );
@@ -5448,23 +5738,24 @@ export const Chat: React.FC = () => {
                           handleSendMessage(e);
                         }
                       }}
+                      spellCheck={true}
+                      lang="pt-BR"
                       placeholder="Digite sua mensagem ou cole (Ctrl + V)..."
                       className="flex-1 bg-transparent border-0 focus:ring-0 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none py-2.5 max-h-32 min-h-[44px]"
                       rows={1}
                     />
 
                     {currentUser?.role !== 'cliente' && (
-                      <Tooltip content="Mensagens Modelos (Envio Rápido)" position="top">
+                      <Tooltip content="Mensagens Modelos (Drawer & Favoritos)" position="top">
                         <button
-                          ref={templateButtonRef}
                           type="button"
                           onClick={() => {
-                            setShowTemplatePicker(!showTemplatePicker);
+                            setIsTemplateDrawerOpen(true);
                             setShowEmojiPicker(false);
                           }}
-                          className={`p-2 rounded-lg transition-colors hidden sm:block ${showTemplatePicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                          className={`p-2 rounded-lg transition-colors hidden sm:block ${isTemplateDrawerOpen ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
                         >
-                          <Zap size={20} className={showTemplatePicker ? 'text-indigo-500 fill-indigo-500' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'} />
+                          <Zap size={20} className={isTemplateDrawerOpen ? 'text-indigo-500 fill-indigo-500' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'} />
                         </button>
                       </Tooltip>
                     )}
@@ -5475,7 +5766,6 @@ export const Chat: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setShowEmojiPicker(!showEmojiPicker);
-                          setShowTemplatePicker(false);
                         }}
                         className={`p-2 rounded-lg transition-colors hidden sm:block ${showEmojiPicker ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
                       >
@@ -6042,6 +6332,166 @@ export const Chat: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Seleção de Setor ao Assumir Atendimento */}
+      {assignSectorModalState.isOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden flex flex-col scale-100 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                  <Building2 size={18} className="text-slate-500 dark:text-slate-400" />
+                </div>
+                <div className="flex flex-col text-left">
+                  <h2 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                    Assumir Atendimento
+                  </h2>
+                  <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignSectorModalState(prev => ({ ...prev, isOpen: false }))}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="p-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/60 rounded-xl space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Atendimento Selecionado</span>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                  {assignSectorModalState.channelName}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Selecione o setor responsável por este atendimento:
+                </label>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  O chamado será vinculado ao setor escolhido e direcionado para sua lista de atendimentos.
+                </p>
+
+                <div className="grid grid-cols-1 gap-2 pt-2">
+                  {assignSectorModalState.allowedSectors.map(sector => {
+                    const isSelected = assignSectorModalState.selectedSectorId === sector.id;
+                    return (
+                      <div
+                        key={sector.id}
+                        onClick={() => setAssignSectorModalState(prev => ({ ...prev, selectedSectorId: sector.id }))}
+                        className={`p-3 rounded-xl cursor-pointer border transition-all flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 dark:border-indigo-600 text-indigo-900 dark:text-indigo-200 shadow-sm ring-1 ring-indigo-500/20'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`p-2 rounded-lg flex items-center justify-center ${
+                            isSelected 
+                              ? 'bg-indigo-600 text-white shadow-xs' 
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                          }`}>
+                            <Building2 size={16} />
+                          </div>
+                          <div className="truncate">
+                            <div className="text-xs font-bold truncate">{sector.name}</div>
+                            {sector.description && (
+                              <div className="text-[10px] opacity-70 truncate">{sector.description}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                            : 'border-slate-300 dark:border-slate-700 bg-transparent'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Opção Geral / Administrativo (disponível para Gestores ou quando permitido) */}
+                  {(currentUser?.role === 'gestor' || currentUser?.role === 'admin') && (
+                    <div
+                      onClick={() => setAssignSectorModalState(prev => ({ ...prev, selectedSectorId: '' }))}
+                      className={`p-3 rounded-xl cursor-pointer border transition-all flex items-center justify-between ${
+                        assignSectorModalState.selectedSectorId === ''
+                          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 dark:border-indigo-600 text-indigo-900 dark:text-indigo-200 shadow-sm ring-1 ring-indigo-500/20'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`p-2 rounded-lg flex items-center justify-center ${
+                          assignSectorModalState.selectedSectorId === '' 
+                            ? 'bg-indigo-600 text-white shadow-xs' 
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                        }`}>
+                          <Users size={16} />
+                        </div>
+                        <div className="truncate">
+                          <div className="text-xs font-bold truncate">Geral / Administrativo</div>
+                          <div className="text-[10px] opacity-70 truncate">Atendimento de triagem ou diretoria sem setor fixo</div>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                        assignSectorModalState.selectedSectorId === ''
+                          ? 'border-indigo-600 bg-indigo-600 text-white'
+                          : 'border-slate-300 dark:border-slate-700 bg-transparent'
+                      }`}>
+                        {assignSectorModalState.selectedSectorId === '' && <Check size={12} strokeWidth={3} />}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-950/20">
+              <button
+                type="button"
+                onClick={() => setAssignSectorModalState(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isAssigningSector}
+                onClick={() => executeAssignWithSector(assignSectorModalState.channelId, assignSectorModalState.selectedSectorId || null)}
+                className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 rounded-xl transition-all shadow-md flex items-center gap-1.5"
+              >
+                {isAssigningSector ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Assumindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    <span>Confirmar e Assumir</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drawer de Mensagens Modelos */}
+      <MessageTemplatesDrawer
+        isOpen={isTemplateDrawerOpen}
+        onClose={() => setIsTemplateDrawerOpen(false)}
+        templates={templates}
+        userId={userId}
+        onSelectTemplate={handleSelectTemplate}
+        sectors={sectors}
+      />
     </div>
   );
 };
