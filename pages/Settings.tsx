@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input, Select, MultiSelect, GroupedSelect } from '../components/ui/Input';
+import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
 import { TAX_REGIME_GROUPS } from '../types';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -1988,6 +1988,7 @@ interface MessageTemplate {
   org_id: string;
   title: string;
   content: string;
+  header_image_url?: string | null;
   target_tax_regimes: string[];
   target_sectors: string[];
   target_segments: string[];
@@ -2004,12 +2005,20 @@ interface MessageTemplate {
   updated_at: string;
 }
 
+const HOURLY_TIME_OPTIONS = Array.from({ length: 24 }, (_, i) => {
+  const hour = i.toString().padStart(2, '0');
+  const time = `${hour}:00`;
+  const label = i === 12 ? `${time} - Meio-dia` : i === 0 ? `${time} - Meia-noite` : `${time} (${hour}h)`;
+  return { value: time, label };
+});
+
 export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const { addToast } = useToast();
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [usersMap, setUsersMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -2019,6 +2028,8 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [headerImageUrl, setHeaderImageUrl] = useState<string>('');
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [targetTaxRegimes, setTargetTaxRegimes] = useState<string[]>([]);
   const [targetSectors, setTargetSectors] = useState<string[]>([]);
   const [targetClientIds, setTargetClientIds] = useState<string[]>([]);
@@ -2041,6 +2052,35 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
 
   // Delete modal state
   const [templateToDelete, setTemplateToDelete] = useState<MessageTemplate | null>(null);
+
+  // Filter states
+  const [searchFilter, setSearchFilter] = useState('');
+  const [sectorFilter, setSectorFilter] = useState('');
+  const [taxRegimeFilter, setTaxRegimeFilter] = useState('');
+  const [automationFilter, setAutomationFilter] = useState<'all' | 'automated' | 'manual' | 'email'>('all');
+
+  const filteredTemplates = templates.filter(tmpl => {
+    if (searchFilter.trim()) {
+      const q = searchFilter.toLowerCase();
+      const matchTitle = tmpl.title?.toLowerCase().includes(q);
+      const matchContent = tmpl.content?.toLowerCase().includes(q);
+      if (!matchTitle && !matchContent) return false;
+    }
+
+    if (sectorFilter) {
+      if (!tmpl.target_sectors || !tmpl.target_sectors.includes(sectorFilter)) return false;
+    }
+
+    if (taxRegimeFilter) {
+      if (!tmpl.target_tax_regimes || !tmpl.target_tax_regimes.includes(taxRegimeFilter)) return false;
+    }
+
+    if (automationFilter === 'automated' && !tmpl.is_automated) return false;
+    if (automationFilter === 'manual' && tmpl.is_automated) return false;
+    if (automationFilter === 'email' && !tmpl.send_email_copy) return false;
+
+    return true;
+  });
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -2065,6 +2105,14 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     };
   }, []);
 
+  useEffect(() => {
+    const textarea = document.getElementById('template-content-textarea') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.max(120, textarea.scrollHeight)}px`;
+    }
+  }, [content]);
+
   const insertMarkdownFormatting = (prefix: string, suffix: string = prefix) => {
     const textarea = document.getElementById('template-content-textarea') as HTMLTextAreaElement;
     if (textarea) {
@@ -2072,12 +2120,26 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       const end = textarea.selectionEnd;
       const text = textarea.value;
       const selectedText = text.substring(start, end);
-      const newText = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
+
+      let newText = '';
+      let newStart = start;
+      let newEnd = end;
+
+      if (selectedText) {
+        newText = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end);
+        newStart = start + prefix.length;
+        newEnd = end + prefix.length;
+      } else {
+        newText = text.substring(0, start) + prefix + suffix + text.substring(end);
+        newStart = start + prefix.length;
+        newEnd = newStart;
+      }
+
       setContent(newText);
       setTimeout(() => {
         textarea.focus();
-        const offset = prefix.length + selectedText.length + suffix.length;
-        textarea.setSelectionRange(start + offset, start + offset);
+        textarea.setSelectionRange(newStart, newEnd);
+        checkTextareaSelection();
       }, 0);
     }
   };
@@ -2110,11 +2172,13 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [templatesRes, taskTypesRes, sectorsRes, clientsRes] = await Promise.all([
+      const [templatesRes, taskTypesRes, sectorsRes, clientsRes, profilesRes, membersRes] = await Promise.all([
         supabase.from('chat_message_templates').select('*').eq('org_id', userProfile.org_id).order('created_at', { ascending: false }),
         supabase.from('task_types').select('*').eq('org_id', userProfile.org_id).order('name'),
         supabase.from('sectors').select('*').eq('org_id', userProfile.org_id).order('name'),
-        supabase.from('clients').select('id, company_name, trade_name, status, client_tax_regime_history(*)').order('company_name')
+        supabase.from('clients').select('id, company_name, trade_name, status, client_tax_regime_history(*)').order('company_name'),
+        supabase.from('profiles').select('id, full_name, email'),
+        supabase.from('members').select('id, email, first_name, last_name').eq('org_id', userProfile.org_id)
       ]);
 
       if (templatesRes.data) setTemplates(templatesRes.data as MessageTemplate[]);
@@ -2131,6 +2195,27 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
         });
         setClients(mappedClients);
       }
+      
+      const uMap: Record<string, string> = {};
+      if (userProfile?.id && userProfile?.full_name) {
+        uMap[userProfile.id] = userProfile.full_name;
+      }
+      if (profilesRes.data) {
+        profilesRes.data.forEach((p: any) => {
+          if (p.full_name) uMap[p.id] = p.full_name;
+          else if (p.email) uMap[p.id] = p.email;
+        });
+      }
+      if (membersRes.data) {
+        membersRes.data.forEach((m: any) => {
+          const fullName = `${m.first_name || ''} ${m.last_name || ''}`.trim();
+          if (fullName) {
+            uMap[m.id] = fullName;
+            if (m.email) uMap[m.email] = fullName;
+          }
+        });
+      }
+      setUsersMap(uMap);
 
     } catch (error) {
       console.error('Erro ao buscar dados de templates:', error);
@@ -2139,6 +2224,57 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       setLoading(false);
     }
   };
+
+  const getUserName = (createdBy: string | null) => {
+    if (createdBy && usersMap[createdBy]) {
+      return usersMap[createdBy];
+    }
+    if (createdBy && (createdBy === userProfile?.id || createdBy === userProfile?.org_id)) {
+      return userProfile?.full_name || 'Usuário';
+    }
+    if (userProfile?.full_name) {
+      return userProfile.full_name;
+    }
+    return 'Usuário';
+  };
+
+  const [floatingMenu, setFloatingMenu] = useState<{ show: boolean; top: number; left: number }>({ show: false, top: 0, left: 0 });
+
+  const checkTextareaSelection = () => {
+    const textarea = document.getElementById('template-content-textarea') as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    if (start !== end && textarea.value.substring(start, end).trim().length > 0) {
+      setFloatingMenu({
+        show: true,
+        top: -44,
+        left: Math.min(Math.max(10, (textarea.offsetWidth / 2) - 100), textarea.offsetWidth - 200)
+      });
+    } else {
+      setFloatingMenu({ show: false, top: 0, left: 0 });
+    }
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.ctrlKey || e.metaKey) {
+      const key = e.key.toLowerCase();
+      if (key === 'b') {
+        e.preventDefault();
+        insertMarkdownFormatting('**');
+      } else if (key === 'i') {
+        e.preventDefault();
+        insertMarkdownFormatting('*');
+      } else if (key === 'u') {
+        e.preventDefault();
+        insertMarkdownFormatting('_');
+      }
+    }
+  };
+
+
 
   const insertPlaceholder = (tag: string) => {
     const textarea = document.getElementById('template-content-textarea') as HTMLTextAreaElement;
@@ -2151,15 +2287,72 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(start + tag.length, start + tag.length);
+        checkTextareaSelection();
       }, 0);
     } else {
       setContent(prev => prev + tag);
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addToast('error', 'Erro', 'Selecione um arquivo de imagem válido (PNG, JPG, WebP).');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `header-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const filePath = `templates/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-attachments')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        // Fallback: converter para Data URL base64 se storage não estiver configurado
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setHeaderImageUrl(event.target.result as string);
+            addToast('success', 'Imagem anexada', 'Imagem de cabeçalho pronta!');
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const { data: { publicUrl } } = supabase.storage
+          .from('chat-attachments')
+          .getPublicUrl(filePath);
+
+        setHeaderImageUrl(publicUrl);
+        addToast('success', 'Sucesso', 'Imagem de cabeçalho enviada!');
+      }
+    } catch (err: any) {
+      console.error('Erro no upload:', err);
+      addToast('error', 'Erro', 'Falha ao enviar a imagem.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSaveTemplate = async () => {
     if (!title.trim() || !content.trim()) {
       addToast('error', 'Erro', 'Título e Conteúdo da Mensagem são obrigatórios');
+      return;
+    }
+
+    const hasTaskTags = content.includes('{nome_tarefa}') || content.includes('{vencimento_padrao}') || content.includes('{vencimento_tarefa}');
+
+    if (hasTaskTags && !referenceTaskTypeId) {
+      addToast(
+        'error',
+        'Tarefa de Referência Obrigatória',
+        'Para utilizar as tags {nome_tarefa}, {vencimento_padrao} ou {vencimento_tarefa}, selecione uma Tarefa de Referência no formulário.'
+      );
       return;
     }
 
@@ -2179,6 +2372,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
         org_id: userProfile.org_id,
         title: title.trim(),
         content: content.trim(),
+        header_image_url: headerImageUrl ? headerImageUrl.trim() : null,
         target_tax_regimes: targetTaxRegimes,
         target_sectors: targetSectors,
         target_client_ids: targetClientIds,
@@ -2224,6 +2418,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setEditingId(template.id);
     setTitle(template.title);
     setContent(template.content);
+    setHeaderImageUrl(template.header_image_url || '');
     setTargetTaxRegimes(template.target_tax_regimes || []);
     setTargetSectors(template.target_sectors || []);
     setTargetClientIds(template.target_client_ids || []);
@@ -2250,6 +2445,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setEditingId(null);
     setTitle('');
     setContent('');
+    setHeaderImageUrl('');
     setTargetTaxRegimes([]);
     setTargetSectors([]);
     setTargetClientIds([]);
@@ -2570,14 +2766,29 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
               }
 
               // Inserir mensagem de chat
+              const msgPayload: any = {
+                channel_id: channelId,
+                sender_id: userProfile.id,
+                text: personalizedText,
+                status: 'sent'
+              };
+
+              if (template.header_image_url) {
+                msgPayload.attachment_url = template.header_image_url;
+                msgPayload.file_name = 'Cabeçalho do Modelo';
+                msgPayload.file_type = 'image/png';
+                msgPayload.attachments = [
+                  {
+                    name: 'Cabeçalho do Modelo',
+                    url: template.header_image_url,
+                    type: 'image'
+                  }
+                ];
+              }
+
               const { error: msgErr } = await supabase
                 .from('chat_messages')
-                .insert({
-                  channel_id: channelId,
-                  sender_id: userProfile.id,
-                  text: personalizedText,
-                  status: 'sent'
-                });
+                .insert(msgPayload);
 
               if (msgErr) throw msgErr;
               setSendLogs(prev => [...prev, `✅ Chat enviado para ${contactName} (${client.company_name})`]);
@@ -2660,18 +2871,17 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   label="Nome do Modelo" 
                   value={title} 
                   onChange={e => setTitle(e.target.value)} 
-                  placeholder="DAS Simples Nacional" 
+                  placeholder="Pgdas, Feriado Nacional..." 
                 />
                 
-                <Select
+                <SearchableSelect
                   label="Tarefa de Referência"
-                  badge="Opcional"
+                  tooltip="Vincule um tipo de tarefa para liberar os placeholders dinâmicos de vencimento"
                   value={referenceTaskTypeId}
-                  onChange={e => setReferenceTaskTypeId(e.target.value)}
-                  options={[
-                    { value: '', label: 'Sem vinculação de tarefa' },
-                    ...taskTypes.map(t => ({ value: t.id, label: t.name }))
-                  ]}
+                  onChange={setReferenceTaskTypeId}
+                  options={taskTypes.map(t => ({ value: t.id, label: t.name }))}
+                  placeholder="Sem vinculação de tarefa"
+                  clearable
                 />
 
                 <GroupedSelect
@@ -2682,15 +2892,69 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   placeholder="Selecione um Regime"
                 />
 
-                <Select
+                <SearchableSelect
                   label="Setor"
                   value={targetSectors[0] || ''}
-                  onChange={e => setTargetSectors(e.target.value ? [e.target.value] : [])}
-                  options={[
-                    { value: '', label: 'Selecione um Setor' },
-                    ...sectors.map(s => ({ value: s.id, label: s.name }))
-                  ]}
+                  onChange={val => setTargetSectors(val ? [val] : [])}
+                  options={sectors.map(s => ({ value: s.id, label: s.name }))}
+                  placeholder="Selecione um Setor"
+                  clearable
                 />
+              </div>
+
+              {/* Imagem de Cabeçalho / Banner do Modelo */}
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <ImageIcon size={14} /> Imagem de Cabeçalho (Banner do Modelo)
+                  </h3>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                    Opcional
+                  </span>
+                </div>
+
+                {headerImageUrl ? (
+                  <div className="relative group/banner rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 shadow-md">
+                    <img 
+                      src={headerImageUrl} 
+                      alt="Cabeçalho do Modelo" 
+                      className="w-full h-36 object-cover transition-transform duration-300 group-hover/banner:scale-105" 
+                    />
+                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/banner:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-[2px]">
+                      <Tooltip content="Remover Imagem" position="top">
+                        <button
+                          type="button"
+                          onClick={() => setHeaderImageUrl('')}
+                          className="px-3 py-1.5 bg-red-600/90 text-white rounded-lg hover:bg-red-700 transition-colors shadow-lg flex items-center gap-1.5 text-xs font-bold"
+                        >
+                          <Trash2 size={14} /> Remover Banner
+                        </button>
+                      </Tooltip>
+                    </div>
+                    <div className="absolute bottom-2 left-3 bg-slate-900/80 backdrop-blur-md px-2.5 py-1 rounded text-[10px] text-slate-200 font-medium border border-white/10">
+                      Pré-visualização do Enquadramento
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/50 dark:bg-slate-900/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-all group/upload">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleImageUpload} 
+                      className="hidden" 
+                      disabled={uploadingImage}
+                    />
+                    {uploadingImage ? (
+                      <Loader2 size={24} className="animate-spin text-indigo-600 mb-2" />
+                    ) : (
+                      <Upload size={24} className="text-slate-400 group-hover/upload:text-indigo-500 transition-colors mb-2" />
+                    )}
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-300 group-hover/upload:text-indigo-600 dark:group-hover/upload:text-indigo-400">
+                      {uploadingImage ? 'Enviando imagem...' : 'Clique ou arraste uma imagem do computador'}
+                    </span>
+                    <span className="text-xs text-slate-400 mt-1">Formatos suportados: PNG, JPG, WebP ou GIF</span>
+                  </label>
+                )}
               </div>
 
               {/* Editor de Mensagem e Placeholders */}
@@ -2700,69 +2964,120 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 </label>
 
                 <div className="space-y-0 relative">
+                  {/* Menu Flutuante ao Selecionar Texto */}
+                  {floatingMenu.show && (
+                    <div 
+                      style={{ top: `${floatingMenu.top}px`, left: `${floatingMenu.left}px` }}
+                      className="absolute z-30 flex items-center gap-1 p-1 bg-slate-900/95 dark:bg-slate-800/95 text-white rounded-xl shadow-2xl backdrop-blur-md border border-slate-700/60 animate-in fade-in zoom-in-95 duration-150"
+                    >
+                      <span className="text-[10px] font-bold text-slate-400 px-1.5 border-r border-slate-700/60 uppercase tracking-wider">Formatar</span>
+                      <Tooltip content="Negrito (Ctrl+B)" position="top">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); insertMarkdownFormatting('**'); }}
+                          className="px-2 py-1 text-xs font-bold hover:bg-slate-700/80 rounded text-white flex items-center justify-center min-w-[26px] h-[26px] transition-colors"
+                        >
+                          <strong>B</strong>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Itálico (Ctrl+I)" position="top">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); insertMarkdownFormatting('*'); }}
+                          className="px-2 py-1 text-xs font-bold hover:bg-slate-700/80 rounded text-white italic flex items-center justify-center min-w-[26px] h-[26px] transition-colors"
+                        >
+                          <em>I</em>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Sublinhado (Ctrl+U)" position="top">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); insertMarkdownFormatting('_'); }}
+                          className="px-2 py-1 text-xs font-bold hover:bg-slate-700/80 rounded text-white underline flex items-center justify-center min-w-[26px] h-[26px] transition-colors"
+                        >
+                          <u>U</u>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Tachado" position="top">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); insertMarkdownFormatting('~'); }}
+                          className="px-2 py-1 text-xs font-bold hover:bg-slate-700/80 rounded text-white line-through flex items-center justify-center min-w-[26px] h-[26px] transition-colors"
+                        >
+                          <s>S</s>
+                        </button>
+                      </Tooltip>
+                    </div>
+                  )}
+
                   {/* Barra de Ferramentas de Formatação e Placeholders */}
                   <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 dark:bg-slate-800/60 p-2 rounded-t-xl border-t border-x border-slate-200 dark:border-slate-700/50">
                     {/* Botões de Formatação */}
                     <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => insertMarkdownFormatting('**')}
-                        className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
-                        title="Negrito"
-                      >
-                        <strong>B</strong>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertMarkdownFormatting('*')}
-                        className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 italic flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
-                        title="Itálico"
-                      >
-                        <em>I</em>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertMarkdownFormatting('_')}
-                        className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 underline flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
-                        title="Sublinhado"
-                      >
-                        <u>U</u>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertMarkdownFormatting('~')}
-                        className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 line-through flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
-                        title="Tachado"
-                      >
-                        <s>S</s>
-                      </button>
+                      <Tooltip content="Negrito" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdownFormatting('**')}
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                        >
+                          <strong>B</strong>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Itálico" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdownFormatting('*')}
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 italic flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                        >
+                          <em>I</em>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Sublinhado" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdownFormatting('_')}
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 underline flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                        >
+                          <u>U</u>
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Tachado" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertMarkdownFormatting('~')}
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 line-through flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                        >
+                          <s>S</s>
+                        </button>
+                      </Tooltip>
                       
                       <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1"></div>
                       
                       <div className="relative">
-                        <button
-                          ref={emojiButtonRef}
-                          type="button"
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          className={`px-2 py-1 text-xs bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center h-[28px] gap-1 transition-colors shadow-sm ${showEmojiPicker ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400' : ''}`}
-                          title="Inserir Emoji"
-                        >
-                          <Smile size={14} className={showEmojiPicker ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'} />
-                          <span className="text-[10px] font-bold">Emoji</span>
-                        </button>
+                        <Tooltip content="Inserir Emoji" position="top">
+                          <button
+                            ref={emojiButtonRef}
+                            type="button"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            className={`px-2 py-1 text-xs bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center h-[28px] gap-1 transition-colors shadow-sm ${showEmojiPicker ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400' : ''}`}
+                          >
+                            <Smile size={14} className={showEmojiPicker ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'} />
+                            <span className="text-[10px] font-bold">Emoji</span>
+                          </button>
+                        </Tooltip>
 
                         {/* Emoji Picker Popover */}
                         {showEmojiPicker && (
                           <div 
                             ref={emojiPickerRef}
-                            className="absolute top-full left-0 mt-1 z-50 shadow-xl rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                            className="absolute top-full left-0 mt-1 z-50 shadow-2xl rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150 scale-[0.85] origin-top-left"
                           >
                             <EmojiPicker
                               onEmojiClick={onEmojiClick}
                               autoFocusSearch={false}
                               theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
                               height={280}
-                              width={240}
+                              width={290}
                               searchDisabled
                               skinTonesDisabled
                               previewConfig={{ showPreview: false }}
@@ -2772,65 +3087,82 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                       </div>
                     </div>
 
-                    {/* Placeholders Rápidos */}
+                    {/* Placeholders Rápidos com Tooltips Personalizados */}
                     <div className="flex flex-wrap gap-1">
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{nome_contato}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Primeiro nome do contato principal"
-                      >
-                        {`{nome_contato}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{razao_social}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Razão Social da Empresa"
-                      >
-                        {`{razao_social}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{cnpj_empresa}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="CNPJ/CPF do Cliente"
-                      >
-                        {`{cnpj_empresa}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{regime_tributario}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Regime Tributário do Cliente"
-                      >
-                        {`{regime_tributario}`}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertPlaceholder('{mes_competencia}')}
-                        className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        title="Mês corrente (MM/AAAA)"
-                      >
-                        {`{mes_competencia}`}
-                      </button>
+                      <Tooltip content="Primeiro nome do contato principal" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertPlaceholder('{nome_contato}')}
+                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        >
+                          {`{nome_contato}`}
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Razão Social da Empresa" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertPlaceholder('{razao_social}')}
+                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        >
+                          {`{razao_social}`}
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="CNPJ/CPF do Cliente" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertPlaceholder('{cnpj_empresa}')}
+                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        >
+                          {`{cnpj_empresa}`}
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Regime Tributário do Cliente" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertPlaceholder('{regime_tributario}')}
+                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        >
+                          {`{regime_tributario}`}
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Mês corrente (MM/AAAA)" position="top">
+                        <button
+                          type="button"
+                          onClick={() => insertPlaceholder('{mes_competencia}')}
+                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                        >
+                          {`{mes_competencia}`}
+                        </button>
+                      </Tooltip>
                       {referenceTaskTypeId && (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => insertPlaceholder('{nome_tarefa}')}
-                            className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
-                          >
-                            {`{nome_tarefa}`}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => insertPlaceholder('{vencimento_padrao}')}
-                            className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
-                            title="Vencimento Padrão do Tipo de Tarefa"
-                          >
-                            {`{vencimento_padrao}`}
-                          </button>
+                          <Tooltip content="Nome da tarefa vinculada" position="top">
+                            <button
+                              type="button"
+                              onClick={() => insertPlaceholder('{nome_tarefa}')}
+                              className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                            >
+                              {`{nome_tarefa}`}
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Vencimento Padrão do Tipo de Tarefa" position="top">
+                            <button
+                              type="button"
+                              onClick={() => insertPlaceholder('{vencimento_padrao}')}
+                              className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                            >
+                              {`{vencimento_padrao}`}
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Data de Vencimento Específica da Tarefa do Cliente" position="top">
+                            <button
+                              type="button"
+                              onClick={() => insertPlaceholder('{vencimento_tarefa}')}
+                              className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                            >
+                              {`{vencimento_tarefa}`}
+                            </button>
+                          </Tooltip>
                         </>
                       )}
                     </div>
@@ -2839,18 +3171,30 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   <textarea
                     id="template-content-textarea"
                     value={content}
-                    onChange={e => setContent(e.target.value)}
+                    onChange={e => {
+                      setContent(e.target.value);
+                      checkTextareaSelection();
+                    }}
+                    onSelect={checkTextareaSelection}
+                    onKeyUp={checkTextareaSelection}
+                    onMouseUp={checkTextareaSelection}
+                    onKeyDown={handleTextareaKeyDown}
                     placeholder="Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} já está disponível no portal."
-                    className="w-full h-32 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-b-xl border-t-0 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder:text-slate-400 dark:text-white"
+                    className="w-full min-h-[120px] overflow-hidden resize-none px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-b-xl border-t-0 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-100 placeholder:text-slate-400 dark:text-white leading-relaxed"
                   />
                 </div>
               </div>
 
               {/* Segmentação & Destinatários */}
               <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
-                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Target size={14} /> Mensagem Direcionada
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <Target size={14} /> Mensagem Direcionada
+                  </h3>
+                  <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 px-2.5 py-0.5 rounded-full">
+                    {targetClientIds.length} {targetClientIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
+                  </span>
+                </div>
                 
                 <div className="w-full">
                   <MultiSelect
@@ -2879,17 +3223,19 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
 
                 {isAutomated && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <Select
+                    <SearchableSelect
                       label="Tipo de Agendamento"
                       value={triggerType}
-                      onChange={e => {
-                        setTriggerType(e.target.value as any);
+                      onChange={val => {
+                        setTriggerType(val as any);
                         setTriggerValue('');
                       }}
                       options={[
                         { value: 'day_of_month', label: 'Dia Fixo do Mês' },
                         { value: 'days_before_due', label: 'Dias de Antecedência do Vencimento' }
                       ]}
+                      placeholder="Selecione o tipo de agendamento"
+                      clearable={false}
                     />
                     
                     {triggerType === 'day_of_month' ? (
@@ -2915,12 +3261,14 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                       />
                     )}
 
-                    <Input
+                    <SearchableSelect
                       label="Horário do Disparo"
-                      type="time"
-                      value={triggerTime}
-                      onChange={e => setTriggerTime(e.target.value)}
-                      required={isAutomated}
+                      tooltip="Disparos automáticos são executados nas horas cheias pelo agendador de tarefas (pg_cron)."
+                      value={triggerTime || '09:00'}
+                      onChange={val => setTriggerTime(val)}
+                      options={HOURLY_TIME_OPTIONS}
+                      placeholder="Selecione a hora do disparo"
+                      clearable={false}
                     />
                   </div>
                 )}
@@ -2962,120 +3310,242 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       </div>
 
       {/* 2. Listagem de Templates Existentes */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
-            <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
-          </div>
-          <div className="flex flex-col">
-            <h3 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
-              Modelos Salvos
-            </h3>
-            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+      <div className="space-y-4 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+              <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
+            </div>
+            <div className="flex flex-col">
+              <h3 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                Modelos Salvos ({filteredTemplates.length})
+              </h3>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {templates.map(tmpl => (
-            <div
-              key={tmpl.id}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex justify-between items-start gap-4 mb-2">
-                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
-                    {tmpl.title}
-                  </h4>
-                  <div className="flex items-center gap-1">
-                    {tmpl.is_automated && (
-                      <span className="text-[9px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-indigo-200/50">
-                        <CalendarClock size={11} /> Automático {
-                          tmpl.trigger_type === 'day_of_month'
-                            ? `(Dia ${tmpl.trigger_value} às ${tmpl.trigger_time?.substring(0, 5)})`
-                            : tmpl.trigger_type === 'days_before_due'
-                              ? `(${tmpl.trigger_value} dias antes às ${tmpl.trigger_time?.substring(0, 5)})`
-                              : tmpl.trigger_time ? `(${tmpl.trigger_time.substring(0, 5)})` : ''
-                        }
+        {/* Barra de Busca e Filtros */}
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Busca de texto livre */}
+            <div className="relative flex items-center w-full">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar por nome ou conteúdo..."
+                value={searchFilter}
+                onChange={e => setSearchFilter(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white placeholder:text-slate-400 h-[38px] shadow-sm transition-all"
+              />
+              {searchFilter && (
+                <button
+                  type="button"
+                  onClick={() => setSearchFilter('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Filtro por Setor */}
+            <SearchableSelect
+              placeholder="Todos os Setores"
+              value={sectorFilter}
+              onChange={setSectorFilter}
+              options={sectors.map(s => ({ value: s.id, label: s.name }))}
+              clearable
+            />
+
+            {/* Filtro por Regime Tributário */}
+            <GroupedSelect
+              placeholder="Todos os Regimes"
+              groups={TAX_REGIME_GROUPS}
+              value={taxRegimeFilter}
+              onChange={setTaxRegimeFilter}
+            />
+
+            {/* Filtro por Modalidade / Disparo */}
+            <SearchableSelect
+              placeholder="Todas as Modalidades"
+              value={automationFilter === 'all' ? '' : automationFilter}
+              onChange={val => setAutomationFilter((val || 'all') as any)}
+              options={[
+                { value: 'automated', label: '🤖 Disparos Automáticos' },
+                { value: 'manual', label: '🚀 Envio Manual em Lote' },
+                { value: 'email', label: '📧 Com Cópia por E-mail' }
+              ]}
+              clearable
+            />
+          </div>
+
+          {(searchFilter || sectorFilter || taxRegimeFilter || automationFilter !== 'all') && (
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">
+                Exibindo <strong className="text-indigo-600 dark:text-indigo-400">{filteredTemplates.length}</strong> de {templates.length} modelos salvos
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchFilter('');
+                  setSectorFilter('');
+                  setTaxRegimeFilter('');
+                  setAutomationFilter('all');
+                }}
+                className="text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 flex items-center gap-1 transition-colors"
+              >
+                <X size={13} /> Limpar Filtros
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Grid de Cards ou Estado Vazio */}
+        {filteredTemplates.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-400 flex items-center justify-center mx-auto">
+              <LayoutList size={22} />
+            </div>
+            <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">
+              Nenhum modelo de mensagem encontrado
+            </h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              {templates.length === 0
+                ? 'Nenhum modelo cadastrado ainda. Clique em "Novo Modelo" acima para criar o seu primeiro.'
+                : 'Tente ajustar ou limpar os filtros de busca selecionados acima.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredTemplates.map(tmpl => (
+              <div
+                key={tmpl.id}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden relative group/card"
+              >
+                <div>
+                  {tmpl.header_image_url && (
+                    <div className="relative h-28 -mx-5 -mt-5 mb-4 overflow-hidden bg-slate-950">
+                      <img 
+                        src={tmpl.header_image_url} 
+                        alt={tmpl.title} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-105" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
+                      <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between pointer-events-none">
+                        <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-black tracking-[0.2em] uppercase rounded-lg border border-white/10 shadow-lg truncate max-w-[85%] flex items-center gap-1.5">
+                          <Mail size={12} className="text-indigo-400 shrink-0" />
+                          <span className="truncate">{tmpl.title}</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-start gap-4 mb-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {!tmpl.header_image_url && (
+                        <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/40 text-indigo-600 dark:text-indigo-400 shadow-sm shrink-0">
+                          <Mail size={16} />
+                        </div>
+                      )}
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 animate-pulse" />
+                          <h4 className="font-black text-xs sm:text-sm text-slate-900 dark:text-slate-100 tracking-[0.15em] uppercase truncate">
+                            {tmpl.title}
+                          </h4>
+                        </div>
+                        <div className="h-0.5 w-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full mt-1 opacity-70" />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {tmpl.is_automated && (
+                        <span className="text-[9px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-indigo-200/50">
+                          <CalendarClock size={11} /> Automático {
+                            tmpl.trigger_type === 'day_of_month'
+                              ? `(Dia ${tmpl.trigger_value} às ${tmpl.trigger_time?.substring(0, 5)})`
+                              : tmpl.trigger_type === 'days_before_due'
+                                ? `(${tmpl.trigger_value} dias antes às ${tmpl.trigger_time?.substring(0, 5)})`
+                                : tmpl.trigger_time ? `(${tmpl.trigger_time.substring(0, 5)})` : ''
+                          }
+                        </span>
+                      )}
+                      {tmpl.send_email_copy && (
+                        <span className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-emerald-200/50">
+                          <Mail size={11} /> Multicanal
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 mb-4 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/50 font-medium">
+                    {tmpl.content}
+                  </p>
+
+                  {/* Tags de Filtro */}
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {tmpl.target_client_ids && tmpl.target_client_ids.length > 0 && (
+                      <span className="text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100/50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">
+                        Direcionado ({tmpl.target_client_ids.length} cl.)
                       </span>
                     )}
-                    {tmpl.send_email_copy && (
-                      <span className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-emerald-200/50">
-                        <Mail size={11} /> Multicanal
+                    {tmpl.target_sectors && tmpl.target_sectors.map(secId => (
+                      <span key={secId} className="text-[9px] font-semibold bg-blue-50 text-blue-600 border border-blue-100/50 dark:bg-blue-950/20 px-1.5 py-0.5 rounded">
+                        📁 {sectors.find(s => s.id === secId)?.name || 'Setor'}
+                      </span>
+                    ))}
+                    {tmpl.target_tax_regimes && tmpl.target_tax_regimes.map(reg => (
+                      <span key={reg} className="text-[9px] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200/30">
+                        {getTaxRegimeLabel(reg)}
+                      </span>
+                    ))}
+                    {tmpl.reference_task_type_id && (
+                      <span className="text-[9px] font-semibold bg-purple-50 text-purple-600 border border-purple-100/50 dark:bg-purple-950/20 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                        📌 {taskTypes.find(t => t.id === tmpl.reference_task_type_id)?.name || 'Tarefa'}
                       </span>
                     )}
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 mb-4 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/50 font-medium">
-                  {tmpl.content}
-                </p>
-
-                {/* Tags de Filtro */}
-                <div className="flex flex-wrap gap-1 mb-4">
-                  {tmpl.target_client_ids && tmpl.target_client_ids.length > 0 ? (
-                    <span className="text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-100/50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded">
-                      Direcionado ({tmpl.target_client_ids.length} cl.)
+                {/* Footer do Card com Botão Disparar Agora, Autor e Ações */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleBulkSend(tmpl)}
+                      icon={<Send size={14} />}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-1.5 px-3 rounded-lg shadow-sm"
+                    >
+                      Disparar Agora
+                    </Button>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+                      Criado por <strong className="text-slate-600 dark:text-slate-300 font-bold">{getUserName(tmpl.created_by)}</strong>
                     </span>
-                  ) : (
-                    <>
-                      {tmpl.target_tax_regimes && tmpl.target_tax_regimes.map(reg => (
-                        <span key={reg} className="text-[9px] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200/30">
-                          {getTaxRegimeLabel(reg)}
-                        </span>
-                      ))}
-                      {tmpl.target_sectors && tmpl.target_sectors.map(secId => (
-                        <span key={secId} className="text-[9px] font-semibold bg-blue-50 text-blue-600 border border-blue-100/50 dark:bg-blue-950/20 px-1.5 py-0.5 rounded">
-                          📁 {sectors.find(s => s.id === secId)?.name || 'Setor'}
-                        </span>
-                      ))}
-                    </>
-                  )}
-                  {tmpl.reference_task_type_id && (
-                    <span className="text-[9px] font-semibold bg-purple-50 text-purple-600 border border-purple-100/50 dark:bg-purple-950/20 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                      <Target size={10} /> {taskTypes.find(t => t.id === tmpl.reference_task_type_id)?.name || 'Tarefa'}
-                    </span>
-                  )}
+                  </div>
+                  
+                  <div className="flex items-center gap-1 self-end sm:self-auto">
+                    <Tooltip content="Editar modelo" position="top">
+                      <button
+                        onClick={() => startEditing(tmpl)}
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Remover modelo" position="top">
+                      <button
+                        onClick={() => initDelete(tmpl)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button
-                  size="sm"
-                  onClick={() => handleBulkSend(tmpl)}
-                  icon={<Send size={14} />}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-1.5 px-3 rounded-lg"
-                >
-                  Disparar Agora
-                </Button>
-                
-                <div className="flex items-center gap-1">
-                  <Tooltip content="Editar modelo" position="top">
-                    <button
-                      onClick={() => startEditing(tmpl)}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-lg transition-colors"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                  </Tooltip>
-                  <Tooltip content="Remover modelo" position="top">
-                    <button
-                      onClick={() => initDelete(tmpl)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </Tooltip>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {templates.length === 0 && (
-            <div className="col-span-2 text-center py-12 bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Nenhum modelo de mensagem padrão cadastrado.</p>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 3. Modal de Exclusão de Template */}
@@ -3107,7 +3577,19 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
         onClose={() => {
           if (!sending) setIsSendModalOpen(false);
         }}
-        title="Disparo de Mensagens em Massa"
+        title={
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-lg flex-shrink-0 shadow-sm">
+              <Send size={18} className="text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div className="flex flex-col text-left">
+              <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                Disparo de Mensagens em Massa
+              </h1>
+              <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+            </div>
+          </div>
+        }
         size="lg"
         footer={
           <Button variant="secondary" onClick={() => setIsSendModalOpen(false)} disabled={sending}>
@@ -3115,12 +3597,12 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
           </Button>
         }
       >
-        <div className="py-4 space-y-5">
-          <div className="space-y-2 text-left">
+        <div className="py-2 space-y-5">
+          <div className="space-y-1 text-left">
             <h4 className="font-bold text-slate-900 dark:text-white text-base">
-              Disparando: <span className="text-indigo-600">{sendTemplate?.title}</span>
+              Disparando: <span className="text-indigo-600 dark:text-indigo-400">{sendTemplate?.title}</span>
             </h4>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Processando envio em lotes sequenciais de 200ms para evitar sobrecargas de banco de dados e tráfego de rede.
             </p>
           </div>

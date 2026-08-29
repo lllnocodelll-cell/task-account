@@ -610,7 +610,7 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
       break;
     }
   }
-  const displayValue = selectedOption ? selectedOption.label : '-';
+  const displayValue = selectedOption ? selectedOption.label : placeholder;
 
   const updateDropdownPosition = () => {
     if (!buttonRef.current) return;
@@ -676,6 +676,21 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
       className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden"
     >
       <div className="max-h-64 overflow-y-auto custom-scrollbar">
+        <button
+          type="button"
+          onClick={() => {
+            onChange('');
+            setIsOpen(false);
+          }}
+          className={`w-full text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors border-b border-slate-100 dark:border-slate-800 ${
+            !value
+              ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+          }`}
+        >
+          {placeholder ? `Sem filtro / ${placeholder}` : 'Todos (Sem filtro)'}
+        </button>
+
         {groups.map((group) => (
           <div key={group.category}>
             <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-200 dark:bg-slate-800 sticky top-0 z-10 border-y border-slate-300 dark:border-slate-700/50">
@@ -686,11 +701,11 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
                 key={opt.value}
                 type="button"
                 onClick={() => {
-                  onChange(opt.value.toString());
+                  onChange(opt.value.toString() === value.toString() ? '' : opt.value.toString());
                   setIsOpen(false);
                 }}
                 className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                  opt.value === value
+                  opt.value.toString() === value.toString()
                     ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium'
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
@@ -851,7 +866,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
       style={dropdownStyle}
       className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden"
     >
-      <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -862,6 +877,26 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
             onChange={(e) => setSearch(e.target.value)}
             autoFocus
           />
+        </div>
+        <div className="flex items-center justify-between px-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+          <span>{value.length} de {options.length} selecionados</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onChange(options.map(o => String(o.value)))}
+              className="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold cursor-pointer"
+            >
+              Marcar Todos
+            </button>
+            <span>•</span>
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="text-rose-500 hover:underline font-semibold cursor-pointer"
+            >
+              Limpar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -877,14 +912,18 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                   e.preventDefault();
                   toggleOption(String(opt.value));
                 }}
-                className={`w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors
+                className={`w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors
                   ${isSelected
                     ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/5 font-medium'
                     : 'text-slate-700 dark:text-slate-200'
                   }`}
               >
-                <span>{opt.label}</span>
-                {isSelected && <Check size={14} className="text-indigo-600 dark:text-indigo-400" />}
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-600'}`}>
+                    {isSelected && <Check size={10} strokeWidth={3} />}
+                  </div>
+                  <span className="truncate">{opt.label}</span>
+                </div>
               </button>
             );
           })

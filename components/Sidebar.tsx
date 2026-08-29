@@ -38,6 +38,7 @@ interface MenuItemProps {
   badge?: number;
   badgeInternal?: number;
   badgeSupport?: number;
+  badgeNotification?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -52,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isDarkMode,
   toggleTheme
 }) => {
-  const [unreadCounts, setUnreadCounts] = useState<{ internal: number; support: number }>({ internal: 0, support: 0 });
+  const [unreadCounts, setUnreadCounts] = useState<{ internal: number; support: number; notification: number }>({ internal: 0, support: 0, notification: 0 });
   const chatSubsRef = useRef<any[]>([]);
   const pollIntervalRef = useRef<any>(null);
 
@@ -103,15 +104,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       let internalTotal = 0;
       let supportTotal = 0;
+      let notificationTotal = 0;
 
       await Promise.all(
         channelData.map(async (ch: any) => {
-          if (ch.type === 'support') {
-            const isClosed = ch.support_status === 'resolved' || ch.status === 'closed';
-            if (isClosed) return;
-            // Para staff: não soma atendimentos que estão com outros colegas
-            if (userRole !== 'cliente' && ch.assigned_to && ch.assigned_to !== user.id) {
-              return;
+          const isNotification = ch.is_notification === true || ch.type === 'notification';
+
+          if (userRole !== 'cliente') {
+            if (ch.type === 'support' && !isNotification) {
+              const isClosed = ch.support_status === 'resolved' || ch.status === 'closed';
+              if (isClosed) return;
+              // Para staff: não soma atendimentos que estão atribuídos a outros colegas
+              if (ch.assigned_to && ch.assigned_to !== user.id) {
+                return;
+              }
             }
           }
 
@@ -124,7 +130,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             .neq('sender_id', user.id);
 
           if (!error && count) {
-            if (ch.type === 'support') {
+            if (isNotification) {
+              notificationTotal += count;
+            } else if (userRole === 'cliente') {
+              // Para clientes, todas as mensagens não-notificação são de Atendimento/Suporte!
+              supportTotal += count;
+            } else if (ch.type === 'support') {
               supportTotal += count;
             } else {
               internalTotal += count;
@@ -132,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }
         })
       );
-      setUnreadCounts({ internal: internalTotal, support: supportTotal });
+      setUnreadCounts({ internal: internalTotal, support: supportTotal, notification: notificationTotal });
     } catch (error) {
       console.error('Error polling chats count:', error);
     }
@@ -210,7 +221,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'chat',
           label: 'Atendimento',
           icon: <MessageSquareMore size={20} />,
-          badge: unreadCounts.support > 0 ? unreadCounts.support : undefined
+          badgeSupport: unreadCounts.support > 0 ? unreadCounts.support : undefined,
+          badgeNotification: unreadCounts.notification > 0 ? unreadCounts.notification : undefined,
         },
       ]
     : [
@@ -223,6 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: <MessageSquareMore size={20} />,
           badgeInternal: unreadCounts.internal > 0 ? unreadCounts.internal : undefined,
           badgeSupport: unreadCounts.support > 0 ? unreadCounts.support : undefined,
+          badgeNotification: unreadCounts.notification > 0 ? unreadCounts.notification : undefined,
         },
       ];
 
@@ -236,7 +249,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return null;
     }
 
-    const hasDualBadges = item.badgeInternal !== undefined || item.badgeSupport !== undefined;
+    const hasBadges = item.badgeInternal !== undefined || item.badgeSupport !== undefined || item.badgeNotification !== undefined;
     const hasSingleBadge = item.badge !== undefined;
 
     return (
@@ -255,32 +268,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Badges para modo recolhido (Collapsed) */}
             {isCollapsed && (
               <>
-                {/* Badge duplo para equipe no modo recolhido */}
-                {hasDualBadges && (
+                {hasBadges && (
                   <div className="absolute -top-2 -right-3.5 flex items-center shadow-md rounded-full overflow-hidden ring-2 ring-white dark:ring-slate-900 z-10 text-[8px] font-black leading-none">
                     {item.badgeInternal !== undefined && (
-                      <span
-                        title="Equipe"
-                        className="px-1 py-0.5 bg-indigo-600 text-white flex items-center justify-center min-w-[13px] h-[15px]"
-                      >
+                      <span title="Equipe" className="px-1 py-0.5 bg-indigo-600 text-white flex items-center justify-center min-w-[12px] h-[14px]">
                         {item.badgeInternal > 99 ? '99+' : item.badgeInternal}
                       </span>
                     )}
-                    {item.badgeInternal !== undefined && item.badgeSupport !== undefined && (
-                      <span className="w-[1px] h-[15px] bg-white/30 dark:bg-slate-900/40" />
-                    )}
                     {item.badgeSupport !== undefined && (
-                      <span
-                        title="Atendimento"
-                        className="px-1 py-0.5 bg-emerald-600 text-white flex items-center justify-center min-w-[13px] h-[15px]"
-                      >
+                      <span title="Atendimento" className="px-1 py-0.5 bg-emerald-600 text-white flex items-center justify-center min-w-[12px] h-[14px]">
                         {item.badgeSupport > 99 ? '99+' : item.badgeSupport}
+                      </span>
+                    )}
+                    {item.badgeNotification !== undefined && (
+                      <span title="Alertas" className="px-1 py-0.5 bg-amber-500 text-white flex items-center justify-center min-w-[12px] h-[14px]">
+                        {item.badgeNotification > 99 ? '99+' : item.badgeNotification}
                       </span>
                     )}
                   </div>
                 )}
 
-                {/* Badge simples (cliente ou padrão) no modo recolhido */}
+                {/* Badge simples */}
                 {hasSingleBadge && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] flex items-center justify-center bg-indigo-500 text-white rounded-full text-[9px] font-bold px-1 ring-2 ring-white dark:ring-slate-900 z-10">
                     {item.badge! > 99 ? '99+' : item.badge}
@@ -297,13 +305,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Badges para modo expandido (Sidebar aberta) */}
         {!isCollapsed && (
           <>
-            {/* Badges duplos para equipe */}
-            {hasDualBadges && (
-              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            {hasBadges && (
+              <div className="flex items-center gap-1 shrink-0 ml-2">
                 {item.badgeInternal !== undefined && (
                   <span
                     title="Mensagens internas da equipe"
-                    className="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 rounded-full text-[10px] font-black tracking-tight transition-all shadow-xs"
+                    className="flex items-center justify-center min-w-[18px] h-[18px] px-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 rounded-full text-[10px] font-black tracking-tight transition-all shadow-xs"
                   >
                     {item.badgeInternal > 99 ? '99+' : item.badgeInternal}
                   </span>
@@ -311,15 +318,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {item.badgeSupport !== undefined && (
                   <span
                     title="Atendimentos de clientes"
-                    className="flex items-center justify-center min-w-[20px] h-[20px] px-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 rounded-full text-[10px] font-black tracking-tight transition-all shadow-xs"
+                    className="flex items-center justify-center min-w-[18px] h-[18px] px-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 rounded-full text-[10px] font-black tracking-tight transition-all shadow-xs"
                   >
                     {item.badgeSupport > 99 ? '99+' : item.badgeSupport}
+                  </span>
+                )}
+                {item.badgeNotification !== undefined && (
+                  <span
+                    title="Alertas e comunicados"
+                    className="flex items-center justify-center min-w-[18px] h-[18px] px-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60 rounded-full text-[10px] font-black tracking-tight transition-all shadow-xs"
+                  >
+                    {item.badgeNotification > 99 ? '99+' : item.badgeNotification}
                   </span>
                 )}
               </div>
             )}
 
-            {/* Badge simples (cliente ou outros menus) */}
+            {/* Badge simples */}
             {hasSingleBadge && (
               <span className="shrink-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-400 py-0.5 px-2 rounded-full text-xs font-bold transition-all duration-300">
                 {item.badge}
@@ -333,7 +348,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
             <div className="flex flex-col gap-0.5">
               <span className="font-bold">{item.label}</span>
-              {hasDualBadges && (
+              {hasBadges && (
                 <div className="flex items-center gap-2 text-[10px] text-slate-300 font-normal border-t border-slate-700/80 pt-1 mt-0.5">
                   {item.badgeInternal !== undefined && (
                     <span className="flex items-center gap-1 text-indigo-300 font-semibold">
@@ -345,6 +360,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className="flex items-center gap-1 text-emerald-300 font-semibold">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                       {item.badgeSupport} suporte
+                    </span>
+                  )}
+                  {item.badgeNotification !== undefined && (
+                    <span className="flex items-center gap-1 text-amber-300 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                      {item.badgeNotification} alertas
                     </span>
                   )}
                 </div>

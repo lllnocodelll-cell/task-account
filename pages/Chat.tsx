@@ -312,6 +312,7 @@ interface Message {
   isMe: boolean;
   status: 'sent' | 'delivered' | 'read';
   attachment_url?: string;
+  attachments?: any[] | null;
   file_name?: string;
   file_type?: string;
   reply_to_id?: string;
@@ -865,16 +866,27 @@ export const Chat: React.FC = () => {
       }
       const theirProfile = profiles.find(p => p.id === theirId);
 
-      let isOffline = true;
-      if (theirProfile?.current_session_start) {
-        const sessionStart = new Date(theirProfile.current_session_start).getTime();
-        const lastActive = theirProfile.last_active_at ? new Date(theirProfile.last_active_at).getTime() : sessionStart;
+      const checkIsProfileOffline = (profile: any) => {
+        if (!profile) return true;
+        if (profile.chat_status === 'offline') return true;
+
         const now = Date.now();
-        // Se esteve ativo nos últimos 30 minutos (ou se a sessão iniciou a < 30 min sem last_active), consideramos online.
-        if (now - lastActive < 30 * 60 * 1000) {
-          isOffline = false;
+        const lastActiveTime = profile.last_active_at ? new Date(profile.last_active_at).getTime() : 0;
+        const sessionStartTime = profile.current_session_start ? new Date(profile.current_session_start).getTime() : 0;
+        const mostRecentTime = Math.max(lastActiveTime, sessionStartTime);
+
+        if (mostRecentTime > 0 && (now - mostRecentTime < 30 * 60 * 1000)) {
+          return false;
         }
-      }
+
+        if (profile.chat_status && profile.chat_status !== 'ausente') {
+          return false;
+        }
+
+        return true;
+      };
+
+      const isOffline = checkIsProfileOffline(theirProfile);
 
       return {
         ...channel,
@@ -904,18 +916,28 @@ export const Chat: React.FC = () => {
         }
       }
 
-        let contactStatus = undefined;
-        if (clientProfile) {
-          let isOffline = true;
-          if (clientProfile.current_session_start) {
-            const sessionStart = new Date(clientProfile.current_session_start).getTime();
-            const lastActive = clientProfile.last_active_at ? new Date(clientProfile.last_active_at).getTime() : sessionStart;
-            if (Date.now() - lastActive < 30 * 60 * 1000) {
-              isOffline = false;
-            }
+        const checkIsProfileOffline = (profile: any) => {
+          if (!profile) return true;
+          if (profile.chat_status === 'offline') return true;
+
+          const now = Date.now();
+          const lastActiveTime = profile.last_active_at ? new Date(profile.last_active_at).getTime() : 0;
+          const sessionStartTime = profile.current_session_start ? new Date(profile.current_session_start).getTime() : 0;
+          const mostRecentTime = Math.max(lastActiveTime, sessionStartTime);
+
+          if (mostRecentTime > 0 && (now - mostRecentTime < 30 * 60 * 1000)) {
+            return false;
           }
-          contactStatus = isOffline ? 'offline' : (clientProfile.chat_status || 'disponível');
-        }
+
+          if (profile.chat_status && profile.chat_status !== 'ausente') {
+            return false;
+          }
+
+          return true;
+        };
+
+        const isOffline = checkIsProfileOffline(clientProfile);
+        const contactStatus = isOffline ? 'offline' : (clientProfile?.chat_status || 'disponível');
 
         return {
           ...channel,
@@ -1318,6 +1340,68 @@ export const Chat: React.FC = () => {
     };
   }, [userId]);
 
+  // Listener em tempo real para alterações de status e presença dos perfis (profiles)
+  useEffect(() => {
+    if (!userId) return;
+
+    const profilesSub = supabase
+      .channel('chat-profiles-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.id) {
+            const updatedProfile = payload.new;
+            setProfiles(prev =>
+              prev.map(p => p.id === updatedProfile.id ? { ...p, ...updatedProfile } : p)
+            );
+            if (currentUser && currentUser.id === updatedProfile.id) {
+              setCurrentUser(prev => prev ? { ...prev, ...updatedProfile } : prev);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    const statusInterval = setInterval(() => {
+      fetchProfiles(userId);
+    }, 15000);
+
+    return () => {
+      supabase.removeChannel(profilesSub);
+      clearInterval(statusInterval);
+    };
+  }, [userId, currentUser?.id]);
+
+  // Touch de presença e atividade do usuário logado no Supabase
+  useEffect(() => {
+    if (!userId) return;
+
+    const touchPresence = async () => {
+      try {
+        const nowStr = new Date().toISOString();
+        await supabase
+          .from('profiles')
+          .update({
+            last_active_at: nowStr,
+            current_session_start: nowStr
+          } as any)
+          .eq('id', userId);
+      } catch (e) {
+        console.error('Error updating presence:', e);
+      }
+    };
+
+    touchPresence();
+    const heartbeat = setInterval(touchPresence, 3 * 60 * 1000);
+
+    return () => clearInterval(heartbeat);
+  }, [userId]);
+
   // Auto-sync inteligente ao retornar à aba (visibilitychange / focus) ou reconectar à rede (online)
   useEffect(() => {
     if (!userId) return;
@@ -1335,6 +1419,7 @@ export const Chat: React.FC = () => {
         }
 
         await fetchChannels(userId);
+        await fetchProfiles(userId);
 
         if (selectedChannelIdRef.current) {
           await fetchMessages(selectedChannelIdRef.current);
@@ -2073,9 +2158,11 @@ export const Chat: React.FC = () => {
     try {
       await supabase
         .from('chat_channel_members')
-        .update({ last_read_at: new Date().toISOString() } as any)
-        .eq('channel_id', channelId)
-        .eq('user_id', userId);
+        .upsert({
+          channel_id: channelId,
+          user_id: userId,
+          last_read_at: new Date().toISOString()
+        } as any, { onConflict: 'channel_id,user_id' });
 
       // Zerar badge localmente
       if (channelId === selectedChannelIdRef.current) {
@@ -2093,37 +2180,26 @@ export const Chat: React.FC = () => {
   const handleMarkAllNotificationsAsRead = async () => {
     if (!userId) return;
     try {
-      const localIsChannelCreatedByClient = (ch: any) => {
-        if (!ch.created_by) return false;
-        if (ch.created_by === userId) {
-          return currentUser?.role === 'cliente';
-        }
-        const creatorProfile = profiles.find(p => p.id === ch.created_by);
-        return creatorProfile?.role === 'cliente';
-      };
-
       const unreadNotifications = channels.filter(c => {
-        if (c.type !== 'support') return false;
         if ((c.unreadCount || 0) <= 0) return false;
-        
-        if (currentUser?.role === 'cliente') {
-          return !!c.is_notification;
-        } else {
-          const isClosed = c.support_status === 'resolved' || c.status === 'closed';
-          if (isClosed) return false;
-          return !!c.is_notification;
-        }
+        return !!c.is_notification || c.type === 'notification';
       });
 
       if (unreadNotifications.length === 0) return;
 
       const channelIds = unreadNotifications.map(c => c.id);
+      const nowStr = new Date().toISOString();
       
       const { error } = await supabase
         .from('chat_channel_members')
-        .update({ last_read_at: new Date().toISOString() } as any)
-        .in('channel_id', channelIds)
-        .eq('user_id', userId);
+        .upsert(
+          channelIds.map(id => ({
+            channel_id: id,
+            user_id: userId,
+            last_read_at: nowStr,
+          })),
+          { onConflict: 'channel_id,user_id' }
+        );
 
       if (error) throw error;
 
@@ -2137,6 +2213,15 @@ export const Chat: React.FC = () => {
       console.error('Error marking all notifications as read:', error);
     }
   };
+
+  // Marcação automática de leitura dos alertas individuais do usuário ao acessar a aba de notificações
+  useEffect(() => {
+    if (currentUser?.role === 'cliente' && clientSubTab === 'notificacao') {
+      handleMarkAllNotificationsAsRead();
+    } else if (currentUser?.role !== 'cliente' && activeTab === 'support' && supportSubTab === 'alerts') {
+      handleMarkAllNotificationsAsRead();
+    }
+  }, [clientSubTab, supportSubTab, activeTab, currentUser?.role]);
 
   const markMessageAsUnread = async (messageId: string, channelId: string) => {
     if (!userId) return;
@@ -4451,13 +4536,7 @@ export const Chat: React.FC = () => {
               >
                 <span className="truncate">Alertas</span>
                 {supportCounts.alerts > 0 && (
-                  <span className={`px-1 py-0.2 text-[8px] font-bold rounded-full shrink-0 ${
-                    supportSubTab === 'alerts'
-                      ? 'bg-indigo-600 text-white dark:bg-indigo-500'
-                      : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                  }`}>
-                    {supportCounts.alerts}
-                  </span>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Alertas pendentes" />
                 )}
               </button>
             </div>
@@ -5308,42 +5387,9 @@ export const Chat: React.FC = () => {
                         </div>
 
                         <div className={`group relative p-3 rounded-2xl shadow-sm text-sm flex flex-col ${msg.isMe
-                          ? 'bg-indigo-600 text-white rounded-tr-none'
-                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-tl-none'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
                           }`}>
-
-                          {(selectedChannel.type === 'group' || selectedChannel.type === 'support') && (
-                            <span className={`text-[10px] font-bold mb-1 ${msg.isMe ? 'text-indigo-100/90' : 'text-indigo-600 dark:text-indigo-400'}`}>
-                              {senderName}
-                            </span>
-                          )}
-
-                          {/* Badge de Mensagem Encaminhada */}
-                          {msg.is_forwarded && (
-                            <div className={`flex items-center gap-1 text-[11px] font-semibold mb-1 italic ${msg.isMe ? 'text-indigo-200/90' : 'text-slate-400 dark:text-slate-500'}`}>
-                              <CornerUpRight size={12} className="shrink-0" />
-                              <span>Encaminhada</span>
-                            </div>
-                          )}
-
-                          {/* Msg Reply Render */}
-                          {msg.reply_to_id && (
-                            <div className={`mb-2 p-2.5 rounded-r-lg shadow-sm text-xs flex flex-col gap-0.5 border-l-4 ${msg.isMe ? 'bg-indigo-700/50 border-indigo-300 text-indigo-50' : 'bg-slate-100 dark:bg-slate-900/50 border-indigo-500 text-slate-600 dark:text-slate-300'}`}>
-                              {(() => {
-                                const repliedMsg = currentMessages.find(m => m.id === msg.reply_to_id);
-                                if (!repliedMsg) return <span className="opacity-70 italic">Mensagem original não encontrada</span>;
-                                const repliedSenderProfile = profiles.find(p => p.id === repliedMsg.sender_id);
-                                const repliedSenderName = repliedMsg.isMe ? 'Você' : (repliedSenderProfile?.full_name || 'Usuário');
-
-                                return (
-                                  <>
-                                    <span className={`font-bold ${msg.isMe ? 'text-indigo-200' : 'text-indigo-600 dark:text-indigo-400'}`}>{repliedSenderName}</span>
-                                    <span className="line-clamp-2 leading-relaxed opacity-90">{repliedMsg.text ? stripFormatting(repliedMsg.text) : 'Anexo'}</span>
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          )}
 
                           {/* Botões flutuantes Hover */}
                           <div className={`absolute -top-3 ${msg.isMe ? '-left-8' : '-right-8'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20`}>
@@ -5389,7 +5435,7 @@ export const Chat: React.FC = () => {
                                   }}
                                   className="p-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:scale-110"
                                 >
-                                  <CornerUpRight size={14} className="text-slate-400 hover:text-indigo-500" />
+                                  <CornerUpRight size={12} className="text-slate-400 hover:text-indigo-500" />
                                 </button>
                               </Tooltip>
                             )}
@@ -5437,18 +5483,80 @@ export const Chat: React.FC = () => {
                             </div>
                           )}
 
-                          {msg.attachment_url && (
+                          {/* Render de Anexo de Imagem / Banner no Topo da Mensagem (Preenchimento de Ponta a Ponta) */}
+                          {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0 && msg.attachments.some((att: any) => att.url && (att.type === 'image' || att.url.match(/\.(jpeg|jpg|gif|png|webp)/i) || att.name?.includes('Banner') || att.name?.includes('Cabeçalho'))) && (
+                            <div className="-mx-3 -mt-3 w-[calc(100%+1.5rem)] overflow-hidden rounded-t-2xl border-b border-black/10 dark:border-white/10 mb-2.5 shrink-0">
+                              {msg.attachments.map((att: any, idx: number) => (
+                                att.url && (att.type === 'image' || att.url.match(/\.(jpeg|jpg|gif|png|webp)/i) || att.name?.includes('Banner') || att.name?.includes('Cabeçalho')) ? (
+                                  <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" className="block w-full group/attachment">
+                                    <img src={att.url} alt={att.name || "Cabeçalho"} className="w-full h-40 sm:h-48 object-cover group-hover/attachment:scale-[1.02] transition-transform duration-300" />
+                                  </a>
+                                ) : null
+                              ))}
+                            </div>
+                          )}
+
+                          {msg.attachment_url && !msg.attachments && (msg.file_type?.startsWith('image/') || msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)/i)) && (
+                            <div className="-mx-3 -mt-3 w-[calc(100%+1.5rem)] overflow-hidden rounded-t-2xl border-b border-black/10 dark:border-white/10 mb-2.5 shrink-0">
+                              <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="block w-full group/attachment">
+                                <img src={msg.attachment_url} alt="Anexo" className="w-full h-40 sm:h-48 object-cover group-hover/attachment:scale-[1.02] transition-transform duration-300" />
+                              </a>
+                            </div>
+                          )}
+
+                          {(selectedChannel.type === 'group' || selectedChannel.type === 'support') && (
+                            <span className={`text-[10px] font-bold mb-1 ${msg.isMe ? 'text-indigo-100/90' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                              {senderName}
+                            </span>
+                          )}
+
+                          {/* Badge de Mensagem Encaminhada */}
+                          {msg.is_forwarded && (
+                            <div className={`flex items-center gap-1 text-[11px] font-semibold mb-1 italic ${msg.isMe ? 'text-indigo-200/90' : 'text-slate-400 dark:text-slate-500'}`}>
+                              <CornerUpRight size={12} className="shrink-0" />
+                              <span>Encaminhada</span>
+                            </div>
+                          )}
+
+                          {/* Msg Reply Render */}
+                          {msg.reply_to_id && (
+                            <div className={`mb-2 p-2.5 rounded-r-lg shadow-sm text-xs flex flex-col gap-0.5 border-l-4 ${msg.isMe ? 'bg-indigo-700/50 border-indigo-300 text-indigo-50' : 'bg-slate-100 dark:bg-slate-900/50 border-indigo-500 text-slate-600 dark:text-slate-300'}`}>
+                              {(() => {
+                                const repliedMsg = currentMessages.find(m => m.id === msg.reply_to_id);
+                                if (!repliedMsg) return <span className="opacity-70 italic">Mensagem original não encontrada</span>;
+                                const repliedSenderProfile = profiles.find(p => p.id === repliedMsg.sender_id);
+                                const repliedSenderName = repliedMsg.isMe ? 'Você' : (repliedSenderProfile?.full_name || 'Usuário');
+
+                                return (
+                                  <>
+                                    <span className={`font-bold ${msg.isMe ? 'text-indigo-200' : 'text-indigo-600 dark:text-indigo-400'}`}>{repliedSenderName}</span>
+                                    <span className="line-clamp-2 leading-relaxed opacity-90">{repliedMsg.text ? stripFormatting(repliedMsg.text) : 'Anexo'}</span>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          )}
+
+                          {/* Render de Anexos de Arquivos / Documentos não imagem */}
+                          {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.some((att: any) => att.url && !att.type?.startsWith('image') && !att.url.match(/\.(jpeg|jpg|gif|png|webp)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho')) && (
+                            <div className="mb-2.5 space-y-1.5">
+                              {msg.attachments.map((att: any, idx: number) => (
+                                att.url && !att.type?.startsWith('image') && !att.url.match(/\.(jpeg|jpg|gif|png|webp)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho') ? (
+                                  <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
+                                    <Paperclip size={16} />
+                                    <span className="truncate max-w-[180px] text-xs underline">{att.name || 'Anexo'}</span>
+                                  </a>
+                                ) : null
+                              ))}
+                            </div>
+                          )}
+
+                          {msg.attachment_url && !msg.attachments && !msg.file_type?.startsWith('image/') && !msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)/i) && (
                             <div className="mb-2">
-                              {msg.file_type?.startsWith('image/') ? (
-                                <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer">
-                                  <img src={msg.attachment_url} alt="Anexo" className="rounded-lg max-w-full max-h-60 object-contain cursor-pointer hover:opacity-90 transition-opacity" />
-                                </a>
-                              ) : (
-                                <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
-                                  <Paperclip size={16} />
-                                  <span className="truncate max-w-[150px] text-xs underline">{msg.file_name || 'Anexo'}</span>
-                                </a>
-                              )}
+                              <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
+                                <Paperclip size={16} />
+                                <span className="truncate max-w-[150px] text-xs underline">{msg.file_name || 'Anexo'}</span>
+                              </a>
                             </div>
                           )}
 
