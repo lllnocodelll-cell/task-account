@@ -95,6 +95,7 @@ export interface Task {
   sector: string;
   responsibleSectors?: string[];
   responsible: string;
+  responsibles?: string[];
   status: TaskStatus;
   dueDate?: string;
   variableAdjustment?: string;

@@ -556,7 +556,8 @@ const ResponsibleFilterPanel: React.FC<ResponsibleFilterPanelProps> = ({ tasks, 
   const [search, setSearch] = useState('');
 
   const responsibles = useMemo(() => {
-    const unique = Array.from(new Set(tasks.map(t => t.responsible).filter(Boolean)));
+    const allNames = tasks.flatMap(t => t.responsibles && t.responsibles.length > 0 ? t.responsibles : (t.responsible ? [t.responsible] : []));
+    const unique = Array.from(new Set(allNames.filter(Boolean)));
     return unique.sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [tasks]);
 
@@ -1188,8 +1189,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 <div className="flex items-center gap-1.5">
                   <GripVertical size={13} className="text-slate-300 dark:text-slate-600" />
                   <div className="flex flex-col items-end">
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
-                      {task.responsible.split(' ').slice(0, 2).join(' ')}
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 leading-tight" title={(task.responsibles && task.responsibles.length > 0) ? task.responsibles.join(', ') : task.responsible}>
+                      {(task.responsibles && task.responsibles.length > 1) 
+                        ? `${task.responsibles[0].split(' ')[0]} +${task.responsibles.length - 1}` 
+                        : (task.responsible ? task.responsible.split(' ').slice(0, 2).join(' ') : '---')}
                     </span>
                     {task.sector && (
                       <span className="text-[9px] text-slate-400 dark:text-slate-500 leading-tight">{task.sector}</span>
@@ -1658,8 +1661,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       (filters.priority === '' || task.priority === filters.priority) &&
       (filters.sector === '' || task.sector === filters.sector) &&
       (filters.responsibleList.length > 0
-        ? filters.responsibleList.includes(task.responsible)
-        : task.responsible.toLowerCase().includes(filters.responsible.toLowerCase()))
+        ? (task.responsibles && task.responsibles.length > 0
+            ? task.responsibles.some(r => filters.responsibleList.includes(r))
+            : filters.responsibleList.includes(task.responsible))
+        : (task.responsibles && task.responsibles.length > 0
+            ? task.responsibles.some(r => r.toLowerCase().includes(filters.responsible.toLowerCase()))
+            : task.responsible.toLowerCase().includes(filters.responsible.toLowerCase())))
     );
   });
 
@@ -1698,8 +1705,12 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
       (filters.priority === '' || task.priority === filters.priority) &&
       (filters.sector === '' || task.sector === filters.sector) &&
       (filters.responsibleList.length > 0
-        ? filters.responsibleList.includes(task.responsible)
-        : task.responsible.toLowerCase().includes(filters.responsible.toLowerCase()))
+        ? (task.responsibles && task.responsibles.length > 0
+            ? task.responsibles.some(r => filters.responsibleList.includes(r))
+            : filters.responsibleList.includes(task.responsible))
+        : (task.responsibles && task.responsibles.length > 0
+            ? task.responsibles.some(r => r.toLowerCase().includes(filters.responsible.toLowerCase()))
+            : task.responsible.toLowerCase().includes(filters.responsible.toLowerCase())))
     );
   }).sort((a, b) => {
     const compCompare = (a.competence || '').localeCompare(b.competence || '');
@@ -1852,7 +1863,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             priority: t.priority as Priority,
             sector: currentSector,
             responsibleSectors: respSectors,
-            responsible: t.responsible,
+            responsible: t.responsible || (t.responsibles && t.responsibles.length > 0 ? t.responsibles[0] : ''),
+            responsibles: (t.responsibles && t.responsibles.length > 0) ? t.responsibles : (t.responsible ? [t.responsible] : []),
             status: t.status as TaskStatus,
             dueDate: t.due_date,
             variableAdjustment: t.variable_adjustment,
@@ -2120,9 +2132,15 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     }
 
     try {
+      const updatePayload: any = {
+        status: newStatus,
+        total_time_spent_seconds: updatedTimeSpent,
+        timer_started_at: updatedTimerStartedAt
+      };
+
       const { data, error } = await (supabase
         .from('tasks') as any)
-        .update({ status: newStatus })
+        .update(updatePayload)
         .eq('id', id)
         .select('total_time_spent_seconds, timer_started_at, started_at, completed_at')
         .single();
@@ -3298,8 +3316,8 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
-                            <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-snug">
-                              {task.responsible}
+                            <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-snug" title={(task.responsibles && task.responsibles.length > 0) ? task.responsibles.join(', ') : task.responsible}>
+                              {(task.responsibles && task.responsibles.length > 0) ? task.responsibles.join(', ') : (task.responsible || '---')}
                             </span>
                             {task.responsibleSectors && task.responsibleSectors.length > 0 ? (
                               <div className="flex flex-wrap items-center gap-1 mt-0.5">

@@ -504,6 +504,7 @@ export const Chat: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [groupMemberCount, setGroupMemberCount] = useState<number | null>(null);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
   
   // Atendimentos (Support)
   const [isSupportCreateModalOpen, setIsSupportCreateModalOpen] = useState(false);
@@ -1013,6 +1014,60 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const fetchGroupMemberCount = async (targetChannelId?: string) => {
+    const activeId = targetChannelId || selectedChannelId;
+    if (!activeId) {
+      setGroupMemberCount(null);
+      setGroupMembers([]);
+      return;
+    }
+    const ch = channels.find(c => c.id === activeId);
+    if (!ch || (ch.type !== 'group' && ch.type !== 'sector')) {
+      setGroupMemberCount(null);
+      setGroupMembers([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_channel_members')
+        .select('user_id, role')
+        .eq('channel_id', activeId);
+
+      if (!error && data) {
+        setGroupMemberCount(data.length);
+        const userIds = data.map(m => m.user_id);
+        if (userIds.length > 0) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, role')
+            .in('id', userIds);
+          
+          if (profileData) {
+            const enriched = data.map(m => {
+              const p = profileData.find(prof => prof.id === m.user_id);
+              return {
+                ...m,
+                profile: p
+              };
+            });
+            setGroupMembers(enriched);
+          } else {
+            setGroupMembers([]);
+          }
+        } else {
+          setGroupMembers([]);
+        }
+      } else {
+        setGroupMemberCount(null);
+        setGroupMembers([]);
+      }
+    } catch (e) {
+      setGroupMemberCount(null);
+      setGroupMembers([]);
+    }
+  };
+
   const toggleFavorite = async (messageId: string) => {
     if (!userId || !selectedChannelId) return;
     try {
@@ -1086,11 +1141,17 @@ export const Chat: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('chat_message_templates')
-        .select('*')
+        .select('*, chat_message_template_schedules(*)')
         .eq('org_id', orgId)
         .order('title');
       if (error) throw error;
-      if (data) setTemplates(data);
+      if (data) {
+        const mapped = data.map((t: any) => ({
+          ...t,
+          schedules: t.chat_message_template_schedules || []
+        }));
+        setTemplates(mapped);
+      }
     } catch (e) {
       console.error('Error fetching templates:', e);
     }
@@ -1518,33 +1579,6 @@ export const Chat: React.FC = () => {
       } catch (err) {
         console.error('Error fetching active channel companies:', err);
         setActiveChannelCompanies([]);
-      }
-    };
-
-    const fetchGroupMemberCount = async () => {
-      if (!selectedChannelId) {
-        setGroupMemberCount(null);
-        return;
-      }
-      const ch = channels.find(c => c.id === selectedChannelId);
-      if (!ch || (ch.type !== 'group' && ch.type !== 'sector')) {
-        setGroupMemberCount(null);
-        return;
-      }
-
-      try {
-        const { count, error } = await supabase
-          .from('chat_channel_members')
-          .select('*', { count: 'exact', head: true })
-          .eq('channel_id', selectedChannelId);
-
-        if (!error && count !== null) {
-          setGroupMemberCount(count);
-        } else {
-          setGroupMemberCount(null);
-        }
-      } catch (e) {
-        setGroupMemberCount(null);
       }
     };
 
@@ -4455,7 +4489,6 @@ export const Chat: React.FC = () => {
                     ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
-                title="Em fila"
               >
                 <span className="truncate">Fila</span>
                 {supportCounts.queue > 0 && (
@@ -4476,7 +4509,6 @@ export const Chat: React.FC = () => {
                     ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
-                title="Minhas"
               >
                 <span className="truncate">Minhas</span>
                 {supportCounts.mine > 0 && (
@@ -4497,7 +4529,6 @@ export const Chat: React.FC = () => {
                     ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
-                title="Todos"
               >
                 <span className="truncate">Todas</span>
                 {supportCounts.all > 0 && (
@@ -4518,11 +4549,10 @@ export const Chat: React.FC = () => {
                     ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
-                title="Notificação"
               >
                 <span className="truncate">Alertas</span>
                 {supportCounts.alerts > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Alertas pendentes" />
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                 )}
               </button>
             </div>
@@ -4926,10 +4956,41 @@ export const Chat: React.FC = () => {
                     <RenderStatusBadge status={(selectedChannel as any).contactStatus} size="xs" />
                   )}
                   {(selectedChannel.type === 'group' || selectedChannel.type === 'sector') && groupMemberCount !== null && (
-                    <span className="inline-flex items-center gap-1 font-semibold rounded-md border bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/50 px-1.5 py-0.5 text-[9px] leading-none whitespace-nowrap">
-                      <Users size={10} className="shrink-0 text-indigo-600 dark:text-indigo-400" strokeWidth={2.2} />
-                      <span>{groupMemberCount} {groupMemberCount === 1 ? 'participante' : 'participantes'}</span>
-                    </span>
+                    <Tooltip
+                      content={
+                        <div className="p-2 max-w-xs space-y-1.5 text-left text-xs text-white">
+                          <p className="font-bold border-b border-slate-700/60 pb-1 flex items-center gap-1.5 text-[11px] text-indigo-300">
+                            <Users size={12} className="text-indigo-400" />
+                            <span>Membros do Grupo ({groupMemberCount})</span>
+                          </p>
+                          <div className="max-h-48 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-slate-700 pr-1">
+                            {groupMembers.length === 0 ? (
+                              <p className="text-[10px] text-slate-400 italic">Buscando participantes...</p>
+                            ) : (
+                              groupMembers.map((m, idx) => (
+                                <div key={idx} className="flex items-center justify-between gap-3 text-[10px] py-0.5">
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    <span className="font-medium truncate">{m.profile?.full_name || 'Usuário'}</span>
+                                  </div>
+                                  {m.role === 'admin' && (
+                                    <span className="text-[8px] font-extrabold px-1 bg-indigo-500/30 text-indigo-300 rounded shrink-0 border border-indigo-500/20">
+                                      Admin
+                                    </span>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      }
+                      position="bottom"
+                    >
+                      <span className="inline-flex items-center gap-1 font-semibold rounded-md border bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/50 px-1.5 py-0.5 text-[9px] leading-none whitespace-nowrap cursor-help hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors">
+                        <Users size={10} className="shrink-0 text-indigo-600 dark:text-indigo-400" strokeWidth={2.2} />
+                        <span>{groupMemberCount} {groupMemberCount === 1 ? 'participante' : 'participantes'}</span>
+                      </span>
+                    </Tooltip>
                   )}
 
                   {/* 2. Empresas vinculadas */}
@@ -5943,15 +6004,7 @@ export const Chat: React.FC = () => {
         onSuccess={() => {
           setIsGroupSettingsOpen(false);
           if (userId) fetchChannels(userId);
-          if (selectedChannelId) {
-            supabase
-              .from('chat_channel_members')
-              .select('*', { count: 'exact', head: true })
-              .eq('channel_id', selectedChannelId)
-              .then(({ count }) => {
-                if (count !== null) setGroupMemberCount(count);
-              });
-          }
+          fetchGroupMemberCount();
         }}
       />
 

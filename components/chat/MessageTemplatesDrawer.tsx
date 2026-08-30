@@ -26,6 +26,12 @@ export interface MessageTemplate {
   trigger_type?: string;
   trigger_value?: number;
   trigger_time?: string;
+  schedules?: Array<{
+    id?: string;
+    trigger_type: string;
+    trigger_value: number;
+    trigger_time: string;
+  }>;
   target_sectors?: string[];
   target_segments?: string[];
   target_tax_regimes?: string[];

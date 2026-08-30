@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
 import { TAX_REGIME_GROUPS } from '../types';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -1983,6 +1983,14 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
 // ------------------- MESSAGE TEMPLATE SETTINGS -------------------
 
+export interface TemplateSchedule {
+  id?: string;
+  template_id?: string;
+  trigger_type: 'day_of_month' | 'days_before_due';
+  trigger_value: number;
+  trigger_time: string;
+}
+
 interface MessageTemplate {
   id: string;
   org_id: string;
@@ -1998,6 +2006,7 @@ interface MessageTemplate {
   trigger_type: 'day_of_month' | 'days_before_due' | 'manual';
   trigger_value: number | null;
   trigger_time?: string;
+  schedules?: TemplateSchedule[];
   send_email_copy: boolean;
   email_subject: string | null;
   created_by: string | null;
@@ -2035,11 +2044,51 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const [targetClientIds, setTargetClientIds] = useState<string[]>([]);
   const [referenceTaskTypeId, setReferenceTaskTypeId] = useState('');
   const [isAutomated, setIsAutomated] = useState(false);
-  const [triggerType, setTriggerType] = useState<'day_of_month' | 'days_before_due' | 'manual' | ''>('');
-  const [triggerValue, setTriggerValue] = useState<string>('');
-  const [triggerTime, setTriggerTime] = useState('09:00');
+  const [schedules, setSchedules] = useState<TemplateSchedule[]>([
+    { trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }
+  ]);
   const [sendEmailCopy, setSendEmailCopy] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
+
+  const addSchedule = () => {
+    if (schedules.length >= 5) {
+      addToast('error', 'Limite de Agendamentos', 'Cada modelo permite no máximo 5 disparos programados.');
+      return;
+    }
+    const primaryType = schedules[0]?.trigger_type || 'day_of_month';
+    setSchedules(prev => [
+      ...prev,
+      { trigger_type: primaryType, trigger_value: '' as any, trigger_time: '09:00' }
+    ]);
+  };
+
+  const updateSchedule = (index: number, field: keyof TemplateSchedule, value: any) => {
+    setSchedules(prev => {
+      const next = [...prev];
+      if (field === 'trigger_type') {
+        if (index === 0) {
+          // Se alterar o tipo do primeiro agendamento, aplica a todos os agendamentos da lista
+          return next.map((s, idx) => ({
+            ...s,
+            trigger_type: value,
+            trigger_value: (idx === 0 || s.trigger_type !== value) ? ('' as any) : s.trigger_value
+          }));
+        } else {
+          // Mantém forçado o tipo do primeiro agendamento
+          const primaryType = next[0]?.trigger_type || value;
+          next[index] = { ...next[index], trigger_type: primaryType };
+          return next;
+        }
+      } else {
+        next[index] = { ...next[index], [field]: value };
+        return next;
+      }
+    });
+  };
+
+  const removeSchedule = (index: number) => {
+    setSchedules(prev => prev.filter((_, i) => i !== index));
+  };
 
   // Bulk send modal state
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
@@ -2173,7 +2222,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       if (!user) return;
 
       const [templatesRes, taskTypesRes, sectorsRes, clientsRes, profilesRes, membersRes] = await Promise.all([
-        supabase.from('chat_message_templates').select('*').eq('org_id', userProfile.org_id).order('created_at', { ascending: false }),
+        supabase.from('chat_message_templates').select('*, chat_message_template_schedules(*)').eq('org_id', userProfile.org_id).order('created_at', { ascending: false }),
         supabase.from('task_types').select('*').eq('org_id', userProfile.org_id).order('name'),
         supabase.from('sectors').select('*').eq('org_id', userProfile.org_id).order('name'),
         supabase.from('clients').select('id, company_name, trade_name, status, client_tax_regime_history(*)').order('company_name'),
@@ -2181,7 +2230,16 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
         supabase.from('members').select('id, email, first_name, last_name').eq('org_id', userProfile.org_id)
       ]);
 
-      if (templatesRes.data) setTemplates(templatesRes.data as MessageTemplate[]);
+      if (templatesRes.data) {
+        const mapped = (templatesRes.data as any[]).map(t => ({
+          ...t,
+          schedules: (t.chat_message_template_schedules || []).map((s: any) => ({
+            ...s,
+            trigger_time: s.trigger_time ? s.trigger_time.substring(0, 5) : '09:00'
+          }))
+        }));
+        setTemplates(mapped as MessageTemplate[]);
+      }
       if (taskTypesRes.data) setTaskTypes(taskTypesRes.data);
       if (sectorsRes.data) setSectors(sectorsRes.data);
       if (clientsRes.data) {
@@ -2274,8 +2332,6 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     }
   };
 
-
-
   const insertPlaceholder = (tag: string) => {
     const textarea = document.getElementById('template-content-textarea') as HTMLTextAreaElement;
     if (textarea) {
@@ -2356,9 +2412,34 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       return;
     }
 
-    if (isAutomated && !triggerType) {
-      addToast('error', 'Erro', 'Selecione o Tipo de Agendamento para disparos automáticos.');
-      return;
+    if (isAutomated) {
+      if (!schedules || schedules.length === 0) {
+        addToast('error', 'Erro', 'Adicione pelo menos um agendamento para o disparo automático.');
+        return;
+      }
+      if (schedules.length > 5) {
+        addToast('error', 'Limite Excedido', 'O número máximo de agendamentos por modelo é 5.');
+        return;
+      }
+      const primaryType = schedules[0].trigger_type;
+      for (const s of schedules) {
+        if (s.trigger_type !== primaryType) {
+          addToast('error', 'Tipos Incompatíveis', 'Todos os agendamentos de um modelo devem possuir o mesmo tipo.');
+          return;
+        }
+        if (!s.trigger_value || isNaN(s.trigger_value) || s.trigger_value <= 0) {
+          addToast('error', 'Erro', 'Informe um valor válido para o dia ou antecedência do disparo.');
+          return;
+        }
+        if (s.trigger_type === 'days_before_due' && !referenceTaskTypeId) {
+          addToast(
+            'error',
+            'Tarefa de Referência Obrigatória',
+            'Para disparos baseados em antecedência do vencimento, selecione a "Tarefa de Referência" no início do formulário.'
+          );
+          return;
+        }
+      }
     }
 
     setSaving(true);
@@ -2366,8 +2447,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const tValue = triggerValue ? parseInt(triggerValue) : null;
-
+      const firstSchedule = schedules[0];
       const templateData = {
         org_id: userProfile.org_id,
         title: title.trim(),
@@ -2378,13 +2458,15 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
         target_client_ids: targetClientIds,
         reference_task_type_id: referenceTaskTypeId || null,
         is_automated: isAutomated,
-        trigger_type: isAutomated ? triggerType : 'manual',
-        trigger_value: isAutomated ? tValue : null,
-        trigger_time: isAutomated ? (triggerTime + ':00') : '09:00:00',
+        trigger_type: isAutomated ? (firstSchedule?.trigger_type || 'day_of_month') : 'manual',
+        trigger_value: isAutomated ? (firstSchedule?.trigger_value || 10) : null,
+        trigger_time: isAutomated ? ((firstSchedule?.trigger_time || '09:00') + ':00') : '09:00:00',
         send_email_copy: sendEmailCopy,
         email_subject: sendEmailCopy ? emailSubject.trim() : null,
         created_by: user.id
       };
+
+      let targetTemplateId = editingId;
 
       if (editingId) {
         const { error } = await supabase
@@ -2393,17 +2475,42 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
           .eq('id', editingId);
 
         if (error) throw error;
-        addToast('success', 'Sucesso', 'Modelo de mensagem atualizado!');
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from('chat_message_templates')
-          .insert([templateData]);
+          .insert([templateData])
+          .select('id')
+          .single();
 
         if (error) throw error;
-        addToast('success', 'Sucesso', 'Modelo de mensagem criado!');
+        targetTemplateId = inserted.id;
       }
 
-      // Reset form
+      // Persistir schedules na tabela chat_message_template_schedules
+      if (targetTemplateId) {
+        // Remover schedules anteriores
+        await supabase
+          .from('chat_message_template_schedules')
+          .delete()
+          .eq('template_id', targetTemplateId);
+
+        if (isAutomated && schedules.length > 0) {
+          const schedulesToInsert = schedules.map(s => ({
+            template_id: targetTemplateId,
+            trigger_type: s.trigger_type,
+            trigger_value: Number(s.trigger_value),
+            trigger_time: s.trigger_time.length === 5 ? `${s.trigger_time}:00` : s.trigger_time
+          }));
+
+          const { error: schedErr } = await supabase
+            .from('chat_message_template_schedules')
+            .insert(schedulesToInsert);
+
+          if (schedErr) console.error('Erro ao salvar agendamentos:', schedErr);
+        }
+      }
+
+      addToast('success', 'Sucesso', editingId ? 'Modelo de mensagem atualizado!' : 'Modelo de mensagem criado!');
       clearForm();
       fetchData();
     } catch (error: any) {
@@ -2424,14 +2531,26 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setTargetClientIds(template.target_client_ids || []);
     setReferenceTaskTypeId(template.reference_task_type_id || '');
     setIsAutomated(template.is_automated);
-    setTriggerType(template.trigger_type || 'manual');
-    setTriggerValue(template.trigger_value ? template.trigger_value.toString() : '');
-    setTriggerTime(template.trigger_time ? template.trigger_time.substring(0, 5) : '09:00');
+
+    if (template.schedules && template.schedules.length > 0) {
+      setSchedules(template.schedules.map(s => ({
+        ...s,
+        trigger_time: s.trigger_time ? s.trigger_time.substring(0, 5) : '09:00'
+      })));
+    } else if (template.is_automated && template.trigger_type && template.trigger_type !== 'manual' && template.trigger_value) {
+      setSchedules([{
+        trigger_type: template.trigger_type as any,
+        trigger_value: template.trigger_value,
+        trigger_time: template.trigger_time ? template.trigger_time.substring(0, 5) : '09:00'
+      }]);
+    } else {
+      setSchedules([{ trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }]);
+    }
+
     setSendEmailCopy(template.send_email_copy);
     setEmailSubject(template.email_subject || '');
     setIsFormExpanded(true);
 
-    // Transição suave para o topo do formulário de edição
     setTimeout(() => {
       if (formContainerRef.current) {
         formContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2451,9 +2570,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setTargetClientIds([]);
     setReferenceTaskTypeId('');
     setIsAutomated(false);
-    setTriggerType('manual');
-    setTriggerValue('');
-    setTriggerTime('09:00');
+    setSchedules([{ trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }]);
     setSendEmailCopy(false);
     setEmailSubject('');
     setIsFormExpanded(false);
@@ -2874,15 +2991,17 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   placeholder="Pgdas, Feriado Nacional..." 
                 />
                 
-                <SearchableSelect
-                  label="Tarefa de Referência"
-                  tooltip="Vincule um tipo de tarefa para liberar os placeholders dinâmicos de vencimento"
-                  value={referenceTaskTypeId}
-                  onChange={setReferenceTaskTypeId}
-                  options={taskTypes.map(t => ({ value: t.id, label: t.name }))}
-                  placeholder="Sem vinculação de tarefa"
-                  clearable
-                />
+                <div id="reference-task-type-select">
+                  <SearchableSelect
+                    label="Tarefa de Referência"
+                    tooltip="Vincule um tipo de tarefa para liberar os placeholders dinâmicos de vencimento"
+                    value={referenceTaskTypeId}
+                    onChange={setReferenceTaskTypeId}
+                    options={taskTypes.map(t => ({ value: t.id, label: t.name }))}
+                    placeholder="Sem vinculação de tarefa"
+                    clearable
+                  />
+                </div>
 
                 <GroupedSelect
                   label="Regime Tributário"
@@ -3215,61 +3334,133 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   </h3>
                   <Toggle checked={isAutomated} onChange={(checked) => {
                     setIsAutomated(checked);
-                    if (checked && (triggerType === 'manual' || triggerType === '')) {
-                      setTriggerType('');
+                    if (checked && (!schedules || schedules.length === 0)) {
+                      setSchedules([{ trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }]);
                     }
                   }} />
                 </div>
 
                 {isAutomated && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <SearchableSelect
-                      label="Tipo de Agendamento"
-                      value={triggerType}
-                      onChange={val => {
-                        setTriggerType(val as any);
-                        setTriggerValue('');
-                      }}
-                      options={[
-                        { value: 'day_of_month', label: 'Dia Fixo do Mês' },
-                        { value: 'days_before_due', label: 'Dias de Antecedência do Vencimento' }
-                      ]}
-                      placeholder="Selecione o tipo de agendamento"
-                      clearable={false}
-                    />
-                    
-                    {triggerType === 'day_of_month' ? (
-                      <Input
-                        label="Dia do Disparo (1 a 31)"
-                        type="number"
-                        min="1"
-                        max="31"
-                        value={triggerValue}
-                        onChange={e => setTriggerValue(e.target.value)}
-                        placeholder="Ex: 20"
-                      />
-                    ) : (
-                      <Input
-                        label="Dias Antes do Vencimento"
-                        type="number"
-                        min="1"
-                        value={triggerValue}
-                        onChange={e => setTriggerValue(e.target.value)}
-                        placeholder="Ex: 5"
-                        disabled={!referenceTaskTypeId}
-                        required={triggerType === 'days_before_due'}
-                      />
-                    )}
+                  <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                        Regras de Disparo Programado ({schedules.length}/5)
+                      </span>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={addSchedule}
+                        disabled={schedules.length >= 5}
+                        icon={<Plus size={14} />}
+                        className="text-xs"
+                      >
+                        {schedules.length >= 5 ? 'Limite Atingido (5/5)' : 'Adicionar Agendamento'}
+                      </Button>
+                    </div>
 
-                    <SearchableSelect
-                      label="Horário do Disparo"
-                      tooltip="Disparos automáticos são executados nas horas cheias pelo agendador de tarefas (pg_cron)."
-                      value={triggerTime || '09:00'}
-                      onChange={val => setTriggerTime(val)}
-                      options={HOURLY_TIME_OPTIONS}
-                      placeholder="Selecione a hora do disparo"
-                      clearable={false}
-                    />
+                    {schedules.map((sched, index) => (
+                      <div key={index} className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 space-y-2.5">
+                        {/* Grid de Inputs Perfeitamente Alinhados */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                          <div className="md:col-span-5">
+                            <SearchableSelect
+                              label={`Agendamento #${index + 1} - Tipo`}
+                              tooltip={index > 0 ? "O tipo de agendamento é fixado pelo Agendamento #1" : undefined}
+                              value={sched.trigger_type}
+                              onChange={val => updateSchedule(index, 'trigger_type', val)}
+                              disabled={index > 0}
+                              options={[
+                                { value: 'day_of_month', label: index > 0 && sched.trigger_type === 'day_of_month' ? 'Dia Fixo do Mês (Padrão #1)' : 'Dia Fixo do Mês' },
+                                { value: 'days_before_due', label: index > 0 && sched.trigger_type === 'days_before_due' ? 'Antecedência de Vencimento (Padrão #1)' : 'Dias de Antecedência do Vencimento' }
+                              ]}
+                              placeholder="Tipo de agendamento"
+                              clearable={false}
+                            />
+                          </div>
+
+                          <div className="md:col-span-3">
+                            {sched.trigger_type === 'day_of_month' ? (
+                              <Input
+                                label="Dia do Disparo (1-31)"
+                                type="number"
+                                min="1"
+                                max="31"
+                                value={sched.trigger_value || ''}
+                                onChange={e => updateSchedule(index, 'trigger_value', e.target.value ? Number(e.target.value) : '')}
+                                placeholder="Ex: 20"
+                              />
+                            ) : (
+                              <Input
+                                label="Dias Antes Vencimento"
+                                type="number"
+                                min="1"
+                                value={sched.trigger_value || ''}
+                                onChange={e => updateSchedule(index, 'trigger_value', e.target.value ? Number(e.target.value) : '')}
+                                placeholder={referenceTaskTypeId ? "Ex: 5" : "Bloqueado"}
+                                disabled={!referenceTaskTypeId}
+                                required={sched.trigger_type === 'days_before_due'}
+                              />
+                            )}
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <SearchableSelect
+                              label="Horário"
+                              tooltip="Disparos executados nas horas cheias pelo agendador pg_cron."
+                              value={sched.trigger_time || '09:00'}
+                              onChange={val => updateSchedule(index, 'trigger_time', val)}
+                              options={HOURLY_TIME_OPTIONS}
+                              placeholder="Horário"
+                              clearable={false}
+                            />
+                          </div>
+
+                          <div className="md:col-span-1 flex justify-end pb-1">
+                            {schedules.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeSchedule(index)}
+                                className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
+                                title="Remover agendamento"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Banner / Status do Vínculo em Linha Separada */}
+                        {sched.trigger_type === 'days_before_due' && (
+                          !referenceTaskTypeId ? (
+                            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-xs animate-in fade-in duration-200">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                                <span className="font-semibold text-[11px]">
+                                  Selecione a <strong>"Tarefa de Referência"</strong> no topo do formulário para liberar este campo.
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const el = document.getElementById('reference-task-type-select');
+                                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }}
+                                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 shrink-0 cursor-pointer bg-white/60 dark:bg-slate-900/60 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-800 self-start sm:self-auto"
+                              >
+                                <Link2 size={10} /> Ir para Tarefa de Referência ↗
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-between text-xs animate-in fade-in duration-200">
+                              <span className="text-[11px] font-bold flex items-center gap-1.5">
+                                <Check size={13} className="text-emerald-500" /> Vencimento vinculado a: <strong className="underline">{taskTypes.find(t => t.id === referenceTaskTypeId)?.name || 'Tarefa de Referência'}</strong>
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -3458,17 +3649,29 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex flex-wrap items-center gap-1 shrink-0 justify-end">
                       {tmpl.is_automated && (
-                        <span className="text-[9px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-indigo-200/50">
-                          <CalendarClock size={11} /> Automático {
-                            tmpl.trigger_type === 'day_of_month'
-                              ? `(Dia ${tmpl.trigger_value} às ${tmpl.trigger_time?.substring(0, 5)})`
-                              : tmpl.trigger_type === 'days_before_due'
-                                ? `(${tmpl.trigger_value} dias antes às ${tmpl.trigger_time?.substring(0, 5)})`
-                                : tmpl.trigger_time ? `(${tmpl.trigger_time.substring(0, 5)})` : ''
-                          }
-                        </span>
+                        tmpl.schedules && tmpl.schedules.length > 0 ? (
+                          tmpl.schedules.map((s, idx) => (
+                            <span key={idx} className="text-[9px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-indigo-200/50">
+                              <CalendarClock size={11} /> {
+                                s.trigger_type === 'day_of_month'
+                                  ? `Dia ${s.trigger_value} (${s.trigger_time?.substring(0, 5)})`
+                                  : `${s.trigger_value}d antes (${s.trigger_time?.substring(0, 5)})`
+                              }
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[9px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-indigo-200/50">
+                            <CalendarClock size={11} /> Automático {
+                              tmpl.trigger_type === 'day_of_month'
+                                ? `(Dia ${tmpl.trigger_value} às ${tmpl.trigger_time?.substring(0, 5)})`
+                                : tmpl.trigger_type === 'days_before_due'
+                                  ? `(${tmpl.trigger_value} dias antes às ${tmpl.trigger_time?.substring(0, 5)})`
+                                  : tmpl.trigger_time ? `(${tmpl.trigger_time.substring(0, 5)})` : ''
+                            }
+                          </span>
+                        )
                       )}
                       {tmpl.send_email_copy && (
                         <span className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-emerald-200/50">

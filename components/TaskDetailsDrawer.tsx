@@ -340,7 +340,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Responsável</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate text-center">
-                        {localTask.responsible || '---'}
+                        {(localTask.responsibles && localTask.responsibles.length > 0) ? localTask.responsibles.join(', ') : (localTask.responsible || '---')}
                       </span>
                     </div>
                     <div className="flex flex-col items-center gap-0.5 border-l border-slate-100 dark:border-slate-800 px-1">

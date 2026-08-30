@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   X,
   Save,
@@ -21,7 +21,10 @@ import {
   GitCompareArrows,
   SquarePen,
   MousePointerClick,
-  Sparkles
+  Sparkles,
+  ChevronDown,
+  Check,
+  Search
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -48,6 +51,138 @@ interface ClientConfig {
 }
 
 const SIMPLES_ANNEXES = ['Anexo I', 'Anexo II', 'Anexo III', 'Anexo IV', 'Anexo V', 'Nulo'];
+
+interface ResponsibleMultiSelectProps {
+  membersList: string[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+}
+
+const ResponsibleMultiSelect: React.FC<ResponsibleMultiSelectProps> = ({ membersList, selected, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredMembers = membersList.filter(m => m.toLowerCase().includes(search.toLowerCase()));
+
+  const toggleMember = (name: string) => {
+    if (selected.includes(name)) {
+      onChange(selected.filter(n => n !== name));
+    } else {
+      onChange([...selected, name]);
+    }
+  };
+
+  const selectedSummary = selected.length === 0 
+    ? 'Selecione os responsáveis...'
+    : selected.length === 1 
+      ? selected[0] 
+      : `${selected[0]} (+${selected.length - 1})`;
+
+  return (
+    <div className="flex flex-col gap-1.5 relative w-full" ref={containerRef}>
+      <div className="flex items-center justify-between h-5">
+        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-none">
+          Responsáveis da Tarefa
+        </label>
+        {selected.length > 0 && (
+          <span className="inline-flex items-center justify-center min-w-[18px] h-4 px-1.5 rounded-full bg-indigo-600 text-white text-[10px] font-black shadow-xs" title={`${selected.length} responsáveis selecionados`}>
+            {selected.length}
+          </span>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full h-10 px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex items-center justify-between shadow-none hover:border-indigo-500 dark:hover:border-indigo-400 transition-all cursor-pointer"
+      >
+        <span className={`truncate ${selected.length === 0 ? 'text-slate-400 dark:text-slate-500 font-normal' : 'font-semibold text-slate-800 dark:text-slate-100'}`}>
+          {selectedSummary}
+        </span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 shrink-0 ml-1 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-2 space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
+          {/* Busca rápida */}
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar colaborador..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-7 pr-2 py-1 text-[11px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* Lista de membros */}
+          <div className="max-h-44 overflow-y-auto space-y-0.5 custom-scrollbar">
+            {filteredMembers.length === 0 ? (
+              <div className="p-2 text-center text-[11px] text-slate-400">Nenhum colaborador encontrado</div>
+            ) : (
+              filteredMembers.map((name) => {
+                const isChecked = selected.includes(name);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => toggleMember(name)}
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-[11px] transition-colors cursor-pointer text-left ${
+                      isChecked
+                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-bold'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-normal'
+                    }`}
+                  >
+                    <span className="truncate mr-2">{name}</span>
+                    <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                      isChecked
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                    }`}>
+                      {isChecked && <Check size={10} strokeWidth={3} />}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Ações Rápidas */}
+          <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
+            <button
+              type="button"
+              onClick={() => onChange([...membersList])}
+              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+            >
+              Marcar Todos
+            </button>
+            {selected.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-rose-500 font-bold hover:underline"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function TaskForm({ onBack, initialData, clients, userProfile }: { onBack: () => void; initialData?: Task | null; clients: Client[]; userProfile: any }) {
   const isEditing = !!initialData;
@@ -110,6 +245,21 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
     setNotification({ show: true, message, type });
   };
 
+  const allMemberNames = useMemo(() => {
+    const names: string[] = [];
+    if (userProfile) {
+      const me = userProfile.full_name || userProfile.email || 'Eu';
+      names.push(me);
+    }
+    members.forEach(m => {
+      const fullName = `${m.first_name} ${m.last_name}`.trim();
+      if (fullName && !names.includes(fullName)) {
+        names.push(fullName);
+      }
+    });
+    return names;
+  }, [userProfile, members]);
+
   // Recurrence Update Flow State
   const [showRecurrenceModal, setShowRecurrenceModal] = useState(false);
   const [updateFutureTasks, setUpdateFutureTasks] = useState<boolean | null>(null);
@@ -121,6 +271,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
       taskName: initialData.taskName,
       sector: initialData.sector,
       responsible: initialData.responsible,
+      responsibles: initialData.responsibles && initialData.responsibles.length > 0 ? initialData.responsibles : (initialData.responsible ? [initialData.responsible] : []),
       competence: initialData.competence,
       vencimento: initialData.dueDate || '',
       vencimentoVariavel: initialData.variableAdjustment || 'nao_aplica',
@@ -135,6 +286,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
     taskName: '',
     sector: '',
     responsible: '',
+    responsibles: [] as string[],
     priority: Priority.MEDIA,
     competence: new Date().toISOString().substring(0, 7), // YYYY-MM
     vencimento: '',
@@ -289,6 +441,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
       taskName: '',
       sector: '',
       responsible: '',
+      responsibles: [],
       priority: Priority.MEDIA,
       competence: new Date().toISOString().substring(0, 7),
       vencimento: '',
@@ -305,7 +458,8 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
       taskTypeId: '', // We don't track the ID back, just the name/sector
       taskName: task.taskName,
       sector: task.sector,
-      responsible: task.responsible,
+      responsible: task.responsible || '',
+      responsibles: task.responsibles || (task.responsible ? [task.responsible] : []),
       priority: task.priority,
       competence: task.competence,
       vencimento: task.vencimento,
@@ -323,6 +477,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
       taskName: '',
       sector: '',
       responsible: '',
+      responsibles: [],
       priority: Priority.MEDIA,
       competence: new Date().toISOString().substring(0, 7),
       vencimento: '',
@@ -431,6 +586,9 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
           const tTargets = t.targetClients && t.targetClients.length > 0 ? t.targetClients : selectedClientIds;
           if (!tTargets.includes(clientName)) continue;
 
+          const taskRespList = (t.responsibles && t.responsibles.length > 0) ? t.responsibles : (t.responsible ? [t.responsible] : []);
+          const primaryResp = taskRespList[0] || t.responsible || '';
+
           if (isEditing && t.id === initialData.id) {
             const adjustedDate = calculateAdjustedDate(t.vencimento, t.vencimentoVariavel, holidayDates);
             updateTasksToExecute.push({
@@ -439,7 +597,8 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
               client_name: client.companyName,
               task_name: t.taskName,
               sector: t.sector,
-              responsible: t.responsible,
+              responsible: primaryResp,
+              responsibles: taskRespList,
               competence: t.competence,
               due_date: adjustedDate || null,
               variable_adjustment: t.vencimentoVariavel,
@@ -464,12 +623,11 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
             let baseDay = 10;
 
             if (t.vencimento) {
-              const typeDef = taskTypes.find(tt => tt.name === t.taskName);
               const dDate = new Date(t.vencimento + 'T12:00:00');
               const dYear = dDate.getFullYear();
               const dMonth = dDate.getMonth() + 1;
               monthOffset = (dYear - startYear) * 12 + (dMonth - startMonth);
-              baseDay = typeDef?.due_day || dDate.getDate();
+              baseDay = dDate.getDate();
             }
 
             const createIterationPayload = (month: number, year: number) => {
@@ -486,7 +644,8 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                 client_name: client.companyName,
                 task_name: t.taskName,
                 sector: t.sector,
-                responsible: t.responsible,
+                responsible: primaryResp,
+                responsibles: taskRespList,
                 competence: compStr,
                 due_date: finalDate,
                 variable_adjustment: t.vencimentoVariavel,
@@ -1259,21 +1418,16 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                     />
                   </div>
                   <div className="md:col-span-3">
-                    <Select
-                      label="Responsável"
-                      className="text-[11px]"
-                      options={[
-                        ...(userProfile ? [{
-                          value: userProfile.full_name || userProfile.email || 'Eu',
-                          label: userProfile.full_name || userProfile.email || 'Eu'
-                        }] : []),
-                        ...members.map(m => ({
-                          value: `${m.first_name} ${m.last_name}`,
-                          label: `${m.first_name} ${m.last_name}`
-                        }))
-                      ]}
-                      value={tempTask.responsible}
-                      onChange={(e) => setTempTask(prev => ({ ...prev, responsible: e.target.value }))}
+                    <ResponsibleMultiSelect
+                      membersList={allMemberNames}
+                      selected={tempTask.responsibles}
+                      onChange={(nextList) => {
+                        setTempTask(prev => ({
+                          ...prev,
+                          responsibles: nextList,
+                          responsible: nextList[0] || ''
+                        }));
+                      }}
                     />
                   </div>
                   <div className="md:col-span-2">

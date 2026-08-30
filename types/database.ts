@@ -289,6 +289,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           email_subject: string | null
+          header_image_url: string | null
           id: string
           is_automated: boolean
           org_id: string | null
@@ -309,6 +310,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           email_subject?: string | null
+          header_image_url?: string | null
           id?: string
           is_automated?: boolean
           org_id?: string | null
@@ -329,6 +331,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           email_subject?: string | null
+          header_image_url?: string | null
           id?: string
           is_automated?: boolean
           org_id?: string | null
@@ -364,6 +367,41 @@ export type Database = {
             columns: ["reference_task_type_id"]
             isOneToOne: false
             referencedRelation: "task_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_message_template_schedules: {
+        Row: {
+          created_at: string
+          id: string
+          template_id: string
+          trigger_time: string
+          trigger_type: string
+          trigger_value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          template_id: string
+          trigger_time?: string
+          trigger_type: string
+          trigger_value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          template_id?: string
+          trigger_time?: string
+          trigger_type?: string
+          trigger_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_message_template_schedules_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "chat_message_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -1572,6 +1610,7 @@ export type Database = {
           recurrence_months: number[] | null
           registration_regime: string | null
           responsible: string | null
+          responsibles: string[] | null
           sector: string | null
           selected_annexes: string[] | null
           completed_at: string | null
@@ -1601,6 +1640,7 @@ export type Database = {
           recurrence_months?: number[] | null
           registration_regime?: string | null
           responsible?: string | null
+          responsibles?: string[] | null
           sector?: string | null
           selected_annexes?: string[] | null
           started_at?: string | null
@@ -1629,6 +1669,7 @@ export type Database = {
           recurrence_months?: number[] | null
           registration_regime?: string | null
           responsible?: string | null
+          responsibles?: string[] | null
           sector?: string | null
           selected_annexes?: string[] | null
           started_at?: string | null
