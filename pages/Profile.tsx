@@ -743,14 +743,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                  value={fullName}
                                  onChange={(e) => setFullName(e.target.value)}
                               />
-                              {profile?.role !== 'cliente' && (
-                                 <Input
-                                    label="Nome da Organização"
-                                    value={orgName}
-                                    onChange={(e) => setOrgName(e.target.value)}
-                                    placeholder="Empresa LTDA"
-                                 />
-                              )}
+
                               <Input
                                  label="E-mail"
                                  value={profile?.email || ''}
@@ -1131,7 +1124,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                     </AnimatePresence>
                                  </div>
 
-                                 <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20 shadow-sm">
+                                 <div className={`border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20 shadow-sm ${profile?.role !== 'gestor' ? 'hidden' : ''}`}>
                                     <div 
                                        onClick={() => setIsSection2Expanded(!isSection2Expanded)}
                                        className="flex justify-between items-center px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900/80 cursor-pointer transition-colors select-none"

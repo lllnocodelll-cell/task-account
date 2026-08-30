@@ -2704,7 +2704,7 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const handleInitiateSupportFromNotification = async (activeChannel: Channel) => {
+  const handleInitiateSupportFromNotification = async (activeChannel: Channel, specificMessage?: any) => {
     if (!userId || !currentUser || isInitiatingSupport) return;
 
     setIsInitiatingSupport(true);
@@ -2751,32 +2751,38 @@ export const Chat: React.FC = () => {
         }
       }
 
-      // Buscar a última mensagem de notificação deste canal para contextualizar o assunto do chamado
+      // Buscar a mensagem de notificação deste canal para contextualizar o assunto do chamado
       let notifText = '';
       let notifAttachmentUrl: string | undefined = undefined;
       let notifFileName: string | undefined = undefined;
 
-      const localList = messages[activeChannel.id] || currentMessages || [];
-      const validLocal = [...localList].reverse().find(m => !m.is_system && (m.text || m.attachment_url || m.file_name));
-      if (validLocal) {
-        notifText = validLocal.text || '';
-        notifAttachmentUrl = validLocal.attachment_url;
-        notifFileName = validLocal.file_name;
-      }
+      if (specificMessage) {
+        notifText = specificMessage.text || '';
+        notifAttachmentUrl = specificMessage.attachment_url;
+        notifFileName = specificMessage.file_name;
+      } else {
+        const localList = messages[activeChannel.id] || currentMessages || [];
+        const validLocal = [...localList].reverse().find(m => !m.is_system && (m.text || m.attachment_url || m.file_name));
+        if (validLocal) {
+          notifText = validLocal.text || '';
+          notifAttachmentUrl = validLocal.attachment_url;
+          notifFileName = validLocal.file_name;
+        }
 
-      if (!notifText && !notifAttachmentUrl && !notifFileName) {
-        const { data: dbNotifList } = await (supabase
-          .from('chat_messages') as any)
-          .select('text, attachment_url, file_name, is_system')
-          .eq('channel_id', activeChannel.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
+        if (!notifText && !notifAttachmentUrl && !notifFileName) {
+          const { data: dbNotifList } = await (supabase
+            .from('chat_messages') as any)
+            .select('text, attachment_url, file_name, is_system')
+            .eq('channel_id', activeChannel.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
 
-        const validDb = (dbNotifList || []).find((m: any) => !m.is_system && (m.text || m.attachment_url || m.file_name)) || dbNotifList?.[0];
-        if (validDb) {
-          notifText = validDb.text || '';
-          notifAttachmentUrl = validDb.attachment_url;
-          notifFileName = validDb.file_name;
+          const validDb = (dbNotifList || []).find((m: any) => !m.is_system && (m.text || m.attachment_url || m.file_name)) || dbNotifList?.[0];
+          if (validDb) {
+            notifText = validDb.text || '';
+            notifAttachmentUrl = validDb.attachment_url;
+            notifFileName = validDb.file_name;
+          }
         }
       }
 
@@ -5615,6 +5621,19 @@ export const Chat: React.FC = () => {
                                dangerouslySetInnerHTML={{ __html: formatMessageText(msg.text) }} 
                              />
                            )}
+
+                          {selectedChannel?.is_notification && currentUser?.role === 'cliente' && !msg.isMe && (
+                            <div className="mt-2.5 pt-2 border-t border-slate-200/50 dark:border-slate-700/50 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleInitiateSupportFromNotification(selectedChannel, msg)}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-lg font-bold text-[10px] transition-colors border border-indigo-100/50 dark:border-indigo-900/30 shadow-xs"
+                              >
+                                <MessageSquare size={12} />
+                                <span>Tirar dúvida sobre este alerta</span>
+                              </button>
+                            </div>
+                          )}
                           <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
                             {msg.is_private && (
                               <Tooltip content="Mensagem trocada em modo privado" position="top">
@@ -5792,33 +5811,9 @@ export const Chat: React.FC = () => {
                   }
 
                   return (
-                    <div className="flex flex-col items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-4 text-center animate-in fade-in duration-200">
-                      <div className="flex items-center gap-2 mb-3 text-indigo-700 dark:text-indigo-400 font-semibold text-sm">
-                        <AlertCircle size={18} className="shrink-0" />
-                        <span>Este canal é apenas para envio de notificações, caso precise tirar dúvida sobre o assunto, clique no botão abaixo.</span>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isInitiatingSupport}
-                        onClick={() => handleInitiateSupportFromNotification(selectedChannel)}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs shadow-md hover:shadow-lg transition-all"
-                      >
-                        {isInitiatingSupport ? (
-                          <>
-                            <Loader2 size={16} className="animate-spin" />
-                            <span>{selectedChannel?.sector_id ? 'Conectando ao setor...' : 'Conectando à equipe...'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <MessageSquare size={16} />
-                            <span>
-                              {selectedChannel?.sector_id
-                                ? `Tirar Dúvidas com o Setor ${sectors.find(s => s.id === selectedChannel.sector_id)?.name || 'Responsável'}`
-                                : 'Tirar Dúvidas com a Equipe'}
-                            </span>
-                          </>
-                        )}
-                      </button>
+                    <div className="flex items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl py-3 px-4 text-xs font-semibold text-indigo-700 dark:text-indigo-400 select-none animate-in fade-in duration-200 text-center">
+                      <AlertCircle size={14} className="mr-2 text-indigo-500 shrink-0" />
+                      <span>Este canal é apenas para envio de notificações. Para tirar dúvidas sobre um assunto, clique no botão <strong>"Tirar dúvida sobre este alerta"</strong> na própria mensagem acima.</span>
                     </div>
                   );
                 } else {

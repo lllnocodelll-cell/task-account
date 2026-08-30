@@ -4,7 +4,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { supabase } from '../../utils/supabaseClient';
-import { Settings2, LayoutGrid, X, GripVertical, FolderHeart, ChevronDown, Plus, Trash2, Edit3 } from 'lucide-react';
+import { Settings2, LayoutGrid, X, GripVertical, FolderHeart, ChevronDown, Plus, Trash2, Edit3, Search } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 
 // Import Widgets
@@ -692,6 +692,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Estado para a ordem dos widgets
     const [widgetsOrder, setWidgetsOrder] = useState<string[]>(() => {
@@ -809,11 +810,44 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
 
     if (!shouldRender) return null;
 
+    // Descrição em português para cada widget
+    const getWidgetDescription = (widgetId: string) => {
+        switch (widgetId) {
+            case 'collaboratorPerformance': return 'Monitore o desempenho por colaborador na execução de tarefas.';
+            case 'clientTimeSpent': return 'Monitore o tempo total e médio dedicado por cliente e suas respectivas tarefas.';
+            case 'topSegments': return 'Gráfico dos segmentos atendidos com maior representatividade.';
+            case 'statusByUser': return 'Monitor em tempo real de tarefas concluídas, pendentes e em andamento por colaborador.';
+            case 'upcomingDeadlines': return 'Listagem ordenada com os prazos de obrigações fiscais prestes a vencer.';
+            case 'topTasks': return 'Ranking de tarefas com maior volume no período.';
+            case 'documentAlerts': return 'Alerta de licenças e certificados digitais próximos do vencimento.';
+            case 'clientStatus': return 'Painel de clientes ativos e inativos.';
+            case 'taxRegimes': return 'Consolidado de regimes mais atendidos.';
+            case 'loggedUsers': return 'Painel de monitoramento de colaboradores conectados no momento.';
+            case 'notifiedExclusion': return 'Monitor de clientes excluídos do simples nacional.';
+            case 'collaboratorsByDept': return 'Distribuição de colaboradores por setor.';
+            case 'uncompletedTasks': return 'Painel de tarefas pendentes, atrasadas e em andamento por período.';
+            case 'monthlyEvolution': return 'Gráfico de evolução mensal de tarefas.';
+            case 'economicIndices': return 'Indicadores econômicos: cotação dólar, Selic, IGPM e IPCA.';
+            case 'operationsCalendar': return 'Calendário tributário simplificado.';
+            case 'clientCertificates': return 'Painel de controle de vencimento de certificado digital.';
+            case 'clientLicenses': return 'Painel de controle de vencimento de licenças.';
+            case 'notes': return 'Painel de anotações e lembretes importantes.';
+            default: return 'Painel informativo customizável.';
+        }
+    };
+
     // Ordenar allWidgets com base no widgetsOrder
     const sortedWidgets = [...allWidgets].sort((a, b) => {
         const indexA = widgetsOrder.indexOf(a);
         const indexB = widgetsOrder.indexOf(b);
         return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+    });
+
+    const filteredWidgets = sortedWidgets.filter(id => {
+        const name = WIDGET_REGISTRY[id]?.name || '';
+        const desc = getWidgetDescription(id) || '';
+        const query = searchQuery.toLowerCase();
+        return name.toLowerCase().includes(query) || desc.toLowerCase().includes(query);
     });
 
     return createPortal(
@@ -855,35 +889,34 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed px-1">
                         Ative os widgets que deseja exibir no painel do dashboard.
                     </p>
+
+                    {/* Filtro de Busca */}
+                    <div className="relative px-1">
+                        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Buscar widgets pelo nome..."
+                            className="w-full pl-8 pr-8 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 transition-all duration-200"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                            >
+                                <X size={12} />
+                            </button>
+                        )}
+                    </div>
+
                     <div className="space-y-3">
-                        {sortedWidgets.map(id => {
+                        {filteredWidgets.length === 0 ? (
+                            <div className="text-center py-8 text-xs text-slate-400">
+                                Nenhum widget encontrado para "{searchQuery}".
+                            </div>
+                        ) : filteredWidgets.map(id => {
                             const isActive = activeWidgets.includes(id);
-                            
-                            // Descrição em português para cada widget
-                            const getWidgetDescription = (widgetId: string) => {
-                                switch (widgetId) {
-                                    case 'collaboratorPerformance': return 'Monitore o desempenho por colaborador na execução de tarefas.';
-                                    case 'clientTimeSpent': return 'Monitore o tempo total e médio dedicado por cliente e suas respectivas tarefas.';
-                                    case 'topSegments': return 'Gráfico dos segmentos atendidos com maior representatividade.';
-                                    case 'statusByUser': return 'Monitor em tempo real de tarefas concluídas, pendentes e em andamento por colaborador.';
-                                    case 'upcomingDeadlines': return 'Listagem ordenada com os prazos de obrigações fiscais prestes a vencer.';
-                                    case 'topTasks': return 'Ranking de tarefas com maior volume no período.';
-                                    case 'documentAlerts': return 'Alerta de licenças e certificados digitais próximos do vencimento.';
-                                    case 'clientStatus': return 'Painel de clientes ativos e inativos.';
-                                    case 'taxRegimes': return 'Consolidado de regimes mais atendidos.';
-                                    case 'loggedUsers': return 'Painel de monitoramento de colaboradores conectados no momento.';
-                                    case 'notifiedExclusion': return 'Monitor de clientes excluídos do simples nacional.';
-                                    case 'collaboratorsByDept': return 'Distribuição de colaboradores por setor.';
-                                    case 'uncompletedTasks': return 'Painel de tarefas pendentes, atrasadas e em andamento por período.';
-                                    case 'monthlyEvolution': return 'Gráfico de evolução mensal de tarefas.';
-                                    case 'economicIndices': return 'Indicadores econômicos: cotação dólar, Selic, IGPM e IPCA.';
-                                    case 'operationsCalendar': return 'Calendário tributário simplificado.';
-                                    case 'clientCertificates': return 'Painel de controle de vencimento de certificado digital.';
-                                    case 'clientLicenses': return 'Painel de controle de vencimento de licenças.';
-                                    case 'notes': return 'Painel de anotações e lembretes importantes.';
-                                    default: return 'Painel informativo customizável.';
-                                }
-                            };
 
                             return (
                                 <div

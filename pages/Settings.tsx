@@ -2043,6 +2043,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const [targetSectors, setTargetSectors] = useState<string[]>([]);
   const [targetClientIds, setTargetClientIds] = useState<string[]>([]);
   const [referenceTaskTypeId, setReferenceTaskTypeId] = useState('');
+  const [templateType, setTemplateType] = useState<'tarefa' | 'geral'>('geral');
   const [isAutomated, setIsAutomated] = useState(false);
   const [schedules, setSchedules] = useState<TemplateSchedule[]>([
     { trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }
@@ -2401,6 +2402,15 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       return;
     }
 
+    if (templateType === 'tarefa' && !referenceTaskTypeId) {
+      addToast(
+        'error',
+        'Tarefa de Referência Obrigatória',
+        'Ao associar o modelo a uma tarefa, a "Tarefa de Referência" é obrigatória. Selecione uma tarefa ou desative a associação.'
+      );
+      return;
+    }
+
     const hasTaskTags = content.includes('{nome_tarefa}') || content.includes('{vencimento_padrao}') || content.includes('{vencimento_tarefa}');
 
     if (hasTaskTags && !referenceTaskTypeId) {
@@ -2530,6 +2540,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setTargetSectors(template.target_sectors || []);
     setTargetClientIds(template.target_client_ids || []);
     setReferenceTaskTypeId(template.reference_task_type_id || '');
+    setTemplateType(template.reference_task_type_id ? 'tarefa' : 'geral');
     setIsAutomated(template.is_automated);
 
     if (template.schedules && template.schedules.length > 0) {
@@ -2569,6 +2580,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setTargetSectors([]);
     setTargetClientIds([]);
     setReferenceTaskTypeId('');
+    setTemplateType('geral');
     setIsAutomated(false);
     setSchedules([{ trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }]);
     setSendEmailCopy(false);
@@ -2983,13 +2995,36 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
         <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
           <div className="overflow-hidden">
             <div className="space-y-6 pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <Input 
                   label="Nome do Modelo" 
                   value={title} 
                   onChange={e => setTitle(e.target.value)} 
                   placeholder="Pgdas, Feriado Nacional..." 
                 />
+
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-xl h-10 self-end">
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      Associar modelo a tarefa?
+                    </span>
+                    <span className="text-[9px] text-slate-400">
+                      {templateType === 'tarefa' 
+                        ? 'Permite vincular o modelo a uma tarefa existente.' 
+                        : 'Modelo de mensagem geral'}
+                    </span>
+                  </div>
+                  <Toggle
+                    checked={templateType === 'tarefa'}
+                    onChange={(checked) => {
+                      const newType = checked ? 'tarefa' : 'geral';
+                      setTemplateType(newType);
+                      if (newType === 'geral') {
+                        setReferenceTaskTypeId('');
+                      }
+                    }}
+                  />
+                </div>
                 
                 <div id="reference-task-type-select">
                   <SearchableSelect
@@ -2998,11 +3033,14 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     value={referenceTaskTypeId}
                     onChange={setReferenceTaskTypeId}
                     options={taskTypes.map(t => ({ value: t.id, label: t.name }))}
-                    placeholder="Sem vinculação de tarefa"
+                    placeholder={templateType === 'geral' ? "Bloqueado para modelos gerais" : "Sem vinculação de tarefa"}
+                    disabled={templateType === 'geral'}
                     clearable
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <GroupedSelect
                   label="Regime Tributário"
                   groups={TAX_REGIME_GROUPS}

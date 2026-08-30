@@ -309,7 +309,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
             )}
 
             {/* Seção: Plano & Contrato */}
-            {userProfile?.role !== 'cliente' && officeDetails && !loadingOffice && (
+            {userProfile?.role === 'gestor' && officeDetails && !loadingOffice && (
               <div className="mt-4">
                 <div className="mb-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-5">
                   <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Plano & Contrato</span>
