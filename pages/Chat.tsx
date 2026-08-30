@@ -875,11 +875,7 @@ export const Chat: React.FC = () => {
         const sessionStartTime = profile.current_session_start ? new Date(profile.current_session_start).getTime() : 0;
         const mostRecentTime = Math.max(lastActiveTime, sessionStartTime);
 
-        if (mostRecentTime > 0 && (now - mostRecentTime < 30 * 60 * 1000)) {
-          return false;
-        }
-
-        if (profile.chat_status && profile.chat_status !== 'ausente') {
+        if (mostRecentTime > 0 && (now - mostRecentTime < 90 * 1000)) {
           return false;
         }
 
@@ -925,11 +921,7 @@ export const Chat: React.FC = () => {
           const sessionStartTime = profile.current_session_start ? new Date(profile.current_session_start).getTime() : 0;
           const mostRecentTime = Math.max(lastActiveTime, sessionStartTime);
 
-          if (mostRecentTime > 0 && (now - mostRecentTime < 30 * 60 * 1000)) {
-            return false;
-          }
-
-          if (profile.chat_status && profile.chat_status !== 'ausente') {
+          if (mostRecentTime > 0 && (now - mostRecentTime < 90 * 1000)) {
             return false;
           }
 
@@ -1377,30 +1369,7 @@ export const Chat: React.FC = () => {
     };
   }, [userId, currentUser?.id]);
 
-  // Touch de presença e atividade do usuário logado no Supabase
-  useEffect(() => {
-    if (!userId) return;
 
-    const touchPresence = async () => {
-      try {
-        const nowStr = new Date().toISOString();
-        await supabase
-          .from('profiles')
-          .update({
-            last_active_at: nowStr,
-            current_session_start: nowStr
-          } as any)
-          .eq('id', userId);
-      } catch (e) {
-        console.error('Error updating presence:', e);
-      }
-    };
-
-    touchPresence();
-    const heartbeat = setInterval(touchPresence, 3 * 60 * 1000);
-
-    return () => clearInterval(heartbeat);
-  }, [userId]);
 
   // Auto-sync inteligente ao retornar à aba (visibilitychange / focus) ou reconectar à rede (online)
   useEffect(() => {
@@ -4027,6 +3996,21 @@ export const Chat: React.FC = () => {
       if (channel) {
         return { ...channel, isProfile: false, profileId: profile.id };
       } else {
+        const checkIsProfileOffline = (p: any) => {
+          if (!p) return true;
+          if (p.chat_status === 'offline') return true;
+
+          const now = Date.now();
+          const lastActiveTime = p.last_active_at ? new Date(p.last_active_at).getTime() : 0;
+          const sessionStartTime = p.current_session_start ? new Date(p.current_session_start).getTime() : 0;
+          const mostRecentTime = Math.max(lastActiveTime, sessionStartTime);
+
+          if (mostRecentTime > 0 && (now - mostRecentTime < 90 * 1000)) {
+            return false;
+          }
+          return true;
+        };
+        const isOffline = checkIsProfileOffline(profile);
         return {
           id: `profile-${profile.id}`,
           name: profile.full_name || 'Usuário',
@@ -4037,7 +4021,7 @@ export const Chat: React.FC = () => {
           lastMessageTime: '',
           avatar_url: profile.avatar_url,
           fallbackAvatar: profile.full_name?.substring(0, 2).toUpperCase() || 'DM',
-          contactStatus: 'offline', // simplistic for now
+          contactStatus: isOffline ? 'offline' : (profile.chat_status || 'disponível'),
           isProfile: true,
           profileId: profile.id
         };
@@ -4098,7 +4082,9 @@ export const Chat: React.FC = () => {
           const createdByClient = isChannelCreatedByClient(c);
           
           if (c.is_notification) {
-            alerts++;
+            if ((c.unreadCount || 0) > 0) {
+              alerts++;
+            }
           } else {
             all++;
             if (!c.assigned_to) {
@@ -4614,11 +4600,11 @@ export const Chat: React.FC = () => {
                     }
                     setShowSidebarOnMobile(false);
                   }}
-                  className={`group/item w-full flex items-center gap-2 py-2 px-2.5 rounded-lg transition-all ${
+                  className={`group/item w-full flex items-center gap-2 py-2 px-2.5 rounded-lg transition-all border ${
                     selectedChannelId === item.id
-                      ? 'bg-indigo-50 dark:bg-indigo-500/10'
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                  } ${isDragOver ? 'border-2 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : 'border border-transparent'} ${
+                      ? 'bg-indigo-50/40 dark:bg-indigo-500/5 border-indigo-100/80 dark:border-indigo-500/20'
+                      : 'bg-white dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:border-slate-200/80 dark:hover:border-slate-700/50'
+                  } ${isDragOver ? 'border-2 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : ''} ${
                     isDragging ? 'opacity-40 scale-95' : ''
                   }`}
                 >
@@ -4700,11 +4686,11 @@ export const Chat: React.FC = () => {
                     setSelectedChannelId(channel.id);
                     setShowSidebarOnMobile(false);
                   }}
-                  className={`group/item w-full flex items-center gap-2 py-2 px-2.5 rounded-lg transition-all ${
+                  className={`group/item w-full flex items-center gap-2 py-2 px-2.5 rounded-lg transition-all border ${
                     selectedChannelId === channel.id
-                      ? 'bg-indigo-50 dark:bg-indigo-500/10'
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                  } ${isDragOver ? 'border-2 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : 'border border-transparent'} ${
+                      ? 'bg-indigo-50/40 dark:bg-indigo-500/5 border-indigo-100/80 dark:border-indigo-500/20'
+                      : 'bg-white dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:border-slate-200/80 dark:hover:border-slate-700/50'
+                  } ${isDragOver ? 'border-2 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : ''} ${
                     isDragging ? 'opacity-40 scale-95' : ''
                   }`}
                 >
@@ -4716,18 +4702,20 @@ export const Chat: React.FC = () => {
                     <GripVertical size={13} />
                   </span>
 
-                  <div className="relative shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
-                      {channel.avatar_url ? (
-                        <img src={channel.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        channel.fallbackAvatar
+                  {currentUser?.role !== 'cliente' && (
+                    <div className="relative shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
+                        {channel.avatar_url ? (
+                          <img src={channel.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          channel.fallbackAvatar
+                        )}
+                      </div>
+                      {(channel.type === 'direct' || channel.type === 'support') && (channel as any).contactStatus && (
+                        <StatusDot status={(channel as any).contactStatus} />
                       )}
                     </div>
-                    {(channel.type === 'direct' || channel.type === 'support') && (channel as any).contactStatus && (
-                      <StatusDot status={(channel as any).contactStatus} />
-                    )}
-                  </div>
+                  )}
                   <div className="flex-1 min-w-0 text-left flex flex-col justify-center gap-0.5">
                     <div className="flex justify-between items-center gap-1 leading-none">
                       <h3 className={`text-sm font-semibold leading-snug truncate flex items-center gap-1.5 min-w-0 ${selectedChannelId === channel.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
@@ -5392,7 +5380,7 @@ export const Chat: React.FC = () => {
                           }`}>
 
                           {/* Botões flutuantes Hover */}
-                          <div className={`absolute -top-3 ${msg.isMe ? '-left-8' : '-right-8'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20`}>
+                          <div className={`absolute -top-4 ${msg.isMe ? 'right-2' : 'left-2'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-20`}>
                             <Tooltip content="Reagir" position="top">
                               <button
                                 data-action="react"
@@ -5746,7 +5734,7 @@ export const Chat: React.FC = () => {
                     <div className="flex flex-col items-center justify-center bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-4 text-center animate-in fade-in duration-200">
                       <div className="flex items-center gap-2 mb-3 text-indigo-700 dark:text-indigo-400 font-semibold text-sm">
                         <AlertCircle size={18} className="shrink-0" />
-                        <span>Este canal é apenas para envio de notificações. Não é possível responder diretamente aqui.</span>
+                        <span>Este canal é apenas para envio de notificações, caso precise tirar dúvida sobre o assunto, clique no botão abaixo.</span>
                       </div>
                       <button
                         type="button"

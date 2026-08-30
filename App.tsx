@@ -213,6 +213,76 @@ function App() {
     };
   }, [session]);
 
+  // Heartbeat de presença global (a cada 30 segundos)
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const touchPresence = async () => {
+      try {
+        const now = new Date();
+        const nowStr = now.toISOString();
+        const todayStr = now.toLocaleDateString('pt-BR'); // Ex: '30/08/2026'
+        
+        // Obter status atual para re-iniciar session_start e acumular tempo se necessário
+        const { data: profile } = await (supabase
+          .from('profiles')
+          .select('current_session_start, chat_status, last_active_at, accumulated_active_seconds_today, last_active_day') as any)
+          .eq('id', session.user.id)
+          .single();
+
+        const updates: any = {
+          last_active_at: nowStr
+        };
+
+        if (profile) {
+          if (!profile.current_session_start) {
+            updates.current_session_start = nowStr;
+          }
+          // Se o status no banco for 'offline', reverter para 'disponível' ao estar ativo
+          if (profile.chat_status === 'offline') {
+            updates.chat_status = 'disponível';
+          }
+
+          // Lógica de acumulação do tempo de atividade diária
+          let accumulated = profile.accumulated_active_seconds_today || 0;
+          const dbLastActiveDay = profile.last_active_day || '';
+
+          if (dbLastActiveDay !== todayStr) {
+            // Novo dia começou: reseta a contagem
+            accumulated = 0;
+            updates.last_active_day = todayStr;
+          }
+
+          // Adicionar tempo decorrido desde o último heartbeat
+          if (profile.last_active_at) {
+            const lastActiveMs = new Date(profile.last_active_at).getTime();
+            const diffMs = now.getTime() - lastActiveMs;
+
+            // Se o tempo decorrido for menor que 2 minutos (indicando sessão de heartbeat contínua),
+            // nós acumulamos esse tempo.
+            if (diffMs > 0 && diffMs < 120 * 1000) {
+              accumulated += Math.floor(diffMs / 1000);
+            }
+          }
+
+          updates.accumulated_active_seconds_today = accumulated;
+        }
+
+        await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', session.user.id);
+      } catch (e) {
+        console.error('Error updating presence heartbeat:', e);
+      }
+    };
+
+    touchPresence();
+    const interval = setInterval(touchPresence, 30 * 1000);
+
+    return () => clearInterval(interval);
+  }, [session?.user?.id]);
+
   const fetchUserProfile = async (session: any) => {
     try {
       // 1. Verificar restrição de acesso por inatividade na tabela members
@@ -305,7 +375,11 @@ function App() {
       try {
         await supabase
           .from('profiles')
-          .update({ current_session_start: null })
+          .update({
+            current_session_start: null,
+            last_active_at: '1970-01-01T00:00:00Z',
+            chat_status: 'offline'
+          } as any)
           .eq('id', session.user.id);
       } catch (e) {
         console.error('Error clearing session start on logout', e);

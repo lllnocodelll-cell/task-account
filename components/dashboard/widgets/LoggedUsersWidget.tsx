@@ -10,6 +10,7 @@ interface LoggedUser {
     avatar_url: string | null;
     current_session_start: string | null;
     last_active_at: string | null;
+    accumulated_active_seconds_today: number | null;
 }
 
 interface Props {
@@ -28,9 +29,9 @@ export const LoggedUsersWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                 // Consider online if active in the last 15 minutes
                 const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
-                let query = supabase
+                let query = (supabase
                     .from('profiles')
-                    .select('id, full_name, role, avatar_url, current_session_start, last_active_at')
+                    .select('id, full_name, role, avatar_url, current_session_start, last_active_at, accumulated_active_seconds_today') as any)
                     .not('current_session_start', 'is', null)
                     .gte('last_active_at', fifteenMinutesAgo)
                     .neq('role', 'cliente')
@@ -69,15 +70,22 @@ export const LoggedUsersWidget: React.FC<Props> = ({ orgId, onRemove }) => {
         return () => clearInterval(intervalId);
     }, []);
 
-    const formatDuration = (sessionStartStr: string | null) => {
-        if (!sessionStartStr) return 'Recém logado';
+    const formatDuration = (user: LoggedUser) => {
+        let totalSeconds = user.accumulated_active_seconds_today || 0;
 
-        const start = new Date(sessionStartStr).getTime();
-        const diffMs = currentTime - start;
+        // Adicionar o tempo da sessão ativa corrente
+        if (user.last_active_at) {
+            const lastActive = new Date(user.last_active_at).getTime();
+            const diffMs = currentTime - lastActive;
+            // Se o last_active_at foi recente (últimos 15 minutos), adiciona a diferença
+            if (diffMs > 0 && diffMs < 15 * 60 * 1000) {
+                totalSeconds += Math.floor(diffMs / 1000);
+            }
+        }
 
-        if (diffMs < 0) return 'Recém logado';
+        const diffMins = Math.floor(totalSeconds / 60);
 
-        const diffMins = Math.floor(diffMs / (1000 * 60));
+        if (diffMins < 1) return 'Recém logado';
 
         if (diffMins < 60) {
             return `${diffMins} min`;
@@ -128,7 +136,7 @@ export const LoggedUsersWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                             {user.full_name || 'Usuário Indefinido'}
                                         </p>
                                         <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full whitespace-nowrap ml-2">
-                                            {formatDuration(user.current_session_start)}
+                                            {formatDuration(user)}
                                         </span>
                                     </div>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 capitalize truncate">
