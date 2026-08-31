@@ -498,6 +498,12 @@ export const Chat: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+  const currentUserRef = useRef<Profile | null>(null);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
   const [activeTab, setActiveTab] = useState<'chats' | 'contacts' | 'support' | 'closed'>('chats');
   const [creatingDirect, setCreatingDirect] = useState(false);
   const [showSidebarOnMobile, setShowSidebarOnMobile] = useState(true);
@@ -897,19 +903,41 @@ export const Chat: React.FC = () => {
     if (channel.type === 'support') {
       let simplifiedName = channel.name;
       let avatarUrl = undefined;
+      let clientProfile: any = null;
 
-      let clientProfile;
+      // 1. Tentar encontrar diretamente pelo ID do criador do canal se for cliente
+      if (channel.created_by) {
+        const creatorProfile = profiles.find(p => p.id === channel.created_by);
+        if (creatorProfile && creatorProfile.role === 'cliente') {
+          clientProfile = creatorProfile;
+        }
+      }
+
       if (currentUser?.role === 'cliente') {
         const match = channel.name.match(/\(([^)]+)\)$/);
         simplifiedName = match ? match[1] : 'Suporte';
       } else {
         const match = channel.name.match(/^Atendimento - (.+?)(?:\s*\(|$)/);
-        simplifiedName = match ? match[1] : channel.name;
+        simplifiedName = match ? match[1].trim() : channel.name;
 
-        // Tentar encontrar o perfil do cliente para a foto
-        clientProfile = profiles.find(p => p.full_name === simplifiedName);
-        if (clientProfile) {
-          avatarUrl = clientProfile.avatar_url;
+        // 2. Se ainda não identificou pelo ID, buscar por correspondência inteligente no nome do cliente
+        if (!clientProfile) {
+          const sNameLower = simplifiedName.toLowerCase();
+          clientProfile = profiles.find(p => {
+            if (p.role !== 'cliente') return false;
+            const pNameLower = (p.full_name || '').toLowerCase();
+            if (pNameLower === sNameLower) return true;
+            const pFirst = pNameLower.split(' ')[0];
+            const sFirst = sNameLower.split(' ')[0];
+            return pFirst && sFirst && pFirst === sFirst;
+          });
+        }
+      }
+
+      if (clientProfile) {
+        avatarUrl = clientProfile.avatar_url;
+        if (currentUser?.role !== 'cliente' && clientProfile.full_name) {
+          simplifiedName = clientProfile.full_name;
         }
       }
 
@@ -1103,31 +1131,47 @@ export const Chat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
-  const fetchSectors = async () => {
+  const fetchSectors = async (effectiveOrgId?: string) => {
     try {
-      const { data } = await supabase.from('sectors').select('*').order('name');
+      const org = effectiveOrgId || currentUser?.org_id || userId;
+      let query = supabase.from('sectors').select('*').order('name');
+      if (org) {
+        query = query.eq('org_id', org);
+      }
+      const { data } = await query;
       if (data) setSectors(data);
     } catch (e) {
       console.error('Error fetching sectors:', e);
     }
   };
 
-  const fetchClients = async () => {
+  const fetchClients = async (effectiveOrgId?: string) => {
     try {
-      // Buscar emails de membros ativos com a role 'cliente'
-      const { data: activeMembers } = await supabase
+      const org = effectiveOrgId || currentUser?.org_id || userId;
+      // Buscar emails de membros ativos com a role 'cliente' da mesma organização
+      let membersQuery = supabase
         .from('members')
         .select('email')
         .eq('role', 'cliente')
         .neq('status', 'Inativo');
 
-      const activeEmails = (activeMembers || []).map((m: any) => m.email?.toLowerCase()).filter(Boolean);
+      if (org) {
+        membersQuery = membersQuery.eq('org_id', org);
+      }
 
-      const { data: profilesData } = await supabase
+      const { data: activeMembers } = await membersQuery;
+
+      let pQuery = supabase
         .from('profiles')
         .select('id, full_name')
         .eq('role', 'cliente')
         .order('full_name');
+
+      if (org) {
+        pQuery = pQuery.eq('org_id', org);
+      }
+
+      const { data: profilesData } = await pQuery;
 
       if (profilesData) {
         setClientProfiles(profilesData);
@@ -1359,7 +1403,7 @@ export const Chat: React.FC = () => {
           table: 'chat_channel_members',
         },
         () => {
-          fetchChannels(userId);
+          fetchChannels(userId, currentUserRef.current?.org_id);
         }
       )
       .subscribe();
@@ -1383,7 +1427,7 @@ export const Chat: React.FC = () => {
           table: 'chat_channels',
         },
         () => {
-          fetchChannels(userId);
+          fetchChannels(userId, currentUserRef.current?.org_id);
         }
       )
       .subscribe();
@@ -1448,8 +1492,8 @@ export const Chat: React.FC = () => {
           (supabase.realtime as any).connect();
         }
 
-        await fetchChannels(userId);
-        await fetchProfiles(userId);
+        await fetchChannels(userId, currentUserRef.current?.org_id);
+        await fetchProfiles(userId, currentUserRef.current?.org_id);
 
         if (selectedChannelIdRef.current) {
           await fetchMessages(selectedChannelIdRef.current);
@@ -1871,8 +1915,6 @@ export const Chat: React.FC = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setUserId(user.id);
-      fetchChannels(user.id);
-      fetchProfiles(user.id);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -1881,6 +1923,11 @@ export const Chat: React.FC = () => {
         .single();
       if (profile) {
         setCurrentUser(profile);
+        const org = profile.org_id || user.id;
+        fetchChannels(user.id, org);
+        fetchProfiles(user.id, org);
+        fetchClients(org);
+        fetchSectors(org);
         if (profile.org_id) {
           fetchTemplates(profile.org_id);
           fetchTaskTypes(profile.org_id);
@@ -1908,18 +1955,25 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const fetchProfiles = async (uid: string) => {
+  const fetchProfiles = async (uid: string, effectiveOrgId?: string) => {
     try {
-      const { data: profilesData, error: profilesError } = await supabase
+      const org = effectiveOrgId || currentUser?.org_id || uid;
+      let query = supabase
         .from('profiles')
         .select('*, last_active_at')
         .neq('id', uid)
         .order('full_name');
 
+      if (org) {
+        query = query.eq('org_id', org);
+      }
+
+      const { data: profilesData, error: profilesError } = await query;
+
       if (profilesError) throw profilesError;
 
-      // Buscar membros e setores para mapear o setor pelo nome (padrão da app)
-      const { data: membersData } = await supabase
+      // Buscar membros e setores para mapear o setor pelo nome (padrão da app) da mesma organização
+      let membersQuery = supabase
         .from('members')
         .select(`
           first_name, 
@@ -1929,6 +1983,12 @@ export const Chat: React.FC = () => {
             name
           )
         `);
+
+      if (org) {
+        membersQuery = membersQuery.eq('org_id', org);
+      }
+
+      const { data: membersData } = await membersQuery;
 
       const enrichedProfiles = (profilesData || []).map(profile => {
         const profileName = (profile.full_name || '').trim().toLowerCase();
@@ -1971,7 +2031,7 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const fetchChannels = async (uid?: string) => {
+  const fetchChannels = async (uid?: string, effectiveOrgId?: string) => {
     const targetUid = uid || userId;
     if (!targetUid) return;
 
@@ -1979,47 +2039,60 @@ export const Chat: React.FC = () => {
       // 1. Obter informações de perfil do usuário logado
       const { data: userProfile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, org_id')
         .eq('id', targetUid)
         .single();
 
       const isStaff = userProfile && userProfile.role !== 'cliente';
+      const resolvedOrg = effectiveOrgId || currentUserRef.current?.org_id || userProfile?.org_id || (userProfile?.role === 'gestor' ? targetUid : null);
 
       // 2. Buscar memberships com last_read_at
-      const { data: memberData, error: memberError } = await supabase
+      const { data: memberChannels, error: memberError } = await supabase
         .from('chat_channel_members')
         .select('channel_id, last_read_at')
         .eq('user_id', targetUid);
 
       if (memberError) throw memberError;
 
-      const memberChannelIds = (memberData || []).map((m: any) => m.channel_id);
+      const memberChannelIds = (memberChannels || []).map((m: any) => m.channel_id);
       const lastReadMap: Record<string, string> = {};
-      (memberData || []).forEach((m: any) => {
-        lastReadMap[m.channel_id] = m.last_read_at || '2000-01-01T00:00:00Z';
+      (memberChannels || []).forEach(m => {
+        if (m.channel_id) {
+          lastReadMap[m.channel_id] = m.last_read_at || '2000-01-01T00:00:00Z';
+        }
       });
 
       let channelData = [];
 
       if (isStaff) {
-        // Se for staff, buscar todos os canais de suporte E os outros canais que ele é membro
+        // Se for staff, buscar todos os canais de suporte da organização E os outros canais que ele é membro
         const memberFilterStr = memberChannelIds.length > 0 ? memberChannelIds.join(',') : '00000000-0000-0000-0000-000000000000';
-        const { data, error: channelError } = await supabase
-          .from('chat_channels')
+        let query: any = (supabase.from('chat_channels') as any)
           .select('*')
           .or(`type.eq.support,id.in.(${memberFilterStr})`)
           .order('created_at', { ascending: false });
+
+        if (resolvedOrg) {
+          query = query.eq('org_id', resolvedOrg);
+        }
+
+        const { data, error: channelError } = await query;
 
         if (channelError) throw channelError;
         channelData = data || [];
       } else {
         // Se for cliente, buscar apenas os canais que ele é membro
         if (memberChannelIds.length > 0) {
-          const { data, error: channelError } = await supabase
-            .from('chat_channels')
+          let query: any = (supabase.from('chat_channels') as any)
             .select('*')
             .in('id', memberChannelIds)
             .order('created_at', { ascending: false });
+
+          if (resolvedOrg) {
+            query = query.eq('org_id', resolvedOrg);
+          }
+
+          const { data, error: channelError } = await query;
 
           if (channelError) throw channelError;
           channelData = data || [];
@@ -2562,11 +2635,18 @@ export const Chat: React.FC = () => {
         } as any)
         .eq('id', channelId);
 
-      // Pegar todos os usuários do escritório (não-clientes)
-      const { data: staffMembers } = await supabase
+      const org = currentUser.org_id || userId;
+      // Pegar todos os usuários do escritório da mesma organização (não-clientes)
+      let staffQuery = supabase
         .from('profiles')
         .select('id')
         .neq('role', 'cliente');
+
+      if (org) {
+        staffQuery = staffQuery.eq('org_id', org);
+      }
+
+      const { data: staffMembers } = await staffQuery;
 
       const membersToInsert = [
         { channel_id: channelId, user_id: userId, role: 'admin' }
@@ -2667,11 +2747,18 @@ export const Chat: React.FC = () => {
       if (createError) throw createError;
       const channelId = newChannel.id;
 
-      // Pegar todos os membros do escritório
-      const { data: staffMembers } = await supabase
+      const org = currentUser?.org_id || userId;
+      // Pegar todos os membros do escritório da mesma organização
+      let staffQuery = supabase
         .from('profiles')
         .select('id')
         .neq('role', 'cliente');
+
+      if (org) {
+        staffQuery = staffQuery.eq('org_id', org);
+      }
+
+      const { data: staffMembers } = await staffQuery;
 
       const membersToInsert: any[] = [
         { channel_id: channelId, user_id: staffSupportClientId, role: 'member' }
@@ -3435,10 +3522,17 @@ export const Chat: React.FC = () => {
         if (createError) throw createError;
         targetChannelId = newChannel.id;
 
-        const { data: staffMembers } = await supabase
+        const org = currentUser?.org_id || userId;
+        let staffQuery = supabase
           .from('profiles')
           .select('id')
           .neq('role', 'cliente');
+
+        if (org) {
+          staffQuery = staffQuery.eq('org_id', org);
+        }
+
+        const { data: staffMembers } = await staffQuery;
 
         const membersToInsert = [
           { channel_id: targetChannelId, user_id: clientId, role: 'member' }

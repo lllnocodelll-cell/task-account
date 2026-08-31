@@ -725,18 +725,18 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 {loading ? (
                     <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-600" /></div>
                 ) : displayMode === 'table' ? (
-                    <Card className="overflow-hidden">
+                    <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
                         <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 340px)' }}>
-                            <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-0">
-                                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
+                            <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
+                                <thead className="bg-slate-200/90 dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm backdrop-blur-md">
                                     <tr>
                                         {(() => {
                                             const codeActive = !!filters.code;
                                             const codeCount = codeActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[100px] ${codeActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[100px] rounded-l-xl border-y border-l border-slate-300/90 dark:border-slate-800 ${codeActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
-                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Código</span>
+                                                        <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Código</span>
                                                         <TableColumnFilter label="Código" isActive={codeActive} activeCount={codeCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Código</label>
@@ -755,9 +755,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const nameActive = !!filters.companyName;
                                             const nameCount = nameActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[200px] ${nameActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[200px] border-y border-slate-300/90 dark:border-slate-800 ${nameActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
-                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Razão Social</span>
+                                                        <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Razão Social</span>
                                                         <TableColumnFilter label="Razão Social" isActive={nameActive} activeCount={nameCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Nome/Cidade/UF</label>
@@ -776,9 +776,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const docActive = !!filters.document;
                                             const docCount = docActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[160px] ${docActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[160px] border-y border-slate-300/90 dark:border-slate-800 ${docActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
-                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">CPF/CNPJ</span>
+                                                        <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">CPF/CNPJ</span>
                                                         <TableColumnFilter label="CPF/CNPJ" isActive={docActive} activeCount={docCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Documento</label>
@@ -797,9 +797,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const contactActive = !!filters.contactName;
                                             const contactCount = contactActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[150px] ${contactActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[150px] border-y border-slate-300/90 dark:border-slate-800 ${contactActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
-                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Contato</span>
+                                                        <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Contato</span>
                                                         <TableColumnFilter label="Contato" isActive={contactActive} activeCount={contactCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Contato</label>
@@ -818,9 +818,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const fixedActive = !!filters.phoneFixed;
                                             const fixedCount = fixedActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[140px] ${fixedActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[140px] border-y border-slate-300/90 dark:border-slate-800 ${fixedActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
-                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Fixo</span>
+                                                        <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Fixo</span>
                                                         <TableColumnFilter label="Fixo" isActive={fixedActive} activeCount={fixedCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Fixo</label>
@@ -839,9 +839,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const mobileActive = !!filters.phoneMobile;
                                             const mobileCount = mobileActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[140px] ${mobileActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[140px] border-y border-slate-300/90 dark:border-slate-800 ${mobileActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
-                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Celular</span>
+                                                        <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Celular</span>
                                                         <TableColumnFilter label="Celular" isActive={mobileActive} activeCount={mobileCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Celular</label>
@@ -860,9 +860,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const emailActive = !!filters.email;
                                             const emailCount = emailActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[200px] ${emailActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[200px] border-y border-slate-300/90 dark:border-slate-800 ${emailActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
-                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">E-mail</span>
+                                                        <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">E-mail</span>
                                                         <TableColumnFilter label="E-mail" isActive={emailActive} activeCount={emailCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar E-mail</label>
@@ -886,9 +886,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 { value: 'Prospecto',  label: 'Prospecto',  color: 'bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' },
                                             ];
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[120px] ${statActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[120px] rounded-r-xl border-y border-r border-slate-300/90 dark:border-slate-800 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
-                                                        <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Situação</span>
+                                                        <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Situação</span>
                                                         <TableColumnFilter label="Situação" isActive={statActive} activeCount={statCount}>
                                                             <div className="space-y-1.5">
                                                                 {statOptions.map(opt => (
@@ -924,18 +924,18 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                         })()}
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                                <tbody>
                                     {filteredClients.length === 0 ? (
                                         <tr>
-                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm">
                                                 Nenhum cliente encontrado com os filtros selecionados.
                                             </td>
                                         </tr>
                                     ) : (
                                         filteredClients.map((client) => (
-                                            <tr key={client.id} className="group relative hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                                <td className="px-6 py-4 font-mono text-slate-500">{client.code}</td>
-                                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                                            <tr key={client.id} className="group relative bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-sm">
+                                                <td className="px-6 py-4 font-mono text-slate-500 rounded-l-xl border-y border-l border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">{client.code}</td>
+                                                <td className="px-6 py-4 font-medium text-slate-900 dark:text-white border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                                                     <div className="flex flex-col gap-1">
                                                         <div className="flex items-center gap-2 flex-wrap">
                                                             <span 
@@ -969,7 +969,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.document && handleCopyData(client.document, 'CPF/CNPJ', e)}
-                                                    className={`px-6 py-4 text-[11px] ${client.document ? 'cursor-pointer group/copy' : ''}`}
+                                                    className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.document ? 'cursor-pointer group/copy' : ''}`}
                                                     title={client.document ? "Clique para copiar CPF/CNPJ" : ""}
                                                 >
                                                     {client.document ? (
@@ -981,7 +981,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.contactName && handleCopyData(client.contactName, 'Nome do contato', e)}
-                                                    className={`px-6 py-4 text-[11px] ${client.contactName ? 'cursor-pointer group/copy' : ''}`}
+                                                    className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.contactName ? 'cursor-pointer group/copy' : ''}`}
                                                     title={client.contactName ? "Clique para copiar contato" : ""}
                                                 >
                                                     {client.contactName ? (
@@ -993,7 +993,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.phoneFixed && handleCopyData(client.phoneFixed, 'Telefone fixo', e)}
-                                                    className={`px-6 py-4 text-[11px] ${client.phoneFixed ? 'cursor-pointer group/copy' : ''}`}
+                                                    className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.phoneFixed ? 'cursor-pointer group/copy' : ''}`}
                                                     title={client.phoneFixed ? "Clique para copiar telefone fixo" : ""}
                                                 >
                                                     {client.phoneFixed ? (
@@ -1005,7 +1005,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.phoneMobile && handleCopyData(client.phoneMobile, 'Celular', e)}
-                                                    className={`px-6 py-4 text-[11px] ${client.phoneMobile ? 'cursor-pointer group/copy' : ''}`}
+                                                    className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.phoneMobile ? 'cursor-pointer group/copy' : ''}`}
                                                     title={client.phoneMobile ? "Clique para copiar celular" : ""}
                                                 >
                                                     {client.phoneMobile ? (
@@ -1017,7 +1017,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.email && handleCopyData(client.email, 'E-mail', e)}
-                                                    className={`px-6 py-4 text-[11px] ${client.email ? 'cursor-pointer group/copy' : ''}`}
+                                                    className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.email ? 'cursor-pointer group/copy' : ''}`}
                                                     title={client.email ? "Clique para copiar e-mail" : ""}
                                                 >
                                                     {client.email ? (
@@ -1027,7 +1027,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         </span>
                                                     ) : '-'}
                                                 </td>
-                                                <td className="px-6 py-4 relative">
+                                                <td className="px-6 py-4 relative rounded-r-xl border-y border-r border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
                                                         {client.status}
                                                     </span>
@@ -1072,7 +1072,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                 </tbody>
                             </table>
                         </div>
-                    </Card>
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 240px)' }}>
                         {filteredClients.length === 0 ? (

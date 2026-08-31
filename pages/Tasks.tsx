@@ -2670,19 +2670,19 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
             )}
 
             {layoutMode === 'list' ? (
-              <Card className="overflow-hidden flex-1 flex flex-col min-h-0">
+              <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
                 <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
-              <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-collapse">
-                <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm ring-1 ring-slate-200 dark:ring-slate-800">
+              <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
+                <thead className="bg-slate-200/90 dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm backdrop-blur-md">
                   <tr>
                     {/* == CLIENTE == */}
                     {(() => {
                       const clientActive = !!(filters.clientName || filters.clientDocument || filters.clientCity || filters.clientState);
                       const clientCount = [filters.clientName, filters.clientDocument, filters.clientCity, filters.clientState].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[200px] ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[200px] rounded-l-xl border-y border-l border-slate-300/90 dark:border-slate-800 ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
-                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Cliente</span>
+                            <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Cliente</span>
                             <TableColumnFilter label="Cliente" isActive={clientActive} activeCount={clientCount}>
                               {/* Nome */}
                               <div>
@@ -2727,9 +2727,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       const tarefaActive = !!(filters.taskName || filters.noMovement || filters.hasTag);
                       const tarefaCount = [filters.taskName, filters.noMovement ? 'x' : '', filters.hasTag ? 'x' : ''].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[180px] ${tarefaActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[180px] border-y border-slate-300/90 dark:border-slate-800 ${tarefaActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
-                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Tarefa</span>
+                            <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Tarefa</span>
                             <TableColumnFilter label="Tarefa" isActive={tarefaActive} activeCount={tarefaCount}>
                               {/* Nome */}
                               <div>
@@ -2777,9 +2777,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         filters.recurrence ? 'r' : ''
                       ].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[130px] ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[130px] border-y border-slate-300/90 dark:border-slate-800 ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
-                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Período</span>
+                            <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Período</span>
                             <TableColumnFilter label="Período" isActive={periodActive} activeCount={periodCount}>
                               {/* Toggle mês único / intervalo */}
                               <div>
@@ -2891,9 +2891,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       const regimeActive = !!(filters.taxRegime || filters.selectedAnnex || filters.exceededSublimit || filters.notifiedExclusion);
                       const regimeCount = [filters.taxRegime, filters.selectedAnnex, filters.exceededSublimit ? 'x' : '', filters.notifiedExclusion ? 'x' : ''].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[200px] ${regimeActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[200px] border-y border-slate-300/90 dark:border-slate-800 ${regimeActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
-                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Regime</span>
+                            <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Regime</span>
                             <TableColumnFilter label="Regime" isActive={regimeActive} activeCount={regimeCount}>
                               {/* Regime */}
                               <div className="space-y-2">
@@ -2977,9 +2977,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         { value: 'Baixa', label: 'Baixa', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
                       ];
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[120px] ${prioActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[120px] border-y border-slate-300/90 dark:border-slate-800 ${prioActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
-                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Prioridade</span>
+                            <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Prioridade</span>
                             <TableColumnFilter label="Prioridade" isActive={prioActive} activeCount={prioCount} widthClass="w-60" widthPx={240}>
                               <div className="space-y-1.5">
                                 {prioOptions.map(opt => (
@@ -3019,9 +3019,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       const respActive = filters.responsibleList.length > 0;
                       const respCount = filters.responsibleList.length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[150px] ${respActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[150px] border-y border-slate-300/90 dark:border-slate-800 ${respActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
-                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Responsável</span>
+                            <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Responsável</span>
                             <TableColumnFilter label="Responsável" isActive={respActive} activeCount={respCount}>
                               <ResponsibleFilterPanel
                                 tasks={tasks}
@@ -3051,9 +3051,9 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         { value: TaskStatus.CONCLUIDA, label: 'Concluída', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
                       ];
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[130px] ${statActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[130px] border-y border-slate-300/90 dark:border-slate-800 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
-                            <span className="truncate text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">Status</span>
+                            <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Status</span>
                             <TableColumnFilter label="Status" isActive={statActive} activeCount={statCount} widthClass="w-60" widthPx={240}>
                               <div className="space-y-1.5">
                                 {statOptions.map(opt => (
@@ -3088,21 +3088,21 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       );
                     })()}
 
-                    <th className="px-6 py-4 w-[80px]"></th>
+                    <th className="px-6 py-4 w-[80px] rounded-r-xl border-y border-r border-slate-300/90 dark:border-slate-800"></th>
                   </tr>
 
                 </thead>
                 <tbody className="">
                   {filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400">
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm">
                         Nenhuma tarefa encontrada com os filtros selecionados.
                       </td>
                     </tr>
                   ) : (
                     filteredTasks.slice(0, MAX_RENDER_TABLE).map((task) => (
-                      <tr key={task.id} className="group relative border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-6 py-4">
+                      <tr key={task.id} className="group relative bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-sm">
+                        <td className="px-6 py-4 rounded-l-xl border-y border-l border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <div className="flex flex-col">
                             <div
                               className="font-medium text-slate-900 dark:text-white"
@@ -3181,7 +3181,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             })()}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <div className="flex flex-col gap-2">
                             <span className="font-bold text-slate-800 dark:text-slate-100 text-sm leading-snug max-w-[200px]">
                               {task.taskName}
@@ -3228,7 +3228,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <div className="flex flex-col">
                             <span className="font-medium text-slate-900 dark:text-white uppercase">{task.competence}</span>
                             {task.dueDate && (
@@ -3259,7 +3259,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <div className="flex flex-col gap-1">
                             <span className="font-semibold text-slate-700 dark:text-slate-200">
                               {TAX_REGIME_LABELS[task.taxRegime] || task.taxRegime}
@@ -3306,7 +3306,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             })()}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${task.priority === Priority.ALTA ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                             task.priority === Priority.MEDIA ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
                               'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
@@ -3314,7 +3314,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             {task.priority}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <div className="flex flex-col gap-1">
                             <span className="font-semibold text-slate-800 dark:text-slate-100 text-sm leading-snug" title={(task.responsibles && task.responsibles.length > 0) ? task.responsibles.join(', ') : task.responsible}>
                               {(task.responsibles && task.responsibles.length > 0) ? task.responsibles.join(', ') : (task.responsible || '---')}
@@ -3339,7 +3339,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             ) : null}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <div className="flex flex-col gap-1.5 items-start">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
                               task.status === TaskStatus.CONCLUIDA ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
@@ -3364,7 +3364,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                             />
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right rounded-r-xl border-y border-r border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <ActionMenu
                             task={task}
                             onStatusChange={handleStatusChange}
@@ -3379,7 +3379,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                 </tbody>
               </table>
             </div>
-          </Card>
+          </div>
         ) : (
           <div className="flex-1 overflow-x-auto overflow-y-hidden">
             <div className="flex gap-4 h-full min-w-[1400px] lg:min-w-[1000px] pb-2">

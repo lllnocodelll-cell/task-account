@@ -1897,6 +1897,25 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_member: {
+        Args: {
+          p_member_id: string
+        }
+        Returns: Json
+      }
+      admin_update_member: {
+        Args: {
+          p_client_ids?: string[]
+          p_first_name: string
+          p_last_name: string
+          p_member_id: string
+          p_new_email: string
+          p_role: string
+          p_sector_id?: string | null
+          p_sector_ids?: string[]
+        }
+        Returns: Json
+      }
       cancel_inactivated_client_tasks: { Args: { p_client_id: string }; Returns: number }
       check_client_access: { Args: { client_uuid: string }; Returns: boolean }
       check_daily_expirations: { Args: never; Returns: undefined }

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
 import { TAX_REGIME_GROUPS } from '../types';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -113,15 +113,70 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   // Deletion Modal State
   const [memberToDelete, setMemberToDelete] = useState<any>(null);
   const [deleteModalState, setDeleteModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
+  const [deleteBlockReasons, setDeleteBlockReasons] = useState<string[]>([]);
 
   const [clients, setClients] = useState<any[]>([]);
   const [clientIds, setClientIds] = useState<string[]>([]);
   const [editClientIds, setEditClientIds] = useState<string[]>([]);
 
   // Accordion state
-  const [isMembersExpanded, setIsMembersExpanded] = useState(false);
-  const [isClientsExpanded, setIsClientsExpanded] = useState(false);
+  const [isMembersExpanded, setIsMembersExpanded] = useState(true);
+  const [isClientsExpanded, setIsClientsExpanded] = useState(true);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
+
+  // Filtros de busca
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
+  const [memberSectorFilters, setMemberSectorFilters] = useState<string[]>([]);
+  const [memberStatusFilter, setMemberStatusFilter] = useState<'all' | 'Ativo' | 'Inativo'>('all');
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [clientCompanyFilters, setClientCompanyFilters] = useState<string[]>([]);
+  const [clientStatusFilter, setClientStatusFilter] = useState<'all' | 'Ativo' | 'Inativo'>('all');
+
+  // Membros internos filtrados
+  const internalMembers = useMemo(() => {
+    return members.filter(m => m.role !== 'cliente');
+  }, [members]);
+
+  const filteredMembers = useMemo(() => {
+    const term = memberSearchTerm.trim().toLowerCase();
+    return internalMembers.filter(m => {
+      const fullName = `${m.first_name || ''} ${m.last_name || ''}`.trim().toLowerCase();
+      const email = (m.email || '').trim().toLowerCase();
+      const matchName = !term || fullName.includes(term) || email.includes(term);
+
+      const matchSector = memberSectorFilters.length === 0 ||
+        (m.sector_ids && m.sector_ids.some((sid: string) => memberSectorFilters.includes(sid))) ||
+        (m.sector_id && memberSectorFilters.includes(m.sector_id));
+
+      const status = m.status || 'Ativo';
+      const matchStatus = memberStatusFilter === 'all' || status === memberStatusFilter;
+
+      return matchName && matchSector && matchStatus;
+    });
+  }, [internalMembers, memberSearchTerm, memberSectorFilters, memberStatusFilter]);
+
+  // Clientes com acesso filtrados
+  const clientMembers = useMemo(() => {
+    return members.filter(m => m.role === 'cliente');
+  }, [members]);
+
+  const filteredClients = useMemo(() => {
+    const term = clientSearchTerm.trim().toLowerCase();
+    return clientMembers.filter(m => {
+      const fullName = `${m.first_name || ''} ${m.last_name || ''}`.trim().toLowerCase();
+      const email = (m.email || '').trim().toLowerCase();
+      const matchName = !term || fullName.includes(term) || email.includes(term);
+
+      const matchCompany = clientCompanyFilters.length === 0 ||
+        (m.client_ids && m.client_ids.some((cid: string) => clientCompanyFilters.includes(cid))) ||
+        (m.client_id && clientCompanyFilters.includes(m.client_id));
+
+      const status = m.status || 'Ativo';
+      const matchStatus = clientStatusFilter === 'all' || status === clientStatusFilter;
+
+      return matchName && matchCompany && matchStatus;
+    });
+  }, [clientMembers, clientSearchTerm, clientCompanyFilters, clientStatusFilter]);
 
   useEffect(() => {
     fetchData();
@@ -133,13 +188,34 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [membersRes, sectorsRes, clientsRes] = await Promise.all([
+      const [membersRes, sectorsRes, clientsRes, profilesRes] = await Promise.all([
         supabase.from('members').select('*, sectors(name), clients(company_name)').eq('org_id', userProfile.org_id),
         supabase.from('sectors').select('*').eq('org_id', userProfile.org_id),
-        supabase.from('clients').select('id, company_name, status')
+        supabase.from('clients').select('id, company_name, status'),
+        supabase.from('profiles').select('id, email, full_name, avatar_url')
       ]);
 
-      if (membersRes.data) setMembers(membersRes.data);
+      const profilesList = profilesRes.data || [];
+
+      if (membersRes.data) {
+        const enrichedMembers = membersRes.data.map(m => {
+          const mEmail = (m.email || '').trim().toLowerCase();
+          const mFullName = `${m.first_name || ''} ${m.last_name || ''}`.trim().toLowerCase();
+
+          const matchedProfile = profilesList.find(p => {
+            const pEmail = (p.email || '').trim().toLowerCase();
+            if (pEmail && pEmail === mEmail) return true;
+            const pName = (p.full_name || '').trim().toLowerCase();
+            return pName && pName === mFullName;
+          });
+
+          return {
+            ...m,
+            avatar_url: matchedProfile?.avatar_url || null
+          };
+        });
+        setMembers(enrichedMembers);
+      }
       if (sectorsRes.data) setSectors(sectorsRes.data);
       if (clientsRes.data) setClients(clientsRes.data);
 
@@ -151,10 +227,24 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleAddMember = async () => {
-    if (!firstName || !email) {
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
+
+    if (!cleanFirstName || !email) {
       addToast('error', 'Erro', 'Nome e Email são obrigatórios');
       return;
     }
+
+    if (cleanFirstName.includes(' ') || /\s/.test(cleanFirstName)) {
+      addToast('error', 'Validação', 'Informe apenas um único nome no campo "Nome" (sem espaços).');
+      return;
+    }
+
+    if (cleanLastName && (cleanLastName.includes(' ') || /\s/.test(cleanLastName))) {
+      addToast('error', 'Validação', 'Informe apenas um único sobrenome no campo "Sobrenome" (sem espaços).');
+      return;
+    }
+
     setAdding(true);
     try {
       if (role === 'cliente' && clientIds.length === 0) {
@@ -165,8 +255,8 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
       const { data, error } = await supabase.from('members').insert({
         org_id: userProfile.org_id,
-        first_name: firstName,
-        last_name: lastName,
+        first_name: cleanFirstName,
+        last_name: cleanLastName,
         email,
         sector_id: role !== 'cliente' ? (sectorIds[0] || null) : null,
         sector_ids: role !== 'cliente' ? sectorIds : [],
@@ -237,7 +327,21 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleUpdateMember = async (id: string) => {
-    if (!editFirstName || !editEmail) return addToast('error', 'Erro', 'Nome e e-mail são obrigatórios');
+    const cleanFirstName = editFirstName.trim();
+    const cleanLastName = editLastName.trim();
+    const cleanEmail = editEmail.trim().toLowerCase();
+
+    if (!cleanFirstName || !cleanEmail) {
+      return addToast('error', 'Erro', 'Nome e e-mail são obrigatórios');
+    }
+
+    if (cleanFirstName.includes(' ') || /\s/.test(cleanFirstName)) {
+      return addToast('error', 'Validação', 'Informe apenas um único nome no campo "Nome" (sem espaços).');
+    }
+
+    if (cleanLastName && (cleanLastName.includes(' ') || /\s/.test(cleanLastName))) {
+      return addToast('error', 'Validação', 'Informe apenas um único sobrenome no campo "Sobrenome" (sem espaços).');
+    }
 
     // Otimista parcial
     const originalMembers = [...members];
@@ -245,9 +349,9 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
     setMembers(prev => prev.map(m => m.id === id ? {
       ...m,
-      first_name: editFirstName,
-      last_name: editLastName,
-      email: editEmail,
+      first_name: cleanFirstName,
+      last_name: cleanLastName,
+      email: cleanEmail,
       sector_id: editRole !== 'cliente' ? (editSectorIds[0] || null) : null,
       sector_ids: editRole !== 'cliente' ? editSectorIds : [],
       client_ids: editRole === 'cliente' ? editClientIds : [],
@@ -256,50 +360,114 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     } : m));
 
     try {
-      const { error } = await supabase
-        .from('members')
-        .update({
-          first_name: editFirstName,
-          last_name: editLastName,
-          email: editEmail,
-          sector_id: editRole !== 'cliente' ? (editSectorIds[0] || null) : null,
-          sector_ids: editRole !== 'cliente' ? editSectorIds : [],
-          client_ids: editRole === 'cliente' ? editClientIds : [],
-          role: editRole
-        })
-        .eq('id', id);
+      const { error } = await supabase.rpc('admin_update_member', {
+        p_member_id: id,
+        p_first_name: cleanFirstName,
+        p_last_name: cleanLastName,
+        p_new_email: cleanEmail,
+        p_role: editRole,
+        p_sector_id: editRole !== 'cliente' ? (editSectorIds[0] || null) : null,
+        p_sector_ids: editRole !== 'cliente' ? editSectorIds : [],
+        p_client_ids: editRole === 'cliente' ? editClientIds : []
+      });
 
       if (error) throw error;
       setEditingMemberId(null);
-      addToast('success', 'Sucesso', 'Alterações salvas!');
+      addToast('success', 'Sucesso', 'Credenciais e dados do usuário atualizados com sucesso!');
     } catch (error: any) {
+      console.error('Erro ao atualizar membro:', error);
       setMembers(originalMembers); // rollback
-      addToast('error', 'Erro', 'Erro ao atualizar: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao atualizar: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
   const initDeleteMember = async (member: any) => {
     setMemberToDelete(member);
     setDeleteModalState('checking');
+    setDeleteBlockReasons([]);
 
     try {
       const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
+      const firstName = (member.first_name || '').trim();
+      const memberEmail = (member.email || '').trim().toLowerCase();
+      const clientIds: string[] = member.client_ids || (member.client_id ? [member.client_id] : []);
 
-      const { data: tasks, error: tasksError } = await supabase
-        .from('tasks')
+      const reasons: string[] = [];
+
+      // 1. Localizar o profile do membro/cliente
+      const { data: profile } = await (supabase
+        .from('profiles')
         .select('id')
-        .eq('responsible', fullName);
+        .ilike('email', memberEmail) as any)
+        .maybeSingle();
 
-      if (tasksError) throw tasksError;
+      const userId = profile?.id;
 
-      if (tasks && tasks.length > 0) {
+      // 2. Trava de Tarefas (responsible / responsibles)
+      const taskQueries: any[] = [
+        supabase.from('tasks').select('id').eq('responsible', fullName).limit(1),
+        supabase.from('tasks').select('id').contains('responsibles', [fullName]).limit(1)
+      ];
+
+      if (firstName && firstName !== fullName) {
+        taskQueries.push(
+          supabase.from('tasks').select('id').eq('responsible', firstName).limit(1),
+          supabase.from('tasks').select('id').contains('responsibles', [firstName]).limit(1)
+        );
+      }
+
+      // 3. Trava de Atendimentos no Chat
+      const chatQueries: any[] = [];
+      if (userId) {
+        chatQueries.push(
+          supabase.from('chat_channel_members').select('id').eq('user_id', userId).limit(1),
+          supabase.from('chat_messages').select('id').eq('sender_id', userId).limit(1),
+          supabase.from('chat_channels').select('id').eq('created_by', userId).limit(1)
+        );
+      }
+
+      // 4. Trava de Documentos na Área do Cliente
+      const docQueries: any[] = [];
+      if (userId) {
+        docQueries.push(
+          (supabase as any).from('client_document_logs').select('id').eq('user_id', userId).limit(1)
+        );
+      }
+      if (clientIds.length > 0) {
+        docQueries.push(
+          (supabase as any).from('client_documents').select('id').in('client_id', clientIds).limit(1)
+        );
+      }
+
+      const [taskResults, chatResults, docResults] = await Promise.all([
+        Promise.all(taskQueries),
+        Promise.all(chatQueries),
+        Promise.all(docQueries)
+      ]);
+
+      const hasTasks = taskResults.some(res => res.data && res.data.length > 0);
+      const hasChat = chatResults.some(res => res.data && res.data.length > 0);
+      const hasDocs = docResults.some(res => res.data && res.data.length > 0);
+
+      if (hasTasks) {
+        reasons.push('Possui tarefas vinculadas no módulo de Tarefas.');
+      }
+      if (hasChat) {
+        reasons.push('Possui canais, atendimentos ou mensagens registradas no módulo de Chat.');
+      }
+      if (hasDocs) {
+        reasons.push('Possui documentos adicionados ou protocolos de leitura registrados na Área do Cliente.');
+      }
+
+      if (reasons.length > 0) {
+        setDeleteBlockReasons(reasons);
         setDeleteModalState('cannot_delete');
       } else {
         setDeleteModalState('can_delete');
       }
     } catch (error: any) {
       console.error('Erro ao buscar dependências do membro:', error);
-      addToast('error', 'Erro', 'Erro ao verificar tarefas: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao verificar dependências: ' + error.message);
       setDeleteModalState('closed');
       setMemberToDelete(null);
     }
@@ -310,11 +478,15 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setDeleteModalState('deleting');
 
     try {
-      const { error } = await supabase.from('members').delete().eq('id', memberToDelete.id);
+      const { error } = await supabase.rpc('admin_delete_member', {
+        p_member_id: memberToDelete.id
+      });
       if (error) throw error;
       setMembers(members.filter(m => m.id !== memberToDelete.id));
+      addToast('success', 'Sucesso', 'Membro e credenciais de acesso excluídos com sucesso');
     } catch (error: any) {
-      addToast('error', 'Erro', 'Erro ao excluir membro: ' + error.message);
+      console.error('Erro ao excluir membro:', error);
+      addToast('error', 'Erro', 'Erro ao excluir membro: ' + (error.message || 'Erro desconhecido'));
     } finally {
       setDeleteModalState('closed');
       setMemberToDelete(null);
@@ -349,8 +521,18 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
           <div className="overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end pt-4">
-              <Input label="Nome" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="João" />
-              <Input label="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Silva" />
+              <Input 
+                label="Nome" 
+                value={firstName} 
+                onChange={e => setFirstName(e.target.value.replace(/\s+/g, ''))} 
+                placeholder="João" 
+              />
+              <Input 
+                label="Sobrenome (opcional)" 
+                value={lastName} 
+                onChange={e => setLastName(e.target.value.replace(/\s+/g, ''))} 
+                placeholder="Silva" 
+              />
               <Input label="E-mail" value={email} onChange={e => setEmail(e.target.value)} placeholder="joao@empresa.com" type="email" autoComplete="new-password" />
               <Select
                 label="Nível de Permissão"
@@ -412,7 +594,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             </div>
             <div className="flex items-center gap-3">
               <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
-                {members.filter(m => m.role !== 'cliente').length}
+                {(memberSearchTerm || memberSectorFilters.length > 0 || memberStatusFilter !== 'all') ? `${filteredMembers.length}/${internalMembers.length}` : internalMembers.length}
               </span>
               <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isMembersExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
                 {isMembersExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -423,7 +605,80 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           <div className={`grid transition-all duration-300 ease-in-out ${isMembersExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
             <div className="overflow-hidden">
               <div className="space-y-3 pt-4">
-                {members.filter(m => m.role !== 'cliente').map(member => (
+                {/* Filtros de Membros */}
+                <div className="bg-slate-50/80 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nome ou e-mail..."
+                        value={memberSearchTerm}
+                        onChange={(e) => setMemberSearchTerm(e.target.value)}
+                        className="w-full h-10 pl-9 pr-7 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+                      />
+                      {memberSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setMemberSearchTerm('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          title="Limpar busca"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <MultiSelect
+                        placeholder="Filtrar por setores..."
+                        value={memberSectorFilters}
+                        onChange={setMemberSectorFilters}
+                        options={sectors.map(s => ({ value: s.id, label: s.name }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Filtro Rápido de Situação */}
+                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] text-slate-400 font-medium mr-1">Situação:</span>
+                      {(['all', 'Ativo', 'Inativo'] as const).map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setMemberStatusFilter(st)}
+                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md transition-all ${
+                            memberStatusFilter === st
+                              ? st === 'Inativo'
+                                ? 'bg-rose-500 text-white shadow-sm'
+                                : st === 'Ativo'
+                                ? 'bg-emerald-500 text-white shadow-sm'
+                                : 'bg-indigo-600 text-white shadow-sm'
+                              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {st === 'all' ? 'Todos' : st === 'Ativo' ? 'Ativos' : 'Inativos'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(memberSearchTerm || memberSectorFilters.length > 0 || memberStatusFilter !== 'all') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMemberSearchTerm('');
+                          setMemberSectorFilters([]);
+                          setMemberStatusFilter('all');
+                        }}
+                        className="text-indigo-600 dark:text-indigo-400 hover:underline text-[11px] font-semibold flex items-center gap-1"
+                      >
+                        <X size={12} /> Limpar filtros
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {filteredMembers.map(member => (
                   <MemberCard 
                     key={member.id} 
                     member={member} 
@@ -446,9 +701,11 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     addToast={addToast}
                   />
                 ))}
-                {members.filter(m => m.role !== 'cliente').length === 0 && (
+                {filteredMembers.length === 0 && (
                   <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                    <p className="text-sm text-slate-500">Nenhum membro cadastrado.</p>
+                    <p className="text-sm text-slate-500">
+                      {internalMembers.length === 0 ? 'Nenhum membro cadastrado.' : 'Nenhum membro encontrado com os filtros selecionados.'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -475,7 +732,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             </div>
             <div className="flex items-center gap-3">
               <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
-                {members.filter(m => m.role === 'cliente').length}
+                {(clientSearchTerm || clientCompanyFilters.length > 0 || clientStatusFilter !== 'all') ? `${filteredClients.length}/${clientMembers.length}` : clientMembers.length}
               </span>
               <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isClientsExpanded ? 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
                 {isClientsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -486,7 +743,83 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           <div className={`grid transition-all duration-300 ease-in-out ${isClientsExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
             <div className="overflow-hidden">
               <div className="space-y-3 pt-4">
-                {members.filter(m => m.role === 'cliente').map(member => (
+                {/* Filtros de Clientes */}
+                <div className="bg-slate-50/80 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nome ou e-mail..."
+                        value={clientSearchTerm}
+                        onChange={(e) => setClientSearchTerm(e.target.value)}
+                        className="w-full h-10 pl-9 pr-7 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+                      />
+                      {clientSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setClientSearchTerm('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          title="Limpar busca"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <MultiSelect
+                        placeholder="Filtrar por empresas..."
+                        value={clientCompanyFilters}
+                        onChange={setClientCompanyFilters}
+                        options={clients.map((c: any) => ({
+                          value: c.id,
+                          label: `${c.company_name} ${c.status !== 'Ativo' ? '(Inativa)' : ''}`
+                        }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Filtro Rápido de Situação */}
+                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] text-slate-400 font-medium mr-1">Situação:</span>
+                      {(['all', 'Ativo', 'Inativo'] as const).map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setClientStatusFilter(st)}
+                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md transition-all ${
+                            clientStatusFilter === st
+                              ? st === 'Inativo'
+                                ? 'bg-rose-500 text-white shadow-sm'
+                                : st === 'Ativo'
+                                ? 'bg-emerald-500 text-white shadow-sm'
+                                : 'bg-emerald-600 text-white shadow-sm'
+                              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          {st === 'all' ? 'Todos' : st === 'Ativo' ? 'Ativos' : 'Inativos'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(clientSearchTerm || clientCompanyFilters.length > 0 || clientStatusFilter !== 'all') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientSearchTerm('');
+                          setClientCompanyFilters([]);
+                          setClientStatusFilter('all');
+                        }}
+                        className="text-emerald-600 dark:text-emerald-400 hover:underline text-[11px] font-semibold flex items-center gap-1"
+                      >
+                        <X size={12} /> Limpar filtros
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {filteredClients.map(member => (
                   <MemberCard 
                     key={member.id} 
                     member={member} 
@@ -509,9 +842,11 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     addToast={addToast}
                   />
                 ))}
-                {members.filter(m => m.role === 'cliente').length === 0 && (
+                {filteredClients.length === 0 && (
                   <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                    <p className="text-sm text-slate-500">Nenhum cliente com acesso liberado.</p>
+                    <p className="text-sm text-slate-500">
+                      {clientMembers.length === 0 ? 'Nenhum cliente com acesso liberado.' : 'Nenhum cliente encontrado com os filtros selecionados.'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -541,7 +876,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                           onClick={confirmDeleteMember}
                           className="bg-red-600 hover:bg-red-700 text-white"
                       >
-                          Excluir Membro
+                          {memberToDelete?.role === 'cliente' ? 'Excluir Cliente' : 'Excluir Membro'}
                       </Button>
                   </>
               ) : deleteModalState === 'deleting' ? (
@@ -559,35 +894,56 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           {deleteModalState === 'checking' && (
               <div className="flex flex-col items-center justify-center py-6 text-slate-500 dark:text-slate-400">
                   <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-600" />
-                  <p>Verificando dependências do membro...</p>
+                  <p className="text-sm font-medium">Verificando histórico e dependências jurídicas...</p>
               </div>
           )}
 
           {deleteModalState === 'cannot_delete' && (
-              <div className="py-4 text-slate-700 dark:text-slate-300">
-                  <div className="flex items-center gap-3 mb-4 text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-500/10 p-4 rounded-lg">
-                      <ListFilter className="w-6 h-6 shrink-0" />
-                      <p className="font-medium">
-                          Não é possível excluir <strong>{memberToDelete?.first_name} {memberToDelete?.last_name}</strong>.
+              <div className="py-2 text-slate-700 dark:text-slate-300 space-y-4">
+                  <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200/70 dark:border-amber-500/20 p-4 rounded-xl">
+                      <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                          <p className="font-bold text-amber-950 dark:text-amber-200 text-sm">
+                              Exclusão bloqueada para {memberToDelete?.first_name} {memberToDelete?.last_name}
+                          </p>
+                          <p className="text-xs text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+                              Para garantir a segurança jurídica, conformidade e preservação de histórico do escritório, a exclusão permanente foi bloqueada porque esta credencial possui vínculos ativos:
+                          </p>
+                      </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                          Vínculos Identificados:
+                      </p>
+                      <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                          {deleteBlockReasons.map((reason, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                  <span className="text-amber-500 font-bold mt-0.5">•</span>
+                                  <span>{reason}</span>
+                              </li>
+                          ))}
+                      </ul>
+                  </div>
+
+                  <div className="p-3 bg-indigo-50/70 dark:bg-indigo-500/10 rounded-xl border border-indigo-100 dark:border-indigo-500/20 text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
+                      <p className="font-bold text-indigo-950 dark:text-indigo-200">
+                          💡 Recomendação do Sistema:
+                      </p>
+                      <p className="leading-relaxed">
+                          Altere a Situação da credencial para <strong>Inativo</strong> no switch do card. O usuário perderá o acesso instantaneamente e todo o histórico jurídico, de chat e de auditoria será preservado.
                       </p>
                   </div>
-                  <p>
-                      Este membro possui <strong>tarefas vinculadas</strong> no módulo de Tarefas.
-                      Para manter o histórico íntegro, a exclusão sistêmica foi bloqueada.
-                  </p>
-                  <p className="mt-4 text-sm text-slate-500">
-                      Caso ele não faça mais parte da equipe, recomendamos alterar a Situação dele para <strong>Inativo</strong> no switch do card.
-                  </p>
               </div>
           )}
 
           {deleteModalState === 'can_delete' && (
-              <div className="py-4 text-slate-700 dark:text-slate-300">
+              <div className="py-4 text-slate-700 dark:text-slate-300 space-y-3">
                   <p>
-                      Você tem certeza que deseja excluir permanentemente o membro <strong>{memberToDelete?.first_name} {memberToDelete?.last_name}</strong>?
+                      Você tem certeza que deseja excluir permanentemente o cadastro de <strong>{memberToDelete?.first_name} {memberToDelete?.last_name}</strong>?
                   </p>
-                  <p className="mt-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded border border-red-100 dark:border-red-900/50">
-                      Esta ação é irreversível. O membro perderá o acesso e todos os dados serão apagados.
+                  <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg border border-red-100 dark:border-red-900/50">
+                      Esta ação é irreversível. A credencial e o acesso do usuário serão revogados definitivamente.
                   </p>
               </div>
           )}
@@ -611,6 +967,8 @@ const MemberCard: React.FC<any> = ({
   clients,
   addToast
 }) => {
+  const [imgError, setImgError] = useState(false);
+
   const {
     editFirstName, setEditFirstName,
     editLastName, setEditLastName,
@@ -624,18 +982,27 @@ const MemberCard: React.FC<any> = ({
     return (
       <div className="bg-white dark:bg-slate-900 border border-indigo-500 p-4 rounded-xl shadow-lg space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Nome" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} />
-          <Input label="Sobrenome" value={editLastName} onChange={e => setEditLastName(e.target.value)} />
+          <Input 
+            label="Nome" 
+            value={editFirstName} 
+            onChange={e => setEditFirstName(e.target.value.replace(/\s+/g, ''))} 
+          />
+          <Input 
+            label="Sobrenome (opcional)" 
+            value={editLastName} 
+            onChange={e => setEditLastName(e.target.value.replace(/\s+/g, ''))} 
+          />
         </div>
         <Input label="E-mail" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
         <Select
           label="Permissão"
           value={editRole}
           onChange={e => setEditRole(e.target.value)}
-          options={[
+          options={member.role === 'cliente' ? [
+            { value: 'cliente', label: 'Cliente (Portal)' }
+          ] : [
             { value: 'operacional', label: 'Operacional' },
-            { value: 'gestor', label: 'Gestor' },
-            { value: 'cliente', label: 'Cliente' }
+            { value: 'gestor', label: 'Gestor' }
           ]}
         />
         {editRole === 'cliente' ? (
@@ -670,9 +1037,18 @@ const MemberCard: React.FC<any> = ({
     <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold uppercase shrink-0 ${member.role === 'cliente' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600'}`}>
-            {member.first_name?.[0]}{member.last_name?.[0]}
-          </div>
+          {member.avatar_url && !imgError ? (
+            <img 
+              src={member.avatar_url} 
+              alt={`${member.first_name} ${member.last_name}`}
+              onError={() => setImgError(true)}
+              className="w-12 h-12 rounded-full object-cover shrink-0 border border-slate-200 dark:border-slate-700 shadow-sm"
+            />
+          ) : (
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold uppercase shrink-0 ${member.role === 'cliente' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600'}`}>
+              {member.first_name?.[0]}{member.last_name?.[0]}
+            </div>
+          )}
           <div className="min-w-0">
             <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate">
               {member.first_name} {member.last_name}
@@ -690,23 +1066,40 @@ const MemberCard: React.FC<any> = ({
                 <div className="flex flex-wrap items-center gap-1 mt-0.5">
                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center mr-1">🏢</span>
                   {member.client_ids && member.client_ids.length > 0 ? (
-                    member.client_ids.map((cid: string) => {
-                      const foundClient = clients.find((c: any) => c.id === cid);
-                      const isInactive = foundClient && foundClient.status !== 'Ativo';
-                      const clientName = foundClient ? foundClient.company_name : 'Desconhecida';
-                      return (
-                        <span 
-                          key={cid} 
-                          className={`text-[9px] px-1.5 py-0.5 rounded font-bold border truncate max-w-[120px] ${
-                            isInactive 
-                              ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-100 dark:border-rose-500/20' 
-                              : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20'
-                          }`}
+                    <>
+                      {member.client_ids.slice(0, 2).map((cid: string) => {
+                        const foundClient = clients.find((c: any) => c.id === cid);
+                        const isInactive = foundClient && foundClient.status !== 'Ativo';
+                        const clientName = foundClient ? foundClient.company_name : 'Desconhecida';
+                        return (
+                          <span 
+                            key={cid} 
+                            className={`text-[9px] px-1.5 py-0.5 rounded font-bold border truncate max-w-[130px] ${
+                              isInactive 
+                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-100 dark:border-rose-500/20' 
+                                : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20'
+                            }`}
+                            title={clientName}
+                          >
+                            {clientName}{isInactive && ' (Inativa)'}
+                          </span>
+                        );
+                      })}
+                      {member.client_ids.length > 2 && (
+                        <Tooltip 
+                          content={
+                            member.client_ids.slice(2).map((cid: string) => {
+                              const foundClient = clients.find((c: any) => c.id === cid);
+                              return foundClient ? foundClient.company_name : 'Empresa';
+                            }).join(', ')
+                          }
                         >
-                          {clientName}{isInactive && ' (Inativa)'}
-                        </span>
-                      );
-                    })
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-black border bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 cursor-help">
+                            +{member.client_ids.length - 2} {member.client_ids.length - 2 === 1 ? 'empresa' : 'empresas'}
+                          </span>
+                        </Tooltip>
+                      )}
+                    </>
                   ) : (
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Nenhuma empresa vinculada</span>
                   )}
@@ -714,18 +1107,33 @@ const MemberCard: React.FC<any> = ({
               ) : (member.sector_ids && member.sector_ids.length > 0) ? (
                 <div className="flex flex-wrap items-center gap-1 mt-0.5">
                   <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center mr-1">📁</span>
-                  {member.sector_ids.map((sid: string) => {
+                  {member.sector_ids.slice(0, 2).map((sid: string) => {
                     const foundSector = sectors.find((s: any) => s.id === sid);
                     const sectorName = foundSector ? foundSector.name : 'Desconhecido';
                     return (
                       <span 
                         key={sid} 
-                        className="text-[9px] px-1.5 py-0.5 rounded font-bold border truncate max-w-[120px] bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20"
+                        className="text-[9px] px-1.5 py-0.5 rounded font-bold border truncate max-w-[130px] bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20"
+                        title={sectorName}
                       >
                         {sectorName}
                       </span>
                     );
                   })}
+                  {member.sector_ids.length > 2 && (
+                    <Tooltip 
+                      content={
+                        member.sector_ids.slice(2).map((sid: string) => {
+                          const foundSector = sectors.find((s: any) => s.id === sid);
+                          return foundSector ? foundSector.name : 'Setor';
+                        }).join(', ')
+                      }
+                    >
+                      <span className="text-[9px] px-1.5 py-0.5 rounded font-black border bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 cursor-help">
+                        +{member.sector_ids.length - 2} {member.sector_ids.length - 2 === 1 ? 'setor' : 'setores'}
+                      </span>
+                    </Tooltip>
+                  )}
                 </div>
               ) : member.sectors?.name && (
                 <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
