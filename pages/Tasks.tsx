@@ -2680,7 +2680,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       const clientActive = !!(filters.clientName || filters.clientDocument || filters.clientCity || filters.clientState);
                       const clientCount = [filters.clientName, filters.clientDocument, filters.clientCity, filters.clientState].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[200px] rounded-l-xl border-y border-l border-slate-300/90 dark:border-slate-800 ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[200px] rounded-tl-2xl rounded-bl-xl border-t-[3px] border-b border-l border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Cliente</span>
                             <TableColumnFilter label="Cliente" isActive={clientActive} activeCount={clientCount}>
@@ -2727,7 +2727,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       const tarefaActive = !!(filters.taskName || filters.noMovement || filters.hasTag);
                       const tarefaCount = [filters.taskName, filters.noMovement ? 'x' : '', filters.hasTag ? 'x' : ''].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[180px] border-y border-slate-300/90 dark:border-slate-800 ${tarefaActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[180px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${tarefaActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Tarefa</span>
                             <TableColumnFilter label="Tarefa" isActive={tarefaActive} activeCount={tarefaCount}>
@@ -2777,7 +2777,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         filters.recurrence ? 'r' : ''
                       ].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[130px] border-y border-slate-300/90 dark:border-slate-800 ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[130px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Período</span>
                             <TableColumnFilter label="Período" isActive={periodActive} activeCount={periodCount}>
@@ -2891,7 +2891,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       const regimeActive = !!(filters.taxRegime || filters.selectedAnnex || filters.exceededSublimit || filters.notifiedExclusion);
                       const regimeCount = [filters.taxRegime, filters.selectedAnnex, filters.exceededSublimit ? 'x' : '', filters.notifiedExclusion ? 'x' : ''].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[200px] border-y border-slate-300/90 dark:border-slate-800 ${regimeActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${regimeActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Regime</span>
                             <TableColumnFilter label="Regime" isActive={regimeActive} activeCount={regimeCount}>
@@ -2977,7 +2977,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         { value: 'Baixa', label: 'Baixa', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
                       ];
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[120px] border-y border-slate-300/90 dark:border-slate-800 ${prioActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[120px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${prioActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Prioridade</span>
                             <TableColumnFilter label="Prioridade" isActive={prioActive} activeCount={prioCount} widthClass="w-60" widthPx={240}>
@@ -3019,7 +3019,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       const respActive = filters.responsibleList.length > 0;
                       const respCount = filters.responsibleList.length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[150px] border-y border-slate-300/90 dark:border-slate-800 ${respActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[150px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${respActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Responsável</span>
                             <TableColumnFilter label="Responsável" isActive={respActive} activeCount={respCount}>
@@ -3051,7 +3051,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                         { value: TaskStatus.CONCLUIDA, label: 'Concluída', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
                       ];
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[130px] border-y border-slate-300/90 dark:border-slate-800 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[130px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Status</span>
                             <TableColumnFilter label="Status" isActive={statActive} activeCount={statCount} widthClass="w-60" widthPx={240}>
@@ -3088,7 +3088,7 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
                       );
                     })()}
 
-                    <th className="px-6 py-4 w-[80px] rounded-r-xl border-y border-r border-slate-300/90 dark:border-slate-800"></th>
+                    <th className="px-6 py-4 w-[80px] rounded-tr-2xl rounded-br-xl border-t-[3px] border-b border-r border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600"></th>
                   </tr>
 
                 </thead>

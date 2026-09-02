@@ -734,7 +734,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const codeActive = !!filters.code;
                                             const codeCount = codeActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[100px] rounded-l-xl border-y border-l border-slate-300/90 dark:border-slate-800 ${codeActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[100px] rounded-tl-2xl rounded-bl-xl border-t-[3px] border-b border-l border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${codeActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Código</span>
                                                         <TableColumnFilter label="Código" isActive={codeActive} activeCount={codeCount}>
@@ -755,7 +755,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const nameActive = !!filters.companyName;
                                             const nameCount = nameActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[200px] border-y border-slate-300/90 dark:border-slate-800 ${nameActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${nameActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Razão Social</span>
                                                         <TableColumnFilter label="Razão Social" isActive={nameActive} activeCount={nameCount}>
@@ -776,7 +776,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const docActive = !!filters.document;
                                             const docCount = docActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[160px] border-y border-slate-300/90 dark:border-slate-800 ${docActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[160px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${docActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">CPF/CNPJ</span>
                                                         <TableColumnFilter label="CPF/CNPJ" isActive={docActive} activeCount={docCount}>
@@ -797,7 +797,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const contactActive = !!filters.contactName;
                                             const contactCount = contactActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[150px] border-y border-slate-300/90 dark:border-slate-800 ${contactActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[150px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${contactActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Contato</span>
                                                         <TableColumnFilter label="Contato" isActive={contactActive} activeCount={contactCount}>
@@ -818,7 +818,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const fixedActive = !!filters.phoneFixed;
                                             const fixedCount = fixedActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[140px] border-y border-slate-300/90 dark:border-slate-800 ${fixedActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[140px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${fixedActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Fixo</span>
                                                         <TableColumnFilter label="Fixo" isActive={fixedActive} activeCount={fixedCount}>
@@ -839,7 +839,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const mobileActive = !!filters.phoneMobile;
                                             const mobileCount = mobileActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[140px] border-y border-slate-300/90 dark:border-slate-800 ${mobileActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[140px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${mobileActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Celular</span>
                                                         <TableColumnFilter label="Celular" isActive={mobileActive} activeCount={mobileCount}>
@@ -860,7 +860,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const emailActive = !!filters.email;
                                             const emailCount = emailActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[200px] border-y border-slate-300/90 dark:border-slate-800 ${emailActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${emailActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">E-mail</span>
                                                         <TableColumnFilter label="E-mail" isActive={emailActive} activeCount={emailCount}>
@@ -886,7 +886,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 { value: 'Prospecto',  label: 'Prospecto',  color: 'bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' },
                                             ];
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[120px] rounded-r-xl border-y border-r border-slate-300/90 dark:border-slate-800 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[120px] rounded-tr-2xl rounded-br-xl border-t-[3px] border-b border-r border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Situação</span>
                                                         <TableColumnFilter label="Situação" isActive={statActive} activeCount={statCount}>

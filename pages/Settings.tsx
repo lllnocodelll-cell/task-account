@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
 import { TAX_REGIME_GROUPS } from '../types';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -561,7 +561,12 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   label="Setores Vinculados"
                   value={sectorIds}
                   onChange={setSectorIds}
-                  options={sectors.map(s => ({ value: s.id, label: s.name }))}
+                  options={sectors
+                    .filter((s: any) => s.status !== 'Inativo' || sectorIds.includes(s.id))
+                    .map((s: any) => ({ 
+                      value: s.id, 
+                      label: s.status !== 'Inativo' ? s.name : `${s.name} (Inativo)` 
+                    }))}
                 />
               )}
               <div className="md:col-span-1">
@@ -633,7 +638,12 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                         placeholder="Filtrar por setores..."
                         value={memberSectorFilters}
                         onChange={setMemberSectorFilters}
-                        options={sectors.map(s => ({ value: s.id, label: s.name }))}
+                        options={sectors
+                          .filter((s: any) => s.status !== 'Inativo' || memberSectorFilters.includes(s.id))
+                          .map((s: any) => ({ 
+                            value: s.id, 
+                            label: s.status !== 'Inativo' ? s.name : `${s.name} (Inativo)` 
+                          }))}
                       />
                     </div>
                   </div>
@@ -1022,7 +1032,12 @@ const MemberCard: React.FC<any> = ({
             label="Setores Vinculados"
             value={editSectorIds}
             onChange={setEditSectorIds}
-            options={sectors.map((s: any) => ({ value: s.id, label: s.name }))}
+            options={sectors
+              .filter((s: any) => s.status !== 'Inativo' || editSectorIds.includes(s.id))
+              .map((s: any) => ({ 
+                value: s.id, 
+                label: s.status !== 'Inativo' ? s.name : `${s.name} (Inativo)` 
+              }))}
           />
         )}
         <div className="flex gap-2">
@@ -1193,6 +1208,12 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [importing, setImporting] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
 
+  // Search and Filter states for Sectors
+  const [sectorSearchTerm, setSectorSearchTerm] = useState('');
+  const [sectorIdsFilter, setSectorIdsFilter] = useState<string[]>([]);
+  const [sectorStatusFilter, setSectorStatusFilter] = useState<'all' | 'Ativo' | 'Inativo'>('all');
+  const [sectorChatFilter, setSectorChatFilter] = useState<'all' | 'available' | 'unavailable'>('all');
+
   // Form
   const [name, setName] = useState('');
   const [leader, setLeader] = useState('');
@@ -1209,6 +1230,19 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   // Deletion Modal State
   const [sectorToDelete, setSectorToDelete] = useState<any>(null);
   const [deleteSectorModalState, setDeleteSectorModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
+
+  // Inactivation Modal State
+  const [inactivateSectorModalState, setInactivateSectorModalState] = useState<{
+    isOpen: boolean;
+    sector: any | null;
+    memberCount: number;
+    loading: boolean;
+  }>({
+    isOpen: false,
+    sector: null,
+    memberCount: 0,
+    loading: false
+  });
 
   useEffect(() => {
     fetchSectors();
@@ -1298,24 +1332,94 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleToggleSectorStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'Ativo' ? 'Inativo' : 'Ativo';
+    const targetSector = sectors.find(s => s.id === id);
+    if (!targetSector) return;
+
+    const isCurrentlyActive = currentStatus !== 'Inativo';
+
+    // Se o setor está ATIVO e o usuário deseja INATIVAR:
+    if (isCurrentlyActive) {
+      try {
+        const { data: membersList } = await supabase
+          .from('members')
+          .select('id, sector_id, sector_ids')
+          .eq('org_id', userProfile.org_id);
+
+        const linkedMembers = (membersList || []).filter((m: any) =>
+          m.sector_id === id || (Array.isArray(m.sector_ids) && m.sector_ids.includes(id))
+        );
+
+        if (linkedMembers.length > 0) {
+          setInactivateSectorModalState({
+            isOpen: true,
+            sector: targetSector,
+            memberCount: linkedMembers.length,
+            loading: false
+          });
+          return;
+        }
+      } catch (err) {
+        console.error('Erro ao verificar membros vinculados ao setor:', err);
+      }
+    }
+
+    await executeSectorStatusUpdate(id, isCurrentlyActive ? 'Inativo' : 'Ativo');
+  };
+
+  const executeSectorStatusUpdate = async (id: string, newStatus: string) => {
+    const targetSector = sectors.find(s => s.id === id);
+    const wasChatAvailable = targetSector?.chat_available !== false;
+    const shouldDisableChat = newStatus === 'Inativo' && wasChatAvailable;
+
+    const updatePayload: any = { status: newStatus };
+    if (shouldDisableChat) {
+      updatePayload.chat_available = false;
+    }
 
     // Otimista
-    setSectors(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
+    setSectors(prev => prev.map(s => s.id === id ? {
+      ...s,
+      status: newStatus,
+      chat_available: shouldDisableChat ? false : s.chat_available
+    } : s));
 
     try {
       const { error } = await supabase
         .from('sectors')
-        .update({ status: newStatus })
+        .update(updatePayload)
         .eq('id', id);
 
       if (error) throw error;
+
+      if (newStatus === 'Inativo') {
+        addToast(
+          'info',
+          'Setor Inativado',
+          shouldDisableChat
+            ? 'Setor inativado e chat do cliente desabilitado automaticamente.'
+            : 'Setor inativado. Lembre-se de reatribuir os membros vinculados na aba Credenciais se necessário.'
+        );
+      } else {
+        addToast('success', 'Setor Ativado', 'Setor reativado com sucesso.');
+      }
     } catch (error: any) {
       console.error('Erro ao atualizar status do setor:', error);
-      // Reverte se der erro
-      setSectors(prev => prev.map(s => s.id === id ? { ...s, status: currentStatus } : s));
-      alert('Erro ao atualizar situação do setor: ' + (error.message || 'Erro desconhecido'));
+      const prevStatus = newStatus === 'Inativo' ? 'Ativo' : 'Inativo';
+      setSectors(prev => prev.map(s => s.id === id ? {
+        ...s,
+        status: prevStatus,
+        chat_available: targetSector?.chat_available
+      } : s));
+      addToast('error', 'Erro', 'Erro ao atualizar situação do setor: ' + (error.message || 'Erro desconhecido'));
     }
+  };
+
+  const confirmInactivation = async () => {
+    if (!inactivateSectorModalState.sector) return;
+    const sectorId = inactivateSectorModalState.sector.id;
+    setInactivateSectorModalState(prev => ({ ...prev, loading: true }));
+    await executeSectorStatusUpdate(sectorId, 'Inativo');
+    setInactivateSectorModalState({ isOpen: false, sector: null, memberCount: 0, loading: false });
   };
 
   const handleToggleSectorChatAvailability = async (id: string, currentChatAvailable: boolean) => {
@@ -1338,6 +1442,28 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       alert('Erro ao atualizar disponibilidade de chat do setor: ' + (error.message || 'Erro desconhecido'));
     }
   };
+
+  // Filter logic for Sectors
+  const filteredSectors = sectors.filter(sector => {
+    const searchLower = sectorSearchTerm.toLowerCase().trim();
+    const matchesSearch = !searchLower || (
+      (sector.name && sector.name.toLowerCase().includes(searchLower)) ||
+      (sector.leader && sector.leader.toLowerCase().includes(searchLower)) ||
+      (sector.cost_center && sector.cost_center.toLowerCase().includes(searchLower))
+    );
+
+    const matchesSectorIds = sectorIdsFilter.length === 0 || sectorIdsFilter.includes(sector.id);
+
+    const matchesStatus = sectorStatusFilter === 'all' || (
+      sectorStatusFilter === 'Ativo' ? sector.status !== 'Inativo' : sector.status === 'Inativo'
+    );
+
+    const matchesChat = sectorChatFilter === 'all' || (
+      sectorChatFilter === 'available' ? sector.chat_available === true : sector.chat_available === false
+    );
+
+    return matchesSearch && matchesSectorIds && matchesStatus && matchesChat;
+  });
 
   const startEditing = (sector: any) => {
     setEditingSectorId(sector.id);
@@ -1485,8 +1611,136 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         </div>
       </div>
 
+      {/* Barra de Filtros de Setores */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
+        {/* Linha Superior: Busca textual e MultiSelect de Setores */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+          {/* Busca por Nome, Líder ou Centro de Custo */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por setor, líder ou centro de custo..."
+              value={sectorSearchTerm}
+              onChange={(e) => setSectorSearchTerm(e.target.value)}
+              className="w-full h-10 pl-9 pr-8 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+            />
+            {sectorSearchTerm && (
+              <button
+                type="button"
+                onClick={() => setSectorSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                title="Limpar busca"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* MultiSelect de Setores */}
+          <div>
+            <MultiSelect
+              placeholder="Filtrar por setores..."
+              value={sectorIdsFilter}
+              onChange={setSectorIdsFilter}
+              options={sectors.map((s: any) => ({
+                value: s.id,
+                label: s.status === 'Inativo' ? `${s.name} (Inativo)` : s.name
+              }))}
+            />
+          </div>
+        </div>
+
+        {/* Linha Inferior: Filtros em estilo Pílula para Situação e Chat do Cliente */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Filtro por Situação (Status) */}
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mr-1 uppercase tracking-wider">Situação:</span>
+              {[
+                { id: 'all', label: 'Todos' },
+                { id: 'Ativo', label: 'Ativos' },
+                { id: 'Inativo', label: 'Inativos' }
+              ].map(st => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setSectorStatusFilter(st.id as any)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${
+                    sectorStatusFilter === st.id
+                      ? st.id === 'Inativo'
+                        ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/20'
+                        : st.id === 'Ativo'
+                        ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                        : 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700/60'
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Filtro por Chat do Cliente */}
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mr-1 uppercase tracking-wider">Chat do Cliente:</span>
+              {[
+                { id: 'all', label: 'Todos' },
+                { id: 'available', label: 'Disponíveis' },
+                { id: 'unavailable', label: 'Indisponíveis' }
+              ].map(ch => (
+                <button
+                  key={ch.id}
+                  type="button"
+                  onClick={() => setSectorChatFilter(ch.id as any)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${
+                    sectorChatFilter === ch.id
+                      ? ch.id === 'available'
+                        ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                        : ch.id === 'unavailable'
+                        ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/20'
+                        : 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700/60'
+                  }`}
+                >
+                  {ch.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Contador & Limpar Filtros */}
+          <div className="flex items-center gap-2 self-end lg:self-auto">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              {filteredSectors.length} de {sectors.length} setores
+            </span>
+            {(sectorSearchTerm || sectorIdsFilter.length > 0 || sectorStatusFilter !== 'all' || sectorChatFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSectorSearchTerm('');
+                  setSectorIdsFilter([]);
+                  setSectorStatusFilter('all');
+                  setSectorChatFilter('all');
+                }}
+                className="p-1 text-xs text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg font-bold transition-all flex items-center gap-1"
+                title="Limpar todos os filtros"
+              >
+                <X size={14} /> Limpar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sectors.map(sector => (
+        {filteredSectors.length === 0 ? (
+          <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+            <Briefcase size={36} className="mb-3 opacity-40 stroke-1" />
+            <p className="text-sm font-semibold">Nenhum setor encontrado com os filtros aplicados.</p>
+          </div>
+        ) : (
+          filteredSectors.map(sector => (
           <div 
             key={sector.id} 
             className={`group relative bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-5 ${
@@ -1630,7 +1884,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   
                   <div className="flex items-center justify-between text-[10px] font-bold text-slate-300 dark:text-slate-600 border-t border-slate-100/50 dark:border-slate-800/30 pt-2">
                     <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                      {sector.chat_available !== false ? 'Disponível no Chat' : 'Indisponível no Chat'}
+                      {sector.chat_available !== false ? 'Disponível no Chat do Cliente' : 'Indisponível no Chat do Cliente'}
                     </span>
                     <div className="flex items-center gap-1 group-hover:text-indigo-500/50 transition-colors">
                       <Blocks size={12} />
@@ -1641,7 +1895,8 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               </div>
             )}
           </div>
-        ))}
+        ))
+      )}
       </div>
 
       {/* Modal de Exclusão de Setor */}
@@ -1717,11 +1972,158 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           )}
       </Modal>
 
+      {/* Modal de Confirmação e Orientação ao Inativar Setor */}
+      <Modal
+        isOpen={inactivateSectorModalState.isOpen}
+        onClose={() => {
+          if (!inactivateSectorModalState.loading) {
+            setInactivateSectorModalState({ isOpen: false, sector: null, memberCount: 0, loading: false });
+          }
+        }}
+        title="Orientação ao Inativar Setor"
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setInactivateSectorModalState({ isOpen: false, sector: null, memberCount: 0, loading: false })}
+              disabled={inactivateSectorModalState.loading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              onClick={confirmInactivation}
+              disabled={inactivateSectorModalState.loading}
+              className="bg-amber-600 hover:bg-amber-700 text-white border-transparent"
+            >
+              {inactivateSectorModalState.loading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="animate-spin w-4 h-4" />
+                  Inativando...
+                </span>
+              ) : (
+                'Confirmar Inativação'
+              )}
+            </Button>
+          </>
+        }
+      >
+        <div className="py-2 text-slate-700 dark:text-slate-300 space-y-4">
+          <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 p-4 rounded-xl text-amber-900 dark:text-amber-300">
+            <ShieldAlert className="w-6 h-6 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+            <div>
+              <h4 className="font-bold text-sm">
+                Inativar setor "{inactivateSectorModalState.sector?.name}"?
+              </h4>
+              <p className="text-xs mt-1 leading-relaxed text-amber-800 dark:text-amber-300/90">
+                Este setor possui <strong className="font-bold">{inactivateSectorModalState.memberCount} membro(s)</strong> vinculado(s) no módulo de Credenciais.
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/60 dark:border-slate-800 space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
+            <span className="font-black uppercase tracking-wider text-[10px] text-slate-400 block mb-1">
+              Orientações para o Gestor:
+            </span>
+            <div className="flex items-start gap-2">
+              <span className="text-indigo-500 font-bold">•</span>
+              <span><strong>Novos chamados e cadastros:</strong> Não poderão mais selecionar este setor para aberturas de atendimento ou atribuição.</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-indigo-500 font-bold">•</span>
+              <span><strong>Atendimentos em andamento:</strong> Continuam visíveis para a equipe concluir os chamados ativos.</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-indigo-500 font-bold">•</span>
+              <span><strong>Recomendação de reatribuição:</strong> Acesse a aba <strong className="text-indigo-600 dark:text-indigo-400">Credenciais</strong> para vincular os colaboradores a um novo setor ativo caso este tenha sido substituído.</span>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 };
 
-// ------------------- TASK TYPE SETTINGS -------------------
+// ------------------- TASK TYPE SETTINGS & SUGGESTIONS -------------------
+
+const SUGGESTED_TASK_TYPES = [
+  // #Apuração de Impostos
+  { name: 'AP. PGDAS', sectorName: 'Fiscal', entity: 'Federal', dueDay: 20, nonWorkingAction: 'postergar' },
+  { name: 'AP. DASMEI', sectorName: 'Fiscal', entity: 'Federal', dueDay: 20, nonWorkingAction: 'postergar' },
+  { name: 'AP. ISSQN', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'postergar' },
+  { name: 'AP. ISSQN FIXO', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'postergar' },
+  { name: 'AP. PIS e COFINS', sectorName: 'Fiscal', entity: 'Federal', dueDay: 25, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IRPJ e CSLL', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IRPJ e CSLL Quota Mensal', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IPI', sectorName: 'Fiscal', entity: 'Federal', dueDay: 25, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IBS e CBS', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IBS', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'AP. CBS', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IS - Imposto Seletivo', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'AP. ICMS', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'AP. ICMS-ST RPA', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'AP. ICMS-ST SIMPLES', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'AP. DIFAL Entradas', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'AP. DIFAL Saídas', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IRRF E CSRF Tomados', sectorName: 'Fiscal', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IMP. RETIDOS Tomados', sectorName: 'Fiscal', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'AP. IRRF Dividendos', sectorName: 'Fiscal', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'AP. FOLHA PAGTO', sectorName: 'Folha', entity: 'Federal', dueDay: 5, nonWorkingAction: 'antecipar' },
+  { name: 'AP. FGTS', sectorName: 'Folha', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'AP. INSS Patronal', sectorName: 'Folha', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'TFE', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'antecipar' },
+  { name: 'TFA', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'antecipar' },
+  { name: 'TRSS', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'antecipar' },
+  { name: 'TFE, TFL E TRSS', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'antecipar' },
+  { name: 'Balanço Patrimonial', sectorName: 'Contábil', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'DRE', sectorName: 'Contábil', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'DFC', sectorName: 'Contábil', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'Contribuição Sindical', sectorName: 'Folha', entity: 'Estadual', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'Relatórios', sectorName: 'Fiscal', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'Parcelamentos', sectorName: 'Fiscal', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'Abertura de Empresa', sectorName: 'Societário', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'Alteração de Contrato', sectorName: 'Societário', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'Distrato Social', sectorName: 'Societário', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'Licenças e Alvarás', sectorName: 'Societário', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'Vigilância Sanitária', sectorName: 'Societário', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'CND FEDERAL', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'CND ESTADUAL', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'CND MUNICIPAL', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'CERTIDÃO NEGATIVA', sectorName: 'Fiscal', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'REGULARIZAÇÃO TRIBUTÁRIA', sectorName: 'Fiscal', entity: 'Outro', dueDay: 30, nonWorkingAction: 'manter' },
+
+  // #Obrigações Acessórias
+  { name: 'Sped ICMS/IPI', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'EFD Contribuições', sectorName: 'Fiscal', entity: 'Federal', dueDay: 15, nonWorkingAction: 'antecipar' },
+  { name: 'MIT', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'Reinf', sectorName: 'Fiscal', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'DCTFWeb', sectorName: 'Fiscal', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'DCTF Mensal', sectorName: 'Fiscal', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'eSocial', sectorName: 'Folha', entity: 'Federal', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'FGTS Digital', sectorName: 'Folha', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DMED', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DIMOB', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DIRF', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DIRB', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DERE', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DSUP', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'ECD', sectorName: 'Contábil', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'ECF', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DEFIS', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DASN-MEI', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'DESTDA', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 28, nonWorkingAction: 'antecipar' },
+  { name: 'GIA SP', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'GIA ST', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'DAPI MG', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 8, nonWorkingAction: 'antecipar' },
+  { name: 'DIME SC', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'DIPAM', sectorName: 'Fiscal', entity: 'Estadual', dueDay: 20, nonWorkingAction: 'antecipar' },
+  { name: 'eFinanceira', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'antecipar' },
+  { name: 'GISSONLINE', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'antecipar' },
+  { name: 'PDCOMP', sectorName: 'Fiscal', entity: 'Federal', dueDay: 30, nonWorkingAction: 'manter' },
+  { name: 'ISS DIGITAL', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'manter' }
+];
 
 const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const { addToast } = useToast();
@@ -1730,6 +2132,16 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
+
+  // Drawer & Suggestion States
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedSuggestedNames, setSelectedSuggestedNames] = useState<string[]>([]);
+  const [drawerSearchTerm, setDrawerSearchTerm] = useState('');
+  const [importingSuggested, setImportingSuggested] = useState(false);
+
+  // Main List Filters
+  const [taskTypeSearchTerm, setTaskTypeSearchTerm] = useState('');
+  const [taskTypeSectorFilter, setTaskTypeSectorFilter] = useState('');
 
   // Form
   const [name, setName] = useState('');
@@ -1876,6 +2288,109 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       addToast('error', 'Erro', 'Erro ao atualizar tarefa: ' + error.message);
     }
   };
+  // Filtered Task Types for Main List
+  const filteredTaskTypes = taskTypes.filter(task => {
+    const searchLower = taskTypeSearchTerm.toLowerCase().trim();
+    const matchesSearch = !searchLower || (
+      task.name.toLowerCase().includes(searchLower) ||
+      (task.federative_entity && task.federative_entity.toLowerCase().includes(searchLower))
+    );
+    const matchesSector = !taskTypeSectorFilter || task.sector_id === taskTypeSectorFilter;
+    return matchesSearch && matchesSector;
+  });
+
+  // Existing task names set for drawer badge detection
+  const existingTaskNamesSet = useMemo(() => {
+    return new Set(taskTypes.map(t => (t.name || '').toLowerCase().trim()));
+  }, [taskTypes]);
+
+  const openSuggestedTasksDrawer = () => {
+    // Pre-select suggested tasks that do NOT exist yet
+    const newNames = SUGGESTED_TASK_TYPES
+      .filter(t => !existingTaskNamesSet.has(t.name.toLowerCase().trim()))
+      .map(t => t.name);
+
+    setSelectedSuggestedNames(newNames);
+    setDrawerSearchTerm('');
+    setIsDrawerOpen(true);
+  };
+
+  const toggleTaskSelection = (name: string) => {
+    setSelectedSuggestedNames(prev => 
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    );
+  };
+
+  const toggleSectorSelection = (tasksInSector: typeof SUGGESTED_TASK_TYPES, select: boolean) => {
+    const sectorNames = tasksInSector.map(t => t.name);
+    if (select) {
+      setSelectedSuggestedNames(prev => Array.from(new Set([...prev, ...sectorNames])));
+    } else {
+      setSelectedSuggestedNames(prev => prev.filter(n => !sectorNames.includes(n)));
+    }
+  };
+
+  const selectAllSuggested = () => {
+    setSelectedSuggestedNames(SUGGESTED_TASK_TYPES.map(t => t.name));
+  };
+
+  const deselectAllSuggested = () => {
+    setSelectedSuggestedNames([]);
+  };
+
+  const handleImportSelectedTasks = async () => {
+    if (selectedSuggestedNames.length === 0) {
+      return addToast('error', 'Erro', 'Selecione pelo menos uma tarefa para importar.');
+    }
+
+    setImportingSuggested(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Map sector names to sector IDs in database
+      const sectorNameToIdMap = new Map<string, string>();
+      sectors.forEach((s: any) => {
+        if (s.name) sectorNameToIdMap.set(s.name.toLowerCase().trim(), s.id);
+      });
+
+      const selectedTasksToImport = SUGGESTED_TASK_TYPES.filter(t => selectedSuggestedNames.includes(t.name));
+
+      const payload = selectedTasksToImport.map(t => ({
+        org_id: userProfile.org_id,
+        name: t.name,
+        sector_id: sectorNameToIdMap.get(t.sectorName.toLowerCase().trim()) || null,
+        federative_entity: t.entity,
+        due_day: t.dueDay,
+        non_working_day_action: t.nonWorkingAction
+      }));
+
+      const { data, error } = await supabase
+        .from('task_types')
+        .insert(payload)
+        .select('*, sectors(name)');
+
+      if (error) throw error;
+
+      if (data) {
+        const enriched = data.map((item: any) => {
+          if (!item.sectors && item.sector_id) {
+            const sec = sectors.find(s => s.id === item.sector_id);
+            if (sec) item.sectors = { name: sec.name };
+          }
+          return item;
+        });
+
+        setTaskTypes(prev => [...prev, ...enriched]);
+        addToast('success', 'Sucesso', `${data.length} tipos de tarefa importados com sucesso!`);
+        setIsDrawerOpen(false);
+      }
+    } catch (error: any) {
+      addToast('error', 'Erro', 'Erro ao importar tarefas: ' + error.message);
+    } finally {
+      setImportingSuggested(false);
+    }
+  };
 
   if (loading) return <Loader2 className="animate-spin" />;
 
@@ -1897,8 +2412,21 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
             </div>
           </div>
-          <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
-            {isFormExpanded ? <ChevronUp size={16} /> : <SquarePlus size={16} />}
+          <div className="flex items-center gap-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Sparkles size={16} className="text-indigo-500" />}
+              onClick={(e) => {
+                e.stopPropagation();
+                openSuggestedTasksDrawer();
+              }}
+            >
+              Sugerir Tarefas Padrão
+            </Button>
+            <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
+              {isFormExpanded ? <ChevronUp size={16} /> : <SquarePlus size={16} />}
+            </div>
           </div>
         </div>
 
@@ -1947,13 +2475,78 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         </div>
       </div>
 
+      {/* Barra de Filtros de Tipos de Tarefa */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-center">
+          {/* Busca por Nome */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nome da tarefa..."
+              value={taskTypeSearchTerm}
+              onChange={(e) => setTaskTypeSearchTerm(e.target.value)}
+              className="w-full h-10 pl-9 pr-8 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+            />
+            {taskTypeSearchTerm && (
+              <button
+                type="button"
+                onClick={() => setTaskTypeSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                title="Limpar busca"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
+          {/* Filtro por Setor */}
+          <div>
+            <Select
+              value={taskTypeSectorFilter}
+              onChange={(e) => setTaskTypeSectorFilter(e.target.value)}
+              options={[
+                { value: '', label: 'Todos os Setores' },
+                ...sectors.map((s: any) => ({ value: s.id, label: s.name }))
+              ]}
+            />
+          </div>
+
+          {/* Contador & Limpar */}
+          <div className="flex items-center justify-between sm:justify-end gap-3 sm:col-span-2 lg:col-span-1">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              {filteredTaskTypes.length} de {taskTypes.length} tarefas
+            </span>
+            {(taskTypeSearchTerm || taskTypeSectorFilter) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTaskTypeSearchTerm('');
+                  setTaskTypeSectorFilter('');
+                }}
+                className="p-1 text-xs text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg font-bold transition-all flex items-center gap-1"
+                title="Limpar filtros"
+              >
+                <X size={14} /> Limpar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {taskTypes.map(task => {
+        {filteredTaskTypes.length === 0 ? (
+          <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+            <LayoutList size={36} className="mb-3 opacity-40 stroke-1" />
+            <p className="text-sm font-semibold">Nenhum tipo de tarefa encontrado com os filtros aplicados.</p>
+          </div>
+        ) : (
+          filteredTaskTypes.map(task => {
           // Entity-specific Icon and Styling
           const getEntityConfig = (entity: string) => {
             switch (entity) {
               case 'Municipal': return { icon: MapPin, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-100 dark:border-emerald-500/20' };
-              case 'Estadual': return { icon: Map, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-100 dark:border-amber-500/20' };
+              case 'Estadual': return { icon: MapIcon, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-100 dark:border-amber-500/20' };
               case 'Federal': return { icon: Globe, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10', border: 'border-indigo-100 dark:border-indigo-500/20' };
               default: return { icon: HelpCircle, color: 'text-slate-500', bg: 'bg-slate-50 dark:bg-slate-500/10', border: 'border-slate-100 dark:border-slate-500/20' };
             }
@@ -2000,7 +2593,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                       ]}
                     />
                     <div className="grid grid-cols-2 gap-3">
-                      <Input label="Venc. (dia)" value={editDueDay} onChange={e => setEditDueDay(e.target.value)} type="number" />
+                      <Input label="Vencimento (dia)" value={editDueDay} onChange={e => setEditDueDay(e.target.value)} type="number" min="1" max="31" />
                       <Select
                         label="Dia não útil"
                         value={editNonWorkingAction}
@@ -2008,76 +2601,71 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                         options={[
                           { value: 'antecipar', label: 'Antecipar' },
                           { value: 'prorrogar', label: 'Prorrogar' },
-                          { value: 'nao_se_aplica', label: 'Ponto' }
+                          { value: 'nao_se_aplica', label: 'Não se aplica' }
                         ]}
                       />
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="secondary" size="sm" onClick={cancelEditing}>Cancelar</Button>
-                    <Button variant="primary" size="sm" onClick={() => handleUpdateTaskType(task.id)} icon={<Save size={16} />}>Salvar</Button>
+                  <div className="flex items-center gap-2 pt-2">
+                    <Button size="sm" onClick={() => handleUpdateTaskType(task.id)} icon={<Check size={16} />} className="flex-1">Salvar</Button>
+                    <Button size="sm" variant="secondary" onClick={cancelEditing} icon={<X size={16} />}>Sair</Button>
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col h-full">
-                  {/* Ações Fixas */}
-                  <div className="absolute top-4 right-4 translate-x-1 -translate-y-1">
-                    <Tooltip content="Editar Tipo de Tarefa">
-                      <button
-                        onClick={() => startEditing(task)}
-                        className="p-2 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-all"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                    </Tooltip>
-                  </div>
-
-                  {/* Cabeçalho */}
-                  <div className="mb-4 pr-8">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`p-1.5 rounded-lg ${entityCfg.bg} ${entityCfg.color} border ${entityCfg.border}`}>
-                        <EntityIcon size={14} />
+                <div className="flex-1 flex flex-col justify-between">
+                  <div>
+                    {/* Header do Card */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-2 rounded-xl border ${entityCfg.bg} ${entityCfg.border}`}>
+                          <EntityIcon size={18} className={entityCfg.color} />
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${entityCfg.bg} ${entityCfg.color} ${entityCfg.border}`}>
+                          {task.federative_entity || 'Geral'}
+                        </span>
                       </div>
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${entityCfg.color}`}>
-                        {task.federative_entity || 'Outro'}
-                      </span>
+
+                      {/* Botão de Editar e Status */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => startEditing(task)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
+                          title="Editar Tipo"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                      </div>
                     </div>
-                    <h4 className="font-bold text-slate-900 dark:text-white leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+
+                    {/* Nome da Tarefa */}
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-3 leading-snug">
                       {task.name}
-                    </h4>
-                  </div>
+                    </h3>
 
-                  {/* Informações Principais */}
-                  <div className="space-y-3 mb-6">
-                    {/* Badge do Setor */}
-                    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <SectorIcon size={12} className="text-slate-400" />
-                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                        {task.sectors?.name || 'Setor não definido'}
-                      </span>
+                    {/* Meta informações */}
+                    <div className="space-y-2 text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      {task.sectors?.name && (
+                        <div className="flex items-center gap-2">
+                          <SectorIcon size={14} className="text-slate-400 shrink-0" />
+                          <span className="truncate">Setor: <strong className="text-slate-700 dark:text-slate-200">{task.sectors.name}</strong></span>
+                        </div>
+                      )}
+
+                      {task.due_day && (
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-slate-400 shrink-0" />
+                          <span>Vencimento: dia <strong className="text-slate-700 dark:text-slate-200">{task.due_day}</strong></span>
+                        </div>
+                      )}
+
+                      {task.non_working_day_action && (
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} className="text-slate-400 shrink-0" />
+                          <span className="capitalize">Dia não útil: <strong className="text-slate-700 dark:text-slate-200">{task.non_working_day_action.replace('_', ' ')}</strong></span>
+                        </div>
+                      )}
                     </div>
-
-                    {/* Regra de Vencimento */}
-                    {task.due_day && (
-                      <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Clock size={14} className="text-indigo-500" />
-                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Vencimento</span>
-                          </div>
-                          <div className="px-2 py-0.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-                            <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">Dia {task.due_day}</span>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-1.5 opacity-80">
-                          <Activity size={10} className="text-slate-400" />
-                          <span className="text-[10px] font-semibold text-slate-500">
-                            Regra: <span className="text-indigo-600 dark:text-indigo-500 uppercase">{task.non_working_day_action === 'antecipar' ? 'Antecipar' : task.non_working_day_action === 'prorrogar' ? 'Prorrogar' : 'Manter'}</span>
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Rodapé */}
@@ -2103,8 +2691,198 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               )}
             </div>
           );
-        })}
+        })
+        )}
       </div>
+
+      {/* Drawer de Sugestão de Tarefas */}
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden animate-in fade-in duration-200">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => { if (!importingSuggested) setIsDrawerOpen(false); }}
+          />
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-2xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col justify-between">
+              
+              {/* Header do Drawer */}
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 space-y-3 shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-400">
+                      <Sparkles size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-900 dark:text-white text-base leading-tight">
+                        Sugestão de Tipos de Tarefa
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Selecione as obrigações contábeis que deseja adicionar ao seu escritório.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDrawerOpen(false)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Busca e Seleção Global */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                  <div className="relative flex-1">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar obrigação por nome ou ente..."
+                      value={drawerSearchTerm}
+                      onChange={(e) => setDrawerSearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    />
+                    {drawerSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => setDrawerSearchTerm('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={selectAllSuggested}
+                      className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1"
+                    >
+                      Marcar Todas ({SUGGESTED_TASK_TYPES.length})
+                    </button>
+                    <span className="text-slate-300 dark:text-slate-700">•</span>
+                    <button
+                      type="button"
+                      onClick={deselectAllSuggested}
+                      className="text-[11px] font-bold text-slate-500 hover:underline px-2 py-1"
+                    >
+                      Desmarcar Todas
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Corpo do Drawer Agrupado por Setor */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                {['Fiscal', 'Folha', 'Contábil', 'Societário'].map((secName) => {
+                  const tasksInSector = SUGGESTED_TASK_TYPES.filter(t => t.sectorName === secName);
+                  const matchingTasks = tasksInSector.filter(t =>
+                    !drawerSearchTerm.trim() ||
+                    t.name.toLowerCase().includes(drawerSearchTerm.toLowerCase().trim()) ||
+                    t.entity.toLowerCase().includes(drawerSearchTerm.toLowerCase().trim())
+                  );
+
+                  if (matchingTasks.length === 0) return null;
+
+                  const allSectorSelected = matchingTasks.every(t => selectedSuggestedNames.includes(t.name));
+
+                  return (
+                    <div key={secName} className="bg-slate-50/50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 p-4 space-y-3">
+                      {/* Setor Header */}
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                          <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                            Setor {secName}
+                          </h4>
+                          <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
+                            ({matchingTasks.length} obrigações)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleSectorSelection(matchingTasks, !allSectorSelected)}
+                          className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 px-2.5 py-1 rounded-lg transition-colors"
+                        >
+                          {allSectorSelected ? 'Desmarcar Setor' : 'Marcar Todos do Setor'}
+                        </button>
+                      </div>
+
+                      {/* Item Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {matchingTasks.map((t) => {
+                          const isSelected = selectedSuggestedNames.includes(t.name);
+                          const alreadyExists = existingTaskNamesSet.has(t.name.toLowerCase().trim());
+
+                          return (
+                            <div
+                              key={t.name}
+                              onClick={() => toggleTaskSelection(t.name)}
+                              className={`group relative p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
+                                isSelected
+                                  ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm'
+                                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    {t.name}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                                    Venc: dia {t.dueDay} • {t.entity}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {alreadyExists && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 shrink-0">
+                                  Já cadastrada
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Rodapé Fixo */}
+              <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {selectedSuggestedNames.length} tarefas selecionadas
+                </span>
+
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setIsDrawerOpen(false)}
+                    disabled={importingSuggested}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleImportSelectedTasks}
+                    disabled={importingSuggested || selectedSuggestedNames.length === 0}
+                    icon={importingSuggested ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                  >
+                    {importingSuggested ? 'Importando...' : `Importar ${selectedSuggestedNames.length} Selecionadas`}
+                  </Button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -2121,6 +2899,39 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [holidayToDelete, setHolidayToDelete] = useState<any | null>(null);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
+
+  // Search and Filter states
+  const [holidaySearchTerm, setHolidaySearchTerm] = useState('');
+  const [holidayStartDateFilter, setHolidayStartDateFilter] = useState('');
+  const [holidayEndDateFilter, setHolidayEndDateFilter] = useState('');
+  const [holidayTypeFilter, setHolidayTypeFilter] = useState<'all' | 'Nacional' | 'Estadual' | 'Municipal' | 'Facultativo'>('all');
+
+  // Edit Holiday State (Inline Overlay pattern)
+  const [editingHolidayId, setEditingHolidayId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState('Nacional');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const handleStartDateChange = (val: string) => {
+    setHolidayStartDateFilter(val);
+    if (val) {
+      const selectedYear = parseInt(val.split('-')[0], 10);
+      if (selectedYear && !isNaN(selectedYear) && selectedYear !== year) {
+        setYear(selectedYear);
+      }
+    }
+  };
+
+  const handleEndDateChange = (val: string) => {
+    setHolidayEndDateFilter(val);
+    if (val) {
+      const selectedYear = parseInt(val.split('-')[0], 10);
+      if (selectedYear && !isNaN(selectedYear) && selectedYear !== year) {
+        setYear(selectedYear);
+      }
+    }
+  };
 
   // Form
   const [date, setDate] = useState('');
@@ -2158,6 +2969,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       if (data) {
         setHolidays([...holidays, ...data]);
         setName(''); setDate('');
+        addToast('success', 'Sucesso', 'Feriado cadastrado com sucesso!');
       }
     } catch (e: any) { addToast('error', 'Erro', e.message); }
     finally { setAdding(false); }
@@ -2166,6 +2978,54 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const handleDelete = (holiday: any) => {
     setHolidayToDelete(holiday);
     setIsDeleteModalOpen(true);
+  };
+
+  const startEditingHoliday = (holiday: any) => {
+    setEditingHolidayId(holiday.id);
+    setEditDate(holiday.date || '');
+    setEditName(holiday.name || '');
+    setEditType(holiday.type || 'Nacional');
+  };
+
+  const cancelEditingHoliday = () => {
+    setEditingHolidayId(null);
+    setEditDate('');
+    setEditName('');
+    setEditType('Nacional');
+  };
+
+  const handleSaveEdit = async (holidayId: string) => {
+    if (!editDate || !editName) {
+      return addToast('error', 'Erro', 'Data e Descrição são obrigatórias.');
+    }
+
+    setSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from('holidays')
+        .update({
+          date: editDate,
+          name: editName,
+          type: editType
+        })
+        .eq('id', holidayId);
+
+      if (error) throw error;
+
+      setHolidays(prev => prev.map(h => h.id === holidayId ? {
+        ...h,
+        date: editDate,
+        name: editName,
+        type: editType
+      } : h));
+
+      addToast('success', 'Sucesso', 'Feriado atualizado com sucesso!');
+      cancelEditingHoliday();
+    } catch (error: any) {
+      addToast('error', 'Erro', 'Erro ao atualizar feriado: ' + error.message);
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -2232,14 +3092,57 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
   };
 
-  // Filter keys by year
-  const filteredHolidays = holidays.filter(h => h.date && h.date.startsWith(String(year)));
+  // Filter keys by year & search criteria
+  const yearHolidays = holidays.filter(h => h.date && h.date.startsWith(String(year)));
+
+  const filteredHolidays = yearHolidays.filter(h => {
+    const matchesSearch = !holidaySearchTerm.trim() || h.name.toLowerCase().includes(holidaySearchTerm.toLowerCase().trim());
+    const matchesType = holidayTypeFilter === 'all' || h.type === holidayTypeFilter;
+
+    let matchesDateRange = true;
+    if (holidayStartDateFilter && h.date < holidayStartDateFilter) {
+      matchesDateRange = false;
+    }
+    if (holidayEndDateFilter && h.date > holidayEndDateFilter) {
+      matchesDateRange = false;
+    }
+
+    return matchesSearch && matchesType && matchesDateRange;
+  });
+
   const sortedHolidays = [...filteredHolidays].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const getHolidayBadgeStyle = (type: string) => {
+    switch (type) {
+      case 'Nacional':
+        return {
+          badge: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-500/30',
+          gradient: 'from-indigo-500 to-blue-600 text-white shadow-indigo-500/20 dark:shadow-none'
+        };
+      case 'Estadual':
+        return {
+          badge: 'bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200/60 dark:border-sky-500/30',
+          gradient: 'from-sky-500 to-cyan-600 text-white shadow-sky-500/20 dark:shadow-none'
+        };
+      case 'Municipal':
+        return {
+          badge: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-500/30',
+          gradient: 'from-emerald-500 to-teal-600 text-white shadow-emerald-500/20 dark:shadow-none'
+        };
+      case 'Facultativo':
+      default:
+        return {
+          badge: 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-500/30',
+          gradient: 'from-amber-500 to-orange-600 text-white shadow-amber-500/20 dark:shadow-none'
+        };
+    }
+  };
 
   if (loading) return <Loader2 className="animate-spin" />;
 
   return (
     <div className="space-y-8">
+      {/* Bloco de Adicionar / Importar Feriados */}
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div 
           className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 cursor-pointer group/header"
@@ -2279,7 +3182,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             <div className="pt-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <Input label="Data" type="date" value={date} onChange={e => setDate(e.target.value)} />
-                <Input label="Descrição" placeholder="Ex: Aniversário" className="md:col-span-2" value={name} onChange={e => setName(e.target.value)} />
+                <Input label="Descrição" placeholder="Ex: Aniversário da Cidade" className="md:col-span-2" value={name} onChange={e => setName(e.target.value)} />
                 <Select label="Tipo" value={type} onChange={e => setType(e.target.value)} options={[
                   { value: 'Nacional', label: 'Nacional' },
                   { value: 'Estadual', label: 'Estadual' },
@@ -2297,72 +3200,286 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
-          <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-            <Calendar size={18} className="text-indigo-600 dark:text-indigo-400" />
-            Feriados de {year}
-          </h4>
-          <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 p-1">
+      {/* Lista de Feriados Redesenhada em Grid */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden transition-all">
+        {/* Header com Titulo e Seletor de Ano */}
+        <div className="p-4 md:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-400 shrink-0">
+              <Calendar size={20} />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-900 dark:text-white text-base leading-tight flex items-center gap-2">
+                Feriados de {year}
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
+                  {yearHolidays.length} cadastrados
+                </span>
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Dias não úteis considerados nos prazos das tarefas mensais.
+              </p>
+            </div>
+          </div>
+
+          {/* Seletor de Ano */}
+          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-1 shadow-sm shrink-0 self-start md:self-auto">
             <button
+              type="button"
               onClick={() => setYear(year - 1)}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 dark:text-slate-400"
+              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+              title="Ano anterior"
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="text-sm font-semibold px-2 min-w-[3rem] text-center">{year}</span>
+            <span className="text-xs font-black px-3 text-slate-800 dark:text-slate-100 tracking-wider">
+              {year}
+            </span>
             <button
+              type="button"
               onClick={() => setYear(year + 1)}
-              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 dark:text-slate-400"
+              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+              title="Próximo ano"
             >
               <ChevronRight size={16} />
             </button>
           </div>
         </div>
-        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+
+        {/* Barra de Filtros e Busca */}
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 max-w-xl">
+            {/* Campo de Busca por nome */}
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar feriado por nome..."
+                value={holidaySearchTerm}
+                onChange={(e) => setHolidaySearchTerm(e.target.value)}
+                className="w-full pl-9 pr-8 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
+              />
+              {holidaySearchTerm && (
+                <button
+                  onClick={() => setHolidaySearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white p-0.5"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Filtro por Intervalo de Datas (De / Até) */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 shrink-0 bg-slate-50/80 dark:bg-slate-950/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
+              <div className="flex items-center px-1.5">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mr-1.5 uppercase tracking-wider shrink-0">De:</span>
+                <input
+                  type="date"
+                  value={holidayStartDateFilter}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  className="w-full sm:w-auto px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 dark:[color-scheme:dark] transition-all cursor-pointer shadow-sm"
+                  title="Data Inicial"
+                />
+              </div>
+              <div className="flex items-center px-1.5">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mr-1.5 uppercase tracking-wider shrink-0">Até:</span>
+                <input
+                  type="date"
+                  value={holidayEndDateFilter}
+                  onChange={(e) => handleEndDateChange(e.target.value)}
+                  className="w-full sm:w-auto px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 dark:[color-scheme:dark] transition-all cursor-pointer shadow-sm"
+                  title="Data Final"
+                />
+              </div>
+              {(holidayStartDateFilter || holidayEndDateFilter) && (
+                <button
+                  onClick={() => { setHolidayStartDateFilter(''); setHolidayEndDateFilter(''); }}
+                  className="p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shrink-0 self-center"
+                  title="Limpar intervalo de datas"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Filtro Rápido por Tipo */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
+            {[
+              { id: 'all', label: 'Todos' },
+              { id: 'Nacional', label: 'Nacionais' },
+              { id: 'Estadual', label: 'Estaduais' },
+              { id: 'Municipal', label: 'Municipais' },
+              { id: 'Facultativo', label: 'Facultativos' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setHolidayTypeFilter(tab.id as any)}
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all whitespace-nowrap ${
+                  holidayTypeFilter === tab.id
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Grid de Cards Compactos */}
+        <div className="p-4 md:p-5 bg-slate-50/30 dark:bg-slate-950/40">
           {sortedHolidays.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-              Nenhum feriado cadastrado para este ano.
+            <div className="py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+              <Calendar size={32} className="mb-2 opacity-40 stroke-1" />
+              <p className="text-xs font-semibold">
+                {holidaySearchTerm || holidayTypeFilter !== 'all'
+                  ? 'Nenhum feriado encontrado com os filtros aplicados.'
+                  : `Nenhum feriado cadastrado para o ano de ${year}.`}
+              </p>
             </div>
           ) : (
-            sortedHolidays.map((h) => {
-              const dateObj = new Date(h.date + 'T12:00:00');
-              const month = dateObj.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
-              const day = dateObj.getDate();
-              const weekday = dateObj.toLocaleString('pt-BR', { weekday: 'long' });
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {sortedHolidays.map((h) => {
+                const dateObj = new Date(h.date + 'T12:00:00');
+                const month = dateObj.toLocaleString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
+                const day = dateObj.getDate();
+                const weekday = dateObj.toLocaleString('pt-BR', { weekday: 'short' }).replace('.', '');
+                const style = getHolidayBadgeStyle(h.type);
 
-              return (
-                <div key={h.id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center border shadow-sm ${h.type === 'Facultativo'
-                      ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30'
-                      : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/30'
-                      }`}>
-                      <span className="text-[10px] font-bold uppercase tracking-wider">{month.replace('.', '')}</span>
-                      <span className="text-xl font-bold leading-none">{day}</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-900 dark:text-white text-base">{h.name}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500 capitalize">{weekday}</span>
-                        <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded ${h.type === 'Facultativo' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                          }`}>
-                          {h.type}
-                        </span>
+                if (editingHolidayId === h.id) {
+                  return (
+                    <div
+                      key={h.id}
+                      className="col-span-1 sm:col-span-2 lg:col-span-1 bg-white dark:bg-slate-900 border-2 border-indigo-500 dark:border-indigo-500/80 rounded-xl p-3.5 shadow-lg shadow-indigo-500/10 flex flex-col justify-between gap-3 animate-in fade-in zoom-in-95 duration-150"
+                    >
+                      {/* Header da Edição */}
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-md text-indigo-600 dark:text-indigo-400">
+                            <Edit2 size={13} />
+                          </div>
+                          <span className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                            Editar Feriado
+                          </span>
+                        </div>
+                        <button
+                          onClick={cancelEditingHoliday}
+                          className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          title="Cancelar edição"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+
+                      {/* Formulário de Edição */}
+                      <div className="space-y-2.5">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                              Data
+                            </label>
+                            <input
+                              type="date"
+                              value={editDate}
+                              onChange={e => setEditDate(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 dark:[color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                              Tipo
+                            </label>
+                            <select
+                              value={editType}
+                              onChange={e => setEditType(e.target.value)}
+                              className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                            >
+                              <option value="Nacional">Nacional</option>
+                              <option value="Estadual">Estadual</option>
+                              <option value="Municipal">Municipal</option>
+                              <option value="Facultativo">Facultativo</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
+                            Descrição / Nome
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Aniversário da Cidade"
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Botões de Ação */}
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <Button variant="secondary" size="sm" onClick={cancelEditingHoliday} disabled={savingEdit}>
+                          Cancelar
+                        </Button>
+                        <Button variant="primary" size="sm" onClick={() => handleSaveEdit(h.id)} disabled={savingEdit} icon={savingEdit ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}>
+                          {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(h)}
-                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                    title="Remover feriado"
+                  );
+                }
+
+                return (
+                  <div
+                    key={h.id}
+                    className="group relative bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 rounded-xl p-3 shadow-sm hover:shadow-md hover:shadow-indigo-500/5 transition-all duration-200 flex items-center justify-between gap-3 min-w-0 min-h-[76px]"
                   >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              );
-            })
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Data Badge */}
+                      <div className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center font-black shrink-0 shadow-sm bg-gradient-to-br ${style.gradient}`}>
+                        <span className="text-[9px] tracking-wider uppercase leading-none opacity-90">{month}</span>
+                        <span className="text-base leading-tight mt-0.5">{day}</span>
+                      </div>
+
+                      {/* Conteúdo */}
+                      <div className="min-w-0 flex flex-col">
+                        <h5 className="font-bold text-slate-800 dark:text-slate-100 text-xs truncate leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" title={h.name}>
+                          {h.name}
+                        </h5>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 capitalize">{weekday}</span>
+                          <span className="text-[9px] text-slate-300 dark:text-slate-700">•</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${style.badge}`}>
+                            {h.type}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botões de Ação Fixos */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Tooltip content="Editar Feriado" position="top">
+                        <button
+                          onClick={() => startEditingHoliday(h)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 dark:text-slate-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Remover Feriado" position="top">
+                        <button
+                          onClick={() => handleDelete(h)}
+                          className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

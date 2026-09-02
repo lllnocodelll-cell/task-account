@@ -4572,7 +4572,7 @@ export const Chat: React.FC = () => {
                 style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0\' stroke=\'%2364748b\' stroke-width=\'2\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M19 9l-7 7-7-7\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '0.75rem' }}
               >
                 <option value="">Todos os Setores</option>
-                {sectors.map(sector => (
+                {sectors.filter(sector => sector.status !== 'Inativo').map(sector => (
                   <option key={sector.id} value={sector.id}>{sector.name}</option>
                 ))}
               </select>
@@ -6102,8 +6102,8 @@ export const Chat: React.FC = () => {
         const selectedTransferUser = profiles.find(p => p.id === transferUserId);
         const allowedSectors = selectedTransferUser 
           ? (selectedTransferUser.role === 'gestor' || !selectedTransferUser.sector_ids || selectedTransferUser.sector_ids.length === 0
-              ? sectors // Se for gestor ou não tiver setores vinculados, mostra todos
-              : sectors.filter(s => selectedTransferUser.sector_ids.includes(s.id))
+              ? sectors.filter(s => s.status !== 'Inativo')
+              : sectors.filter(s => s.status !== 'Inativo' && selectedTransferUser.sector_ids.includes(s.id))
             )
           : [];
 
@@ -6330,9 +6330,12 @@ export const Chat: React.FC = () => {
                     className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
                   >
                     <option value="">Nenhum setor específico</option>
-                    {sectors.map(sector => (
-                      <option key={sector.id} value={sector.id}>{sector.name}</option>
-                    ))}
+                    {sectors
+                      .filter(sector => sector.status !== 'Inativo')
+                      .map(sector => (
+                        <option key={sector.id} value={sector.id}>{sector.name}</option>
+                      ))
+                    }
                   </select>
                 </div>
 
