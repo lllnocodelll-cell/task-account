@@ -253,10 +253,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const hasSingleBadge = item.badge !== undefined;
 
     return (
-      <button
+      <a
         key={item.id}
-        onClick={() => setActiveTab(item.id)}
-        className={`group w-full flex justify-between items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative ${activeTab === item.id
+        href={`?tab=${item.id}`}
+        onClick={(e) => {
+          if (!e.ctrlKey && !e.metaKey && e.button === 0) {
+            e.preventDefault();
+            setActiveTab(item.id);
+          }
+        }}
+        className={`group w-full flex justify-between items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative select-none ${activeTab === item.id
           ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
           } ${isCollapsed ? 'justify-center' : ''}`}
@@ -304,9 +310,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Badges para modo expandido (Sidebar aberta) */}
         {!isCollapsed && (
-          <>
+          <div className="flex items-center gap-1 shrink-0 ml-auto">
             {hasBadges && (
-              <div className="flex items-center gap-1 shrink-0 ml-2">
+              <div className="flex items-center gap-1 shrink-0">
                 {item.badgeInternal !== undefined && (
                   <span
                     title="Mensagens internas da equipe"
@@ -340,40 +346,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {item.badge}
               </span>
             )}
-          </>
-        )}
-
-        {/* Tooltip rica ao hover no modo recolhido */}
-        {isCollapsed && (
-          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
-            <div className="flex flex-col gap-0.5">
-              <span className="font-bold">{item.label}</span>
-              {hasBadges && (
-                <div className="flex items-center gap-2 text-[10px] text-slate-300 font-normal border-t border-slate-700/80 pt-1 mt-0.5">
-                  {item.badgeInternal !== undefined && (
-                    <span className="flex items-center gap-1 text-indigo-300 font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-                      {item.badgeInternal} equipe
-                    </span>
-                  )}
-                  {item.badgeSupport !== undefined && (
-                    <span className="flex items-center gap-1 text-emerald-300 font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                      {item.badgeSupport} suporte
-                    </span>
-                  )}
-                  {item.badgeNotification !== undefined && (
-                    <span className="flex items-center gap-1 text-amber-300 font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                      {item.badgeNotification} alertas
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         )}
-      </button>
+
+        {/* Tooltip com nome do módulo ao hover no modo recolhido */}
+        {isCollapsed && (
+          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2.5 px-3 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700/80 flex items-center gap-2">
+            <span>{item.label}</span>
+            {hasBadges && (
+              <div className="flex items-center gap-1 text-[10px]">
+                {item.badgeInternal !== undefined && (
+                  <span className="px-1.5 py-0.2 bg-indigo-500 text-white rounded-full font-bold">
+                    {item.badgeInternal}
+                  </span>
+                )}
+                {item.badgeSupport !== undefined && (
+                  <span className="px-1.5 py-0.2 bg-emerald-500 text-white rounded-full font-bold">
+                    {item.badgeSupport}
+                  </span>
+                )}
+                {item.badgeNotification !== undefined && (
+                  <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full font-bold">
+                    {item.badgeNotification}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </a>
     );
   };
 

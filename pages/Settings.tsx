@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
 import { TAX_REGIME_GROUPS } from '../types';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
@@ -1200,13 +1201,48 @@ const MemberCard: React.FC<any> = ({
 
 // ------------------- SECTOR SETTINGS -------------------
 
+const SUGGESTED_SECTORS = [
+  { name: 'Contábil', costCenter: '1.01 - Contábil', description: 'Escrituração contábil, conciliações, balancetes e demonstrações financeiras.' },
+  { name: 'Fiscal', costCenter: '1.02 - Fiscal', description: 'Apuração de tributos municipais, estaduais e federais, SPEDs e guias.' },
+  { name: 'Folha', costCenter: '1.03 - Folha', description: 'Admissões, rescisões, eSocial, folha de pagamento e encargos trabalhistas.' },
+  { name: 'Societário', costCenter: '1.04 - Societário', description: 'Aberturas, alterações contratuais, encerramentos, alvarás e certidões.' },
+  { name: 'Financeiro', costCenter: '2.01 - Financeiro', description: 'Gestão de contas a pagar, contas a receber, faturamento e fluxo de caixa.' },
+  { name: 'Comercial', costCenter: '2.02 - Comercial', description: 'Prospecção, onboarding de clientes, propostas comerciais e contratos.' },
+  { name: 'Consultoria', costCenter: '2.03 - Consultoria', description: 'Planejamento tributário, valuation, controladoria e assessoria de negócios.' },
+  { name: 'Auditoria', costCenter: '3.01 - Auditoria', description: 'Revisão de processos contábeis/fiscais e compliance normativo.' },
+  { name: 'Qualidade', costCenter: '3.02 - Qualidade', description: 'Padronização de rotinas, gestão de SLAs e manuais operacionais.' },
+  { name: 'Tecnologia', costCenter: '3.03 - TI', description: 'Infraestrutura de TI, automação de rotinas, integrações e segurança.' },
+  { name: 'Administrativo', costCenter: '3.04 - Administrativo', description: 'Gestão interna do escritório, recepção, suprimentos e patrimônio.' }
+];
+
 const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const { addToast } = useToast();
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
+
+  // Drawer & Suggestion States
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [shouldRenderDrawer, setShouldRenderDrawer] = useState(false);
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [selectedSuggestedSectors, setSelectedSuggestedSectors] = useState<string[]>([]);
+  const [drawerSearchTerm, setDrawerSearchTerm] = useState('');
+  const [importingSuggested, setImportingSuggested] = useState(false);
+
+  useEffect(() => {
+    if (isDrawerOpen) {
+      setShouldRenderDrawer(true);
+      const timer = setTimeout(() => setIsDrawerVisible(true), 10);
+      return () => clearTimeout(timer);
+    } else {
+      setIsDrawerVisible(false);
+    }
+  }, [isDrawerOpen]);
+
+  const handleDrawerTransitionEnd = () => {
+    if (!isDrawerVisible) setShouldRenderDrawer(false);
+  };
 
   // Search and Filter states for Sectors
   const [sectorSearchTerm, setSectorSearchTerm] = useState('');
@@ -1291,45 +1327,85 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
   };
 
-  const handleImportDefaultSectors = async () => {
-    setImporting(true);
+  // Set of existing sector names for checking and badge display
+  const existingSectorNamesSet = useMemo(() => {
+    return new Set(sectors.map(s => (s.name || '').toLowerCase().trim()));
+  }, [sectors]);
+
+  const openSuggestedSectorsDrawer = () => {
+    setSelectedSuggestedSectors([]);
+    setDrawerSearchTerm('');
+    setIsDrawerOpen(true);
+  };
+
+  const toggleSectorSelection = (name: string) => {
+    setSelectedSuggestedSectors(prev =>
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    );
+  };
+
+  const selectAllSuggested = () => {
+    setSelectedSuggestedSectors(SUGGESTED_SECTORS.map(s => s.name));
+  };
+
+  const deselectAllSuggested = () => {
+    setSelectedSuggestedSectors([]);
+  };
+
+  const handleImportSelectedSectors = async () => {
+    if (selectedSuggestedSectors.length === 0) return;
+    setImportingSuggested(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const defaultNames = [
-        'Contábil', 'Fiscal', 'Folha', 'Societário', 'Comercial',
-        'Financeiro', 'Consultoria', 'Qualidade', 'Auditoria', 'Tecnologia', 'Administrativo'
-      ];
-
-      // Pegar nomes existentes para comparar
-      const existingNames = sectors.map(s => s.name.toLowerCase().trim());
-      const toAdd = defaultNames.filter(name => !existingNames.includes(name.toLowerCase().trim()));
+      const toAdd = SUGGESTED_SECTORS.filter(s =>
+        selectedSuggestedSectors.includes(s.name) &&
+        !existingSectorNamesSet.has(s.name.toLowerCase().trim())
+      );
 
       if (toAdd.length === 0) {
-        addToast('info', 'Setores padrão', 'Todos os setores padrão já estão cadastrados.');
+        addToast('info', 'Setores', 'Todos os setores selecionados já estão cadastrados.');
+        setIsDrawerOpen(false);
         return;
       }
 
-      const newSectors = toAdd.map(name => ({
+      const newSectorsPayload = toAdd.map(s => ({
         org_id: userProfile.org_id,
-        name,
-        status: 'Ativo'
+        name: s.name,
+        cost_center: s.costCenter || null,
+        status: 'Ativo',
+        chat_available: true
       }));
 
-      const { data, error } = await supabase.from('sectors').insert(newSectors).select();
+      const { data, error } = await supabase
+        .from('sectors')
+        .insert(newSectorsPayload)
+        .select();
 
       if (error) throw error;
+
       if (data) {
-        setSectors([...sectors, ...data]);
-        addToast('success', 'Sucesso', `${toAdd.length} setores padrão cadastrados com sucesso!`);
+        setSectors(prev => [...prev, ...data]);
+        addToast('success', 'Sucesso', `${toAdd.length} setor(es) adicionado(s) com sucesso!`);
+        setIsDrawerOpen(false);
       }
     } catch (error: any) {
       addToast('error', 'Erro', 'Erro ao importar setores: ' + error.message);
     } finally {
-      setImporting(false);
+      setImportingSuggested(false);
     }
   };
+
+  const filteredSuggestedSectors = useMemo(() => {
+    const term = drawerSearchTerm.toLowerCase().trim();
+    if (!term) return SUGGESTED_SECTORS;
+    return SUGGESTED_SECTORS.filter(s =>
+      s.name.toLowerCase().includes(term) ||
+      s.costCenter.toLowerCase().includes(term) ||
+      s.description.toLowerCase().includes(term)
+    );
+  }, [drawerSearchTerm]);
 
   const handleToggleSectorStatus = async (id: string, currentStatus: string) => {
     const targetSector = sectors.find(s => s.id === id);
@@ -1513,7 +1589,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
     try {
       const [membersRes, typesRes] = await Promise.all([
-        supabase.from('members').select('id', { count: 'exact', head: true }).eq('sector_id', sector.id),
+        supabase.from('members').select('id', { count: 'exact', head: true }).or(`sector_id.eq.${sector.id},sector_ids.cs.{${sector.id}}`),
         supabase.from('task_types').select('id', { count: 'exact', head: true }).eq('sector_id', sector.id)
       ]);
 
@@ -1530,7 +1606,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       }
     } catch (error: any) {
       console.error('Erro ao verificar dependências do setor:', error);
-      alert('Erro ao verificar dependências: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao verificar dependências: ' + error.message);
       setDeleteSectorModalState('closed');
       setSectorToDelete(null);
     }
@@ -1543,9 +1619,10 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     try {
       const { error } = await supabase.from('sectors').delete().eq('id', sectorToDelete.id);
       if (error) throw error;
-      setSectors(sectors.filter(s => s.id !== sectorToDelete.id));
+      setSectors(prev => prev.filter(s => s.id !== sectorToDelete.id));
+      addToast('success', 'Sucesso', `Setor "${sectorToDelete.name}" excluído com sucesso!`);
     } catch (error: any) {
-      alert('Erro ao excluir setor: ' + error.message);
+      addToast('error', 'Erro ao Excluir', 'Erro ao excluir setor: ' + error.message);
     } finally {
       setDeleteSectorModalState('closed');
       setSectorToDelete(null);
@@ -1576,14 +1653,14 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             <Button
               variant="secondary"
               size="sm"
-              icon={<CloudDownload size={16} />}
+              icon={<Sparkles size={16} className="text-indigo-500" />}
               onClick={(e) => {
                 e.stopPropagation();
-                handleImportDefaultSectors();
+                openSuggestedSectorsDrawer();
               }}
-              disabled={importing || adding}
+              disabled={adding}
             >
-              {importing ? 'Cadastrando...' : 'Sugerir Setores Padrão'}
+              Sugerir Setores Padrão
             </Button>
             <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isFormExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
               {isFormExpanded ? <ChevronUp size={16} /> : <SquarePlus size={16} />}
@@ -1743,153 +1820,163 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           filteredSectors.map(sector => (
           <div 
             key={sector.id} 
-            className={`group relative bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-5 ${
+            className={`group relative bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-4 flex flex-col justify-between ${
               editingSectorId === sector.id 
                 ? 'border-indigo-500 ring-4 ring-indigo-500/10 shadow-xl' 
-                : 'border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 dark:hover:border-indigo-400/30'
+                : 'border-slate-200 dark:border-slate-800/80 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5 dark:hover:border-indigo-400/30'
             }`}
           >
             {editingSectorId === sector.id ? (
-              <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg">
-                    <Edit3 size={18} className="text-indigo-600 dark:text-indigo-400" />
+              <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-2.5 pb-1 border-b border-slate-100 dark:border-slate-800">
+                  <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg text-indigo-600 dark:text-indigo-400">
+                    <Edit3 size={15} />
                   </div>
-                  <h4 className="font-bold text-slate-900 dark:text-white">Editar Setor</h4>
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Editar Setor</h4>
                 </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <Input label="Nome do Setor" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Ex: Financeiro" />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input label="Líder" value={editLeader} onChange={e => setEditLeader(e.target.value)} placeholder="Nome do responsável" />
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <Input label="Líder" value={editLeader} onChange={e => setEditLeader(e.target.value)} placeholder="Responsável" />
                     <Input label="C. Custo" value={editCostCenter} onChange={e => setEditCostCenter(e.target.value)} placeholder="001.01" />
                   </div>
-                  <div className="flex items-center gap-2 h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                  <div className="flex items-center justify-between h-9 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Disponível no Chat</span>
                     <Toggle checked={editChatAvailable} onChange={() => setEditChatAvailable(!editChatAvailable)} />
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Disponível no Chat</span>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-end gap-2 pt-1">
                   <Button variant="secondary" size="sm" onClick={cancelEditing}>Cancelar</Button>
-                  <Button variant="primary" size="sm" onClick={() => handleUpdateSector(sector.id)} icon={<Save size={16} />}>Salvar</Button>
+                  <Button variant="primary" size="sm" onClick={() => handleUpdateSector(sector.id)} icon={<Save size={14} />}>Salvar</Button>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col h-full">
-                {/* Ações */}
-                <div className="absolute top-4 right-4 flex items-center gap-1">
-                  <Tooltip content="Editar Setor">
-                    <button
-                      onClick={() => startEditing(sector)}
-                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-xl transition-colors"
-                    >
-                      <Edit3 size={16} />
-                    </button>
-                  </Tooltip>
-                  <Tooltip content="Excluir Setor">
-                    <button
-                      onClick={() => initDeleteSector(sector)}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </Tooltip>
-                </div>
-
-                {/* Cabeçalho do Card */}
-                <div className="flex items-start gap-4 mb-6">
-                  <div className={`relative w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-black shrink-0 transition-transform duration-300 group-hover:scale-110 shadow-sm ${
-                    sector.status === 'Inativo'
-                      ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600'
-                      : 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-indigo-200 dark:shadow-none'
-                  }`}>
-                    {sector.name.substring(0, 2).toUpperCase()}
-                    
-                    {/* Status Indicator (Pulse) */}
-                    <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900 shadow-sm ${
-                      sector.status === 'Inativo' ? 'bg-slate-400' : 'bg-emerald-500'
-                    }`}>
-                      {sector.status !== 'Inativo' && (
-                        <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75"></span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pr-12">
-                    <h4 className="font-bold text-slate-900 dark:text-white text-lg leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      {sector.name}
-                    </h4>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <div className={`w-1.5 h-1.5 rounded-full ${sector.status === 'Inativo' ? 'bg-slate-400' : 'bg-emerald-500'}`} />
-                      <span className={`text-[10px] font-black uppercase tracking-widest ${
-                        sector.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'
+              <div className="flex flex-col h-full justify-between">
+                <div>
+                  {/* Cabeçalho do Card com Avatar, Título e Ações */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black shrink-0 transition-transform duration-300 group-hover:scale-105 shadow-sm ${
+                        sector.status === 'Inativo'
+                          ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+                          : 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-indigo-200/50 dark:shadow-none'
                       }`}>
-                        {sector.status === 'Inativo' ? 'Inativo' : 'Ativo'}
-                      </span>
+                        {sector.name.substring(0, 2).toUpperCase()}
+                        
+                        {/* Status Indicator (Pulse) */}
+                        <div className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm ${
+                          sector.status === 'Inativo' ? 'bg-slate-400' : 'bg-emerald-500'
+                        }`}>
+                          {sector.status !== 'Inativo' && (
+                            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75"></span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-tight truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" title={sector.name}>
+                          {sector.name}
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`text-[10px] font-black uppercase tracking-wider ${
+                            sector.status === 'Inativo' ? 'text-slate-400 dark:text-slate-500' : 'text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                            {sector.status === 'Inativo' ? 'Inativo' : 'Ativo'}
+                          </span>
+                          {sector.chat_available !== false && (
+                            <>
+                              <span className="text-slate-300 dark:text-slate-700">•</span>
+                              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5">
+                                <MessageSquare size={10} /> Chat
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ações (Editar / Excluir) */}
+                    <div className="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <Tooltip content="Editar Setor">
+                        <button
+                          onClick={() => startEditing(sector)}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Excluir Setor">
+                        <button
+                          onClick={() => initDeleteSector(sector)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  </div>
+
+                  {/* Informações Compactas em Grid de 2 Colunas */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-2 min-w-0">
+                      <div className="p-1 rounded-lg bg-white dark:bg-slate-800 text-slate-400 shrink-0 shadow-2xs">
+                        <UserCircle size={13} />
+                      </div>
+                      <div className="min-w-0 flex flex-col">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider leading-none">Líder</span>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate mt-0.5" title={sector.leader || 'Não definido'}>
+                          {sector.leader || 'Não definido'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-2 min-w-0">
+                      <div className="p-1 rounded-lg bg-white dark:bg-slate-800 text-slate-400 shrink-0 shadow-2xs">
+                        <Target size={13} />
+                      </div>
+                      <div className="min-w-0 flex flex-col">
+                        <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider leading-none">C. Custo</span>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate mt-0.5" title={sector.cost_center || '---'}>
+                          {sector.cost_center || '---'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Corpo do Card */}
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100/50 dark:border-slate-700/30">
-                    <div className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
-                      <UserCircle size={14} className="text-slate-400" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider leading-none mb-1">Líder</span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
-                        {sector.leader || 'Não definido'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100/50 dark:border-slate-700/30">
-                    <div className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
-                      <Target size={14} className="text-slate-400" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider leading-none mb-1">C. Custo</span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        {sector.cost_center || '---'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rodapé do Card */}
-                <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                {/* Rodapé Compacto em Linha Única */}
+                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* Status Toggle */}
+                    <div className="flex items-center gap-1.5">
                       <Toggle
                         checked={sector.status !== 'Inativo'}
                         onChange={() => handleToggleSectorStatus(sector.id, sector.status || 'Ativo')}
                       />
-                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
                         {sector.status === 'Inativo' ? 'Inativo' : 'Ativo'}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Toggle
-                        checked={sector.chat_available !== false}
-                        onChange={() => handleToggleSectorChatAvailability(sector.id, sector.chat_available !== false)}
-                      />
-                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                        Chat
-                      </span>
-                    </div>
+                    {/* Chat Toggle com Tooltip */}
+                    <Tooltip content={sector.chat_available !== false ? 'Disponível no Chat do Cliente' : 'Indisponível no Chat do Cliente'}>
+                      <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-slate-800">
+                        <Toggle
+                          checked={sector.chat_available !== false}
+                          onChange={() => handleToggleSectorChatAvailability(sector.id, sector.chat_available !== false)}
+                        />
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          Chat
+                        </span>
+                      </div>
+                    </Tooltip>
                   </div>
-                  
-                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-300 dark:text-slate-600 border-t border-slate-100/50 dark:border-slate-800/30 pt-2">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                      {sector.chat_available !== false ? 'Disponível no Chat do Cliente' : 'Indisponível no Chat do Cliente'}
-                    </span>
-                    <div className="flex items-center gap-1 group-hover:text-indigo-500/50 transition-colors">
-                      <Blocks size={12} />
-                      #{sector.id.slice(0, 4)}
-                    </div>
+
+                  <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-slate-300 dark:text-slate-600">
+                    <Blocks size={11} />
+                    #{sector.id.slice(0, 4)}
                   </div>
                 </div>
               </div>
@@ -2042,6 +2129,185 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         </div>
       </Modal>
 
+      {/* Drawer de Sugestão de Setores */}
+      {shouldRenderDrawer && createPortal(
+        <>
+          {/* Backdrop overlay */}
+          <div 
+            className={`fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[9998] transition-opacity duration-300 ease-in-out ${
+              isDrawerVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+            onClick={() => { if (!importingSuggested) setIsDrawerOpen(false); }}
+          />
+
+          {/* Drawer Panel */}
+          <div 
+            onTransitionEnd={handleDrawerTransitionEnd}
+            className={`fixed inset-y-0 right-0 w-full sm:w-[650px] lg:w-[740px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col justify-between transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${
+              isDrawerVisible ? 'translate-x-0' : 'translate-x-full'
+            }`}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header com Design Padrão Slate da Aplicação */}
+            <div className="flex items-center justify-between px-6 h-16 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                  <Briefcase size={18} className="text-slate-500 dark:text-slate-400" />
+                </div>
+                <div className="flex flex-col text-left">
+                  <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                    Sugestão de Setores
+                  </h1>
+                  <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-header com Busca e Seleção Global Compacto */}
+            <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 space-y-2.5 shrink-0">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar setor por nome, centro de custo ou descrição..."
+                    value={drawerSearchTerm}
+                    onChange={(e) => setDrawerSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                  />
+                  {drawerSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setDrawerSearchTerm('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={selectAllSuggested}
+                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 transition-colors"
+                  >
+                    Marcar Todos ({SUGGESTED_SECTORS.length})
+                  </button>
+                  <span className="text-slate-300 dark:text-slate-700">•</span>
+                  <button
+                    type="button"
+                    onClick={deselectAllSuggested}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:underline px-2 py-1 transition-colors"
+                  >
+                    Desmarcar Todos
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Corpo do Drawer - Grade de Setores */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {filteredSuggestedSectors.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs italic">
+                  Nenhum setor encontrado com o termo pesquisado.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {filteredSuggestedSectors.map((sector) => {
+                    const isSelected = selectedSuggestedSectors.includes(sector.name);
+                    const alreadyExists = existingSectorNamesSet.has(sector.name.toLowerCase().trim());
+
+                    return (
+                      <div
+                        key={sector.name}
+                        onClick={() => toggleSectorSelection(sector.name)}
+                        className={`group relative p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 select-none ${
+                          isSelected
+                            ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm'
+                            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                            />
+                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              {sector.name}
+                            </span>
+                          </div>
+
+                          {alreadyExists && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 shrink-0">
+                              Já cadastrado
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2 min-h-[2rem]">
+                          {sector.description}
+                        </p>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/60 text-[10px]">
+                          <div className="flex items-center gap-1.5">
+                            <Target size={11} className="text-indigo-500" />
+                            <span className="font-semibold text-slate-600 dark:text-slate-300">{sector.costCenter}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                            <MessageSquare size={11} />
+                            <span>Chat Ativo</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Rodapé Fixo */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                {selectedSuggestedSectors.length} setores selecionados
+              </span>
+
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsDrawerOpen(false)}
+                  disabled={importingSuggested}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleImportSelectedSectors}
+                  disabled={importingSuggested || selectedSuggestedSectors.length === 0}
+                  icon={importingSuggested ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                >
+                  {importingSuggested ? 'Importando...' : `Importar ${selectedSuggestedSectors.length} Selecionados`}
+                </Button>
+              </div>
+            </div>
+
+          </div>
+        </>,
+        document.body
+      )}
+
     </div>
   );
 };
@@ -2135,9 +2401,54 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
   // Drawer & Suggestion States
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [shouldRenderDrawer, setShouldRenderDrawer] = useState(false);
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const [selectedSuggestedNames, setSelectedSuggestedNames] = useState<string[]>([]);
   const [drawerSearchTerm, setDrawerSearchTerm] = useState('');
   const [importingSuggested, setImportingSuggested] = useState(false);
+
+  useEffect(() => {
+    if (isDrawerOpen) {
+      setShouldRenderDrawer(true);
+      const timer = setTimeout(() => setIsDrawerVisible(true), 10);
+      return () => clearTimeout(timer);
+    } else {
+      setIsDrawerVisible(false);
+    }
+  }, [isDrawerOpen]);
+
+  const handleDrawerTransitionEnd = () => {
+    if (!isDrawerVisible) setShouldRenderDrawer(false);
+  };
+
+  // Drawer Accordion States
+  const [expandedSuggestedSectors, setExpandedSuggestedSectors] = useState<Record<string, boolean>>({
+    Fiscal: true,
+    Folha: true,
+    Contábil: true,
+    Societário: true
+  });
+
+  const toggleSuggestedSectorAccordion = (secName: string) => {
+    setExpandedSuggestedSectors(prev => ({
+      ...prev,
+      [secName]: prev[secName] === undefined ? false : !prev[secName]
+    }));
+  };
+
+  const allSectorsExpanded = useMemo(() => {
+    return ['Fiscal', 'Folha', 'Contábil', 'Societário'].every(s => (expandedSuggestedSectors[s] ?? true));
+  }, [expandedSuggestedSectors]);
+
+  const toggleAllSectorsExpansion = () => {
+    const nextState = !allSectorsExpanded;
+    setExpandedSuggestedSectors({
+      Fiscal: nextState,
+      Folha: nextState,
+      Contábil: nextState,
+      Societário: nextState
+    });
+  };
 
   // Main List Filters
   const [taskTypeSearchTerm, setTaskTypeSearchTerm] = useState('');
@@ -2157,6 +2468,11 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [editEntity, setEditEntity] = useState('');
   const [editDueDay, setEditDueDay] = useState('');
   const [editNonWorkingAction, setEditNonWorkingAction] = useState('antecipar');
+
+  // Deletion Modal State
+  const [taskToDelete, setTaskToDelete] = useState<any>(null);
+  const [deleteTaskModalState, setDeleteTaskModalState] = useState<'closed' | 'checking' | 'can_delete' | 'cannot_delete' | 'deleting'>('closed');
+  const [taskUsageCount, setTaskUsageCount] = useState<number>(0);
 
   useEffect(() => {
     fetchData();
@@ -2288,6 +2604,67 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       addToast('error', 'Erro', 'Erro ao atualizar tarefa: ' + error.message);
     }
   };
+
+  const initDeleteTaskType = async (task: any) => {
+    setTaskToDelete(task);
+    setDeleteTaskModalState('checking');
+    setTaskUsageCount(0);
+
+    try {
+      const [tasksRes, templatesRes] = await Promise.all([
+        supabase
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('org_id', userProfile.org_id)
+          .eq('task_name', task.name),
+        supabase
+          .from('chat_message_templates')
+          .select('id', { count: 'exact', head: true })
+          .eq('org_id', userProfile.org_id)
+          .eq('reference_task_type_id', task.id)
+      ]);
+
+      if (tasksRes.error) throw tasksRes.error;
+      if (templatesRes.error) throw templatesRes.error;
+
+      const totalUsage = (tasksRes.count ?? 0) + (templatesRes.count ?? 0);
+      setTaskUsageCount(totalUsage);
+
+      if (totalUsage > 0) {
+        setDeleteTaskModalState('cannot_delete');
+      } else {
+        setDeleteTaskModalState('can_delete');
+      }
+    } catch (error: any) {
+      console.error('Erro ao verificar vínculos do tipo de tarefa:', error);
+      addToast('error', 'Erro', 'Erro ao verificar dependências: ' + error.message);
+      setDeleteTaskModalState('closed');
+      setTaskToDelete(null);
+    }
+  };
+
+  const confirmDeleteTaskType = async () => {
+    if (!taskToDelete) return;
+    setDeleteTaskModalState('deleting');
+
+    try {
+      const { error } = await supabase
+        .from('task_types')
+        .delete()
+        .eq('id', taskToDelete.id);
+
+      if (error) throw error;
+
+      setTaskTypes(prev => prev.filter(t => t.id !== taskToDelete.id));
+      addToast('success', 'Sucesso', `Tipo de tarefa "${taskToDelete.name}" excluído com sucesso!`);
+    } catch (error: any) {
+      addToast('error', 'Erro ao Excluir', 'Erro ao excluir tipo de tarefa: ' + error.message);
+    } finally {
+      setDeleteTaskModalState('closed');
+      setTaskToDelete(null);
+    }
+  };
+
   // Filtered Task Types for Main List
   const filteredTaskTypes = taskTypes.filter(task => {
     const searchLower = taskTypeSearchTerm.toLowerCase().trim();
@@ -2305,12 +2682,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   }, [taskTypes]);
 
   const openSuggestedTasksDrawer = () => {
-    // Pre-select suggested tasks that do NOT exist yet
-    const newNames = SUGGESTED_TASK_TYPES
-      .filter(t => !existingTaskNamesSet.has(t.name.toLowerCase().trim()))
-      .map(t => t.name);
-
-    setSelectedSuggestedNames(newNames);
+    setSelectedSuggestedNames([]);
     setDrawerSearchTerm('');
     setIsDrawerOpen(true);
   };
@@ -2558,22 +2930,22 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           return (
             <div 
               key={task.id} 
-              className={`group relative h-full bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-5 flex flex-col ${
+              className={`group relative h-full bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-4 flex flex-col justify-between ${
                 editingTaskTypeId === task.id 
                   ? 'border-indigo-500 ring-4 ring-indigo-500/10 shadow-xl' 
-                  : 'border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-xl dark:hover:border-indigo-400/30'
+                  : 'border-slate-200 dark:border-slate-800/80 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5 dark:hover:border-indigo-400/30'
               }`}
             >
               {editingTaskTypeId === task.id ? (
-                <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg">
-                      <Edit3 size={18} className="text-indigo-600 dark:text-indigo-400" />
+                <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-center gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+                    <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg text-indigo-600 dark:text-indigo-400">
+                      <Edit3 size={15} />
                     </div>
-                    <h4 className="font-bold text-slate-900 dark:text-white">Editar Tipo</h4>
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">Editar Tipo</h4>
                   </div>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <Input label="Nome da Tarefa" value={editName} onChange={e => setEditName(e.target.value)} />
                     <Select
                       label="Setor Responsável"
@@ -2592,7 +2964,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                         { value: 'Outro', label: 'Outro' },
                       ]}
                     />
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2.5">
                       <Input label="Vencimento (dia)" value={editDueDay} onChange={e => setEditDueDay(e.target.value)} type="number" min="1" max="31" />
                       <Select
                         label="Dia não útil"
@@ -2607,83 +2979,100 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <Button size="sm" onClick={() => handleUpdateTaskType(task.id)} icon={<Check size={16} />} className="flex-1">Salvar</Button>
-                    <Button size="sm" variant="secondary" onClick={cancelEditing} icon={<X size={16} />}>Sair</Button>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button size="sm" onClick={() => handleUpdateTaskType(task.id)} icon={<Check size={14} />} className="flex-1">Salvar</Button>
+                    <Button size="sm" variant="secondary" onClick={cancelEditing} icon={<X size={14} />}>Sair</Button>
                   </div>
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
-                    {/* Header do Card */}
-                    <div className="flex items-start justify-between gap-2 mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-2 rounded-xl border ${entityCfg.bg} ${entityCfg.border}`}>
-                          <EntityIcon size={18} className={entityCfg.color} />
-                        </div>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${entityCfg.bg} ${entityCfg.color} ${entityCfg.border}`}>
-                          {task.federative_entity || 'Geral'}
-                        </span>
-                      </div>
+                    {/* Header do Card: Pill do Ente Federativo e Ação de Edição */}
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border shadow-2xs ${entityCfg.bg} ${entityCfg.color} ${entityCfg.border}`}>
+                        <EntityIcon size={12} className="shrink-0" />
+                        {task.federative_entity || 'Geral'}
+                      </span>
 
-                      {/* Botão de Editar e Status */}
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => startEditing(task)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
-                          title="Editar Tipo"
-                        >
-                          <Edit3 size={15} />
-                        </button>
+                      <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <Tooltip content="Editar Tipo">
+                          <button
+                            onClick={() => startEditing(task)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Excluir Tipo">
+                          <button
+                            onClick={() => initDeleteTaskType(task)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
 
                     {/* Nome da Tarefa */}
-                    <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-3 leading-snug">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm leading-snug mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2 min-h-[2.2rem]" title={task.name}>
                       {task.name}
                     </h3>
 
-                    {/* Meta informações */}
-                    <div className="space-y-2 text-xs text-slate-500 dark:text-slate-400 mb-4">
-                      {task.sectors?.name && (
-                        <div className="flex items-center gap-2">
-                          <SectorIcon size={14} className="text-slate-400 shrink-0" />
-                          <span className="truncate">Setor: <strong className="text-slate-700 dark:text-slate-200">{task.sectors.name}</strong></span>
+                    {/* Metadados em Grid Compacto (2 Colunas) */}
+                    <div className="space-y-1.5 mb-3 text-xs">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {/* Setor */}
+                        <div className="p-1.5 rounded-lg bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-1.5 min-w-0" title={task.sectors?.name ? `Setor: ${task.sectors.name}` : 'Todos os setores'}>
+                          <SectorIcon size={12} className="text-slate-400 shrink-0" />
+                          <span className="truncate text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                            {task.sectors?.name || 'Geral'}
+                          </span>
                         </div>
-                      )}
 
-                      {task.due_day && (
-                        <div className="flex items-center gap-2">
-                          <Clock size={14} className="text-slate-400 shrink-0" />
-                          <span>Vencimento: dia <strong className="text-slate-700 dark:text-slate-200">{task.due_day}</strong></span>
+                        {/* Vencimento */}
+                        <div className="p-1.5 rounded-lg bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-1.5 min-w-0" title={task.due_day ? `Vencimento no dia ${task.due_day}` : 'Sem dia fixo'}>
+                          <Clock size={12} className="text-slate-400 shrink-0" />
+                          <span className="truncate text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                            {task.due_day ? `Dia ${task.due_day}` : 'Flexível'}
+                          </span>
                         </div>
-                      )}
+                      </div>
 
-                      {task.non_working_day_action && (
-                        <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-slate-400 shrink-0" />
-                          <span className="capitalize">Dia não útil: <strong className="text-slate-700 dark:text-slate-200">{task.non_working_day_action.replace('_', ' ')}</strong></span>
+                      {/* Regra de Dia não útil */}
+                      {task.non_working_day_action && task.non_working_day_action !== 'nao_se_aplica' && (
+                        <div className="px-2 py-1 rounded-lg bg-slate-50/40 dark:bg-slate-800/20 border border-slate-100/60 dark:border-slate-800/40 flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400 dark:text-slate-500 font-semibold flex items-center gap-1">
+                            <Calendar size={11} /> Não útil:
+                          </span>
+                          <span className={`font-bold capitalize px-1.5 py-0.2 rounded ${
+                            task.non_working_day_action === 'antecipar'
+                              ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10'
+                              : 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10'
+                          }`}>
+                            {task.non_working_day_action.replace('_', ' ')}
+                          </span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Rodapé */}
-                  <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between">
+                  {/* Rodapé Compacto */}
+                  <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Toggle
                         checked={task.status !== 'Inativo'}
                         onChange={() => handleToggleTaskTypeStatus(task.id, task.status || 'Ativo')}
                       />
-                      <span className={`text-[11px] font-black uppercase tracking-wider ${
-                        task.status === 'Inativo' ? 'text-slate-400' : 'text-emerald-600 dark:text-emerald-400'
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${
+                        task.status === 'Inativo' ? 'text-slate-400 dark:text-slate-500' : 'text-emerald-600 dark:text-emerald-400'
                       }`}>
                         {task.status === 'Inativo' ? 'Inativo' : 'Ativo'}
                       </span>
                     </div>
                     
-                    <div className="flex items-center gap-1 text-[10px] font-bold text-slate-300 dark:text-slate-700">
-                      <FileText size={12} />
+                    <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-slate-300 dark:text-slate-600">
+                      <FileText size={11} />
                       #{task.id.slice(0, 4)}
                     </div>
                   </div>
@@ -2695,110 +3084,218 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         )}
       </div>
 
-      {/* Drawer de Sugestão de Tarefas */}
-      {isDrawerOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden animate-in fade-in duration-200">
+      {/* Modal de Exclusão de Tipo de Tarefa */}
+      <Modal
+        isOpen={deleteTaskModalState !== 'closed'}
+        onClose={() => {
+          if (deleteTaskModalState !== 'deleting') {
+            setDeleteTaskModalState('closed');
+          }
+        }}
+        title={deleteTaskModalState === 'cannot_delete' ? "Exclusão Bloqueada" : "Confirmar Exclusão"}
+        size="md"
+        footer={
+          deleteTaskModalState === 'can_delete' ? (
+            <>
+              <Button variant="secondary" onClick={() => setDeleteTaskModalState('closed')}>
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={confirmDeleteTaskType}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Excluir Obrigação
+              </Button>
+            </>
+          ) : deleteTaskModalState === 'deleting' ? (
+            <Button variant="secondary" disabled>
+              <Loader2 className="animate-spin w-4 h-4 mr-2" />
+              Excluindo...
+            </Button>
+          ) : (
+            <Button variant="secondary" onClick={() => setDeleteTaskModalState('closed')}>
+              Entendi
+            </Button>
+          )
+        }
+      >
+        {deleteTaskModalState === 'checking' && (
+          <div className="flex flex-col items-center justify-center py-6 text-slate-500 dark:text-slate-400">
+            <Loader2 className="w-8 h-8 animate-spin mb-4 text-indigo-600" />
+            <p>Verificando dependências da obrigação...</p>
+          </div>
+        )}
+
+        {deleteTaskModalState === 'cannot_delete' && (
+          <div className="py-4 text-slate-700 dark:text-slate-300">
+            <div className="flex items-center gap-3 mb-4 text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-500/10 p-4 rounded-lg">
+              <ListFilter className="w-6 h-6 shrink-0" />
+              <p className="font-medium">
+                Não é possível excluir a obrigação <strong>{taskToDelete?.name}</strong>.
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm leading-relaxed">
+              Este tipo de tarefa já foi utilizado em <strong>{taskUsageCount} registro(s)</strong> no módulo de tarefas ou em disparadores de mensagens.
+              Para manter o histórico contábil e operacional íntegro, a exclusão sistêmica foi bloqueada.
+            </p>
+            <p className="mt-4 text-xs text-slate-500">
+              Caso este tipo de tarefa não seja mais utilizado no escritório, recomendamos alterar a Situação para <strong>Inativo</strong> no switch do card.
+            </p>
+          </div>
+        )}
+
+        {deleteTaskModalState === 'can_delete' && (
+          <div className="py-4 text-slate-700 dark:text-slate-300">
+            <p className="text-sm">
+              Você tem certeza que deseja excluir permanentemente a obrigação <strong>{taskToDelete?.name}</strong>?
+            </p>
+            <p className="mt-4 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded-xl border border-red-100 dark:border-red-900/50 leading-relaxed">
+              Esta ação é irreversível. O tipo de tarefa será apagado do sistema e voltará a ficar disponível para adição no drawer de sugestões.
+            </p>
+          </div>
+        )}
+      </Modal>
+
+      {/* Drawer de Sugestão de Tarefas com Abertura e Recolhimento Suave */}
+      {shouldRenderDrawer && createPortal(
+        <>
+          {/* Backdrop overlay */}
           <div 
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            className={`fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[9998] transition-opacity duration-300 ease-in-out ${
+              isDrawerVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
             onClick={() => { if (!importingSuggested) setIsDrawerOpen(false); }}
           />
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-2xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col justify-between">
-              
-              {/* Header do Drawer */}
-              <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 space-y-3 shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-400">
-                      <Sparkles size={20} />
-                    </div>
-                    <div>
-                      <h3 className="font-black text-slate-900 dark:text-white text-base leading-tight">
-                        Sugestão de Tipos de Tarefa
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Selecione as obrigações contábeis que deseja adicionar ao seu escritório.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsDrawerOpen(false)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
+
+          {/* Drawer Panel */}
+          <div 
+            onTransitionEnd={handleDrawerTransitionEnd}
+            className={`fixed inset-y-0 right-0 w-full sm:w-[650px] lg:w-[740px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col justify-between transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${
+              isDrawerVisible ? 'translate-x-0' : 'translate-x-full'
+            }`}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header com Design Padrão Slate da Aplicação (Altura Otimizada h-16) */}
+            <div className="flex items-center justify-between px-6 h-16 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                  <Sparkles size={18} className="text-slate-500 dark:text-slate-400" />
                 </div>
-
-                {/* Busca e Seleção Global */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-                  <div className="relative flex-1">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar obrigação por nome ou ente..."
-                      value={drawerSearchTerm}
-                      onChange={(e) => setDrawerSearchTerm(e.target.value)}
-                      className="w-full pl-9 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    />
-                    {drawerSearchTerm && (
-                      <button
-                        type="button"
-                        onClick={() => setDrawerSearchTerm('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={selectAllSuggested}
-                      className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1"
-                    >
-                      Marcar Todas ({SUGGESTED_TASK_TYPES.length})
-                    </button>
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
-                    <button
-                      type="button"
-                      onClick={deselectAllSuggested}
-                      className="text-[11px] font-bold text-slate-500 hover:underline px-2 py-1"
-                    >
-                      Desmarcar Todas
-                    </button>
-                  </div>
+                <div className="flex flex-col text-left">
+                  <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                    Sugestão de Obrigações
+                  </h1>
+                  <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
                 </div>
               </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
 
-              {/* Corpo do Drawer Agrupado por Setor */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-6">
-                {['Fiscal', 'Folha', 'Contábil', 'Societário'].map((secName) => {
-                  const tasksInSector = SUGGESTED_TASK_TYPES.filter(t => t.sectorName === secName);
-                  const matchingTasks = tasksInSector.filter(t =>
-                    !drawerSearchTerm.trim() ||
-                    t.name.toLowerCase().includes(drawerSearchTerm.toLowerCase().trim()) ||
-                    t.entity.toLowerCase().includes(drawerSearchTerm.toLowerCase().trim())
-                  );
+            {/* Sub-header com Busca e Seleção Global Compacto */}
+            <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 space-y-2.5 shrink-0">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar obrigação por nome ou ente..."
+                    value={drawerSearchTerm}
+                    onChange={(e) => setDrawerSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                  />
+                  {drawerSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setDrawerSearchTerm('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
 
-                  if (matchingTasks.length === 0) return null;
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={selectAllSuggested}
+                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 transition-colors"
+                  >
+                    Marcar Todas ({SUGGESTED_TASK_TYPES.length})
+                  </button>
+                  <span className="text-slate-300 dark:text-slate-700">•</span>
+                  <button
+                    type="button"
+                    onClick={deselectAllSuggested}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:underline px-2 py-1 transition-colors"
+                  >
+                    Desmarcar Todas
+                  </button>
+                  <span className="text-slate-300 dark:text-slate-700">•</span>
+                  <button
+                    type="button"
+                    onClick={toggleAllSectorsExpansion}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:underline px-2 py-1 transition-colors"
+                  >
+                    {allSectorsExpanded ? 'Recolher Todos' : 'Expandir Todos'}
+                  </button>
+                </div>
+              </div>
+            </div>
 
-                  const allSectorSelected = matchingTasks.every(t => selectedSuggestedNames.includes(t.name));
+            {/* Corpo do Drawer Agrupado por Setor com Acordeão */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {['Fiscal', 'Folha', 'Contábil', 'Societário'].map((secName) => {
+                const tasksInSector = SUGGESTED_TASK_TYPES.filter(t => t.sectorName === secName);
+                const matchingTasks = tasksInSector.filter(t =>
+                  !drawerSearchTerm.trim() ||
+                  t.name.toLowerCase().includes(drawerSearchTerm.toLowerCase().trim()) ||
+                  t.entity.toLowerCase().includes(drawerSearchTerm.toLowerCase().trim())
+                );
 
-                  return (
-                    <div key={secName} className="bg-slate-50/50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 p-4 space-y-3">
-                      {/* Setor Header */}
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-200/60 dark:border-slate-800">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                          <h4 className="font-bold text-slate-900 dark:text-white text-sm">
-                            Setor {secName}
-                          </h4>
-                          <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
-                            ({matchingTasks.length} obrigações)
-                          </span>
+                if (matchingTasks.length === 0) return null;
+
+                const allSectorSelected = matchingTasks.every(t => selectedSuggestedNames.includes(t.name));
+                const isExpanded = expandedSuggestedSectors[secName] ?? true;
+                const selectedInSectorCount = matchingTasks.filter(t => selectedSuggestedNames.includes(t.name)).length;
+
+                return (
+                  <div key={secName} className="bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-200/70 dark:border-slate-800 overflow-hidden transition-all duration-200 shadow-sm">
+                    {/* Setor Header Accordion Toggle */}
+                    <div 
+                      onClick={() => toggleSuggestedSectorAccordion(secName)}
+                      className={`flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-900/60 transition-colors select-none ${
+                        isExpanded ? 'border-b border-slate-200/60 dark:border-slate-800' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`p-1 text-slate-400 dark:text-slate-500 transition-transform duration-300 shrink-0 ${isExpanded ? 'rotate-180' : ''}`}>
+                          <ChevronDown size={16} />
                         </div>
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0 shadow-sm shadow-indigo-500/30" />
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">
+                          Setor {secName}
+                        </h4>
+                        <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 shrink-0">
+                          ({matchingTasks.length} obrigações)
+                        </span>
+                        {selectedInSectorCount > 0 && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40 shrink-0">
+                            {selectedInSectorCount} selecionada{selectedInSectorCount > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => toggleSectorSelection(matchingTasks, !allSectorSelected)}
@@ -2807,81 +3304,85 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                           {allSectorSelected ? 'Desmarcar Setor' : 'Marcar Todos do Setor'}
                         </button>
                       </div>
+                    </div>
 
-                      {/* Item Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {matchingTasks.map((t) => {
-                          const isSelected = selectedSuggestedNames.includes(t.name);
-                          const alreadyExists = existingTaskNamesSet.has(t.name.toLowerCase().trim());
+                    {/* Accordion Body com Transição Suave */}
+                    <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+                      <div className="overflow-hidden">
+                        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {matchingTasks.map((t) => {
+                            const isSelected = selectedSuggestedNames.includes(t.name);
+                            const alreadyExists = existingTaskNamesSet.has(t.name.toLowerCase().trim());
 
-                          return (
-                            <div
-                              key={t.name}
-                              onClick={() => toggleTaskSelection(t.name)}
-                              className={`group relative p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
-                                isSelected
-                                  ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm'
-                                  : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => {}}
-                                  className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
-                                />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                    {t.name}
-                                  </span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                                    Venc: dia {t.dueDay} • {t.entity}
-                                  </span>
+                            return (
+                              <div
+                                key={t.name}
+                                onClick={() => toggleTaskSelection(t.name)}
+                                className={`group relative p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
+                                  isSelected
+                                    ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm'
+                                    : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {}}
+                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                  />
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                      {t.name}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                                      Venc: dia {t.dueDay} • {t.entity}
+                                    </span>
+                                  </div>
                                 </div>
-                              </div>
 
-                              {alreadyExists && (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 shrink-0">
-                                  Já cadastrada
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
+                                {alreadyExists && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 shrink-0">
+                                    Já cadastrada
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Rodapé Fixo */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                {selectedSuggestedNames.length} tarefas selecionadas
+              </span>
+
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => setIsDrawerOpen(false)}
+                  disabled={importingSuggested}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleImportSelectedTasks}
+                  disabled={importingSuggested || selectedSuggestedNames.length === 0}
+                  icon={importingSuggested ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
+                >
+                  {importingSuggested ? 'Importando...' : `Importar ${selectedSuggestedNames.length} Selecionadas`}
+                </Button>
               </div>
-
-              {/* Rodapé Fixo */}
-              <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  {selectedSuggestedNames.length} tarefas selecionadas
-                </span>
-
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="secondary"
-                    onClick={() => setIsDrawerOpen(false)}
-                    disabled={importingSuggested}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleImportSelectedTasks}
-                    disabled={importingSuggested || selectedSuggestedNames.length === 0}
-                    icon={importingSuggested ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
-                  >
-                    {importingSuggested ? 'Importando...' : `Importar ${selectedSuggestedNames.length} Selecionadas`}
-                  </Button>
-                </div>
-              </div>
-
             </div>
           </div>
-        </div>
+        </>,
+        document.body
       )}
     </div>
   );

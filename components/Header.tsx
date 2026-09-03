@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { Bell, Sun, Moon, Menu, Link2, MonitorPlay } from 'lucide-react';
+import { Bell, Sun, Moon, Menu, Link2, MonitorPlay, ExternalLink } from 'lucide-react';
 import { UserRole } from '../types';
 import { NotificationsDrawer } from './notifications/NotificationsDrawer';
 import { UsefulLinksDrawer } from './UsefulLinksDrawer';
+import { TAB_CONFIG } from '../utils/tabFavicon';
 
 interface UserProfile {
   id: string;
@@ -19,6 +20,7 @@ interface UserProfile {
 }
 
 interface HeaderProps {
+  activeTab?: string;
   isDarkMode: boolean;
   toggleTheme: () => void;
   onProfileClick: () => void;
@@ -30,6 +32,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  activeTab,
   isDarkMode,
   toggleTheme,
   onProfileClick,
@@ -43,9 +46,12 @@ export const Header: React.FC<HeaderProps> = ({
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLinksOpen, setIsLinksOpen] = useState(false);
 
+  const currentTabMeta = activeTab ? TAB_CONFIG[activeTab] : null;
+  const currentTabLabel = activeTab === 'chat' && userRole === 'cliente' ? 'Atendimento' : currentTabMeta?.title;
+
   return (
     <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 z-[60] transition-colors duration-300">
-      <div className="flex items-center">
+      <div className="flex items-center gap-2 sm:gap-3">
         <button
           onClick={onToggleMobileMenu}
           className="md:hidden p-2 -ml-2 text-slate-500 hover:text-indigo-600 dark:hover:text-white transition-colors"
@@ -53,6 +59,24 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Menu size={24} />
         </button>
+
+        {currentTabLabel && activeTab && (
+          <div className="tooltip-container tooltip-bottom hidden sm:inline-flex">
+            <a
+              href={`?tab=${activeTab}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 border border-slate-200/80 dark:border-slate-700/60 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all duration-200 group shadow-2xs"
+            >
+              <span>{currentTabLabel}</span>
+              <ExternalLink size={12} className="text-slate-400 group-hover:text-indigo-500 transition-colors" />
+            </a>
+            <span className="tooltip-content flex items-center gap-1.5">
+              <span>Abrir em nova aba</span>
+              <ExternalLink size={10} className="text-indigo-400" />
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-end flex-wrap gap-2 md:gap-4 ml-auto">

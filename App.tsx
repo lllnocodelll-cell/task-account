@@ -22,6 +22,7 @@ import { TutorialsDrawer } from './components/tutorials/TutorialsDrawer';
 import { ProfileDrawer } from './components/ProfileDrawer';
 import { Modal } from './components/ui/Modal';
 import { Button } from './components/ui/Button';
+import { updateTabMeta, TAB_CONFIG } from './utils/tabFavicon';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -37,12 +38,29 @@ interface UserProfile {
   org_id: string | null;
 }
 
+const getInitialTab = (): string => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const tabFromUrl = params.get('tab');
+    if (tabFromUrl && TAB_CONFIG[tabFromUrl]) {
+      return tabFromUrl;
+    }
+    const hashFromUrl = window.location.hash.replace('#', '');
+    if (hashFromUrl && TAB_CONFIG[hashFromUrl]) {
+      return hashFromUrl;
+    }
+  } catch (e) {
+    console.error('Error parsing initial tab from URL:', e);
+  }
+  return 'dashboard';
+};
+
 function App() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole>('gestor');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [initialClientsTabClientId, setInitialClientsTabClientId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -92,6 +110,41 @@ function App() {
       html.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // Dynamic Browser Tab Title & Favicon Synchronization
+  useEffect(() => {
+    if (!session) {
+      updateTabMeta('default');
+      return;
+    }
+
+    updateTabMeta(activeTab, userRole);
+
+    // Synchronize URL search params (?tab=...) without reloading page
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('tab') !== activeTab) {
+        url.searchParams.set('tab', activeTab);
+        window.history.replaceState(null, '', url.toString());
+      }
+    } catch (e) {
+      console.error('Error synchronizing tab in URL:', e);
+    }
+  }, [activeTab, session, userRole]);
+
+  // Handle browser Back / Forward navigation (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab && TAB_CONFIG[tab]) {
+        setActiveTab(tab);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Auth Listener Effect
   useEffect(() => {
@@ -728,6 +781,7 @@ function App() {
 
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         <Header
+          activeTab={activeTab}
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
           onProfileClick={() => setIsProfileDrawerOpen(true)}
