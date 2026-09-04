@@ -11,6 +11,7 @@ import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../contexts/ToastContext';
 import { Tooltip } from '../components/ui/Tooltip';
+import { generateInviteLink } from '../utils/inviteLink';
 
 interface SettingsProps {
   userProfile: any;
@@ -267,7 +268,8 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
       if (error) throw error;
 
-      if (data) {
+      if (data && data[0]) {
+        const newM = data[0];
         setMembers([...members, ...data]);
         setFirstName('');
         setLastName('');
@@ -275,7 +277,27 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         setSectorIds([]);
         setClientIds([]);
         setRole('operacional');
-        addToast('success', 'Sucesso', 'Membro cadastrado com sucesso!');
+
+        try {
+          const fullName = `${newM.first_name || ''} ${newM.last_name || ''}`.trim();
+          const inviteUrl = generateInviteLink({
+            memberId: newM.id,
+            email: newM.email,
+            name: fullName,
+            role: newM.role || 'operacional',
+            orgId: userProfile.org_id,
+            orgName: userProfile.org_name || 'Escritório Contábil'
+          });
+
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(inviteUrl);
+            addToast('success', 'Cadastrado e Link Copiado!', 'O usuário foi cadastrado e o link de primeiro acesso foi copiado para a área de transferência.');
+          } else {
+            addToast('success', 'Sucesso', 'Membro cadastrado com sucesso!');
+          }
+        } catch {
+          addToast('success', 'Sucesso', 'Membro cadastrado com sucesso!');
+        }
       }
     } catch (error: any) {
       addToast('error', 'Erro', 'Erro ao adicionar: ' + error.message);
@@ -710,6 +732,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     sectors={sectors}
                     clients={clients}
                     addToast={addToast}
+                    userProfile={userProfile}
                   />
                 ))}
                 {filteredMembers.length === 0 && (
@@ -851,6 +874,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     sectors={sectors}
                     clients={clients}
                     addToast={addToast}
+                    userProfile={userProfile}
                   />
                 ))}
                 {filteredClients.length === 0 && (
@@ -976,7 +1000,8 @@ const MemberCard: React.FC<any> = ({
   editStates,
   sectors,
   clients,
-  addToast
+  addToast,
+  userProfile
 }) => {
   const [imgError, setImgError] = useState(false);
 
@@ -1186,9 +1211,21 @@ const MemberCard: React.FC<any> = ({
       <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 flex">
          <button 
            onClick={() => {
-             const inviteLink = `${window.location.origin}/auth?email=${encodeURIComponent(member.email)}`;
-             navigator.clipboard.writeText(inviteLink);
-             addToast('success', 'Sucesso', 'Link de convite copiado!');
+             const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
+             const inviteLink = generateInviteLink({
+               memberId: member.id,
+               email: member.email,
+               name: fullName,
+               role: member.role || 'operacional',
+               orgId: userProfile?.org_id || member.org_id,
+               orgName: userProfile?.org_name || 'Escritório Contábil'
+             });
+             if (navigator.clipboard) {
+               navigator.clipboard.writeText(inviteLink);
+               addToast('success', 'Link de Primeiro Acesso Copiado!', `Link de ativação gerado para ${fullName || member.email}. Envie para o usuário definir sua senha.`);
+             } else {
+               prompt('Copie o link de acesso:', inviteLink);
+             }
            }}
            className="flex-1 py-2 text-[9px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-center gap-1.5 border border-transparent hover:border-indigo-200 hover:bg-white dark:hover:bg-slate-700 transition-all uppercase"
          >

@@ -104,3 +104,45 @@ export const stripFormatting = (text: string): string => {
     .replace(/~(.*?)~/g, '$1');
 };
 
+/**
+ * Formata CPF (XXX.XXX.XXX-XX) ou CNPJ Alfanumérico/Numérico (XX.XXX.XXX/XXXX-XX).
+ * Suporta o novo padrão alfanumérico da Receita Federal (letras e números).
+ */
+export const formatCnpjCpf = (value: string): string => {
+  if (!value) return '';
+  const clean = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const hasLetters = /[A-Z]/.test(clean);
+  
+  // Se tiver letras ou mais de 11 dígitos, formata como CNPJ
+  if (hasLetters || clean.length > 11) {
+    let formatted = clean;
+    if (clean.length > 2) {
+      formatted = `${clean.slice(0, 2)}.${clean.slice(2)}`;
+    }
+    if (clean.length > 5) {
+      formatted = `${formatted.slice(0, 6)}.${formatted.slice(6)}`;
+    }
+    if (clean.length > 8) {
+      formatted = `${formatted.slice(0, 10)}/${formatted.slice(10)}`;
+    }
+    if (clean.length > 12) {
+      formatted = `${formatted.slice(0, 15)}-${formatted.slice(15, 17)}`;
+    }
+    return formatted.slice(0, 18);
+  }
+
+  // Se for apenas dígitos e até 11 caracteres, formata como CPF
+  let formatted = clean;
+  if (clean.length > 3) {
+    formatted = `${clean.slice(0, 3)}.${clean.slice(3)}`;
+  }
+  if (clean.length > 6) {
+    formatted = `${formatted.slice(0, 7)}.${formatted.slice(7)}`;
+  }
+  if (clean.length > 9) {
+    formatted = `${formatted.slice(0, 11)}-${formatted.slice(11, 13)}`;
+  }
+  return formatted.slice(0, 14);
+};
+
+

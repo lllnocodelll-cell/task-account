@@ -6,7 +6,7 @@ import {
   Settings,
   HelpCircle,
   LogOut,
-  Hexagon,
+  Zap,
   ChevronLeft,
   ChevronRight,
   MessageSquareMore,
@@ -15,6 +15,7 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
+import { BrandLogo } from './ui/BrandLogo';
 import { UserRole } from '../types';
 
 interface SidebarProps {
@@ -390,13 +391,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <div className={`fixed left-0 top-0 bottom-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-[80] transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} ${isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
-      <div className={`h-16 flex items-center border-b border-slate-200 dark:border-slate-800 ${isCollapsed ? 'justify-center' : 'px-6'}`}>
-        <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-500 overflow-hidden whitespace-nowrap">
-          <Hexagon size={28} strokeWidth={2.5} className="shrink-0" />
-          <span className={`text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none mt-1 transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
-            Task Account
-          </span>
-        </div>
+      <div className={`h-16 flex items-center border-b border-slate-200 dark:border-slate-800 ${isCollapsed ? 'justify-center px-2' : 'px-5'}`}>
+        {isCollapsed ? (
+          <div className="w-8 h-8 rounded-xl bg-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)] shrink-0 transition-transform hover:scale-105" title="TaskAccount Core v2.6">
+            <Zap size={18} className="fill-slate-950 stroke-slate-950" />
+          </div>
+        ) : (
+          <BrandLogo size="md" />
+        )}
       </div>
 
       <button

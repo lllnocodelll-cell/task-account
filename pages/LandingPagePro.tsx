@@ -28,6 +28,7 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
+import { TenantOnboardingModal, PlanDetails } from '../components/TenantOnboardingModal';
 
 /* ──────────────────────────── DATA ──────────────────────────── */
 
@@ -251,26 +252,44 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
   toggleTheme
 }) => {
   const [activeModule, setActiveModule] = useState<string>('dashboard');
+  const [selectedPlanForOnboarding, setSelectedPlanForOnboarding] = useState<PlanDetails | null>(null);
 
   const currentMod = modules.find(m => m.id === activeModule) || modules[0];
+
+  const handleSelectPlan = (plan: typeof plans[0]) => {
+    if (plan.name === 'Elite') {
+      window.open('https://wa.me/5511999999999?text=Olá,%20gostaria%20de%20saber%20mais%20sobre%20o%20plano%20Elite%20do%20Task%20Account', '_blank');
+      return;
+    }
+    setSelectedPlanForOnboarding({
+      name: plan.name,
+      price: plan.price,
+      period: plan.period,
+      clientsLimit: plan.clientsLimit,
+      storageLimit: plan.storageLimit,
+      description: plan.description,
+      costPerClient: plan.costPerClient
+    });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0E14] text-slate-900 dark:text-slate-100 selection:bg-yellow-400 selection:text-black font-sans antialiased overflow-x-hidden transition-colors duration-300">
       
       {/* ─── HEADER / NAVBAR FLUTUANTE ─── */}
-      <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 py-4 sm:py-6 pointer-events-none">
+      <header className="fixed top-0 left-0 right-0 z-50 px-3 sm:px-8 py-3 sm:py-6 pointer-events-none">
         <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto">
           
           {/* Brand Logo */}
-          <div className="flex items-center gap-3 bg-white/90 dark:bg-[#121722]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 px-4 py-2.5 rounded-2xl shadow-lg shadow-slate-200/50 dark:shadow-black/40 transition-colors">
-            <div className="w-7 h-7 rounded-lg bg-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)]">
-              <Zap size={16} className="fill-slate-950 stroke-slate-950" />
+          <div className="flex items-center gap-2 sm:gap-3 bg-white/90 dark:bg-[#121722]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl shadow-lg shadow-slate-200/50 dark:shadow-black/40 transition-colors">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)] shrink-0">
+              <Zap size={14} className="fill-slate-950 stroke-slate-950 sm:hidden" />
+              <Zap size={16} className="fill-slate-950 stroke-slate-950 hidden sm:block" />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase">
+              <span className="text-xs sm:text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase">
                 Task<span className="text-amber-500 dark:text-yellow-400">Account</span>
               </span>
-              <span className="text-[8px] font-mono tracking-widest text-slate-500 dark:text-slate-400 uppercase mt-0.5">
+              <span className="text-[7px] sm:text-[8px] font-mono tracking-widest text-slate-500 dark:text-slate-400 uppercase mt-0.5">
                 Core v2.6
               </span>
             </div>
@@ -293,25 +312,27 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           </nav>
 
           {/* Ações: Toggle Theme + Botão Acessar Sistema */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {toggleTheme && (
               <button
                 onClick={toggleTheme}
-                className="w-10 h-10 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-yellow-400 shadow-lg shadow-slate-200/50 dark:shadow-black/40 transition-all cursor-pointer"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-yellow-400 shadow-lg shadow-slate-200/50 dark:shadow-black/40 transition-all cursor-pointer shrink-0"
                 title={isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}
                 aria-label="Alternar Tema"
               >
-                {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
+                {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
               </button>
             )}
 
             <button
               onClick={onLoginClick}
-              className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-slate-950 font-black text-xs tracking-wider uppercase px-5 py-3 rounded-2xl shadow-[0_0_25px_-5px_rgba(250,204,21,0.5)] transition-all cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 bg-yellow-400 hover:bg-yellow-300 active:scale-95 text-slate-950 font-black text-[11px] sm:text-xs tracking-wider uppercase px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl shadow-[0_0_20px_-5px_rgba(250,204,21,0.5)] transition-all cursor-pointer shrink-0"
             >
-              <span>Acessar Sistema</span>
-              <div className="w-4 h-4 rounded-full bg-slate-950 text-yellow-400 flex items-center justify-center">
-                <Zap size={10} className="fill-yellow-400" />
+              <span>Acessar</span>
+              <span className="hidden sm:inline">Sistema</span>
+              <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-slate-950 text-yellow-400 flex items-center justify-center shrink-0">
+                <Zap size={9} className="fill-yellow-400 sm:hidden" />
+                <Zap size={10} className="fill-yellow-400 hidden sm:block" />
               </div>
             </button>
           </div>
@@ -712,7 +733,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
                   {/* Botão de Ação */}
                   <button
-                    onClick={onLoginClick}
+                    onClick={() => handleSelectPlan(plan)}
                     className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${
                       isGold
                         ? 'bg-yellow-400 hover:bg-yellow-300 text-slate-950 shadow-[0_0_20px_rgba(250,204,21,0.4)]'
@@ -746,6 +767,17 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           </p>
         </div>
       </footer>
+
+      {selectedPlanForOnboarding && (
+        <TenantOnboardingModal
+          isOpen={!!selectedPlanForOnboarding}
+          onClose={() => setSelectedPlanForOnboarding(null)}
+          plan={selectedPlanForOnboarding}
+          onSuccess={() => {
+            setSelectedPlanForOnboarding(null);
+          }}
+        />
+      )}
 
     </div>
   );

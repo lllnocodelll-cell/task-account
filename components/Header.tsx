@@ -5,6 +5,7 @@ import { UserRole } from '../types';
 import { NotificationsDrawer } from './notifications/NotificationsDrawer';
 import { UsefulLinksDrawer } from './UsefulLinksDrawer';
 import { TAB_CONFIG } from '../utils/tabFavicon';
+import { BrandLogo } from './ui/BrandLogo';
 
 interface UserProfile {
   id: string;
@@ -59,6 +60,11 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Menu size={24} />
         </button>
+
+        {/* Logo oficial da Landing Page no cabeçalho mobile */}
+        <div className="md:hidden flex items-center">
+          <BrandLogo size="sm" showVersion={false} />
+        </div>
 
         {currentTabLabel && activeTab && (
           <div className="tooltip-container tooltip-bottom hidden sm:inline-flex">

@@ -12,6 +12,7 @@ import { ClientPortal } from './pages/ClientPortal';
 import { Chat } from './pages/Chat';
 import { LandingPage } from './pages/LandingPage';
 import { LandingPagePro } from './pages/LandingPagePro';
+import { InviteActivation } from './pages/InviteActivation';
 import { UserRole, Client } from './types';
 import { supabase } from './utils/supabaseClient';
 import { Loader2, ShieldAlert, UserX, KeyRound, MailCheck, ArrowRight } from 'lucide-react';
@@ -68,6 +69,14 @@ function App() {
   const [isTutorialsOpen, setIsTutorialsOpen] = useState(false);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [isActivationMode, setIsActivationMode] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('action') === 'activate' || !!params.get('invite');
+    } catch {
+      return false;
+    }
+  });
   const [clientsList, setClientsList] = useState<Client[]>([]);
   const [isDeactivatedModalOpen, setIsDeactivatedModalOpen] = useState(false);
   const [isCredentialsChangedModalOpen, setIsCredentialsChangedModalOpen] = useState(false);
@@ -728,6 +737,47 @@ function App() {
   }
 
   if (!session) {
+    if (isActivationMode) {
+      return (
+        <div className="relative">
+          <button 
+            onClick={() => {
+              setIsActivationMode(false);
+              setShowAuth(true);
+              const url = new URL(window.location.href);
+              url.searchParams.delete('action');
+              url.searchParams.delete('invite');
+              window.history.replaceState(null, '', url.toString());
+            }}
+            className="fixed top-6 left-6 z-[60] px-4 py-2 bg-slate-900/50 backdrop-blur-md border border-white/10 rounded-full text-xs font-bold text-slate-400 hover:text-white transition-all"
+          >
+            ← Ir para Login
+          </button>
+          <InviteActivation
+            onSuccess={() => {
+              setIsActivationMode(false);
+              const url = new URL(window.location.href);
+              url.searchParams.delete('action');
+              url.searchParams.delete('invite');
+              window.history.replaceState(null, '', url.toString());
+            }}
+            onGoToLogin={() => {
+              setIsActivationMode(false);
+              setShowAuth(true);
+              const url = new URL(window.location.href);
+              url.searchParams.delete('action');
+              url.searchParams.delete('invite');
+              window.history.replaceState(null, '', url.toString());
+            }}
+            isDarkMode={isDarkMode}
+            toggleTheme={toggleTheme}
+          />
+          {renderDeactivatedModal()}
+          {renderCredentialsChangedModal()}
+        </div>
+      );
+    }
+
     if (showAuth) {
       return (
         <div className="relative">
@@ -739,6 +789,7 @@ function App() {
           </button>
           <Auth
             onLogin={() => { }} // Handle by auth listener
+            onGoToLanding={() => setShowAuth(false)}
             isDarkMode={isDarkMode}
             toggleTheme={toggleTheme}
           />
