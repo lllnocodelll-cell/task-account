@@ -63,6 +63,8 @@ function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [initialClientsTabClientId, setInitialClientsTabClientId] = useState<string | null>(null);
+  const [initialTasksTabTaskId, setInitialTasksTabTaskId] = useState<string | null>(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -85,6 +87,11 @@ function App() {
   const handleNavigateToClient = (clientId: string) => {
     setInitialClientsTabClientId(clientId);
     setActiveTab('clients');
+  };
+
+  const handleNavigateToTask = (taskId: string) => {
+    setInitialTasksTabTaskId(taskId);
+    setActiveTab('tasks');
   };
 
   const fetchClients = async (orgId: string) => {
@@ -127,7 +134,7 @@ function App() {
       return;
     }
 
-    updateTabMeta(activeTab, userRole);
+    updateTabMeta(activeTab, userRole, unreadNotificationsCount);
 
     // Synchronize URL search params (?tab=...) without reloading page
     try {
@@ -139,7 +146,7 @@ function App() {
     } catch (e) {
       console.error('Error synchronizing tab in URL:', e);
     }
-  }, [activeTab, session, userRole]);
+  }, [activeTab, session, userRole, unreadNotificationsCount]);
 
   // Handle browser Back / Forward navigation (popstate)
   useEffect(() => {
@@ -590,7 +597,14 @@ function App() {
       case 'dashboard':
         return <Dashboard userProfile={userProfile} />;
       case 'tasks':
-        return <Tasks userProfile={userProfile} onNavigateToClient={handleNavigateToClient} />;
+        return (
+          <Tasks 
+            userProfile={userProfile} 
+            onNavigateToClient={handleNavigateToClient} 
+            initialTaskId={initialTasksTabTaskId}
+            onClearInitialTaskId={() => setInitialTasksTabTaskId(null)}
+          />
+        );
       case 'clients':
         return (
           <Clients
@@ -606,7 +620,14 @@ function App() {
       case 'profile':
         return <Profile userProfile={userProfile} onProfileUpdate={refreshUserProfile} />;
       case 'notifications':
-        return <Notifications />;
+        return (
+          <Notifications 
+            onNavigateToTask={handleNavigateToTask}
+            onNavigateToClient={handleNavigateToClient}
+            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onOpenTutorials={() => setIsTutorialsOpen(true)}
+          />
+        );
       case 'client-portal':
         return <ClientPortal userProfile={userProfile} onNavigateToChat={() => setActiveTab('chat')} />;
       case 'support':
@@ -839,6 +860,9 @@ function App() {
           onNavigateToTab={(tab) => setActiveTab(tab)}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           onOpenTutorials={() => setIsTutorialsOpen(true)}
+          onNavigateToTask={handleNavigateToTask}
+          onNavigateToClient={handleNavigateToClient}
+          onUnreadCountChange={setUnreadNotificationsCount}
           userRole={userRole}
           userProfile={userProfile}
         />

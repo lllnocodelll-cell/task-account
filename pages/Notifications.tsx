@@ -17,11 +17,30 @@ import {
   CalendarClock,
   ShieldAlert,
   MailOpen,
-  Mail
+  Mail,
+  ExternalLink,
+  Building2,
+  ArrowRightLeft,
+  Scale,
+  BookOpen,
+  Users,
+  MapPin
 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 
-export const Notifications: React.FC = () => {
+interface NotificationsProps {
+  onNavigateToTask?: (taskId: string) => void;
+  onNavigateToClient?: (clientId: string) => void;
+  onNavigateToTab?: (tabName: string) => void;
+  onOpenTutorials?: () => void;
+}
+
+export const Notifications: React.FC<NotificationsProps> = ({
+  onNavigateToTask,
+  onNavigateToClient,
+  onNavigateToTab,
+  onOpenTutorials
+}) => {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -210,8 +229,44 @@ export const Notifications: React.FC = () => {
       case 'task_alert_critical': return <AlertCircle size={20} className="text-red-500" />;
       case 'new_tutorial': return <FileText size={20} className="text-indigo-500" />;
       case 'task_due_soon': return <CalendarClock size={20} className="text-orange-500" />;
+      case 'task_overdue': return <AlertTriangle size={20} className="text-rose-600" />;
       case 'license_expiring': return <ShieldAlert size={20} className="text-rose-500" />;
+      case 'client_created': return <Building2 size={20} className="text-emerald-500" />;
+      case 'task_reassigned': return <ArrowRightLeft size={20} className="text-indigo-500" />;
+      case 'client_tax_regime_changed': return <Scale size={20} className="text-amber-500" />;
+      case 'client_legislation_added': return <BookOpen size={20} className="text-cyan-500" />;
+      case 'client_contact_updated': return <Users size={20} className="text-sky-500" />;
+      case 'client_address_changed': return <MapPin size={20} className="text-rose-500" />;
       default: return <Info size={20} className="text-slate-500" />;
+    }
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
+    if (notification.link) {
+      if (notification.link.includes('/tasks')) {
+        const match = notification.link.match(/[?&]id=([^&]+)/);
+        const taskId = match ? match[1] : (notification.related_entity_id || undefined);
+        if (taskId && onNavigateToTask) {
+          onNavigateToTask(taskId);
+        } else if (onNavigateToTab) {
+          onNavigateToTab('tasks');
+        }
+      } else if (notification.link.includes('/clients')) {
+        const match = notification.link.match(/[?&]id=([^&]+)/);
+        const clientId = match ? match[1] : (notification.related_entity_id || undefined);
+        if (clientId && onNavigateToClient) {
+          onNavigateToClient(clientId);
+        } else if (onNavigateToTab) {
+          onNavigateToTab('clients');
+        }
+      } else if (notification.link.includes('/chat') && onNavigateToTab) {
+        onNavigateToTab('chat');
+      } else if (notification.link.includes('/tutorials') && onOpenTutorials) {
+        onOpenTutorials();
+      }
     }
   };
 
@@ -343,8 +398,29 @@ export const Notifications: React.FC = () => {
                     <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-6 leading-relaxed mb-2">
                       {notification.message}
                     </p>
+                    {notification.link && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNotificationClick(notification);
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline mt-1 cursor-pointer"
+                      >
+                        <span>Acessar item relacionado</span>
+                        <ExternalLink size={12} />
+                      </button>
+                    )}
                  </div>
                  <div className="flex flex-col gap-2 shrink-0 ml-4 border-l pl-4 border-slate-100 dark:border-slate-800 justify-center">
+                    {notification.link && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleNotificationClick(notification); }}
+                        className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors" 
+                        title="Acessar item relacionado"
+                      >
+                        <ExternalLink size={18} />
+                      </button>
+                    )}
                     {!notification.read ? (
                       <button 
                         onClick={(e) => { e.stopPropagation(); markAsRead(notification.id); }}

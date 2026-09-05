@@ -28,6 +28,9 @@ interface HeaderProps {
   onNavigateToTab?: (tabName: string) => void;
   onToggleMobileMenu?: () => void;
   onOpenTutorials?: () => void;
+  onNavigateToTask?: (taskId: string) => void;
+  onNavigateToClient?: (clientId: string) => void;
+  onUnreadCountChange?: (count: number) => void;
   userRole: UserRole;
   userProfile: UserProfile | null;
 }
@@ -40,6 +43,9 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateToTab,
   onToggleMobileMenu,
   onOpenTutorials,
+  onNavigateToTask,
+  onNavigateToClient,
+  onUnreadCountChange,
   userRole,
   userProfile
 }) => {
@@ -49,6 +55,25 @@ export const Header: React.FC<HeaderProps> = ({
 
   const currentTabMeta = activeTab ? TAB_CONFIG[activeTab] : null;
   const currentTabLabel = activeTab === 'chat' && userRole === 'cliente' ? 'Atendimento' : currentTabMeta?.title;
+
+  const handleDrawerNavigate = (tabName: string, id?: string) => {
+    if (tabName === 'tutorials') {
+      onOpenTutorials?.();
+      return;
+    }
+    if (tabName === 'tasks' && id) {
+      onNavigateToTask?.(id);
+    } else if (tabName === 'clients' && id) {
+      onNavigateToClient?.(id);
+    } else if (onNavigateToTab) {
+      onNavigateToTab(tabName);
+    }
+  };
+
+  const handleUnreadCount = (count: number) => {
+    setUnreadCount(count);
+    onUnreadCountChange?.(count);
+  };
 
   return (
     <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 z-[60] transition-colors duration-300">
@@ -159,8 +184,8 @@ export const Header: React.FC<HeaderProps> = ({
           userId={userProfile.id}
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
-          onNavigate={onNavigateToTab}
-          onUnreadCountChange={setUnreadCount}
+          onNavigate={handleDrawerNavigate}
+          onUnreadCountChange={handleUnreadCount}
         />
       )}
     </header>

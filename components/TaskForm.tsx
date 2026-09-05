@@ -724,6 +724,8 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
               for (const ft of futureTasks) {
                 let updatedFields: any = {
                   responsible: payload.responsible,
+                  responsibles: payload.responsibles,
+                  sector: payload.sector,
                   priority: payload.priority,
                   tax_regime: payload.tax_regime,
                   registration_regime: payload.registration_regime,

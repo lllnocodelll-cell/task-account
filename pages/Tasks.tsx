@@ -1523,9 +1523,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 const MAX_RENDER_TABLE = 150;
 const MAX_RENDER_KANBAN = 100;
 
-// --- MAIN TASKS PAGE ---
-
-export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId: string) => void }> = ({ userProfile, onNavigateToClient }) => {
+export const Tasks: React.FC<{ 
+  userProfile: any; 
+  onNavigateToClient?: (clientId: string) => void;
+  initialTaskId?: string | null;
+  onClearInitialTaskId?: () => void;
+}> = ({ userProfile, onNavigateToClient, initialTaskId, onClearInitialTaskId }) => {
   const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
   const [layoutMode, setLayoutMode] = useState<'list' | 'kanban'>(() => typeof window !== 'undefined' && window.innerWidth < 1024 ? 'kanban' : 'list');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -1974,6 +1977,101 @@ export const Tasks: React.FC<{ userProfile: any; onNavigateToClient?: (clientId:
     fetchTasks();
     fetchClients();
   }, [userProfile?.org_id]);
+
+  // Deep-linking: abrir tarefa específica vinda de notificação ou link direto
+  useEffect(() => {
+    if (!initialTaskId) return;
+
+    let isMounted = true;
+
+    const openTargetTask = async () => {
+      // 1. Tentar encontrar na lista já carregada
+      const existing = tasks.find(t => t.id === initialTaskId);
+      if (existing) {
+        setSelectedTaskForDetails(existing);
+        setIsTaskDetailsDrawerOpen(true);
+        onClearInitialTaskId?.();
+        return;
+      }
+
+      // 2. Se não estiver no filtro atual, buscar no Supabase
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select(`
+            *,
+            clients(city, state, document, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
+            attachments:task_attachments(*),
+            workflows:task_workflows(*)
+          `)
+          .eq('id', initialTaskId)
+          .single();
+
+        if (data && !error && isMounted) {
+          const mappedTask: Task = {
+            id: data.id,
+            clientId: data.client_id,
+            clientName: data.client_name,
+            taskName: data.task_name,
+            competence: data.competence,
+            priority: data.priority as Priority,
+            sector: data.sector,
+            responsibleSectors: (data as any).responsible_sectors || [],
+            responsible: data.responsible,
+            responsibles: data.responsibles || (data.responsible ? [data.responsible] : []),
+            status: data.status as TaskStatus,
+            dueDate: data.due_date,
+            variableAdjustment: data.variable_adjustment,
+            recurrence: data.recurrence,
+            recurrenceMonths: data.recurrence_months,
+            observation: data.observation,
+            taxRegime: data.tax_regime,
+            registrationRegime: data.registration_regime,
+            noMovement: data.no_movement,
+            exceededSublimit: data.exceeded_sublimit,
+            factorR: data.factor_r,
+            notifiedExclusion: data.notified_exclusion,
+            selectedAnnexes: data.selected_annexes,
+            clientCity: data.clients?.city,
+            clientState: data.clients?.state,
+            clientDocument: data.clients?.document,
+            establishmentType: data.clients?.establishment_type,
+            clientDfes: data.clients?.client_dfe_series,
+            clientAccesses: data.clients?.client_accesses,
+            clientLegislations: data.clients?.client_legislations,
+            attachments: (data.attachments as any[])?.map((a: any) => ({
+              id: a.id,
+              name: a.file_name || a.name,
+              size: a.file_size || a.size || 0,
+              url: a.download_url || a.url,
+              storage_path: a.storage_path
+            })),
+            temporary_tag: data.temporary_tag,
+            workflows: data.workflows || [],
+            createdAt: data.created_at,
+            startedAt: data.started_at,
+            completedAt: data.completed_at,
+            totalTimeSpentSeconds: (data as any).total_time_spent_seconds,
+            timerStartedAt: (data as any).timer_started_at
+          };
+          setSelectedTaskForDetails(mappedTask);
+          setIsTaskDetailsDrawerOpen(true);
+        }
+      } catch (err) {
+        console.error('Erro ao abrir tarefa por initialTaskId:', err);
+      } finally {
+        if (isMounted) {
+          onClearInitialTaskId?.();
+        }
+      }
+    };
+
+    openTargetTask();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialTaskId, tasks]);
 
   // CRUD Handlers
   const handleUpdateTaskTag = async (taskId: string, tag: string | null) => {

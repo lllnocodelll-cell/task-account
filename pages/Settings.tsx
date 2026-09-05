@@ -284,7 +284,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             memberId: newM.id,
             email: newM.email,
             name: fullName,
-            role: newM.role || 'operacional',
+            role: (newM.role as any) || 'operacional',
             orgId: userProfile.org_id,
             orgName: userProfile.org_name || 'Escritório Contábil'
           });
