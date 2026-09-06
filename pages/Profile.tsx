@@ -3,11 +3,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { User, Mail, Phone, MapPin, Camera, Shield, Key, Save, LogOut, Loader2, Briefcase, ScanFace, Building2, Upload, FileText, ExternalLink, HardDrive, ChevronDown } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Shield, Key, Save, LogOut, Loader2, Briefcase, ScanFace, Building2, Upload, FileText, ExternalLink, HardDrive, ChevronDown, Eye, EyeOff, Check, X, Lock } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Modal } from '../components/ui/Modal';
 import { UserRole, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { compressFileIfNeeded } from '../utils/fileCompression';
+import { PasswordStrengthMeter } from '../components/ui/PasswordStrengthMeter';
+import { formatCnpjCpf } from '../utils/stringUtils';
+import { 
+   PLANS_LIST, 
+   getPlanConfig, 
+   bytesToGb, 
+   formatStorageUsed,
+   calculateStoragePercentage, 
+   getStorageUsageStatus, 
+   DEFAULT_PLAN,
+   PlanName
+} from '../constants/plans';
 
 interface ProfileProps {
    userProfile: any;
@@ -54,6 +67,10 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
    const [newPassword, setNewPassword] = useState('');
    const [confirmNewPassword, setConfirmNewPassword] = useState('');
    const [updatingPassword, setUpdatingPassword] = useState(false);
+   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+   const [showNewPassword, setShowNewPassword] = useState(false);
+   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
 
    const { addToast } = useToast();
 
@@ -77,10 +94,10 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
    const [officeNeighborhood, setOfficeNeighborhood] = useState('');
    const [officeCity, setOfficeCity] = useState('');
    const [officeState, setOfficeState] = useState('');
-   const [officePlanName, setOfficePlanName] = useState('Bronze');
-   const [officePlanValue, setOfficePlanValue] = useState(199.90);
-   const [officeStorageLimitGb, setOfficeStorageLimitGb] = useState(50);
-   const [officeStorageUsedBytes, setOfficeStorageUsedBytes] = useState(Math.round(12.4 * 1024 * 1024 * 1024)); // mock inicial realista
+   const [officePlanName, setOfficePlanName] = useState<string>(DEFAULT_PLAN.name);
+   const [officePlanValue, setOfficePlanValue] = useState(DEFAULT_PLAN.price);
+   const [officeStorageLimitGb, setOfficeStorageLimitGb] = useState(DEFAULT_PLAN.storageLimitGb);
+   const [officeStorageUsedBytes, setOfficeStorageUsedBytes] = useState(0);
    const [officeContractUrl, setOfficeContractUrl] = useState('');
    const [loadingOffice, setLoadingOffice] = useState(false);
    const [savingOffice, setSavingOffice] = useState(false);
@@ -132,9 +149,10 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
          if (error) throw error;
 
          if (data) {
+            const planConfig = getPlanConfig(data.plan_name);
             setOfficeExists(true);
             setOfficeCompanyName(data.company_name || '');
-            setOfficeDocument(data.document || '');
+            setOfficeDocument(formatCnpjCpf(data.document || ''));
             setOfficeConstitutionDate(data.constitution_date || '');
             setOfficeZipCode(data.zip_code || '');
             setOfficeStreet(data.street || '');
@@ -143,17 +161,17 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
             setOfficeNeighborhood(data.neighborhood || '');
             setOfficeCity(data.city || '');
             setOfficeState(data.state || '');
-            setOfficePlanName(data.plan_name || 'Bronze');
-            setOfficePlanValue(Number(data.plan_value || 199.90));
-            setOfficeStorageLimitGb(data.storage_limit_gb || 50);
+            setOfficePlanName(data.plan_name || DEFAULT_PLAN.name);
+            setOfficePlanValue(Number(data.plan_value !== undefined && data.plan_value !== null ? data.plan_value : planConfig.price));
+            setOfficeStorageLimitGb(Number(data.storage_limit_gb || planConfig.storageLimitGb));
             setOfficeStorageUsedBytes(Number(data.storage_used_bytes || 0));
             setOfficeContractUrl(data.contract_url || '');
          } else {
             setOfficeExists(false);
-            setOfficePlanName('Bronze');
-            setOfficePlanValue(199.90);
-            setOfficeStorageLimitGb(50);
-            setOfficeStorageUsedBytes(Math.round(12.4 * 1024 * 1024 * 1024)); // mock inicial realista
+            setOfficePlanName(DEFAULT_PLAN.name);
+            setOfficePlanValue(DEFAULT_PLAN.price);
+            setOfficeStorageLimitGb(DEFAULT_PLAN.storageLimitGb);
+            setOfficeStorageUsedBytes(0);
          }
       } catch (err) {
          console.error('Error fetching office details:', err);
@@ -178,39 +196,6 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
       }
    };
 
-   const formatCnpjCpf = (value: string) => {
-      const clean = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-      
-      if (clean.length <= 11) {
-         let formatted = clean;
-         if (clean.length > 3) {
-            formatted = `${clean.slice(0, 3)}.${clean.slice(3)}`;
-         }
-         if (clean.length > 6) {
-            formatted = `${formatted.slice(0, 7)}.${formatted.slice(7)}`;
-         }
-         if (clean.length > 9) {
-            formatted = `${formatted.slice(0, 11)}-${formatted.slice(11, 13)}`;
-         }
-         return formatted.slice(0, 14);
-      } else {
-         let formatted = clean;
-         if (clean.length > 2) {
-            formatted = `${clean.slice(0, 2)}.${clean.slice(2)}`;
-         }
-         if (clean.length > 5) {
-            formatted = `${formatted.slice(0, 6)}.${formatted.slice(6)}`;
-         }
-         if (clean.length > 8) {
-            formatted = `${formatted.slice(0, 10)}/${formatted.slice(10)}`;
-         }
-         if (clean.length > 12) {
-            formatted = `${formatted.slice(0, 15)}-${formatted.slice(15, 17)}`;
-         }
-         return formatted.slice(0, 18);
-      }
-   };
-
    const validatePlanChange = (targetPlan: string) => {
       setSelectedNewPlan(targetPlan);
       setPlanChangeError(null);
@@ -219,18 +204,9 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
          return;
       }
 
-      let clientLimit = 100;
-      let storageLimitGb = 50;
-      if (targetPlan === 'Prata') {
-         clientLimit = 250;
-         storageLimitGb = 100;
-      } else if (targetPlan === 'Ouro') {
-         clientLimit = 350;
-         storageLimitGb = 120;
-      } else if (targetPlan === 'Elite') {
-         clientLimit = 999999;
-         storageLimitGb = 500;
-      }
+      const targetConfig = getPlanConfig(targetPlan);
+      const clientLimit = targetConfig.clientLimit;
+      const storageLimitGb = targetConfig.storageLimitGb;
 
       // Regra 1: Clientes ativos excedem limite do destino (Downgrade)
       if (activeClientsCount > clientLimit) {
@@ -239,7 +215,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
       }
 
       // Regra 2: Storage utilizado excede limite do destino (Downgrade)
-      const storageUsedGb = officeStorageUsedBytes / (1024 * 1024 * 1024);
+      const storageUsedGb = bytesToGb(officeStorageUsedBytes);
       if (storageUsedGb > storageLimitGb) {
          setPlanChangeError(`Seu escritório utiliza ${storageUsedGb.toFixed(2)} GB, mas o plano ${targetPlan} suporta no máximo ${storageLimitGb} GB. Para prosseguir, remova anexos ou arquivos.`);
          return;
@@ -252,18 +228,9 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
          return;
       }
 
-      let limitGb = 50;
-      let val = 199.90;
-      if (selectedNewPlan === 'Prata') {
-         limitGb = 100;
-         val = 349.90;
-      } else if (selectedNewPlan === 'Ouro') {
-         limitGb = 120;
-         val = 499.90;
-      } else if (selectedNewPlan === 'Elite') {
-         limitGb = 500;
-         val = 0;
-      }
+      const targetConfig = getPlanConfig(selectedNewPlan);
+      const limitGb = targetConfig.storageLimitGb;
+      const val = targetConfig.price;
 
       try {
          if (officeExists) {
@@ -317,18 +284,9 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
       }
       setSavingOffice(true);
 
-      let limitGb = 50;
-      let val = 199.90;
-      if (officePlanName === 'Prata') {
-         limitGb = 100;
-         val = 349.90;
-      } else if (officePlanName === 'Ouro') {
-         limitGb = 120;
-         val = 499.90;
-      } else if (officePlanName === 'Elite') {
-         limitGb = 500;
-         val = 0;
-      }
+      const planConfig = getPlanConfig(officePlanName);
+      const limitGb = officeStorageLimitGb || planConfig.storageLimitGb;
+      const val = officePlanValue !== undefined ? officePlanValue : planConfig.price;
 
       const payload = {
          org_id: profile.org_id,
@@ -491,7 +449,8 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
             throw new Error('Você deve selecionar uma imagem para fazer upload.');
          }
 
-         const file = event.target.files[0];
+         const rawFile = event.target.files[0];
+         const file = await compressFileIfNeeded(rawFile, { maxWidthOrHeight: 800, maxSizeMB: 0.4 });
          const fileExt = file.name.split('.').pop();
          const fileName = `${profile?.id}/${Date.now()}.${fileExt}`;
          const filePath = `${fileName}`;
@@ -614,6 +573,9 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
          setCurrentPassword('');
          setNewPassword('');
          setConfirmNewPassword('');
+         setShowCurrentPassword(false);
+         setShowNewPassword(false);
+         setShowConfirmPassword(false);
 
       } catch (error: any) {
          console.error('Error updating password:', error);
@@ -816,38 +778,111 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
 
                      {activeTab === 'security' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                           <div className="space-y-4 max-w-md">
-                              <Input
-                                 label="Senha Atual"
-                                 type="password"
-                                 icon={<Key size={16} />}
-                                 value={currentPassword}
-                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                 placeholder="Digite sua senha atual para confirmar"
-                              />
-                              <div className="pt-2"></div>
-                              <Input
-                                 label="Nova Senha"
-                                 type="password"
-                                 icon={<Key size={16} />}
-                                 value={newPassword}
-                                 onChange={(e) => setNewPassword(e.target.value)}
-                                 placeholder="Mínimo 6 caracteres"
-                              />
-                              <Input
-                                 label="Confirmar Nova Senha"
-                                 type="password"
-                                 icon={<Key size={16} />}
-                                 value={confirmNewPassword}
-                                 onChange={(e) => setConfirmNewPassword(e.target.value)}
-                                 placeholder="Repita a nova senha"
-                              />
+                           <div>
+                              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                 <Shield size={18} className="text-indigo-500" />
+                                 Segurança e Senha de Acesso
+                              </h3>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                 Altere sua senha de acesso ao sistema. Utilize uma senha segura com letras maiúsculas, números e caracteres especiais.
+                              </p>
                            </div>
+
+                           <div className="space-y-4 max-w-md">
+                              {/* Senha Atual */}
+                              <div className="relative">
+                                 <Input
+                                    label="Senha Atual"
+                                    type={showCurrentPassword ? 'text' : 'password'}
+                                    icon={<Key size={16} />}
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    placeholder="Digite sua senha atual para confirmar"
+                                    className="pr-10"
+                                 />
+                                 <button
+                                    type="button"
+                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                    className="absolute right-3 top-[34px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+                                    title={showCurrentPassword ? 'Ocultar senha' : 'Exibir senha'}
+                                 >
+                                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                 </button>
+                              </div>
+
+                              <div className="border-t border-slate-100 dark:border-slate-800/80 my-3"></div>
+
+                              {/* Nova Senha com Medidor de Força */}
+                              <div className="space-y-1.5">
+                                 <div className="relative">
+                                    <Input
+                                       label="Nova Senha"
+                                       type={showNewPassword ? 'text' : 'password'}
+                                       icon={<Lock size={16} />}
+                                       value={newPassword}
+                                       onChange={(e) => setNewPassword(e.target.value)}
+                                       placeholder="Crie uma nova senha forte"
+                                       className="pr-10"
+                                    />
+                                    <button
+                                       type="button"
+                                       onClick={() => setShowNewPassword(!showNewPassword)}
+                                       className="absolute right-3 top-[34px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+                                       title={showNewPassword ? 'Ocultar senha' : 'Exibir senha'}
+                                    >
+                                       {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                 </div>
+
+                                 {/* Medidor de Força da Senha */}
+                                 <PasswordStrengthMeter password={newPassword} showRequirements={true} />
+                               </div>
+
+                              {/* Confirmar Nova Senha com Feedback */}
+                              <div className="space-y-1.5 pt-1">
+                                 <div className="relative">
+                                    <Input
+                                       label="Confirmar Nova Senha"
+                                       type={showConfirmPassword ? 'text' : 'password'}
+                                       icon={<Lock size={16} />}
+                                       value={confirmNewPassword}
+                                       onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                       placeholder="Repita a nova senha criada"
+                                       className="pr-10"
+                                    />
+                                    <button
+                                       type="button"
+                                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                       className="absolute right-3 top-[34px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+                                       title={showConfirmPassword ? 'Ocultar senha' : 'Exibir senha'}
+                                    >
+                                       {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                 </div>
+
+                                 {confirmNewPassword.length > 0 && (
+                                    <div className="flex items-center gap-1.5 text-xs font-medium pt-0.5">
+                                       {confirmNewPassword === newPassword ? (
+                                          <span className="text-emerald-500 flex items-center gap-1">
+                                             <Check size={14} className="stroke-[2.5]" />
+                                             As senhas coincidem perfeitamente
+                                          </span>
+                                       ) : (
+                                          <span className="text-rose-500 flex items-center gap-1">
+                                             <X size={14} className="stroke-[2.5]" />
+                                             A confirmação não coincide com a nova senha
+                                          </span>
+                                       )}
+                                    </div>
+                                 )}
+                              </div>
+                           </div>
+
                            <div className="flex justify-end pt-4">
                               <Button
                                  icon={updatingPassword ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                                  onClick={handleUpdatePassword}
-                                 disabled={updatingPassword}
+                                 disabled={updatingPassword || (confirmNewPassword.length > 0 && confirmNewPassword !== newPassword)}
                               >
                                  {updatingPassword ? 'Atualizando...' : 'Atualizar Segurança'}
                               </Button>
@@ -1004,6 +1039,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                                             value={officeDocument}
                                                             onChange={(e) => setOfficeDocument(formatCnpjCpf(e.target.value))}
                                                             placeholder="00.000.000/0001-00 ou 000.000.000-00"
+                                                            tooltip="Suporta CPF (11 dígitos) e CNPJ numérico ou alfanumérico"
                                                          />
                                                          <Input
                                                             label="Data de Constituição"
@@ -1243,31 +1279,46 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
 
                                                    <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
                                                       <div>
-                                                         <div className="flex justify-between items-center mb-3">
-                                                            <div>
-                                                               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Armazenamento do Storage</span>
-                                                               <span className="text-base font-bold text-slate-900 dark:text-white">Uso de Dados</span>
-                                                            </div>
-                                                            <HardDrive size={20} className="text-slate-400" />
-                                                         </div>
+                                                         {(() => {
+                                                            const storagePercent = calculateStoragePercentage(officeStorageUsedBytes, officeStorageLimitGb);
+                                                            const storageStatus = getStorageUsageStatus(storagePercent);
+                                                            return (
+                                                               <>
+                                                                  <div className="flex justify-between items-center mb-3">
+                                                                     <div>
+                                                                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block text-xs">Armazenamento do Storage</span>
+                                                                        <span className="text-base font-bold text-slate-900 dark:text-white">Uso de Dados</span>
+                                                                     </div>
+                                                                     <div className="flex items-center gap-2">
+                                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${storageStatus.badgeColor}`}>
+                                                                           {storagePercent.toFixed(1)}% em uso
+                                                                        </span>
+                                                                        <HardDrive size={20} className="text-slate-400" />
+                                                                     </div>
+                                                                  </div>
 
-                                                         <div className="space-y-2 mt-4">
-                                                            <div className="w-full h-3.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden relative border border-slate-300/30 dark:border-slate-700/30">
-                                                               <div 
-                                                                  className="h-full bg-gradient-to-r from-indigo-500 to-sky-400 rounded-full transition-all duration-500"
-                                                                  style={{ 
-                                                                     width: `${Math.min(
-                                                                        100, 
-                                                                        (officeStorageUsedBytes / (officeStorageLimitGb * 1024 * 1024 * 1024)) * 100
-                                                                     )}%` 
-                                                                  }}
-                                                               />
-                                                            </div>
-                                                            <div className="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                                               <span>{(officeStorageUsedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB utilizados</span>
-                                                               <span>{officeStorageLimitGb} GB totais</span>
-                                                            </div>
-                                                         </div>
+                                                                  <div className="space-y-2 mt-4">
+                                                                     <div className="w-full h-3.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden relative border border-slate-300/30 dark:border-slate-700/30">
+                                                                        <div 
+                                                                           className={`h-full bg-gradient-to-r ${storageStatus.barGradient} rounded-full transition-all duration-500`}
+                                                                           style={{ width: `${storagePercent}%` }}
+                                                                        />
+                                                                     </div>
+                                                                     <div className="flex justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                                        <span>{formatStorageUsed(officeStorageUsedBytes)} utilizados</span>
+                                                                        <span>{officeStorageLimitGb} GB totais</span>
+                                                                     </div>
+                                                                  </div>
+
+                                                                  {storagePercent >= 80 && (
+                                                                     <div className="mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs flex items-center gap-2">
+                                                                        <span className="text-xs">⚠️</span>
+                                                                        <span>Atenção: Seu escritório consumiu {storagePercent.toFixed(1)}% da capacidade contratada. Considere fazer upgrade.</span>
+                                                                     </div>
+                                                                  )}
+                                                               </>
+                                                            );
+                                                         })()}
 
                                                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-4 leading-normal text-xs font-normal">
                                                             * Backup por 5 anos incluso na sua licença contábil. Cobrança adicional de R$ 9,99 para cada 1GB excedente de armazenamento.
@@ -1304,14 +1355,14 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                  className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors cursor-pointer ${
                                     !!planChangeError || selectedNewPlan === officePlanName
                                        ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed border border-slate-200 dark:border-slate-700'
-                                       : selectedNewPlan === 'Elite' || selectedNewPlan === 'Ouro'
-                                          ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm'
+                                       : getPlanConfig(selectedNewPlan).storageLimitGb < getPlanConfig(officePlanName).storageLimitGb
+                                          ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-sm'
                                           : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
                                  }`}
                               >
                                  {selectedNewPlan === officePlanName 
                                     ? 'Plano Atual' 
-                                    : (selectedNewPlan === 'Bronze' || (selectedNewPlan === 'Prata' && officePlanName === 'Ouro')) 
+                                    : getPlanConfig(selectedNewPlan).storageLimitGb < getPlanConfig(officePlanName).storageLimitGb 
                                        ? 'Confirmar Downgrade' 
                                        : 'Confirmar Upgrade'}
                               </button>
@@ -1326,12 +1377,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                            </div>
 
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {[
-                                 { name: 'Bronze', limit: 100, storage: 50, price: 199.90, desc: 'Até 100 clientes | 50GB' },
-                                 { name: 'Prata', limit: 250, storage: 100, price: 349.90, desc: 'Até 250 clientes | 100GB' },
-                                 { name: 'Ouro', limit: 350, storage: 120, price: 499.90, desc: 'Até 350 clientes | 120GB' },
-                                 { name: 'Elite', limit: 999999, storage: 500, price: 0, desc: 'Clientes & Espaço sob demanda' }
-                              ].map((p) => {
+                              {PLANS_LIST.map((p) => {
                                  const isCurrent = p.name === officePlanName;
                                  const isSelected = p.name === selectedNewPlan;
                                  
@@ -1348,7 +1394,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                        <div className="flex justify-between items-start">
                                           <div>
                                              <span className="font-black text-sm text-slate-900 dark:text-white block">{p.name}</span>
-                                             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block font-normal">{p.desc}</span>
+                                             <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block font-normal">{p.shortDesc}</span>
                                           </div>
                                           {isCurrent && (
                                              <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[8px] font-black uppercase tracking-wider shrink-0">
@@ -1359,7 +1405,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-baseline">
                                           <span className="text-xs text-slate-400 font-normal">Mensalidade</span>
                                           <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                                             {p.price === 0 ? 'Sob Consulta' : `R$ ${p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                             {p.isCustomPrice || p.price === 0 ? 'Sob Consulta' : `R$ ${p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                                           </span>
                                        </div>
                                     </div>
@@ -1377,7 +1423,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                  <div className="p-4 bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/30 rounded-xl flex items-start gap-3 text-emerald-800 dark:text-emerald-400 text-xs leading-relaxed animate-in fade-in font-normal">
                                     <span className="font-bold text-xs shrink-0">✨ Autorizado:</span>
                                     <span>
-                                       {selectedNewPlan === 'Elite' || (officePlanName === 'Bronze' || (officePlanName === 'Prata' && selectedNewPlan === 'Ouro'))
+                                       {getPlanConfig(selectedNewPlan).storageLimitGb >= getPlanConfig(officePlanName).storageLimitGb
                                           ? `Upgrade disponível! Os limites do seu escritório serão expandidos para acomodar as novas demandas de serviço.`
                                           : `Downgrade disponível! Seu escritório cumpre todas as regras e limites do plano de destino.`
                                        }

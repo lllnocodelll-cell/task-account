@@ -50,6 +50,7 @@ import {
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { supabase } from '../utils/supabaseClient';
+import { compressFileIfNeeded } from '../utils/fileCompression';
 import { CreateGroupModal } from '../components/chat/CreateGroupModal';
 import { GroupSettingsModal } from '../components/chat/GroupSettingsModal';
 import { VideoCallModal } from '../components/chat/VideoCallModal';
@@ -4065,7 +4066,8 @@ export const Chat: React.FC = () => {
       if (filesToSend.length > 0) {
         setUploadProgress(10);
         for (let i = 0; i < filesToSend.length; i++) {
-          const fileToSend = filesToSend[i];
+          const rawFile = filesToSend[i];
+          const fileToSend = await compressFileIfNeeded(rawFile);
           const fileExt = fileToSend.name.split('.').pop();
           const filePath = `${selectedChannelId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
@@ -4338,11 +4340,11 @@ export const Chat: React.FC = () => {
   });
 
   return (
-    <div className="flex h-[calc(100vh-6.5rem)] md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-x border-b md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative -mx-4 -mb-4 md:mx-0 md:mb-0">
+    <div className="flex h-[calc(100dvh-4rem)] md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-x border-b md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative -mx-4 -mt-4 -mb-4 md:mx-0 md:mt-0 md:mb-0">
 
       {/* Sidebar - Contact List */}
       <div className={`transition-all duration-300 ease-in-out overflow-hidden h-full flex-col bg-slate-50/50 dark:bg-slate-950/30 absolute md:relative z-10 ${showSidebarOnMobile ? 'w-full flex' : 'w-0 hidden md:flex'} ${isSidebarCollapsed ? 'md:w-0 md:opacity-0 border-r border-transparent pointer-events-none' : 'md:w-[328px] md:opacity-100 border-r border-slate-200 dark:border-slate-800'}`}>
-        <div className="w-[328px] h-full flex flex-col shrink-0">
+        <div className="w-full md:w-[328px] h-full flex flex-col shrink-0">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">

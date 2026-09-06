@@ -112,6 +112,8 @@ export interface Task {
   clientCity?: string;
   clientState?: string;
   clientDocument?: string;
+  clientAdminPartnerName?: string;
+  clientAdminPartnerCpf?: string;
   establishmentType?: string;
   hasBranches?: boolean;
   clientDfes?: { id: string; dfe_type: string; login_url?: string; issuer?: string; series?: string; username?: string; password?: string; }[];
@@ -203,6 +205,7 @@ export interface Tutorial {
 export interface Notification {
   id: string;
   user_id: string;
+  org_id?: string | null;
   title: string;
   message: string;
   type: string;

@@ -200,7 +200,8 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     id, 
     icon: Icon, 
     valueClassName = "text-sm", 
-    color = "indigo" 
+    color = "indigo",
+    autoReduce = true
   }: { 
     label: string; 
     value: string; 
@@ -208,29 +209,37 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     icon?: any;
     valueClassName?: string;
     color?: string;
-  }) => (
-    <div 
-      className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
-      onClick={(e) => copyToClipboard(value, id, e)}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          {Icon && <Icon size={10} className="text-slate-400" />}
-          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</span>
+    autoReduce?: boolean;
+  }) => {
+    const isUppercase = autoReduce && value && value === value.toUpperCase() && /[A-Z]/.test(value);
+    const finalValueClassName = isUppercase 
+      ? (valueClassName === "text-base" || valueClassName === "text-sm" ? "text-[13px]" : "text-[12px]") 
+      : valueClassName;
+
+    return (
+      <div 
+        className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
+        onClick={(e) => copyToClipboard(value, id, e)}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {Icon && <Icon size={10} className="text-slate-400" />}
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {copyFeedback === id ? (
+              <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in slide-in-from-right-1">Copiado!</span>
+            ) : (
+              <Copy size={10} className="text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          {copyFeedback === id ? (
-            <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in slide-in-from-right-1">Copiado!</span>
-          ) : (
-            <Copy size={10} className="text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-          )}
-        </div>
+        <span className={`${finalValueClassName} font-bold text-slate-700 dark:text-slate-200 break-words leading-tight`}>
+          {value || '---'}
+        </span>
       </div>
-      <span className={`${valueClassName} font-bold text-slate-700 dark:text-slate-200 break-words leading-tight`}>
-        {value || '---'}
-      </span>
-    </div>
-  );
+    );
+  };
 
   // Lista ordenada das seções visíveis no momento (a do simples nacional pode estar oculta dependendo do regime da tarefa)
   const visibleSections = sectionsOrder.filter(id => id !== 'simples' || isSimplesNacional);
@@ -329,7 +338,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
             <div className={`grid transition-all duration-300 ease-in-out ${openSections.task ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 grid grid-cols-1 gap-3">
-                  <InfoField label="Nome da Tarefa" value={localTask.taskName} id="task-name" valueClassName="text-base" />
+                  <InfoField label="Nome da Tarefa" value={localTask.taskName} id="task-name" valueClassName="text-sm" />
                   <InfoField label="Empresa" value={localTask.clientName} id="client-name" icon={Building2} />
                   
                   {/* Footer Compacto S01 */}

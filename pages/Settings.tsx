@@ -7,6 +7,7 @@ import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../
 import { TAX_REGIME_GROUPS } from '../types';
 import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
+import { compressFileIfNeeded } from '../utils/fileCompression';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../contexts/ToastContext';
@@ -4425,13 +4426,14 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
 
     setUploadingImage(true);
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileToUpload = await compressFileIfNeeded(file, { maxWidthOrHeight: 1200, maxSizeMB: 0.5 });
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `header-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
       const filePath = `templates/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('chat-attachments')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) {
         // Fallback: converter para Data URL base64 se storage não estiver configurado

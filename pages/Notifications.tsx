@@ -24,11 +24,15 @@ import {
   Scale,
   BookOpen,
   Users,
-  MapPin
+  MapPin,
+  ShieldCheck,
+  KeyRound,
+  GraduationCap
 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 
 interface NotificationsProps {
+  userProfile?: any;
   onNavigateToTask?: (taskId: string) => void;
   onNavigateToClient?: (clientId: string) => void;
   onNavigateToTab?: (tabName: string) => void;
@@ -36,6 +40,7 @@ interface NotificationsProps {
 }
 
 export const Notifications: React.FC<NotificationsProps> = ({
+  userProfile,
   onNavigateToTask,
   onNavigateToClient,
   onNavigateToTab,
@@ -60,20 +65,24 @@ export const Notifications: React.FC<NotificationsProps> = ({
       }
     };
     init();
-  }, []);
+  }, [userProfile?.org_id]);
 
   useEffect(() => {
     if (!userId) return;
 
     const channel = supabase
-      .channel('public:notifications_page')
+      .channel(`public:notifications_page:${userId}${userProfile?.org_id ? `:${userProfile.org_id}` : ''}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
         table: 'notifications',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
-        setNotifications((prev) => [payload.new as Notification, ...prev]);
+        const newNotif = payload.new as Notification;
+        if (userProfile?.org_id && newNotif.org_id && newNotif.org_id !== userProfile.org_id) {
+          return;
+        }
+        setNotifications((prev) => [newNotif, ...prev]);
       })
       .on('postgres_changes', { 
         event: 'UPDATE', 
@@ -81,8 +90,12 @@ export const Notifications: React.FC<NotificationsProps> = ({
         table: 'notifications',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
+        const updatedNotif = payload.new as Notification;
+        if (userProfile?.org_id && updatedNotif.org_id && updatedNotif.org_id !== userProfile.org_id) {
+          return;
+        }
         setNotifications((prev) => 
-          prev.map(n => n.id === payload.new.id ? (payload.new as Notification) : n)
+          prev.map(n => n.id === updatedNotif.id ? updatedNotif : n)
         );
       })
       .on('postgres_changes', { 
@@ -98,15 +111,21 @@ export const Notifications: React.FC<NotificationsProps> = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, userProfile?.org_id]);
 
   const fetchNotifications = async (uid: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query: any = supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', uid)
+        .eq('user_id', uid);
+
+      if (userProfile?.org_id && userProfile.org_id !== 'demo-org') {
+        query = query.eq('org_id', userProfile.org_id);
+      }
+
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -227,10 +246,14 @@ export const Notifications: React.FC<NotificationsProps> = ({
       case 'task_concluded': return <CheckCircle size={20} className="text-emerald-500" />;
       case 'task_alert': return <AlertTriangle size={20} className="text-amber-500" />;
       case 'task_alert_critical': return <AlertCircle size={20} className="text-red-500" />;
-      case 'new_tutorial': return <FileText size={20} className="text-indigo-500" />;
+      case 'new_tutorial': return <GraduationCap size={20} className="text-indigo-500" />;
       case 'task_due_soon': return <CalendarClock size={20} className="text-orange-500" />;
       case 'task_overdue': return <AlertTriangle size={20} className="text-rose-600" />;
-      case 'license_expiring': return <ShieldAlert size={20} className="text-rose-500" />;
+      case 'license_expiring': return <ShieldAlert size={20} className="text-orange-500" />;
+      case 'license_expired': return <ShieldAlert size={20} className="text-rose-600" />;
+      case 'license_renewed': return <ShieldCheck size={20} className="text-emerald-500" />;
+      case 'certificate_expired': return <KeyRound size={20} className="text-rose-600" />;
+      case 'certificate_renewed': return <CheckCircle size={20} className="text-teal-500" />;
       case 'client_created': return <Building2 size={20} className="text-emerald-500" />;
       case 'task_reassigned': return <ArrowRightLeft size={20} className="text-indigo-500" />;
       case 'client_tax_regime_changed': return <Scale size={20} className="text-amber-500" />;
@@ -241,10 +264,96 @@ export const Notifications: React.FC<NotificationsProps> = ({
     }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
+  const isLicenseType = (type: string, title?: string, message?: string) => {
+    if (['license_expired', 'license_renewed'].includes(type)) return true;
+    if (type === 'license_expiring') {
+      const text = `${title || ''} ${message || ''}`.toLowerCase();
+      return !text.includes('certificado');
+    }
+    return false;
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
     }
+    // Licenças e Alvarás: DEVEM ABRIR O DRAWER DE DADOS DO CLIENTE
+    if (isLicenseType(notification.type, notification.title, notification.message)) {
+      const match = notification.link?.match(/[?&]id=([^&]+)/);
+      let targetClientId = match ? match[1] : notification.related_entity_id;
+
+      if (targetClientId) {
+        try {
+          const { data: licRow } = await supabase
+            .from('client_licenses')
+            .select('client_id')
+            .eq('id', targetClientId)
+            .maybeSingle();
+
+          if (licRow?.client_id) {
+            targetClientId = licRow.client_id;
+          }
+        } catch (e) {
+          console.error('Erro ao resolver cliente para notificação de licença:', e);
+        }
+
+        if (onNavigateToClient) {
+          onNavigateToClient(targetClientId);
+          return;
+        }
+      }
+
+      if (onNavigateToTab) {
+        onNavigateToTab('clients');
+      }
+      return;
+    }
+
+    // Regime tributário e Legislação: DEVEM SEMPRE abrir o drawer "Dados da Tarefa"
+    if (['client_tax_regime_changed', 'client_legislation_added'].includes(notification.type)) {
+      // 1. Se o link já aponta diretamente para uma tarefa
+      if (notification.link?.includes('/tasks')) {
+        const match = notification.link.match(/[?&]id=([^&]+)/);
+        const taskId = match ? match[1] : notification.related_entity_id;
+        if (taskId && onNavigateToTask) {
+          onNavigateToTask(taskId);
+          return;
+        } else if (onNavigateToTab) {
+          onNavigateToTab('tasks');
+          return;
+        }
+      }
+
+      // 2. Se aponta para um cliente (link /clients ou related_entity_id com ID do cliente)
+      const matchClient = notification.link?.match(/[?&]id=([^&]+)/);
+      const targetClientId = notification.related_entity_id || matchClient?.[1];
+
+      if (targetClientId) {
+        try {
+          const { data: clientTask } = await supabase
+            .from('tasks')
+            .select('id')
+            .eq('client_id', targetClientId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (clientTask?.id && onNavigateToTask) {
+            onNavigateToTask(clientTask.id);
+            return;
+          }
+        } catch (e) {
+          console.error('Erro ao buscar tarefa do cliente para Dados da Tarefa:', e);
+        }
+      }
+
+      // Fallback estrito: direciona para a aba de tarefas (NUNCA para dados do cliente)
+      if (onNavigateToTab) {
+        onNavigateToTab('tasks');
+      }
+      return;
+    }
+
     if (notification.link) {
       if (notification.link.includes('/tasks')) {
         const match = notification.link.match(/[?&]id=([^&]+)/);
@@ -398,7 +507,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
                     <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-6 leading-relaxed mb-2">
                       {notification.message}
                     </p>
-                    {notification.link && (
+                    {notification.link && !isLicenseType(notification.type, notification.title, notification.message) && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -412,7 +521,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
                     )}
                  </div>
                  <div className="flex flex-col gap-2 shrink-0 ml-4 border-l pl-4 border-slate-100 dark:border-slate-800 justify-center">
-                    {notification.link && (
+                    {notification.link && !isLicenseType(notification.type, notification.title, notification.message) && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleNotificationClick(notification); }}
                         className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors" 

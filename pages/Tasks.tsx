@@ -49,7 +49,8 @@ import {
   Scale,
   CheckCircle2,
   SquarePlus,
-  Pause
+  Pause,
+  Loader2
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -57,6 +58,7 @@ import { Task, TaskStatus, Priority, Client, TAX_REGIME_GROUPS, TAX_REGIME_LABEL
 import { Modal } from '../components/ui/Modal';
 import { Input, Select, SearchableSelect, Toggle, GroupedSelect } from '../components/ui/Input';
 import { supabase } from '../utils/supabaseClient';
+import { compressFileIfNeeded } from '../utils/fileCompression';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 import { ClientForm } from '../components/ClientForm';
 import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
@@ -681,6 +683,7 @@ interface KanbanColumnProps {
   userProfile: any;
   onUpdateTag: (taskId: string, tag: string | null) => Promise<void>;
   percent: number;
+  cardsMaxHeight?: string;
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -703,7 +706,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   clients,
   userProfile,
   onUpdateTag,
-  percent
+  percent,
+  cardsMaxHeight
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [colFilter, setColFilter] = useState<KanbanColFilter>(EMPTY_COL_FILTER);
@@ -845,7 +849,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
   return (
     <div
-      className={`flex flex-col h-full rounded-xl p-3 border transition-colors duration-200
+      className={`flex flex-col h-full min-h-0 rounded-xl p-3 border transition-colors duration-200
         ${isDragOver
           ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-300 dark:border-indigo-700 shadow-inner'
           : 'bg-slate-100/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
@@ -857,7 +861,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     >
 
       {/* Cabeçalho da Coluna */}
-      <div className="relative mb-3">
+      <div className="relative mb-3 shrink-0">
 
         {/* Linha do cabeçalho */}
         <div className={`flex items-center justify-between px-1 pb-2 border-b-2 ${color}`}>
@@ -1160,7 +1164,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 min-h-[100px]">
+      <div 
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0 [-ms-overflow-style:none] [scrollbar-width:none] space-y-3 px-1 pb-2"
+        style={cardsMaxHeight ? { maxHeight: cardsMaxHeight } : undefined}
+      >
         {localFilteredTasks.map(task => {
           const clientData = clients.find(c => c.id === task.clientId);
           const visibleAnnexes = task.selectedAnnexes?.filter(a => a !== 'Nulo' && a !== 'Sem Anexo') || [];
@@ -1535,6 +1542,7 @@ export const Tasks: React.FC<{
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [concludeModalOpen, setConcludeModalOpen] = useState(false);
+  const [isConcludingTask, setIsConcludingTask] = useState(false);
   const [reopenModalOpen, setReopenModalOpen] = useState(false);
   const [reopenModalTask, setReopenModalTask] = useState<Task | null>(null);
   const [reopenModalNewStatus, setReopenModalNewStatus] = useState<TaskStatus | null>(null);
@@ -1816,7 +1824,7 @@ export const Tasks: React.FC<{
         .from('tasks')
         .select(`
           *,
-          clients(city, state, document, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
+          clients(city, state, document, establishment_type, admin_partner_name, admin_partner_cpf, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
           attachments:task_attachments(*),
           workflows:task_workflows(*)
         `)
@@ -1883,6 +1891,8 @@ export const Tasks: React.FC<{
             clientCity: t.clients?.city,
             clientState: t.clients?.state,
             clientDocument: t.clients?.document,
+            clientAdminPartnerName: t.clients?.admin_partner_name,
+            clientAdminPartnerCpf: t.clients?.admin_partner_cpf,
             establishmentType: t.clients?.establishment_type,
             clientDfes: t.clients?.client_dfe_series || [],
             clientAccesses: t.clients?.client_accesses || [],
@@ -2000,7 +2010,7 @@ export const Tasks: React.FC<{
           .from('tasks')
           .select(`
             *,
-            clients(city, state, document, establishment_type, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
+            clients(city, state, document, establishment_type, admin_partner_name, admin_partner_cpf, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
             attachments:task_attachments(*),
             workflows:task_workflows(*)
           `)
@@ -2035,6 +2045,8 @@ export const Tasks: React.FC<{
             clientCity: data.clients?.city,
             clientState: data.clients?.state,
             clientDocument: data.clients?.document,
+            clientAdminPartnerName: data.clients?.admin_partner_name,
+            clientAdminPartnerCpf: data.clients?.admin_partner_cpf,
             establishmentType: data.clients?.establishment_type,
             clientDfes: data.clients?.client_dfe_series,
             clientAccesses: data.clients?.client_accesses,
@@ -2477,7 +2489,7 @@ export const Tasks: React.FC<{
   const handleConcludeTask = async () => {
     if (selectedTaskForConclude) {
       try {
-        setLoading(true);
+        setIsConcludingTask(true);
 
         const taskToConclude = tasks.find(t => t.id === selectedTaskForConclude);
         if (!taskToConclude) throw new Error('Tarefa não encontrada');
@@ -2486,9 +2498,11 @@ export const Tasks: React.FC<{
         const hasUncompletedMandatory = taskToConclude.workflows?.some(wf => wf.is_mandatory && !wf.is_completed);
         if (hasUncompletedMandatory) {
           showNotify('Não é possível concluir a tarefa. Existem workflows obrigatórios pendentes.', 'error');
-          setLoading(false);
+          setIsConcludingTask(false);
           return;
         }
+
+        setLoading(true);
 
         // 1. Update Status
         const { error: statusError } = await (supabase
@@ -2508,7 +2522,8 @@ export const Tasks: React.FC<{
             .eq('name', taskToConclude.sector)
             .single();
 
-          for (const file of concludeFiles) {
+          for (const rawFile of concludeFiles) {
+            const file = await compressFileIfNeeded(rawFile);
             // Remove caracteres especiais, espaços e pontos duplos que o Supabase bloqueia como "vulnerabilidade de pasta (..)"
             const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
             const storagePath = `tasks/${selectedTaskForConclude}/conclude/${Date.now()}_${safeName}`;
@@ -2562,6 +2577,7 @@ export const Tasks: React.FC<{
         console.error('Error concluding task:', error);
         alert('Erro ao concluir tarefa: ' + (error.message || 'Erro desconhecido'));
       } finally {
+        setIsConcludingTask(false);
         setLoading(false);
       }
     }
@@ -2588,6 +2604,15 @@ export const Tasks: React.FC<{
   };
 
   const headerInputClass = "mt-2 w-full h-8 text-xs px-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-sm animate-in fade-in slide-in-from-top-1 duration-200";
+
+  const isKanbanLimitBannerVisible = layoutMode === 'kanban' && (
+    kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE).length > MAX_RENDER_KANBAN ||
+    kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA).length > MAX_RENDER_KANBAN ||
+    kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA).length > MAX_RENDER_KANBAN ||
+    kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA).length > MAX_RENDER_KANBAN
+  );
+  const kanbanContainerHeight = isKanbanLimitBannerVisible ? 'calc(100vh - 250px)' : 'calc(100vh - 185px)';
+  const kanbanCardsMaxHeight = isKanbanLimitBannerVisible ? 'calc(100vh - 325px)' : 'calc(100vh - 260px)';
 
   if (viewState === 'create' || viewState === 'edit') {
     return (
@@ -2749,13 +2774,7 @@ export const Tasks: React.FC<{
         ) : (
           <>
             {/* Banner de Aviso de Limite de Exibição */}
-            {((layoutMode === 'list' && filteredTasks.length > MAX_RENDER_TABLE) ||
-              (layoutMode === 'kanban' && 
-                (kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE).length > MAX_RENDER_KANBAN ||
-                 kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA).length > MAX_RENDER_KANBAN ||
-                 kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA).length > MAX_RENDER_KANBAN ||
-                 kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA).length > MAX_RENDER_KANBAN)
-              )) && (
+            {((layoutMode === 'list' && filteredTasks.length > MAX_RENDER_TABLE) || isKanbanLimitBannerVisible) && (
               <div className="flex items-center gap-3 p-4 mb-4 bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl text-xs text-indigo-700 dark:text-indigo-300">
                 <Info size={16} className="text-indigo-500 shrink-0" />
                 <span>
@@ -2769,16 +2788,16 @@ export const Tasks: React.FC<{
 
             {layoutMode === 'list' ? (
               <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
-                <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+                <div className="overflow-auto w-full pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
               <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
-                <thead className="bg-slate-200/90 dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm backdrop-blur-md">
+                <thead className="bg-slate-200 dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm">
                   <tr>
                     {/* == CLIENTE == */}
                     {(() => {
                       const clientActive = !!(filters.clientName || filters.clientDocument || filters.clientCity || filters.clientState);
                       const clientCount = [filters.clientName, filters.clientDocument, filters.clientCity, filters.clientState].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[200px] rounded-tl-2xl rounded-bl-xl border-t-[3px] border-b border-l border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[200px] rounded-tl-2xl border-t-[3px] border-l border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Cliente</span>
                             <TableColumnFilter label="Cliente" isActive={clientActive} activeCount={clientCount}>
@@ -2825,7 +2844,7 @@ export const Tasks: React.FC<{
                       const tarefaActive = !!(filters.taskName || filters.noMovement || filters.hasTag);
                       const tarefaCount = [filters.taskName, filters.noMovement ? 'x' : '', filters.hasTag ? 'x' : ''].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[180px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${tarefaActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[180px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${tarefaActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Tarefa</span>
                             <TableColumnFilter label="Tarefa" isActive={tarefaActive} activeCount={tarefaCount}>
@@ -2875,7 +2894,7 @@ export const Tasks: React.FC<{
                         filters.recurrence ? 'r' : ''
                       ].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[130px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[130px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Período</span>
                             <TableColumnFilter label="Período" isActive={periodActive} activeCount={periodCount}>
@@ -2989,7 +3008,7 @@ export const Tasks: React.FC<{
                       const regimeActive = !!(filters.taxRegime || filters.selectedAnnex || filters.exceededSublimit || filters.notifiedExclusion);
                       const regimeCount = [filters.taxRegime, filters.selectedAnnex, filters.exceededSublimit ? 'x' : '', filters.notifiedExclusion ? 'x' : ''].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${regimeActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${regimeActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Regime</span>
                             <TableColumnFilter label="Regime" isActive={regimeActive} activeCount={regimeCount}>
@@ -3075,7 +3094,7 @@ export const Tasks: React.FC<{
                         { value: 'Baixa', label: 'Baixa', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
                       ];
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[120px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${prioActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[120px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${prioActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Prioridade</span>
                             <TableColumnFilter label="Prioridade" isActive={prioActive} activeCount={prioCount} widthClass="w-60" widthPx={240}>
@@ -3117,7 +3136,7 @@ export const Tasks: React.FC<{
                       const respActive = filters.responsibleList.length > 0;
                       const respCount = filters.responsibleList.length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[150px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${respActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[150px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${respActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Responsável</span>
                             <TableColumnFilter label="Responsável" isActive={respActive} activeCount={respCount}>
@@ -3149,7 +3168,7 @@ export const Tasks: React.FC<{
                         { value: TaskStatus.CONCLUIDA, label: 'Concluída', color: 'bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' },
                       ];
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[130px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top min-w-[130px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Status</span>
                             <TableColumnFilter label="Status" isActive={statActive} activeCount={statCount} widthClass="w-60" widthPx={240}>
@@ -3186,7 +3205,7 @@ export const Tasks: React.FC<{
                       );
                     })()}
 
-                    <th className="px-6 py-4 w-[80px] rounded-tr-2xl rounded-br-xl border-t-[3px] border-b border-r border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600"></th>
+                    <th className="px-6 py-4 w-[80px] rounded-tr-2xl border-t-[3px] border-r border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600"></th>
                   </tr>
 
                 </thead>
@@ -3479,10 +3498,11 @@ export const Tasks: React.FC<{
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden" style={{ height: kanbanContainerHeight, maxHeight: kanbanContainerHeight }}>
             <div className="flex gap-4 h-full min-w-[1400px] lg:min-w-[1000px] pb-2">
-              <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
+              <div className="flex-1 flex flex-col min-w-[340px] lg:min-w-[250px] h-full min-h-0">
                 <KanbanColumn
+                  cardsMaxHeight={kanbanCardsMaxHeight}
                   onUpdateTag={handleUpdateTaskTag}
                   title="Pendentes"
                   status={TaskStatus.PENDENTE}
@@ -3511,8 +3531,9 @@ export const Tasks: React.FC<{
                   userProfile={userProfile}
                 />
               </div>
-              <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
+              <div className="flex-1 flex flex-col min-w-[340px] lg:min-w-[250px] h-full min-h-0">
                 <KanbanColumn
+                  cardsMaxHeight={kanbanCardsMaxHeight}
                   onUpdateTag={handleUpdateTaskTag}
                   title="Iniciadas"
                   status={TaskStatus.INICIADA}
@@ -3541,8 +3562,9 @@ export const Tasks: React.FC<{
                   userProfile={userProfile}
                 />
               </div>
-              <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
+              <div className="flex-1 flex flex-col min-w-[340px] lg:min-w-[250px] h-full min-h-0">
                 <KanbanColumn
+                  cardsMaxHeight={kanbanCardsMaxHeight}
                   onUpdateTag={handleUpdateTaskTag}
                   title="Atrasadas"
                   status={TaskStatus.ATRASADA}
@@ -3571,8 +3593,9 @@ export const Tasks: React.FC<{
                   userProfile={userProfile}
                 />
               </div>
-              <div className="flex-1 min-w-[340px] lg:min-w-[250px]">
+              <div className="flex-1 flex flex-col min-w-[340px] lg:min-w-[250px] h-full min-h-0">
                 <KanbanColumn
+                  cardsMaxHeight={kanbanCardsMaxHeight}
                   onUpdateTag={handleUpdateTaskTag}
                   title="Concluídas"
                   status={TaskStatus.CONCLUIDA}
@@ -3755,16 +3778,38 @@ export const Tasks: React.FC<{
       {/* Conclude Task Modal */}
       <Modal
         isOpen={concludeModalOpen}
-        onClose={() => setConcludeModalOpen(false)}
+        onClose={() => {
+          if (!isConcludingTask) setConcludeModalOpen(false);
+        }}
         title="Concluir Tarefa"
         footer={
-          <>
-            <Button variant="ghost" onClick={() => setConcludeModalOpen(false)}>Cancelar</Button>
-            <Button variant="success" onClick={handleConcludeTask}>Confirmar Conclusão</Button>
-          </>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              onClick={() => setConcludeModalOpen(false)}
+              disabled={isConcludingTask}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="success" 
+              onClick={handleConcludeTask}
+              loading={isConcludingTask}
+              disabled={isConcludingTask}
+            >
+              {isConcludingTask ? 'Concluindo...' : 'Confirmar Conclusão'}
+            </Button>
+          </div>
         }
       >
         <div className="space-y-4">
+          {isConcludingTask && (
+            <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-medium animate-pulse">
+              <Loader2 className="animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" size={16} />
+              <span>Concluindo tarefa e enviando {concludeFiles.length > 0 ? `${concludeFiles.length} anexo(s)` : 'dados'} para o sistema... Aguarde um momento.</span>
+            </div>
+          )}
+
           {(() => {
             const task = tasks.find(t => t.id === selectedTaskForConclude);
             const pendingMandatory = task?.workflows?.filter(wf => wf.is_mandatory && !wf.is_completed) || [];
@@ -3790,10 +3835,11 @@ export const Tasks: React.FC<{
             Tem certeza que deseja marcar esta tarefa como concluída? Você pode anexar arquivos de comprovante abaixo se desejar.
           </p>
 
-          <div className="space-y-3">
+          <div className={`space-y-3 ${isConcludingTask ? 'pointer-events-none opacity-50' : ''}`}>
             <input
               type="file"
               ref={concludeFileInputRef}
+              disabled={isConcludingTask}
               onChange={(e) => {
                 if (e.target.files) {
                   setConcludeFiles(prev => [...prev, ...Array.from(e.target.files!)]);
@@ -3804,7 +3850,9 @@ export const Tasks: React.FC<{
             />
 
             <div
-              onClick={() => concludeFileInputRef.current?.click()}
+              onClick={() => {
+                if (!isConcludingTask) concludeFileInputRef.current?.click();
+              }}
               className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg p-6 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
             >
               <Upload size={20} className="text-indigo-500 mb-2 group-hover:scale-110 transition-transform" />

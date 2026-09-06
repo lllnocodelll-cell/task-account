@@ -13,10 +13,12 @@ import {
   ListTodo,
   UserCircle,
   Sun,
-  Moon
+  Moon,
+  Smartphone
 } from 'lucide-react';
 import { BrandLogo } from './ui/BrandLogo';
 import { UserRole } from '../types';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface SidebarProps {
   activeTab: string;
@@ -26,6 +28,7 @@ interface SidebarProps {
   isMobileOpen: boolean;
   onCloseMobile: () => void;
   onLogout?: () => void;
+  onOpenInstall?: () => void;
   userRole: UserRole;
   isDarkMode?: boolean;
   toggleTheme?: () => void;
@@ -50,10 +53,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   onCloseMobile,
   onLogout,
+  onOpenInstall,
   userRole,
   isDarkMode,
   toggleTheme
 }) => {
+  const { isStandalone, isInstalled } = usePWAInstall();
   const [unreadCounts, setUnreadCounts] = useState<{ internal: number; support: number; notification: number }>({ internal: 0, support: 0, notification: 0 });
   const chatSubsRef = useRef<any[]>([]);
   const pollIntervalRef = useRef<any>(null);
@@ -437,6 +442,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
         </button>
+
+        {!isStandalone && !isInstalled && onOpenInstall && (
+          <button
+            onClick={onOpenInstall}
+            className={`group w-full flex justify-between items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap relative text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 ${isCollapsed ? 'justify-center' : ''}`}
+            title="Instalar aplicativo no seu dispositivo"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="shrink-0 relative">
+                <Smartphone size={20} className="text-indigo-500 animate-pulse" />
+              </div>
+              <span className={`transition-all duration-300 truncate font-semibold ${isCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'}`}>
+                Instalar App
+              </span>
+            </div>
+
+            {/* Tooltip */}
+            {isCollapsed && (
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none whitespace-nowrap border border-slate-700">
+                Instalar Aplicativo
+              </div>
+            )}
+          </button>
+        )}
 
         {bottomMenuItems.map(renderMenuItem)}
 

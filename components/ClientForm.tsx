@@ -130,6 +130,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [segmentOpen, setSegmentOpen] = useState(false);
     const [segmentSearch, setSegmentSearch] = useState('');
     const segmentDropdownRef = useRef<HTMLDivElement>(null);
+    const initialLoadedItemsRef = useRef<Record<string, any[]>>({});
 
     // Inactivation Modal State
     const [showInactivateModal, setShowInactivateModal] = useState(false);
@@ -137,6 +138,20 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     const [futureTasksCount, setFutureTasksCount] = useState<number>(0);
     const segmentButtonRef = useRef<HTMLButtonElement>(null);
     const [segmentPos, setSegmentPos] = useState({ top: 0, left: 0, width: 0 });
+
+    // Sub-item Delete Confirmation Modal State
+    const [deleteModal, setDeleteModal] = useState<{
+        isOpen: boolean;
+        listSetter?: any;
+        list?: any[];
+        index?: number;
+        table?: ClientTable;
+        itemId?: string;
+        itemName?: string;
+    }>({
+        isOpen: false
+    });
+    const [isDeletingItem, setIsDeletingItem] = useState(false);
 
     // --- Temporary Input State for Tabs ---
     const [tempInscription, setTempInscription] = useState<Partial<ClientInscription>>({ type: 'Municipal' });
@@ -186,31 +201,58 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             if (isEditing && initialData?.id) {
                 const fetchSubData = async () => {
                     const { data: insc } = await supabase.from('client_inscriptions').select('*').eq('client_id', initialData.id);
-                    if (insc) setInscriptions(insc);
+                    if (insc) {
+                        setInscriptions(insc);
+                        initialLoadedItemsRef.current['client_inscriptions'] = JSON.parse(JSON.stringify(insc));
+                    }
 
                     const { data: cont } = await supabase.from('client_contacts').select('*').eq('client_id', initialData.id);
-                    if (cont) setContacts(cont);
+                    if (cont) {
+                        setContacts(cont);
+                        initialLoadedItemsRef.current['client_contacts'] = JSON.parse(JSON.stringify(cont));
+                    }
 
                     const { data: tax } = await supabase.from('client_tax_regime_history').select('*').eq('client_id', initialData.id);
-                    if (tax) setTaxRegimes(tax);
+                    if (tax) {
+                        setTaxRegimes(tax);
+                        initialLoadedItemsRef.current['client_tax_regime_history'] = JSON.parse(JSON.stringify(tax));
+                    }
 
                     const { data: act } = await supabase.from('client_activities').select('*').eq('client_id', initialData.id);
-                    if (act) setActivities(act);
+                    if (act) {
+                        setActivities(act);
+                        initialLoadedItemsRef.current['client_activities'] = JSON.parse(JSON.stringify(act));
+                    }
 
                     const { data: acc } = await supabase.from('client_accesses').select('*').eq('client_id', initialData.id);
-                    if (acc) setAccesses(acc);
+                    if (acc) {
+                        setAccesses(acc);
+                        initialLoadedItemsRef.current['client_accesses'] = JSON.parse(JSON.stringify(acc));
+                    }
 
                     const { data: cert } = await supabase.from('client_certificates').select('*').eq('client_id', initialData.id);
-                    if (cert) setCertificates(cert);
+                    if (cert) {
+                        setCertificates(cert);
+                        initialLoadedItemsRef.current['client_certificates'] = JSON.parse(JSON.stringify(cert));
+                    }
 
                     const { data: lic } = await supabase.from('client_licenses').select('*').eq('client_id', initialData.id);
-                    if (lic) setLicenses(lic);
+                    if (lic) {
+                        setLicenses(lic);
+                        initialLoadedItemsRef.current['client_licenses'] = JSON.parse(JSON.stringify(lic));
+                    }
 
                     const { data: leg } = await supabase.from('client_legislations').select('*').eq('client_id', initialData.id);
-                    if (leg) setLegislations(leg);
+                    if (leg) {
+                        setLegislations(leg);
+                        initialLoadedItemsRef.current['client_legislations'] = JSON.parse(JSON.stringify(leg));
+                    }
 
                     const { data: dfe } = await supabase.from('client_dfe_series').select('*').eq('client_id', initialData.id);
-                    if (dfe) setDfeSeries(dfe);
+                    if (dfe) {
+                        setDfeSeries(dfe);
+                        initialLoadedItemsRef.current['client_dfe_series'] = JSON.parse(JSON.stringify(dfe));
+                    }
                 };
                 fetchSubData();
             } else if (!isEditing) {
@@ -482,22 +524,51 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         setIsFormExpanded(false);
     };
 
-    const handleRemoveItem = async (listSetter: any, list: any[], index: number, table: ClientTable) => {
+    const handleRemoveItem = (listSetter: any, list: any[], index: number, table: ClientTable) => {
         const item = list[index];
-        if (item.id) {
-            if (confirm('Deseja realmente excluir este item? Esta ação não pode ser desfeita.')) {
-                const { error } = await supabase.from(table).delete().eq('id', item.id);
+        if (item?.id) {
+            setDeleteModal({
+                isOpen: true,
+                listSetter,
+                list,
+                index,
+                table,
+                itemId: item.id,
+                itemName: item.name || item.custom_name || item.license_name || item.description || item.model || item.access_name || item.dfe_type || item.number || ''
+            });
+        } else {
+            const newList = [...list];
+            newList.splice(index, 1);
+            listSetter(newList);
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteModal.table || deleteModal.index === undefined || !deleteModal.list || !deleteModal.listSetter) {
+            setDeleteModal({ isOpen: false });
+            return;
+        }
+
+        try {
+            setIsDeletingItem(true);
+            if (deleteModal.itemId) {
+                const { error } = await supabase.from(deleteModal.table).delete().eq('id', deleteModal.itemId);
                 if (error) {
                     showNotify('Erro ao excluir item: ' + error.message, 'error');
                     return;
                 }
-            } else {
-                return;
             }
+
+            const newList = [...deleteModal.list];
+            newList.splice(deleteModal.index, 1);
+            deleteModal.listSetter(newList);
+            showNotify('Item excluído com sucesso!', 'success');
+            setDeleteModal({ isOpen: false });
+        } catch (err: any) {
+            showNotify('Erro ao excluir item: ' + (err.message || 'Erro inesperado'), 'error');
+        } finally {
+            setIsDeletingItem(false);
         }
-        const newList = [...list];
-        newList.splice(index, 1);
-        listSetter(newList);
     };
 
     const handleSave = async (bypassInactivateCheck: boolean = false) => {
@@ -622,6 +693,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             const processItems = async (table: ClientTable, items: any[], prepareFn: (i: any) => any) => {
                 const newItems = items.filter(i => !i.id).map(prepareFn);
                 const existingItems = items.filter(i => i.id).map(i => ({ id: i.id, ...prepareFn(i) }));
+                const initialTableItems = initialLoadedItemsRef.current[table] || [];
 
                 if (newItems.length > 0) {
                     const { error } = await (supabase.from(table) as any).insert(newItems);
@@ -630,6 +702,27 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
                 for (const item of existingItems) {
                     const { id, created_at, ...updateData } = item;
+
+                    // Dirty-check: verificar se houve alteração real em relação aos dados carregados inicialmente
+                    const original = initialTableItems.find((orig: any) => orig.id === id);
+                    if (original) {
+                        let hasChanged = false;
+                        for (const key of Object.keys(updateData)) {
+                            if (key === 'client_id') continue;
+                            const valNew = updateData[key] ?? null;
+                            const valOrig = original[key] ?? null;
+                            const strNew = typeof valNew === 'string' ? valNew.trim() : String(valNew ?? '');
+                            const strOrig = typeof valOrig === 'string' ? valOrig.trim() : String(valOrig ?? '');
+                            if (strNew !== strOrig) {
+                                hasChanged = true;
+                                break;
+                            }
+                        }
+                        if (!hasChanged) {
+                            continue; // Sem mudanças neste registro, pula update desnecessário
+                        }
+                    }
+
                     const { error } = await (supabase.from(table) as any).update(updateData).eq('id', id);
                     if (error) console.error(`Error updating item in ${table}:`, error);
                 }
@@ -1799,7 +1892,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome do acesso"
-                                        placeholder="Empregador web"
+                                        placeholder="Simples Nacional, Empregador Web..."
                                         containerClassName="lg:col-span-1"
                                         value={tempAccess.access_name}
                                         onChange={e => setTempAccess({ ...tempAccess, access_name: e.target.value })}
@@ -2920,6 +3013,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false })}
+                onConfirm={handleConfirmDelete}
+                title="Excluir Item"
+                message="Deseja realmente excluir este item? Esta ação não pode ser desfeita."
+                confirmText="Excluir"
+                cancelText="Cancelar"
+                type="danger"
+                loading={isDeletingItem}
+            />
 
             <Notification
                 show={notification.show}

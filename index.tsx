@@ -1,6 +1,18 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { registerSW } from 'virtual:pwa-register';
+
+// Registra o Service Worker do PWA com atualização automática
+registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    console.log('[PWA] Nova versão do Task Account disponível.');
+  },
+  onOfflineReady() {
+    console.log('[PWA] Task Account pronto para uso offline.');
+  },
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

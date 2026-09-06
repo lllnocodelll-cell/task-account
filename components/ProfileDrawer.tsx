@@ -19,6 +19,7 @@ import {
   Landmark
 } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
+import { calculateStoragePercentage, getStorageUsageStatus, bytesToGb, formatStorageUsed } from '../constants/plans';
 
 interface UserProfile {
   id: string;
@@ -342,23 +343,32 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
 
                   {/* Barra de Storage */}
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <HardDrive size={11} className="text-slate-400" />
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Armazenamento</span>
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                        {(officeDetails.storage_used_bytes / (1024 * 1024 * 1024)).toFixed(2)} / {officeDetails.storage_limit_gb} GB
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-indigo-500 to-sky-400 rounded-full transition-all duration-500"
-                        style={{
-                          width: `${Math.min(100, (officeDetails.storage_used_bytes / (officeDetails.storage_limit_gb * 1024 * 1024 * 1024)) * 100)}%`
-                        }}
-                      />
-                    </div>
+                    {(() => {
+                      const storagePercent = calculateStoragePercentage(
+                        officeDetails.storage_used_bytes, 
+                        officeDetails.storage_limit_gb
+                      );
+                      const storageStatus = getStorageUsageStatus(storagePercent);
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <HardDrive size={11} className="text-slate-400" />
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Armazenamento</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                              {formatStorageUsed(officeDetails.storage_used_bytes)} / {officeDetails.storage_limit_gb} GB ({storagePercent.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full bg-gradient-to-r ${storageStatus.barGradient} rounded-full transition-all duration-500`}
+                              style={{ width: `${storagePercent}%` }}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Contrato */}

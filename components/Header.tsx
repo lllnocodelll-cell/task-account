@@ -76,19 +76,19 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-0 z-[60] transition-colors duration-300">
-      <div className="flex items-center gap-2 sm:gap-3">
+    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-4 md:px-8 sticky top-0 z-[60] transition-colors duration-300">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         <button
           onClick={onToggleMobileMenu}
-          className="md:hidden p-2 -ml-2 text-slate-500 hover:text-indigo-600 dark:hover:text-white transition-colors"
+          className="md:hidden p-1.5 -ml-1 text-slate-500 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
           aria-label="Toggle menu"
         >
-          <Menu size={24} />
+          <Menu size={22} />
         </button>
 
-        {/* Logo oficial da Landing Page no cabeçalho mobile */}
-        <div className="md:hidden flex items-center">
-          <BrandLogo size="sm" showVersion={false} />
+        {/* Logo oficial no cabeçalho mobile: ícone compacto sem texto para poupar espaço */}
+        <div className="md:hidden flex items-center shrink-0">
+          <BrandLogo size="sm" showVersion={false} hideTextOnMobile={true} />
         </div>
 
         {currentTabLabel && activeTab && (
@@ -110,40 +110,40 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      <div className="flex items-center justify-end flex-wrap gap-2 md:gap-4 ml-auto">
+      <div className="flex items-center justify-end flex-nowrap shrink-0 gap-1.5 sm:gap-2 md:gap-3 ml-auto">
         {userRole !== 'cliente' && (
           <>
-            <div className="tooltip-container tooltip-bottom">
+            <div className="tooltip-container tooltip-bottom shrink-0">
               <button
                 onClick={() => setIsLinksOpen(true)}
-                className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors shrink-0"
               >
-                <Link2 size={20} />
+                <Link2 size={17} className="sm:w-5 sm:h-5" />
               </button>
               <span className="tooltip-content">Links Úteis</span>
             </div>
             <UsefulLinksDrawer isOpen={isLinksOpen} onClose={() => setIsLinksOpen(false)} orgId={userProfile?.org_id || ''} />
 
-            <div className="tooltip-container tooltip-bottom">
+            <div className="tooltip-container tooltip-bottom shrink-0">
               <button
                 onClick={() => onOpenTutorials?.()}
-                className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors shrink-0"
               >
-                <MonitorPlay size={20} />
+                <MonitorPlay size={17} className="sm:w-5 sm:h-5" />
               </button>
               <span className="tooltip-content">Tutoriais</span>
             </div>
 
-            <div className="relative">
+            <div className="relative shrink-0">
               <div className="tooltip-container tooltip-bottom">
                 <button
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors relative"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white flex items-center justify-center transition-colors relative shrink-0"
                 >
-                  <Bell size={20} />
+                  <Bell size={17} className="sm:w-5 sm:h-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full border-2 border-slate-100 dark:border-slate-800 flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 sm:top-1 sm:right-1 min-w-3.5 h-3.5 sm:min-w-4 sm:h-4 px-0.5 bg-red-500 text-white text-[8px] sm:text-[9px] font-bold rounded-full border-2 border-slate-100 dark:border-slate-800 flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -156,18 +156,18 @@ export const Header: React.FC<HeaderProps> = ({
           </>
         )}
 
-        <div className="tooltip-container tooltip-bottom">
+        <div className="tooltip-container tooltip-bottom shrink-0">
           <button
             onClick={onProfileClick}
-            className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-slate-200 dark:border-slate-800 hover:opacity-80 transition-opacity shrink-0"
           >
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-slate-900 dark:text-white">
+              <p className="text-sm font-medium text-slate-900 dark:text-white leading-tight">
                 {userProfile?.full_name || 'Usuário'}
               </p>
               <p className="text-xs text-slate-500 capitalize">{userProfile?.role || userRole}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold shadow-sm overflow-hidden">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-sm overflow-hidden shrink-0">
               {userProfile?.avatar_url ? (
                 <img src={userProfile.avatar_url} alt={userProfile.full_name || 'User'} className="w-full h-full object-cover" />
               ) : (
@@ -182,6 +182,7 @@ export const Header: React.FC<HeaderProps> = ({
       {userProfile?.id && (
         <NotificationsDrawer
           userId={userProfile.id}
+          orgId={userProfile.org_id}
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
           onNavigate={handleDrawerNavigate}

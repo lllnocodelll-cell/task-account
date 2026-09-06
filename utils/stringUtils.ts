@@ -106,43 +106,31 @@ export const stripFormatting = (text: string): string => {
 
 /**
  * Formata CPF (XXX.XXX.XXX-XX) ou CNPJ Alfanumérico/Numérico (XX.XXX.XXX/XXXX-XX).
- * Suporta o novo padrão alfanumérico da Receita Federal (letras e números).
+ * Suporta o novo padrão alfanumérico da Receita Federal (letras e números nas 12 primeiras posições).
  */
 export const formatCnpjCpf = (value: string): string => {
   if (!value) return '';
-  const clean = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  const hasLetters = /[A-Z]/.test(clean);
-  
-  // Se tiver letras ou mais de 11 dígitos, formata como CNPJ
-  if (hasLetters || clean.length > 11) {
-    let formatted = clean;
-    if (clean.length > 2) {
-      formatted = `${clean.slice(0, 2)}.${clean.slice(2)}`;
-    }
-    if (clean.length > 5) {
-      formatted = `${formatted.slice(0, 6)}.${formatted.slice(6)}`;
-    }
-    if (clean.length > 8) {
-      formatted = `${formatted.slice(0, 10)}/${formatted.slice(10)}`;
-    }
-    if (clean.length > 12) {
-      formatted = `${formatted.slice(0, 15)}-${formatted.slice(15, 17)}`;
-    }
-    return formatted.slice(0, 18);
+  const raw = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  if (!raw) return '';
+
+  const hasLetters = /[A-Z]/.test(raw);
+
+  // Se contiver letras ou mais de 11 caracteres, formata obrigatoriamente como CNPJ
+  if (hasLetters || raw.length > 11) {
+    const clean = raw.slice(0, 14);
+    if (clean.length <= 2) return clean;
+    if (clean.length <= 5) return `${clean.slice(0, 2)}.${clean.slice(2)}`;
+    if (clean.length <= 8) return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5)}`;
+    if (clean.length <= 12) return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5, 8)}/${clean.slice(8)}`;
+    return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5, 8)}/${clean.slice(8, 12)}-${clean.slice(12, 14)}`;
   }
 
-  // Se for apenas dígitos e até 11 caracteres, formata como CPF
-  let formatted = clean;
-  if (clean.length > 3) {
-    formatted = `${clean.slice(0, 3)}.${clean.slice(3)}`;
-  }
-  if (clean.length > 6) {
-    formatted = `${formatted.slice(0, 7)}.${formatted.slice(7)}`;
-  }
-  if (clean.length > 9) {
-    formatted = `${formatted.slice(0, 11)}-${formatted.slice(11, 13)}`;
-  }
-  return formatted.slice(0, 14);
+  // Se tiver apenas números e até 11 dígitos, formata como CPF
+  const clean = raw.slice(0, 11);
+  if (clean.length <= 3) return clean;
+  if (clean.length <= 6) return `${clean.slice(0, 3)}.${clean.slice(3)}`;
+  if (clean.length <= 9) return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6)}`;
+  return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6, 9)}-${clean.slice(9, 11)}`;
 };
 
 

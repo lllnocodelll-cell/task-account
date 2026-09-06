@@ -24,6 +24,7 @@ import { ProfileDrawer } from './components/ProfileDrawer';
 import { Modal } from './components/ui/Modal';
 import { Button } from './components/ui/Button';
 import { updateTabMeta, TAB_CONFIG } from './utils/tabFavicon';
+import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -70,6 +71,7 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isTutorialsOpen, setIsTutorialsOpen] = useState(false);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
+  const [isPWAInstallOpen, setIsPWAInstallOpen] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [isActivationMode, setIsActivationMode] = useState(() => {
     try {
@@ -622,6 +624,7 @@ function App() {
       case 'notifications':
         return (
           <Notifications 
+            userProfile={userProfile}
             onNavigateToTask={handleNavigateToTask}
             onNavigateToClient={handleNavigateToClient}
             onNavigateToTab={(tab) => setActiveTab(tab)}
@@ -846,6 +849,7 @@ function App() {
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         onLogout={handleLogout}
+        onOpenInstall={() => setIsPWAInstallOpen(true)}
         userRole={userRole}
         isDarkMode={isDarkMode}
         toggleTheme={toggleTheme}
@@ -867,7 +871,7 @@ function App() {
           userProfile={userProfile}
         />
 
-        <main className={`flex-1 overflow-x-hidden ${activeTab === 'tasks' ? 'px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4' : 'p-4 md:p-8'}`}>
+        <main className={`flex-1 overflow-x-hidden ${['tasks', 'clients'].includes(activeTab) ? 'px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4' : 'p-4 md:p-8'}`}>
           <div className="max-w-[1600px] mx-auto w-full">
             {renderContent()}
           </div>
@@ -898,6 +902,11 @@ function App() {
         onClose={() => setIsProfileDrawerOpen(false)} 
         userProfile={userProfile} 
         onEditProfile={() => setActiveTab('profile')}
+      />
+
+      <PWAInstallPrompt
+        forceOpen={isPWAInstallOpen}
+        onCloseForce={() => setIsPWAInstallOpen(false)}
       />
 
       {renderDeactivatedModal()}

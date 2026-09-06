@@ -29,10 +29,14 @@ import {
   Plus,
   Loader2,
   AlertCircle,
-  GripVertical
+  GripVertical,
+  Scale,
+  Award,
+  ExternalLink
 } from 'lucide-react';
-import { Client } from '../types';
+import { Client, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { compressFileIfNeeded } from '../utils/fileCompression';
 import { Modal } from './ui/Modal';
 import { useToast } from '../contexts/ToastContext';
 
@@ -45,6 +49,18 @@ const formatDate = (dateString: string | null | undefined): string => {
     return `${day}/${month}/${year}`;
   }
   return dateString;
+};
+
+const getSimpleUrlLabel = (url?: string | null): string => {
+  if (!url) return '---';
+  try {
+    const raw = url.trim();
+    const withProto = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+    const hostname = new URL(withProto).hostname.replace(/^www\./, '');
+    return hostname || 'Acessar Link';
+  } catch {
+    return 'Acessar Link';
+  }
 };
 
 const getSectorStyle = (sectorName: string | undefined | null) => {
@@ -71,7 +87,7 @@ interface ClientDetailsDrawerProps {
   onEdit: (client: Client) => void;
 }
 
-const DEFAULT_CLIENT_SECTIONS_ORDER = ['info', 'address', 'partner', 'inscriptions', 'contacts', 'certificate', 'activities', 'documents'];
+const DEFAULT_CLIENT_SECTIONS_ORDER = ['info', 'address', 'partner', 'inscriptions', 'contacts', 'certificate', 'licenses', 'activities', 'documents'];
 
 export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   isOpen,
@@ -84,6 +100,8 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   const [shouldRender, setShouldRender] = useState(false);
   const [loading, setLoading] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const [liveClient, setLiveClient] = useState<Client | null>(client);
+  const [currentTaxRegime, setCurrentTaxRegime] = useState<string | null>(client?.tax_regime || null);
 
   // Estado para a ordem das seções, inicializado a partir do localStorage ou ordem padrão
   const [sectionsOrder, setSectionsOrder] = useState<string[]>(() => {
@@ -91,9 +109,12 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
       const saved = localStorage.getItem('client_drawer_sections_order');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const isValid = DEFAULT_CLIENT_SECTIONS_ORDER.every(item => parsed.includes(item));
-        if (isValid && parsed.length === DEFAULT_CLIENT_SECTIONS_ORDER.length) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const missing = DEFAULT_CLIENT_SECTIONS_ORDER.filter(item => !parsed.includes(item));
+          const valid = parsed.filter(item => DEFAULT_CLIENT_SECTIONS_ORDER.includes(item));
+          if (valid.length > 0) {
+            return [...valid, ...missing];
+          }
         }
       }
     } catch (e) {
@@ -111,6 +132,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   const [inscriptions, setInscriptions] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
+  const [licenses, setLicenses] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
 
   // Estados para Documentos do Cliente
@@ -163,12 +185,15 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     inscriptions: true,
     contacts: true,
     certificate: true,
+    licenses: true,
     activities: true,
     documents: false
   });
 
   useEffect(() => {
-    if (isOpen) {
+    setLiveClient(client);
+    setCurrentTaxRegime(client?.tax_regime || null);
+    if (isOpen && client?.id) {
       setShouldRender(true);
       const timer = setTimeout(() => setIsVisible(true), 10);
       fetchSubData();
@@ -182,18 +207,55 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     if (!client?.id) return;
     setLoading(true);
     try {
-      const [insc, cont, cert, act, docs, secs] = await Promise.all([
+      const [clientRes, insc, cont, cert, act, docs, secs, lics] = await Promise.all([
+        supabase.from('clients').select('*, client_tax_regime_history(*)').eq('id', client.id).single(),
         supabase.from('client_inscriptions').select('*').eq('client_id', client.id),
         supabase.from('client_contacts').select('*').eq('client_id', client.id),
         supabase.from('client_certificates').select('*').eq('client_id', client.id),
         supabase.from('client_activities').select('*').eq('client_id', client.id),
         supabase.from('client_documents' as any).select('*').eq('client_id', client.id),
-        supabase.from('sectors').select('*')
+        supabase.from('sectors').select('*'),
+        supabase.from('client_licenses').select('*').eq('client_id', client.id)
       ]);
+
+      if (clientRes.data) {
+        const c = clientRes.data;
+        const history = c.client_tax_regime_history || [];
+        const active = history.find((r: any) => !r.end_date) || 
+                       [...history].sort((a: any, b: any) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime())[0];
+        setCurrentTaxRegime(active?.regime || null);
+        setLiveClient(prev => ({
+          ...(prev || client),
+          id: c.id,
+          code: c.code,
+          companyName: c.company_name,
+          tradeName: c.trade_name,
+          document: c.document,
+          status: (c.status as 'Ativo' | 'Inativo') || 'Ativo',
+          segment: c.segment,
+          person_type: c.person_type,
+          constitution_date: c.constitution_date,
+          entry_date: c.entry_date,
+          exit_date: c.exit_date,
+          admin_partner_name: c.admin_partner_name,
+          admin_partner_cpf: c.admin_partner_cpf,
+          admin_partner_birthdate: c.admin_partner_birthdate,
+          establishment_type: c.establishment_type,
+          zip_code: c.zip_code,
+          street: c.street,
+          street_number: c.street_number,
+          complement: c.complement,
+          neighborhood: c.neighborhood,
+          city: c.city,
+          state: c.state,
+          tax_regime: active?.regime
+        }));
+      }
 
       setInscriptions(insc.data || []);
       setContacts(cont.data || []);
       setCertificates(cert.data || []);
+      setLicenses(lics.data || []);
       setActivities(act.data || []);
       setDocuments(docs.data || []);
       setSectors(secs.data || []);
@@ -252,13 +314,14 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
 
     setUploading(true);
     try {
-      const fileExt = uploadFile.name.split('.').pop();
+      const fileToUpload = await compressFileIfNeeded(uploadFile);
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const storagePath = `${client.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('client-documents')
-        .upload(storagePath, uploadFile);
+        .upload(storagePath, fileToUpload);
 
       if (uploadError) throw uploadError;
 
@@ -341,7 +404,9 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     }
   };
 
-  if (!shouldRender || !client) return null;
+  const currentClient = liveClient || client;
+
+  if (!shouldRender || !currentClient) return null;
 
   const getDragProps = (sectionId: string) => {
     return {
@@ -482,7 +547,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onEdit(client)}
+              onClick={() => onEdit(currentClient)}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-full transition-all shadow-lg active:scale-95"
             >
               <Pencil size={14} />
@@ -522,12 +587,34 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
             <div className={`grid transition-all duration-300 ease-in-out ${openSections.info ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 grid grid-cols-1 gap-3">
-                  <InfoField label="Razão Social" value={client.companyName} id="comp-name" />
-                  <InfoField label="Nome Fantasia" value={client.tradeName || '---'} id="trade-name" />
+                  <InfoField label="Razão Social" value={currentClient.companyName} id="comp-name" />
+                  <InfoField label="Nome Fantasia" value={currentClient.tradeName || '---'} id="trade-name" />
                   
+                  {/* Regime Tributário Vigente + Tipo de Estabelecimento */}
+                  <div className="grid grid-cols-2 gap-2 mt-1 border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Scale size={10} className="text-indigo-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Regime Tributário Vigente</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">
+                        {TAX_REGIME_LABELS[currentTaxRegime || currentClient.tax_regime || ''] || currentTaxRegime || currentClient.tax_regime || 'Não Informado'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Building2 size={10} className="text-amber-400" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Estabelecimento</span>
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">
+                        {currentClient.establishment_type === 'branch' ? 'Filial' : currentClient.establishment_type === 'headquarters' ? 'Matriz' : currentClient.establishment_type || 'Matriz'}
+                      </span>
+                    </div>
+                  </div>
+
                   {/* Informações Compactas - Grid 1 */}
                   <div className="grid grid-cols-3 gap-2 mt-1 border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div className="flex flex-col gap-0.5" onClick={(e) => copyToClipboard(client.document, 'doc', e)}>
+                    <div className="flex flex-col gap-0.5" onClick={(e) => copyToClipboard(currentClient.document, 'doc', e)}>
                       <div className="flex items-center justify-between gap-1 mb-0.5">
                         <div className="flex items-center gap-1">
                           <Receipt size={10} className="text-indigo-400" />
@@ -536,7 +623,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         {copyFeedback === 'doc' && <span className="text-[7px] font-bold text-emerald-500">Copiado</span>}
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">
-                        {client.document || '---'}
+                        {currentClient.document || '---'}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
@@ -545,7 +632,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Situação</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">
-                        {client.status || '---'}
+                        {currentClient.status || '---'}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
@@ -554,7 +641,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Segmento</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">
-                        {client.segment || '---'}
+                        {currentClient.segment || '---'}
                       </span>
                     </div>
                   </div>
@@ -567,7 +654,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Constituição</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {formatDate(client.constitution_date)}
+                        {formatDate(currentClient.constitution_date)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
@@ -576,7 +663,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Entrada</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {formatDate(client.entry_date)}
+                        {formatDate(currentClient.entry_date)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
@@ -585,7 +672,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Saída</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {formatDate(client.exit_date)}
+                        {formatDate(currentClient.exit_date)}
                       </span>
                     </div>
                   </div>
@@ -618,16 +705,16 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                 <div className="p-4 pt-0 grid grid-cols-1 gap-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div className="col-span-1">
-                      <InfoField label="CEP" value={client.zip_code || ''} id="cep" />
+                      <InfoField label="CEP" value={currentClient.zip_code || ''} id="cep" />
                     </div>
                     <div className="col-span-2">
-                       <InfoField label="Complemento" value={client.complement || '---'} id="complement" />
+                       <InfoField label="Complemento" value={currentClient.complement || '---'} id="complement" />
                     </div>
                   </div>
-                  <InfoField label="Logradouro" value={`${client.street || ''}${client.street_number ? `, ${client.street_number}` : ''}`} id="street" autoReduce />
+                  <InfoField label="Logradouro" value={`${currentClient.street || ''}${currentClient.street_number ? `, ${currentClient.street_number}` : ''}`} id="street" autoReduce />
                   <div className="grid grid-cols-2 gap-3">
-                    <InfoField label="Bairro" value={client.neighborhood || ''} id="neighborhood" autoReduce />
-                    <InfoField label="Cidade/UF" value={`${client.city || ''} / ${client.state || ''}`} id="city" autoReduce />
+                    <InfoField label="Bairro" value={currentClient.neighborhood || ''} id="neighborhood" autoReduce />
+                    <InfoField label="Cidade/UF" value={`${currentClient.city || ''} / ${currentClient.state || ''}`} id="city" autoReduce />
                   </div>
                 </div>
               </div>
@@ -656,17 +743,17 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
             <div className={`grid transition-all duration-300 ease-in-out ${openSections.partner ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 grid grid-cols-1 gap-3">
-                  <InfoField label="Nome do Sócio" value={client.admin_partner_name || ''} id="partner-name" />
+                  <InfoField label="Nome do Sócio" value={currentClient.admin_partner_name || ''} id="partner-name" />
                   {/* Sócio Compacto */}
                   <div className="grid grid-cols-2 gap-2 mt-1 border-t border-slate-100 dark:border-slate-800 pt-3 px-1">
-                    <div className="flex flex-col gap-0.5" onClick={(e) => copyToClipboard(client.admin_partner_cpf || '', 'partner-cpf', e)}>
+                    <div className="flex flex-col gap-0.5" onClick={(e) => copyToClipboard(currentClient.admin_partner_cpf || '', 'partner-cpf', e)}>
                       <div className="flex items-center gap-1 mb-0.5">
                         <Fingerprint size={10} className="text-indigo-400" />
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">CPF</span>
                         {copyFeedback === 'partner-cpf' && <span className="text-[8px] font-bold text-emerald-500 ml-1">Copiado</span>}
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {client.admin_partner_cpf || '---'}
+                        {currentClient.admin_partner_cpf || '---'}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-4">
@@ -675,7 +762,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Data de Nasc.</span>
                       </div>
                       <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                        {formatDate(client.admin_partner_birthdate)}
+                        {formatDate(currentClient.admin_partner_birthdate)}
                       </span>
                     </div>
                   </div>
@@ -887,7 +974,149 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
             </div>
           </div>
 
-          {/* Section 07: Atividades */}
+          {/* Section: Licenças & Alvarás */}
+          <div 
+            style={{ order: sectionsOrder.indexOf('licenses') }}
+            {...getDragProps('licenses')}
+            className={getSectionWrapperClass('licenses')}
+          >
+            <button 
+              onClick={() => toggleSection('licenses')}
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {renderDragHandle('licenses')}
+                <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  {"Seção " + String(sectionsOrder.indexOf('licenses') + 1).padStart(2, '0')}
+                </span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Licenças & Alvarás</span>
+                {licenses.length > 0 && (
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    {licenses.length}
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.licenses ? 'rotate-180' : ''}`} size={16} />
+            </button>
+            <div className={`grid transition-all duration-300 ease-in-out ${openSections.licenses ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className="overflow-hidden">
+                <div className="p-4 pt-0 grid grid-cols-1 gap-3">
+                  {licenses.length > 0 ? licenses.map((lic, idx) => {
+                    const expiry = lic.expiry_date || lic.expiration_date;
+                    let isExpired = false;
+                    let isExpiringSoon = false;
+                    if (expiry) {
+                      const expDate = new Date(expiry);
+                      const now = new Date();
+                      now.setHours(0, 0, 0, 0);
+                      const diffDays = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                      if (diffDays < 0) {
+                        isExpired = true;
+                      } else if (diffDays <= 30) {
+                        isExpiringSoon = true;
+                      }
+                    }
+
+                    return (
+                      <div key={idx} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 flex flex-col gap-2.5 group hover:border-indigo-200 dark:hover:border-indigo-800/40 transition-all">
+                        {/* Linha 1: Nome da Licença + Status Badge */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center border border-indigo-100/50 dark:border-indigo-500/20 shrink-0">
+                              <Award size={14} className="text-indigo-500" />
+                            </div>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate" title={lic.license_name}>
+                              {lic.license_name || 'Sem denominação'}
+                            </span>
+                          </div>
+                          {expiry && (
+                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                              isExpired 
+                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800' 
+                                : isExpiringSoon 
+                                  ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800' 
+                                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                            }`}>
+                              {isExpired ? 'Expirada' : isExpiringSoon ? 'A vencer' : 'Vigente'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Linha 2: Grid compacto com Número e Vencimento */}
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                          {/* Número com cópia */}
+                          <div 
+                            className="flex flex-col gap-0.5 cursor-pointer"
+                            onClick={(e) => copyToClipboard(lic.license_number || lic.number || '', `lic-n-${idx}`, e)}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Número</span>
+                              {copyFeedback === `lic-n-${idx}` && <span className="text-[8px] font-bold text-emerald-500 animate-in fade-in">Copiado!</span>}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300">
+                              <Copy size={11} className="text-slate-400 group-hover:text-indigo-500 transition-colors shrink-0" />
+                              <span className="truncate">{lic.license_number || lic.number || '---'}</span>
+                            </div>
+                          </div>
+
+                          {/* Vencimento */}
+                          <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800/60 pl-3">
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Vencimento</span>
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                              <Calendar size={11} className={`shrink-0 ${isExpired ? 'text-rose-500' : isExpiringSoon ? 'text-amber-500' : 'text-slate-400'}`} />
+                              <span>{formatDate(expiry)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Linha 3: Link de Acesso do Órgão Competente */}
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/60 text-xs">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none shrink-0">
+                            Órgão Competente
+                          </span>
+
+                          {lic.access_url ? (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <a
+                                href={lic.access_url.startsWith('http') ? lic.access_url : `https://${lic.access_url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-bold border border-indigo-100 dark:border-indigo-800/40 transition-all truncate hover:underline shadow-2xs max-w-[210px]"
+                                title={`Abrir link do órgão competente: ${lic.access_url}`}
+                              >
+                                <ExternalLink size={10} className="shrink-0" />
+                                <span className="truncate">{getSimpleUrlLabel(lic.access_url)}</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={(e) => copyToClipboard(lic.access_url, `lic-url-${idx}`, e)}
+                                className="p-1 text-slate-400 hover:text-indigo-500 rounded hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors shrink-0"
+                                title="Copiar link completo do órgão competente"
+                              >
+                                <Copy size={11} />
+                              </button>
+                              {copyFeedback === `lic-url-${idx}` && (
+                                <span className="text-[8px] font-bold text-emerald-500 shrink-0 animate-in fade-in">Copiado!</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 italic">
+                              Sem link informado
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }) : (
+                    <div className="text-center py-4 text-slate-400 text-xs italic">Nenhuma licença ou alvará cadastrado</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Atividades */}
           <div 
             style={{ order: sectionsOrder.indexOf('activities') }}
             {...getDragProps('activities')}

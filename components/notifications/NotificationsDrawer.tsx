@@ -23,7 +23,10 @@ import {
   Users, 
   MapPin,
   Search,
-  Filter
+  Filter,
+  ShieldCheck,
+  KeyRound,
+  GraduationCap
 } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { soundEffects } from '../../utils/soundEffects';
@@ -35,6 +38,7 @@ import {
 
 interface NotificationsDrawerProps {
   userId: string;
+  orgId?: string | null;
   isOpen: boolean;
   onClose: () => void;
   onNavigate?: (tabName: string, id?: string) => void;
@@ -43,6 +47,7 @@ interface NotificationsDrawerProps {
 
 export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
   userId,
+  orgId,
   isOpen,
   onClose,
   onNavigate,
@@ -56,12 +61,31 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
 
   // Filtros e busca
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'unread' | 'tasks' | 'clients' | 'tax' | 'certificates'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'unread' | 'tasks' | 'clients' | 'tax' | 'certificates' | 'licenses'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
   // Drawer animation states
   const [isVisible, setIsVisible] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
+
+  // Helpers para distinguir Certificados e Licenças
+  const isCertType = (type: string, title?: string, message?: string) => {
+    if (['certificate_expired', 'certificate_renewed'].includes(type)) return true;
+    if (type === 'license_expiring') {
+      const text = `${title || ''} ${message || ''}`.toLowerCase();
+      return text.includes('certificado');
+    }
+    return false;
+  };
+
+  const isLicenseType = (type: string, title?: string, message?: string) => {
+    if (['license_expired', 'license_renewed'].includes(type)) return true;
+    if (type === 'license_expiring') {
+      const text = `${title || ''} ${message || ''}`.toLowerCase();
+      return !text.includes('certificado');
+    }
+    return false;
+  };
 
   // Contagens dinâmicas por categoria
   const counts = useMemo(() => {
@@ -69,8 +93,9 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
     const tasks = notifications.filter(n => ['task_assigned', 'task_reassigned', 'task_concluded', 'task_due_soon', 'task_overdue', 'task_alert', 'task_alert_critical'].includes(n.type)).length;
     const clients = notifications.filter(n => ['client_created', 'client_contact_updated', 'client_address_changed'].includes(n.type)).length;
     const tax = notifications.filter(n => ['client_tax_regime_changed', 'client_legislation_added', 'task_alert', 'task_alert_critical'].includes(n.type)).length;
-    const certificates = notifications.filter(n => n.type === 'license_expiring').length;
-    return { all: notifications.length, unread, tasks, clients, tax, certificates };
+    const certificates = notifications.filter(n => isCertType(n.type, n.title, n.message)).length;
+    const licenses = notifications.filter(n => isLicenseType(n.type, n.title, n.message)).length;
+    return { all: notifications.length, unread, tasks, clients, tax, certificates, licenses };
   }, [notifications]);
 
   // Lista filtrada por busca de texto, categoria e tipo específico
@@ -106,7 +131,9 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         const taxTypes = ['client_tax_regime_changed', 'client_legislation_added', 'task_alert', 'task_alert_critical'];
         if (!taxTypes.includes(notif.type)) return false;
       } else if (categoryFilter === 'certificates') {
-        if (notif.type !== 'license_expiring') return false;
+        if (!isCertType(notif.type, notif.title, notif.message)) return false;
+      } else if (categoryFilter === 'licenses') {
+        if (!isLicenseType(notif.type, notif.title, notif.message)) return false;
       }
 
       return true;
@@ -115,11 +142,17 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
 
   const fetchUnreadCount = async () => {
     try {
-      const { count, error } = await supabase
+      let query: any = supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('read', false);
+
+      if (orgId && orgId !== 'demo-org') {
+        query = query.eq('org_id', orgId);
+      }
+
+      const { count, error } = await query;
 
       if (!error && count !== null && count !== undefined) {
         onUnreadCountChange(count);
@@ -135,7 +168,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
 
     // Setup realtime subscription
     const channel = supabase
-      .channel('public:notifications')
+      .channel(`public:notifications:${userId}${orgId ? `:${orgId}` : ''}`)
       .on('postgres_changes', { 
         event: 'INSERT', 
         schema: 'public', 
@@ -143,6 +176,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         filter: `user_id=eq.${userId}`
       }, (payload) => {
         const newNotif = payload.new as NotificationType;
+        // Isolamento adicional: ignorar notificações de outra organização
+        if (orgId && newNotif.org_id && newNotif.org_id !== orgId) {
+          return;
+        }
+
         setNotifications((prev) => [newNotif, ...prev]);
         
         // Disparo de efeitos sonoros suaves e notificação nativa do navegador
@@ -160,8 +198,13 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         table: 'notifications',
         filter: `user_id=eq.${userId}`
       }, (payload) => {
+        const updatedNotif = payload.new as NotificationType;
+        if (orgId && updatedNotif.org_id && updatedNotif.org_id !== orgId) {
+          return;
+        }
+
         setNotifications((prev) => 
-          prev.map(n => n.id === payload.new.id ? (payload.new as NotificationType) : n)
+          prev.map(n => n.id === updatedNotif.id ? updatedNotif : n)
         );
         fetchUnreadCount();
       })
@@ -179,7 +222,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, orgId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -199,10 +242,16 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
 
   const fetchNotifications = async () => {
     try {
-      const { data, error } = await supabase
+      let query: any = supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', userId);
+
+      if (orgId && orgId !== 'demo-org') {
+        query = query.eq('org_id', orgId);
+      }
+
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(30);
 
@@ -288,11 +337,84 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
     }
   };
 
-  const handleNotificationClick = (notification: NotificationType) => {
+  const handleNotificationClick = async (notification: NotificationType) => {
     if (!notification.read) {
       handleMarkAsRead(notification.id);
     }
     
+    // Licenças e Alvarás: DEVEM ABRIR O DRAWER DE DADOS DO CLIENTE
+    if (isLicenseType(notification.type, notification.title, notification.message) && onNavigate) {
+      const match = notification.link?.match(/[?&]id=([^&]+)/);
+      let targetClientId = match ? match[1] : notification.related_entity_id;
+
+      if (targetClientId) {
+        try {
+          const { data: licRow } = await supabase
+            .from('client_licenses')
+            .select('client_id')
+            .eq('id', targetClientId)
+            .maybeSingle();
+
+          if (licRow?.client_id) {
+            targetClientId = licRow.client_id;
+          }
+        } catch (e) {
+          console.error('Erro ao resolver cliente para notificação de licença:', e);
+        }
+
+        onNavigate('clients', targetClientId);
+        onClose();
+        return;
+      }
+
+      onNavigate('clients');
+      onClose();
+      return;
+    }
+
+    // Regime tributário e Legislação: DEVEM SEMPRE abrir o drawer "Dados da Tarefa"
+    if (['client_tax_regime_changed', 'client_legislation_added'].includes(notification.type) && onNavigate) {
+      // 1. Se o link já aponta diretamente para uma tarefa
+      if (notification.link?.includes('/tasks')) {
+        const match = notification.link.match(/[?&]id=([^&]+)/);
+        const taskId = match ? match[1] : notification.related_entity_id;
+        if (taskId) {
+          onNavigate('tasks', taskId);
+          onClose();
+          return;
+        }
+      }
+
+      // 2. Se aponta para um cliente (link /clients ou related_entity_id com ID do cliente)
+      const matchClient = notification.link?.match(/[?&]id=([^&]+)/);
+      const targetClientId = notification.related_entity_id || matchClient?.[1];
+
+      if (targetClientId) {
+        try {
+          const { data: clientTask } = await supabase
+            .from('tasks')
+            .select('id')
+            .eq('client_id', targetClientId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (clientTask?.id) {
+            onNavigate('tasks', clientTask.id);
+            onClose();
+            return;
+          }
+        } catch (e) {
+          console.error('Erro ao buscar tarefa do cliente para Dados da Tarefa:', e);
+        }
+      }
+
+      // Fallback estrito: se nenhuma tarefa for encontrada, navega para a aba de tarefas (NUNCA para dados do cliente)
+      onNavigate('tasks');
+      onClose();
+      return;
+    }
+
     // Parse the link if it exists and pass targeted entity ID
     if (notification.link && onNavigate) {
       if (notification.link.includes('/tasks')) {
@@ -323,10 +445,14 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       case 'task_concluded': return <CheckCircle size={16} className="text-emerald-500" />;
       case 'task_alert': return <AlertCircle size={16} className="text-amber-500" />;
       case 'task_alert_critical': return <AlertCircle size={16} className="text-red-500" />;
-      case 'new_tutorial': return <FileText size={16} className="text-indigo-500" />;
+      case 'new_tutorial': return <GraduationCap size={16} className="text-indigo-500" />;
       case 'task_due_soon': return <CalendarClock size={16} className="text-orange-500" />;
       case 'task_overdue': return <AlertTriangle size={16} className="text-rose-600" />;
-      case 'license_expiring': return <ShieldAlert size={16} className="text-rose-500" />;
+      case 'license_expiring': return <ShieldAlert size={16} className="text-orange-500" />;
+      case 'license_expired': return <ShieldAlert size={16} className="text-rose-600" />;
+      case 'license_renewed': return <ShieldCheck size={16} className="text-emerald-500" />;
+      case 'certificate_expired': return <KeyRound size={16} className="text-rose-600" />;
+      case 'certificate_renewed': return <CheckCircle size={16} className="text-teal-500" />;
       case 'client_created': return <Building2 size={16} className="text-emerald-500" />;
       case 'task_reassigned': return <ArrowRightLeft size={16} className="text-indigo-500" />;
       case 'client_tax_regime_changed': return <Scale size={16} className="text-amber-500" />;
@@ -507,9 +633,21 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
               }`}
             >
-              <ShieldAlert size={11} className={categoryFilter === 'certificates' ? 'text-white' : 'text-slate-400'} />
+              <KeyRound size={11} className={categoryFilter === 'certificates' ? 'text-white' : 'text-slate-400'} />
               <span>Certificados</span>
               <span className="text-[10px] opacity-75">({counts.certificates})</span>
+            </button>
+            <button
+              onClick={() => { setCategoryFilter('licenses'); setTypeFilter('all'); }}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] ${
+                categoryFilter === 'licenses'
+                  ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
+              }`}
+            >
+              <ShieldCheck size={11} className={categoryFilter === 'licenses' ? 'text-white' : 'text-slate-400'} />
+              <span>Licenças</span>
+              <span className="text-[10px] opacity-75">({counts.licenses})</span>
             </button>
           </div>
 
@@ -535,7 +673,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               <option value="client_legislation_added">Nova Legislação Vinculada</option>
               <option value="client_contact_updated">Contato Adicionado / Atualizado</option>
               <option value="client_address_changed">Mudança de Domicílio Fiscal / Endereço</option>
+              <option value="certificate_renewed">Certificado Digital Renovado</option>
+              <option value="certificate_expired">Certificado Digital Vencido</option>
+              <option value="license_renewed">Licença / Alvará Renovado</option>
               <option value="license_expiring">Certificado / Licença Expirando</option>
+              <option value="license_expired">Licença / Alvará Vencido</option>
               <option value="task_alert">Alertas Fiscais (Sublimite / Exclusão)</option>
               <option value="new_tutorial">Novos Tutoriais</option>
             </select>

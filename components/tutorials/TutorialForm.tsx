@@ -3,6 +3,7 @@ import { Tutorial, Client } from '../../types';
 import { Button } from '../ui/Button';
 import { Input, Select, SearchableSelect } from '../ui/Input';
 import { supabase } from '../../utils/supabaseClient';
+import { compressFileIfNeeded } from '../../utils/fileCompression';
 import { Save, X, Upload, Link as LinkIcon, FileText } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -66,13 +67,14 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
           await supabase.storage.from('tutorials').remove([tutorial.file_path]);
         }
 
-        const fileExt = file.name.split('.').pop();
+        const fileToUpload = await compressFileIfNeeded(file);
+        const fileExt = fileToUpload.name.split('.').pop();
         const uniqueName = `${userId}_${Date.now()}.${fileExt}`;
         const newFilePath = `${orgId}/${uniqueName}`;
 
         const { error: uploadError, data } = await supabase.storage
           .from('tutorials')
-          .upload(newFilePath, file);
+          .upload(newFilePath, fileToUpload);
 
         if (uploadError) throw uploadError;
 

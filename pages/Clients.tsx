@@ -239,6 +239,11 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     }, [isGridFilterOpen]);
 
 
+    const handleViewClientDetails = (client: Client) => {
+        setClientForDetails(client);
+        setIsDetailsDrawerOpen(true);
+    };
+
     // Initial load and handling specialized navigation
     useEffect(() => {
         const load = async () => {
@@ -248,18 +253,21 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 // Find client in loaded list or fetch directly if not present
                 const target = clients.find(c => c.id === initialClientId);
                 if (target) {
-                    handleEdit(target);
+                    handleViewClientDetails(target);
                 } else {
                     // Fetch directly if not in current list view (though it should be)
                     const { data, error } = await supabase
                         .from('clients')
-                        .select('*, client_contacts(*)')
+                        .select('*, client_contacts(*), client_tax_regime_history(*)')
                         .eq('id', initialClientId)
                         .eq('org_id', userProfile.org_id)
                         .single();
 
                     if (data && !error) {
                         const firstContact = (data as any).client_contacts?.[0];
+                        const history = (data as any).client_tax_regime_history || [];
+                        const currentRegime = history.find((r: any) => !r.end_date) || 
+                                              [...history].sort((a: any, b: any) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime())[0];
                         const mapped: Client = {
                             id: (data as any).id,
                             code: (data as any).code,
@@ -286,9 +294,10 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                             complement: (data as any).complement,
                             neighborhood: (data as any).neighborhood,
                             city: (data as any).city,
-                            state: (data as any).state
+                            state: (data as any).state,
+                            tax_regime: currentRegime?.regime
                         };
-                        handleEdit(mapped);
+                        handleViewClientDetails(mapped);
                     }
                 }
                 onClearInitialClientId?.();
@@ -306,7 +315,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
             const { data, error } = await supabase
                 .from('clients')
-                .select('*, client_contacts(*)')
+                .select('*, client_contacts(*), client_tax_regime_history(*)')
                 .eq('org_id', userProfile.org_id)
                 .order('created_at', { ascending: false });
 
@@ -315,6 +324,9 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 // Map DB snake_case to UI camelCase
                 const mappedData: Client[] = data.map((c: any) => {
                     const firstContact = c.client_contacts?.[0];
+                    const history = c.client_tax_regime_history || [];
+                    const currentRegime = history.find((r: any) => !r.end_date) || 
+                                          [...history].sort((a: any, b: any) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime())[0];
                     return {
                         id: c.id,
                         code: c.code,
@@ -342,7 +354,8 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         neighborhood: c.neighborhood,
                         city: c.city,
                         state: c.state,
-                        created_at: c.created_at
+                        created_at: c.created_at,
+                        tax_regime: currentRegime?.regime
                     };
                 });
                 
@@ -520,7 +533,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 h-full flex flex-col">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div className="flex items-center gap-3 mb-2 md:mb-0">
                     <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
@@ -721,20 +734,20 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 </div>
             )}
 
-            <div className="flex-1 overflow-auto min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
                 {loading ? (
                     <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-600" /></div>
                 ) : displayMode === 'table' ? (
                     <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
-                        <div className="overflow-auto w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 340px)' }}>
+                        <div className="overflow-auto w-full pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
                             <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
-                                <thead className="bg-slate-200/90 dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm backdrop-blur-md">
+                                <thead className="bg-slate-200 dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm">
                                     <tr>
                                         {(() => {
                                             const codeActive = !!filters.code;
                                             const codeCount = codeActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[100px] rounded-tl-2xl rounded-bl-xl border-t-[3px] border-b border-l border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${codeActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[100px] rounded-tl-2xl border-t-[3px] border-l border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${codeActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Código</span>
                                                         <TableColumnFilter label="Código" isActive={codeActive} activeCount={codeCount}>
@@ -755,7 +768,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const nameActive = !!filters.companyName;
                                             const nameCount = nameActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${nameActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${nameActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Razão Social</span>
                                                         <TableColumnFilter label="Razão Social" isActive={nameActive} activeCount={nameCount}>
@@ -776,7 +789,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const docActive = !!filters.document;
                                             const docCount = docActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[160px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${docActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[160px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${docActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">CPF/CNPJ</span>
                                                         <TableColumnFilter label="CPF/CNPJ" isActive={docActive} activeCount={docCount}>
@@ -797,7 +810,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const contactActive = !!filters.contactName;
                                             const contactCount = contactActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[150px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${contactActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[150px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${contactActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Contato</span>
                                                         <TableColumnFilter label="Contato" isActive={contactActive} activeCount={contactCount}>
@@ -818,7 +831,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const fixedActive = !!filters.phoneFixed;
                                             const fixedCount = fixedActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[140px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${fixedActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[140px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${fixedActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Fixo</span>
                                                         <TableColumnFilter label="Fixo" isActive={fixedActive} activeCount={fixedCount}>
@@ -839,7 +852,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const mobileActive = !!filters.phoneMobile;
                                             const mobileCount = mobileActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[140px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${mobileActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[140px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${mobileActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Celular</span>
                                                         <TableColumnFilter label="Celular" isActive={mobileActive} activeCount={mobileCount}>
@@ -860,7 +873,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             const emailActive = !!filters.email;
                                             const emailCount = emailActive ? 1 : 0;
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-b border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${emailActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[200px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${emailActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">E-mail</span>
                                                         <TableColumnFilter label="E-mail" isActive={emailActive} activeCount={emailCount}>
@@ -886,7 +899,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 { value: 'Prospecto',  label: 'Prospecto',  color: 'bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' },
                                             ];
                                             return (
-                                                <th className={`px-6 py-4 align-top min-w-[120px] rounded-tr-2xl rounded-br-xl border-t-[3px] border-b border-r border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
+                                                <th className={`px-6 py-4 align-top min-w-[120px] rounded-tr-2xl border-t-[3px] border-r border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${statActive ? 'relative z-50' : 'relative z-10'}`}>
                                                     <div className="flex items-center justify-between gap-2 h-6">
                                                         <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Situação</span>
                                                         <TableColumnFilter label="Situação" isActive={statActive} activeCount={statCount}>
@@ -938,14 +951,15 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                 <td className="px-6 py-4 font-medium text-slate-900 dark:text-white border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                                                     <div className="flex flex-col gap-1">
                                                         <div className="flex items-center gap-2 flex-wrap">
-                                                            <span 
-                                                                onClick={(e) => handleCopyData(client.companyName, 'Razão Social', e)}
-                                                                className={`group/copy inline-flex items-center gap-1.5 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${isAllUppercase(client.companyName || '') ? "text-[11px] tracking-wide" : ""}`}
-                                                                title="Clique para copiar a Razão Social"
-                                                            >
-                                                                <span>{client.companyName}</span>
-                                                                <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                            </span>
+                                                            <Tooltip content="Copiar Razão Social" position="top">
+                                                                <span 
+                                                                    onClick={(e) => handleCopyData(client.companyName, 'Razão Social', e)}
+                                                                    className={`group/copy inline-flex items-center gap-1.5 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${isAllUppercase(client.companyName || '') ? "text-[11px] tracking-wide" : ""}`}
+                                                                >
+                                                                    <span>{client.companyName}</span>
+                                                                    <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                                </span>
+                                                            </Tooltip>
                                                             <span className={`text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded border shadow-2xs shrink-0 ${
                                                                 (client.establishment_type || 'Matriz').toLowerCase() === 'filial'
                                                                     ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200/60 dark:border-amber-500/30'
@@ -955,76 +969,82 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                             </span>
                                                         </div>
                                                         {(client.city || client.state) && (
-                                                            <div 
-                                                                onClick={(e) => handleCopyData(`${client.city || ''}${client.city && client.state ? ', ' : ''}${client.state || ''}`, 'Localização', e)}
-                                                                className="group/copy inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                                title="Clique para copiar a Localização"
-                                                            >
-                                                                <MapPin size={10} className="text-slate-400 shrink-0" />
-                                                                <span>{client.city}{client.city && client.state ? ', ' : ''}{client.state}</span>
-                                                                <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                            </div>
+                                                            <Tooltip content="Copiar Localização" position="top">
+                                                                <div 
+                                                                    onClick={(e) => handleCopyData(`${client.city || ''}${client.city && client.state ? ', ' : ''}${client.state || ''}`, 'Localização', e)}
+                                                                    className="group/copy inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-normal cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                                >
+                                                                    <MapPin size={10} className="text-slate-400 shrink-0" />
+                                                                    <span>{client.city}{client.city && client.state ? ', ' : ''}{client.state}</span>
+                                                                    <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                                </div>
+                                                            </Tooltip>
                                                         )}
                                                     </div>
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.document && handleCopyData(client.document, 'CPF/CNPJ', e)}
                                                     className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.document ? 'cursor-pointer group/copy' : ''}`}
-                                                    title={client.document ? "Clique para copiar CPF/CNPJ" : ""}
                                                 >
                                                     {client.document ? (
-                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
-                                                            <span>{client.document}</span>
-                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                        </span>
+                                                        <Tooltip content="Copiar CPF/CNPJ" position="top">
+                                                            <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
+                                                                <span>{client.document}</span>
+                                                                <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                            </span>
+                                                        </Tooltip>
                                                     ) : '-'}
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.contactName && handleCopyData(client.contactName, 'Nome do contato', e)}
                                                     className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.contactName ? 'cursor-pointer group/copy' : ''}`}
-                                                    title={client.contactName ? "Clique para copiar contato" : ""}
                                                 >
                                                     {client.contactName ? (
-                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
-                                                            <span>{client.contactName}</span>
-                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                        </span>
+                                                        <Tooltip content="Copiar Contato" position="top">
+                                                            <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
+                                                                <span>{client.contactName}</span>
+                                                                <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                            </span>
+                                                        </Tooltip>
                                                     ) : '-'}
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.phoneFixed && handleCopyData(client.phoneFixed, 'Telefone fixo', e)}
                                                     className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.phoneFixed ? 'cursor-pointer group/copy' : ''}`}
-                                                    title={client.phoneFixed ? "Clique para copiar telefone fixo" : ""}
                                                 >
                                                     {client.phoneFixed ? (
-                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
-                                                            <span>{client.phoneFixed}</span>
-                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                        </span>
+                                                        <Tooltip content="Copiar Telefone Fixo" position="top">
+                                                            <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
+                                                                <span>{client.phoneFixed}</span>
+                                                                <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                            </span>
+                                                        </Tooltip>
                                                     ) : '-'}
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.phoneMobile && handleCopyData(client.phoneMobile, 'Celular', e)}
                                                     className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.phoneMobile ? 'cursor-pointer group/copy' : ''}`}
-                                                    title={client.phoneMobile ? "Clique para copiar celular" : ""}
                                                 >
                                                     {client.phoneMobile ? (
-                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
-                                                            <span>{client.phoneMobile}</span>
-                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                        </span>
+                                                        <Tooltip content="Copiar Celular" position="top">
+                                                            <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors">
+                                                                <span>{client.phoneMobile}</span>
+                                                                <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                            </span>
+                                                        </Tooltip>
                                                     ) : '-'}
                                                 </td>
                                                 <td 
                                                     onClick={(e) => client.email && handleCopyData(client.email, 'E-mail', e)}
                                                     className={`px-6 py-4 text-[11px] border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors ${client.email ? 'cursor-pointer group/copy' : ''}`}
-                                                    title={client.email ? "Clique para copiar e-mail" : ""}
                                                 >
                                                     {client.email ? (
-                                                        <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors truncate max-w-[220px]">
-                                                            <span className="truncate">{client.email}</span>
-                                                            <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                        </span>
+                                                        <Tooltip content="Copiar E-mail" position="top">
+                                                            <span className="inline-flex items-center gap-1.5 group-hover/copy:text-indigo-600 dark:group-hover/copy:text-indigo-400 transition-colors truncate max-w-[220px]">
+                                                                <span className="truncate">{client.email}</span>
+                                                                <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                            </span>
+                                                        </Tooltip>
                                                     ) : '-'}
                                                 </td>
                                                 <td className="px-6 py-4 relative rounded-r-xl border-y border-r border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
@@ -1040,10 +1060,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                                 variant="ghost"
                                                                 icon={<ScanEye size={16} />}
                                                                 className="h-8 w-8 p-0 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400"
-                                                                onClick={() => {
-                                                                    setClientForDetails(client);
-                                                                    setIsDetailsDrawerOpen(true);
-                                                                }}
+                                                                onClick={() => handleViewClientDetails(client)}
                                                             />
                                                         </Tooltip>
                                                         <Tooltip content="Editar" position="top">
@@ -1074,7 +1091,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         </div>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
                         {filteredClients.length === 0 ? (
                             <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
                                 Nenhum cliente encontrado com os filtros selecionados.
@@ -1091,24 +1108,33 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             </span>
                                         </div>
                                         <div className="flex flex-col gap-1.5">
-                                            <h3 
-                                                onClick={(e) => handleCopyData(client.companyName, 'Razão Social', e)}
-                                                title="Clique para copiar Razão Social"
-                                                className={`group/copy font-extrabold text-slate-800 dark:text-white line-clamp-2 leading-tight cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors inline-flex items-center gap-1.5 ${isAllUppercase(client.companyName || '') ? 'text-[11px] tracking-wide' : 'text-[13px]'}`}
-                                            >
-                                                <span>{client.companyName}</span>
-                                                <Copy size={11} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                            </h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span 
-                                                    onClick={(e) => client.document && handleCopyData(client.document, 'CPF/CNPJ', e)}
-                                                    title={client.document ? "Clique para copiar CPF/CNPJ" : ""}
-                                                    className={`text-xs font-mono text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1.5 shadow-sm ${client.document ? 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 group/copy' : ''}`}
+                                            <Tooltip content="Copiar Razão Social" position="top" className="inline-block max-w-full">
+                                                <h3 
+                                                    onClick={(e) => handleCopyData(client.companyName, 'Razão Social', e)}
+                                                    className={`group/copy font-extrabold text-slate-800 dark:text-white line-clamp-2 leading-tight cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors inline-flex items-center gap-1.5 ${isAllUppercase(client.companyName || '') ? 'text-[11px] tracking-wide' : 'text-[13px]'}`}
                                                 >
-                                                    <FileText size={10} className="opacity-50" />
-                                                    <span>{client.document || 'Sem Documento'}</span>
-                                                    {client.document && <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />}
-                                                </span>
+                                                    <span>{client.companyName}</span>
+                                                    <Copy size={11} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                </h3>
+                                            </Tooltip>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                {client.document ? (
+                                                    <Tooltip content="Copiar CPF/CNPJ" position="top">
+                                                        <span 
+                                                            onClick={(e) => handleCopyData(client.document, 'CPF/CNPJ', e)}
+                                                            className="text-xs font-mono text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1.5 shadow-sm cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 group/copy"
+                                                        >
+                                                            <FileText size={10} className="opacity-50" />
+                                                            <span>{client.document}</span>
+                                                            <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                        </span>
+                                                    </Tooltip>
+                                                ) : (
+                                                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1.5 shadow-sm">
+                                                        <FileText size={10} className="opacity-50" />
+                                                        <span>Sem Documento</span>
+                                                    </span>
+                                                )}
                                                 <span className="text-[9px] uppercase tracking-widest font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-500/20 shadow-sm">
                                                     {client.establishment_type || 'Matriz'}
                                                 </span>
@@ -1123,27 +1149,29 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                         <div className="flex flex-col gap-2.5">
                                             {/* Nome principal */}
                                             {client.contactName && (
-                                                <div 
-                                                    onClick={(e) => handleCopyData(client.contactName, 'Nome do contato', e)}
-                                                    title="Clique para copiar contato"
-                                                    className="group/copy flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200 font-semibold truncate leading-none cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                >
-                                                    <User size={13} className="text-slate-400 shrink-0" />
-                                                    <span className="truncate">{client.contactName}</span>
-                                                    <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                </div>
+                                                <Tooltip content="Copiar Contato" position="top" className="w-full">
+                                                    <div 
+                                                        onClick={(e) => handleCopyData(client.contactName, 'Nome do contato', e)}
+                                                        className="group/copy flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200 font-semibold truncate leading-none cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    >
+                                                        <User size={13} className="text-slate-400 shrink-0" />
+                                                        <span className="truncate">{client.contactName}</span>
+                                                        <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                    </div>
+                                                </Tooltip>
                                             )}
                                             {/* E-mail */}
                                             {client.email ? (
-                                                <div 
-                                                    onClick={(e) => handleCopyData(client.email, 'E-mail', e)}
-                                                    title="Clique para copiar e-mail"
-                                                    className="group/copy flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-none truncate cursor-pointer"
-                                                >
-                                                    <Mail size={13} className="shrink-0" />
-                                                    <span className="truncate tracking-wide">{client.email}</span>
-                                                    <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                </div>
+                                                <Tooltip content="Copiar E-mail" position="top" className="w-full">
+                                                    <div 
+                                                        onClick={(e) => handleCopyData(client.email, 'E-mail', e)}
+                                                        className="group/copy flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-none truncate cursor-pointer"
+                                                    >
+                                                        <Mail size={13} className="shrink-0" />
+                                                        <span className="truncate tracking-wide">{client.email}</span>
+                                                        <Copy size={10} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                    </div>
+                                                </Tooltip>
                                             ) : (
                                                 <div className="flex items-center gap-2 text-[11px] text-slate-300 dark:text-slate-600 italic leading-none isolate">
                                                     <Mail size={13} className="shrink-0 opacity-50" />
@@ -1154,15 +1182,16 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                             {/* Telefones */}
                                             <div className="grid grid-cols-2 gap-2 mt-1">
                                                 {client.phoneFixed ? (
-                                                    <div 
-                                                        onClick={(e) => handleCopyData(client.phoneFixed, 'Telefone fixo', e)}
-                                                        title="Clique para copiar telefone fixo"
-                                                        className="group/copy flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 transition-colors"
-                                                    >
-                                                        <Phone size={11} className="text-slate-400 shrink-0" />
-                                                        <span className="whitespace-nowrap tracking-tight">{client.phoneFixed}</span>
-                                                        <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                    </div>
+                                                    <Tooltip content="Copiar Telefone Fixo" position="top" className="w-full">
+                                                        <div 
+                                                            onClick={(e) => handleCopyData(client.phoneFixed, 'Telefone fixo', e)}
+                                                            className="group/copy flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 transition-colors"
+                                                        >
+                                                            <Phone size={11} className="text-slate-400 shrink-0" />
+                                                            <span className="whitespace-nowrap tracking-tight">{client.phoneFixed}</span>
+                                                            <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                        </div>
+                                                    </Tooltip>
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 text-[10px] text-slate-300 dark:text-slate-600 italic bg-slate-50/50 dark:bg-slate-800/20 px-2 py-1.5 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
                                                         <Phone size={11} className="opacity-50 shrink-0" />
@@ -1170,15 +1199,16 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                     </div>
                                                 )}
                                                 {client.phoneMobile ? (
-                                                    <div 
-                                                        onClick={(e) => handleCopyData(client.phoneMobile, 'Celular', e)}
-                                                        title="Clique para copiar celular"
-                                                        className="group/copy flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 transition-colors"
-                                                    >
-                                                        <Smartphone size={11} className="text-slate-400 shrink-0" />
-                                                        <span className="whitespace-nowrap tracking-tight">{client.phoneMobile}</span>
-                                                        <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
-                                                    </div>
+                                                    <Tooltip content="Copiar Celular" position="top" className="w-full">
+                                                        <div 
+                                                            onClick={(e) => handleCopyData(client.phoneMobile, 'Celular', e)}
+                                                            className="group/copy flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 transition-colors"
+                                                        >
+                                                            <Smartphone size={11} className="text-slate-400 shrink-0" />
+                                                            <span className="whitespace-nowrap tracking-tight">{client.phoneMobile}</span>
+                                                            <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                        </div>
+                                                    </Tooltip>
                                                 ) : (
                                                     <div className="flex items-center gap-1.5 text-[10px] text-slate-300 dark:text-slate-600 italic bg-slate-50/50 dark:bg-slate-800/20 px-2 py-1.5 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
                                                         <Smartphone size={11} className="opacity-50 shrink-0" />
@@ -1191,23 +1221,28 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
                                     {/* Secao 3: Localizacao e Acoes */}
                                     <div className="p-3 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row items-center justify-between gap-3 relative">
-                                        <div 
-                                            onClick={(e) => (client.city || client.state) && handleCopyData(`${client.city || ''}${client.city && client.state ? ', ' : ''}${client.state || ''}`, 'Localização', e)}
-                                            title={(client.city || client.state) ? "Clique para copiar localização" : ""}
-                                            className={`group/copy flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase w-full sm:w-auto overflow-hidden bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded shadow-sm ${(client.city || client.state) ? 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors' : ''}`}
-                                        >
-                                            <MapPin size={12} className="text-indigo-400 shrink-0" />
-                                            <span className="truncate">{client.city || 'N/A'}, {client.state || 'N/A'}</span>
-                                            {(client.city || client.state) && <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />}
-                                        </div>
+                                        {(client.city || client.state) ? (
+                                            <Tooltip content="Copiar Localização" position="top">
+                                                <div 
+                                                    onClick={(e) => handleCopyData(`${client.city || ''}${client.city && client.state ? ', ' : ''}${client.state || ''}`, 'Localização', e)}
+                                                    className="group/copy flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase w-full sm:w-auto overflow-hidden bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded shadow-sm cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                >
+                                                    <MapPin size={12} className="text-indigo-400 shrink-0" />
+                                                    <span className="truncate">{client.city || 'N/A'}, {client.state || 'N/A'}</span>
+                                                    <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
+                                                </div>
+                                            </Tooltip>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase w-full sm:w-auto overflow-hidden bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded shadow-sm">
+                                                <MapPin size={12} className="text-indigo-400 shrink-0" />
+                                                <span className="truncate">N/A, N/A</span>
+                                            </div>
+                                        )}
                                         
                                         <div className="flex items-center justify-end w-full sm:w-auto gap-1">
                                             <Tooltip content="Visualizar" position="top">
                                                 <button 
-                                                    onClick={() => {
-                                                        setClientForDetails(client);
-                                                        setIsDetailsDrawerOpen(true);
-                                                    }}
+                                                    onClick={() => handleViewClientDetails(client)}
                                                     className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm rounded transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                                                 >
                                                     <ScanEye size={14} />

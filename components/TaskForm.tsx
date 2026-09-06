@@ -34,6 +34,7 @@ import { Tooltip } from './ui/Tooltip';
 import { Notification, NotificationType } from './ui/Notification';
 import { Task, TaskStatus, Priority, Client, TAX_REGIME_GROUPS } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { compressFileIfNeeded } from '../utils/fileCompression';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 
 interface ClientConfig {
@@ -794,7 +795,8 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
           // Arquivos para edição
           const files = clientAttachmentsMap[payload.client_name];
           if (files && files.length > 0) {
-            for (const file of files) {
+            for (const rawFile of files) {
+              const file = await compressFileIfNeeded(rawFile);
               const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
               const storagePath = `tasks/${taskData.id}/${Date.now()}_${safeName}`;
               
@@ -847,7 +849,8 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
           for (const task of insertedTasks) {
             const files = clientAttachmentsMap[task.client_name];
             if (files && files.length > 0) {
-              for (const file of files) {
+              for (const rawFile of files) {
+                const file = await compressFileIfNeeded(rawFile);
                 const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
                 const storagePath = `tasks/${task.id}/${Date.now()}_${safeName}`;
 
