@@ -33,7 +33,8 @@ import {
     BarChart2,
     ShieldAlert,
     AlertTriangle,
-    Smartphone
+    Smartphone,
+    FileSpreadsheet
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -45,6 +46,7 @@ import { Modal } from '../components/ui/Modal';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Notification, NotificationType } from '../components/ui/Notification';
 import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
+import { ClientImportModal } from '../components/clients/ClientImportModal';
 
 
 
@@ -190,6 +192,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
         type: 'info'
     });
     const [showMetrics, setShowMetrics] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
     const showNotify = (message: string, type: NotificationType = 'info') => {
         setNotification({ show: true, message, type });
@@ -683,6 +686,14 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         </Tooltip>
                     </div>
 
+                    <Button 
+                        variant="secondary" 
+                        onClick={() => setIsImportModalOpen(true)} 
+                        icon={<FileSpreadsheet size={18} />} 
+                        className="hidden sm:flex"
+                    >
+                        Importar Planilha
+                    </Button>
                     <Button onClick={handleCreate} icon={<Plus size={18} />} className="hidden md:flex">Novo Cliente</Button>
                 </div>
             </div>
@@ -1387,6 +1398,17 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 onEdit={(client) => {
                     setIsDetailsDrawerOpen(false);
                     handleEdit(client);
+                }}
+            />
+            {/* Modal de Importação de Planilha */}
+            <ClientImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                userProfile={userProfile}
+                existingClients={clients.map(c => ({ id: c.id, document: c.document, code: c.code }))}
+                onSuccess={async () => {
+                    await fetchClients();
+                    showNotify('Importação de clientes processada com sucesso!', 'success');
                 }}
             />
             {/* FAB: Novo Cliente (Mobile) */}
