@@ -29,7 +29,8 @@ import {
     Receipt,
     Star,
     ChevronDown,
-    AlertTriangle
+    AlertTriangle,
+    Check
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -49,7 +50,7 @@ interface ClientSegment { id: string; name: string; description?: string; catego
 // --- Interfaces for Sub-Tables ---
 interface ClientInscription { id?: string; client_id?: string; type: string; custom_name?: string; number: string; observation?: string; }
 interface ClientContact { id?: string; client_id?: string; name: string; email?: string; phone_fixed?: string; phone_mobile?: string; is_main?: boolean; }
-interface ClientTaxRegime { id?: string; client_id?: string; start_date?: string; end_date?: string; regime: string; observation?: string; }
+interface ClientTaxRegime { id?: string; client_id?: string; start_date?: string; end_date?: string; regime: string; observation?: string; annexes?: string[]; }
 interface ClientActivity { id?: string; client_id?: string; order_type: string; cnae_code: string; cnae_description?: string; }
 interface ClientAccess { id?: string; client_id?: string; access_name: string; username?: string; password?: string; access_url?: string; sector?: string; }
 interface ClientCertificate { id?: string; client_id?: string; model: string; expires_at?: string; password?: string; signatory?: string; expiration_date?: string; }
@@ -156,7 +157,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     // --- Temporary Input State for Tabs ---
     const [tempInscription, setTempInscription] = useState<Partial<ClientInscription>>({ type: 'Municipal' });
     const [tempContact, setTempContact] = useState<Partial<ClientContact>>({});
-    const [tempRegime, setTempRegime] = useState<Partial<ClientTaxRegime>>({ regime: 'simples' });
+    const [tempRegime, setTempRegime] = useState<Partial<ClientTaxRegime>>({ regime: 'simples', annexes: [] });
     const [tempActivity, setTempActivity] = useState<Partial<ClientActivity>>({ order_type: 'principal' });
     const [tempAccess, setTempAccess] = useState<Partial<ClientAccess>>({ sector: '' });
     const [tempCertificate, setTempCertificate] = useState<Partial<ClientCertificate>>({ model: 'ecnpj_a1', signatory: 'propria' });
@@ -398,15 +399,21 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     };
     const handleAddRegime = () => {
         if (!tempRegime.regime) return showNotify('Selecione um regime', 'warning');
+        const isSimples = tempRegime.regime === 'simples' || tempRegime.regime === 'simples_iva';
+        const finalRegime: ClientTaxRegime = {
+            ...tempRegime,
+            annexes: isSimples ? (tempRegime.annexes || []) : []
+        } as ClientTaxRegime;
+
         if (editingIndex !== null) {
             const newList = [...taxRegimes];
-            newList[editingIndex] = { ...newList[editingIndex], ...tempRegime } as ClientTaxRegime;
+            newList[editingIndex] = { ...newList[editingIndex], ...finalRegime };
             setTaxRegimes(newList);
             setEditingIndex(null);
         } else {
-            setTaxRegimes([...taxRegimes, tempRegime as ClientTaxRegime]);
+            setTaxRegimes([...taxRegimes, finalRegime]);
         }
-        setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
+        setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '', annexes: [] });
         setIsFormExpanded(false);
     };
     const handleAddActivity = () => {
@@ -437,15 +444,24 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
     };
     const handleAddCertificate = () => {
         if (!tempCertificate.model) return showNotify('Selecione o modelo', 'warning');
+        const expDate = tempCertificate.expires_at || tempCertificate.expiration_date || '';
+        const finalCert: ClientCertificate = {
+            ...tempCertificate,
+            model: tempCertificate.model,
+            expires_at: expDate,
+            expiration_date: expDate,
+            password: tempCertificate.password || '',
+            signatory: tempCertificate.signatory || 'propria'
+        };
         if (editingIndex !== null) {
             const newList = [...certificates];
-            newList[editingIndex] = { ...newList[editingIndex], ...tempCertificate } as ClientCertificate;
+            newList[editingIndex] = { ...newList[editingIndex], ...finalCert } as ClientCertificate;
             setCertificates(newList);
             setEditingIndex(null);
         } else {
-            setCertificates([...certificates, tempCertificate as ClientCertificate]);
+            setCertificates([...certificates, finalCert as ClientCertificate]);
         }
-        setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' });
+        setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', expiration_date: '', password: '' });
         setCertFile(null);
         const fileInput = document.getElementById('certFileInput') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
@@ -465,6 +481,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             setTempCertificate(prev => ({
                 ...prev,
                 model: 'ecnpj_a1',
+                expires_at: validToDate,
                 expiration_date: validToDate
             }));
 
@@ -484,15 +501,26 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
     const handleAddLicense = () => {
         if (!tempLicense.license_name) return showNotify('Preencha o nome da licença', 'warning');
+        const licNum = tempLicense.license_number !== undefined ? tempLicense.license_number : (tempLicense.number || '');
+        const expDate = tempLicense.expiry_date !== undefined ? tempLicense.expiry_date : (tempLicense.expiration_date || '');
+        const finalLic: ClientLicense = {
+            ...tempLicense,
+            license_name: tempLicense.license_name,
+            license_number: licNum,
+            number: licNum,
+            expiry_date: expDate,
+            expiration_date: expDate,
+            access_url: tempLicense.access_url || ''
+        };
         if (editingIndex !== null) {
             const newList = [...licenses];
-            newList[editingIndex] = { ...newList[editingIndex], ...tempLicense } as ClientLicense;
+            newList[editingIndex] = { ...newList[editingIndex], ...finalLic } as ClientLicense;
             setLicenses(newList);
             setEditingIndex(null);
         } else {
-            setLicenses([...licenses, tempLicense as ClientLicense]);
+            setLicenses([...licenses, finalLic as ClientLicense]);
         }
-        setTempLicense({ license_name: '', number: '', expiration_date: '', access_url: '' });
+        setTempLicense({ license_name: '', number: '', license_number: '', expiration_date: '', expiry_date: '', access_url: '' });
         setIsFormExpanded(false);
     };
     const handleAddLegislation = () => {
@@ -690,6 +718,43 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
             if (!clientId) throw new Error('Falha ao obter ID do cliente');
 
+            // Auto-commit qualquer edição pendente nos subformulários caso o usuário clique em Salvar Cliente diretamente
+            let currentInscriptions = [...inscriptions];
+            let currentContacts = [...contacts];
+            let currentTaxRegimes = [...taxRegimes];
+            let currentActivities = [...activities];
+            let currentAccesses = [...accesses];
+            let currentCertificates = [...certificates];
+            let currentLicenses = [...licenses];
+            let currentLegislations = [...legislations];
+            let currentDfeSeries = [...dfeSeries];
+
+            if (editingIndex !== null) {
+                if (activeTab === 'inscricoes' && tempInscription.number) {
+                    currentInscriptions[editingIndex] = { ...currentInscriptions[editingIndex], ...tempInscription, type: otherInscriptionType ? tempInscription.custom_name || 'Outra' : tempInscription.type || 'Municipal' };
+                } else if (activeTab === 'contatos' && tempContact.name) {
+                    currentContacts[editingIndex] = { ...currentContacts[editingIndex], ...tempContact };
+                } else if (activeTab === 'regime' && tempRegime.regime) {
+                    const isSimples = tempRegime.regime === 'simples' || tempRegime.regime === 'simples_iva';
+                    currentTaxRegimes[editingIndex] = { ...currentTaxRegimes[editingIndex], ...tempRegime, annexes: isSimples ? (tempRegime.annexes || []) : [] };
+                } else if (activeTab === 'atividades' && tempActivity.cnae_code) {
+                    currentActivities[editingIndex] = { ...currentActivities[editingIndex], ...tempActivity };
+                } else if (activeTab === 'acessos' && tempAccess.access_name) {
+                    currentAccesses[editingIndex] = { ...currentAccesses[editingIndex], ...tempAccess };
+                } else if (activeTab === 'certificados' && tempCertificate.model) {
+                    const exp = tempCertificate.expires_at || tempCertificate.expiration_date || '';
+                    currentCertificates[editingIndex] = { ...currentCertificates[editingIndex], ...tempCertificate, expires_at: exp, expiration_date: exp };
+                } else if (activeTab === 'licencas' && tempLicense.license_name) {
+                    const licNum = tempLicense.license_number !== undefined ? tempLicense.license_number : (tempLicense.number || '');
+                    const exp = tempLicense.expiry_date !== undefined ? tempLicense.expiry_date : (tempLicense.expiration_date || '');
+                    currentLicenses[editingIndex] = { ...currentLicenses[editingIndex], ...tempLicense, license_number: licNum, number: licNum, expiry_date: exp, expiration_date: exp };
+                } else if (activeTab === 'legislacoes' && tempLegislation.description) {
+                    currentLegislations[editingIndex] = { ...currentLegislations[editingIndex], ...tempLegislation };
+                } else if (activeTab === 'series_dfe' && tempDfeSerie.dfe_type) {
+                    currentDfeSeries[editingIndex] = { ...currentDfeSeries[editingIndex], ...tempDfeSerie };
+                }
+            }
+
             const processItems = async (table: ClientTable, items: any[], prepareFn: (i: any) => any) => {
                 const newItems = items.filter(i => !i.id).map(prepareFn);
                 const existingItems = items.filter(i => i.id).map(i => ({ id: i.id, ...prepareFn(i) }));
@@ -697,7 +762,10 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
                 if (newItems.length > 0) {
                     const { error } = await (supabase.from(table) as any).insert(newItems);
-                    if (error) console.error(`Error inserting new items in ${table}:`, error);
+                    if (error) {
+                        console.error(`Error inserting new items in ${table}:`, error);
+                        throw new Error(`Erro ao salvar novos itens em ${table}: ${error.message}`);
+                    }
                 }
 
                 for (const item of existingItems) {
@@ -711,6 +779,15 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             if (key === 'client_id') continue;
                             const valNew = updateData[key] ?? null;
                             const valOrig = original[key] ?? null;
+                            if (Array.isArray(valNew) || Array.isArray(valOrig)) {
+                                const arrNew = Array.isArray(valNew) ? [...valNew].sort().join(',') : '';
+                                const arrOrig = Array.isArray(valOrig) ? [...valOrig].sort().join(',') : '';
+                                if (arrNew !== arrOrig) {
+                                    hasChanged = true;
+                                    break;
+                                }
+                                continue;
+                            }
                             const strNew = typeof valNew === 'string' ? valNew.trim() : String(valNew ?? '');
                             const strOrig = typeof valOrig === 'string' ? valOrig.trim() : String(valOrig ?? '');
                             if (strNew !== strOrig) {
@@ -724,36 +801,40 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     }
 
                     const { error } = await (supabase.from(table) as any).update(updateData).eq('id', id);
-                    if (error) console.error(`Error updating item in ${table}:`, error);
+                    if (error) {
+                        console.error(`Error updating item in ${table}:`, error);
+                        throw new Error(`Erro ao atualizar item em ${table}: ${error.message}`);
+                    }
                 }
             };
 
-            await processItems('client_inscriptions', inscriptions, i => ({ ...i, client_id: clientId }));
-            await processItems('client_contacts', contacts, i => ({ ...i, client_id: clientId }));
-            await processItems('client_tax_regime_history', taxRegimes, i => ({ 
+            await processItems('client_inscriptions', currentInscriptions, i => ({ ...i, client_id: clientId }));
+            await processItems('client_contacts', currentContacts, i => ({ ...i, client_id: clientId }));
+            await processItems('client_tax_regime_history', currentTaxRegimes, i => ({ 
                 ...i, 
                 client_id: clientId,
                 start_date: i.start_date || null,
-                end_date: i.end_date || null
+                end_date: i.end_date || null,
+                annexes: i.annexes || []
             }));
-            await processItems('client_activities', activities, i => ({ ...i, client_id: clientId }));
-            await processItems('client_accesses', accesses, i => ({ ...i, client_id: clientId }));
-            await processItems('client_certificates', certificates, i => ({
+            await processItems('client_activities', currentActivities, i => ({ ...i, client_id: clientId }));
+            await processItems('client_accesses', currentAccesses, i => ({ ...i, client_id: clientId }));
+            await processItems('client_certificates', currentCertificates, i => ({
                 client_id: clientId,
                 model: i.model,
-                expires_at: i.expiration_date || i.expires_at || null,
-                password: i.password,
-                signatory: i.signatory
+                expires_at: (i.expires_at || i.expiration_date) ? (i.expires_at || i.expiration_date) : null,
+                password: i.password || '',
+                signatory: i.signatory || 'propria'
             }));
-            await processItems('client_licenses', licenses, i => ({
+            await processItems('client_licenses', currentLicenses, i => ({
                 client_id: clientId,
                 license_name: i.license_name,
-                license_number: i.number || i.license_number,
-                expiry_date: i.expiration_date || i.expiry_date || null,
-                access_url: i.access_url
+                license_number: i.license_number !== undefined ? i.license_number : (i.number || ''),
+                expiry_date: (i.expiry_date || i.expiration_date) ? (i.expiry_date || i.expiration_date) : null,
+                access_url: i.access_url || null
             }));
-            await processItems('client_legislations', legislations, i => ({ ...i, client_id: clientId }));
-            await processItems('client_dfe_series', dfeSeries, i => ({ ...i, client_id: clientId }));
+            await processItems('client_legislations', currentLegislations, i => ({ ...i, client_id: clientId }));
+            await processItems('client_dfe_series', currentDfeSeries, i => ({ ...i, client_id: clientId }));
 
             showNotify('Cliente salvo com sucesso!', 'success');
             setTimeout(onBack, 1500);
@@ -1157,6 +1238,49 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             <button
                                 key={tab.id}
                                 onClick={() => {
+                                    if (editingIndex !== null) {
+                                        if (activeTab === 'inscricoes' && tempInscription.number) {
+                                            const newList = [...inscriptions];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempInscription, type: otherInscriptionType ? tempInscription.custom_name || 'Outra' : tempInscription.type || 'Municipal' } as ClientInscription;
+                                            setInscriptions(newList);
+                                        } else if (activeTab === 'contatos' && tempContact.name) {
+                                            const newList = [...contacts];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempContact } as ClientContact;
+                                            setContacts(newList);
+                                        } else if (activeTab === 'regime' && tempRegime.regime) {
+                                            const isSimples = tempRegime.regime === 'simples' || tempRegime.regime === 'simples_iva';
+                                            const newList = [...taxRegimes];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempRegime, annexes: isSimples ? (tempRegime.annexes || []) : [] } as ClientTaxRegime;
+                                            setTaxRegimes(newList);
+                                        } else if (activeTab === 'atividades' && tempActivity.cnae_code) {
+                                            const newList = [...activities];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempActivity } as ClientActivity;
+                                            setActivities(newList);
+                                        } else if (activeTab === 'acessos' && tempAccess.access_name) {
+                                            const newList = [...accesses];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempAccess } as ClientAccess;
+                                            setAccesses(newList);
+                                        } else if (activeTab === 'certificados' && tempCertificate.model) {
+                                            const exp = tempCertificate.expires_at || tempCertificate.expiration_date || '';
+                                            const newList = [...certificates];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempCertificate, expires_at: exp, expiration_date: exp } as ClientCertificate;
+                                            setCertificates(newList);
+                                        } else if (activeTab === 'licencas' && tempLicense.license_name) {
+                                            const licNum = tempLicense.license_number !== undefined ? tempLicense.license_number : (tempLicense.number || '');
+                                            const exp = tempLicense.expiry_date !== undefined ? tempLicense.expiry_date : (tempLicense.expiration_date || '');
+                                            const newList = [...licenses];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempLicense, license_number: licNum, number: licNum, expiry_date: exp, expiration_date: exp } as ClientLicense;
+                                            setLicenses(newList);
+                                        } else if (activeTab === 'legislacoes' && tempLegislation.description) {
+                                            const newList = [...legislations];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempLegislation } as ClientLegislation;
+                                            setLegislations(newList);
+                                        } else if (activeTab === 'series_dfe' && tempDfeSerie.dfe_type) {
+                                            const newList = [...dfeSeries];
+                                            newList[editingIndex] = { ...newList[editingIndex], ...tempDfeSerie } as ClientDfeSeries;
+                                            setDfeSeries(newList);
+                                        }
+                                    }
                                     setActiveTab(tab.id);
                                     setEditingIndex(null);
                                     setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' });
@@ -1164,8 +1288,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
                                     setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' });
                                     setTempAccess({ access_name: '', username: '', password: '', access_url: '', sector: '' });
-                                    setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', password: '' });
-                                    setTempLicense({ license_name: '', number: '', expiration_date: '', access_url: '' });
+                                    setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', expiration_date: '', password: '' });
+                                    setTempLicense({ license_name: '', number: '', license_number: '', expiration_date: '', expiry_date: '', access_url: '' });
                                     setTempLegislation({ status: 'vigente', description: '', access_url: '' });
                                     setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' });
                                     setOtherInscriptionType(false);
@@ -1572,31 +1696,106 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     <Input
                                         label="Início em:"
                                         type="date"
-                                        value={tempRegime.start_date}
+                                        value={tempRegime.start_date || ''}
                                         onChange={e => setTempRegime({ ...tempRegime, start_date: e.target.value })}
                                     />
                                     <Input
                                         label="Saída em:"
                                         type="date"
-                                        value={tempRegime.end_date}
+                                        value={tempRegime.end_date || ''}
                                         onChange={e => setTempRegime({ ...tempRegime, end_date: e.target.value })}
                                     />
                                     <GroupedSelect
                                         label="Regime Tributário"
-                                        value={tempRegime.regime}
-                                        onChange={value => setTempRegime({ ...tempRegime, regime: value })}
+                                        value={tempRegime.regime || 'simples'}
+                                        onChange={value => {
+                                            const isSimples = value === 'simples' || value === 'simples_iva';
+                                            setTempRegime({
+                                                ...tempRegime,
+                                                regime: value,
+                                                annexes: isSimples ? (tempRegime.annexes || []) : []
+                                            });
+                                        }}
                                         groups={TAX_REGIME_GROUPS}
                                     />
+                                    {(tempRegime.regime === 'simples' || tempRegime.regime === 'simples_iva') && (
+                                        <div className="md:col-span-3 space-y-2.5 p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-indigo-900/40 shadow-xs animate-fadeIn">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                                        Anexos do Simples Nacional
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400">
+                                                        (Selecione os anexos aplicáveis à empresa)
+                                                    </span>
+                                                </div>
+                                                {(tempRegime.annexes && tempRegime.annexes.length > 0) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTempRegime({ ...tempRegime, annexes: [] })}
+                                                        className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                                                    >
+                                                        Limpar anexos
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                                                {[
+                                                    { value: 'Anexo I', desc: 'Comércio' },
+                                                    { value: 'Anexo II', desc: 'Indústria' },
+                                                    { value: 'Anexo III', desc: 'Serviços' },
+                                                    { value: 'Anexo IV', desc: 'Serviços' },
+                                                    { value: 'Anexo V', desc: 'Serviços' },
+                                                    { value: 'Nulo', desc: 'Sem Anexo' },
+                                                ].map(annex => {
+                                                    const isChecked = (tempRegime.annexes || []).includes(annex.value);
+                                                    return (
+                                                        <button
+                                                            key={annex.value}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const current = tempRegime.annexes || [];
+                                                                const updated = current.includes(annex.value)
+                                                                    ? current.filter(x => x !== annex.value)
+                                                                    : [...current, annex.value];
+                                                                setTempRegime({ ...tempRegime, annexes: updated });
+                                                            }}
+                                                            className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none ${
+                                                                isChecked
+                                                                    ? 'bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-500 text-indigo-900 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-500/20'
+                                                                    : 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-300 hover:bg-slate-100/50'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center justify-between w-full">
+                                                                <span className="text-xs font-black">{annex.value}</span>
+                                                                <div className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+                                                                    isChecked
+                                                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                                                                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
+                                                                }`}>
+                                                                    {isChecked && <Check size={11} strokeWidth={3} />}
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                                                                {annex.desc}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="md:col-span-3">
                                         <Input
                                             label="Observação"
-                                            value={tempRegime.observation}
+                                            value={tempRegime.observation || ''}
                                             onChange={e => setTempRegime({ ...tempRegime, observation: e.target.value })}
                                         />
                                     </div>
                                     <div className="md:col-span-3 flex justify-end gap-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '', annexes: [] }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddRegime}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Histórico'}
@@ -1628,7 +1827,17 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                             <Tooltip content="Editar" position="top">
                                                                 <button 
                                                                     type="button"
-                                                                    onClick={() => { setTempRegime(item); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                    onClick={() => { 
+                                                                        setTempRegime({ 
+                                                                            ...item, 
+                                                                            start_date: item.start_date || '',
+                                                                            end_date: item.end_date || '',
+                                                                            observation: item.observation || '',
+                                                                            annexes: item.annexes || [] 
+                                                                        }); 
+                                                                        setEditingIndex(index); 
+                                                                        setIsFormExpanded(true); 
+                                                                    }} 
                                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                 >
                                                                     <Pencil size={14} />
@@ -1670,6 +1879,23 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                         <Calendar size={16} className="text-slate-400" />
                                                     </div>
                                                 </div>
+
+                                                {/* Anexos vinculados a este enquadramento */}
+                                                {item.annexes && item.annexes.length > 0 && (
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mr-0.5">
+                                                            Anexos:
+                                                        </span>
+                                                        {item.annexes.map((a: string) => (
+                                                            <span
+                                                                key={a}
+                                                                className="px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200/60 dark:border-emerald-800/40"
+                                                            >
+                                                                {a}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
 
                                                 {/* Footer: Observação */}
                                                 {item.observation && (
@@ -2199,7 +2425,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                                 <Tooltip content="Editar" position="top">
                                                                     <button 
                                                                         type="button"
-                                                                        onClick={() => { setTempCertificate({ ...item, expiration_date: item.expiration_date || item.expires_at }); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                        onClick={() => { 
+                                                                            const exp = item.expires_at || item.expiration_date || '';
+                                                                            setTempCertificate({ ...item, expiration_date: exp, expires_at: exp }); 
+                                                                            setEditingIndex(index); 
+                                                                            setIsFormExpanded(true); 
+                                                                        }} 
                                                                         className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                     >
                                                                         <Pencil size={14} />
@@ -2313,14 +2544,14 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     />
                                     <Input
                                         label="Número da Licença"
-                                        value={tempLicense.number}
-                                        onChange={e => setTempLicense({ ...tempLicense, number: e.target.value })}
+                                        value={tempLicense.license_number !== undefined ? tempLicense.license_number : (tempLicense.number ?? '')}
+                                        onChange={e => setTempLicense({ ...tempLicense, number: e.target.value, license_number: e.target.value })}
                                     />
                                     <Input
                                         label="Data de Validade"
                                         type="date"
-                                        value={tempLicense.expiration_date}
-                                        onChange={e => setTempLicense({ ...tempLicense, expiration_date: e.target.value })}
+                                        value={tempLicense.expiry_date !== undefined ? tempLicense.expiry_date : (tempLicense.expiration_date ?? '')}
+                                        onChange={e => setTempLicense({ ...tempLicense, expiration_date: e.target.value, expiry_date: e.target.value })}
                                     />
                                     <div className="flex flex-col gap-1.5">
                                         <div className="flex items-center h-5">
@@ -2330,7 +2561,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                             <input
                                                 className="w-full h-10 rounded-lg border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 px-3 py-2 text-sm text-blue-600 dark:text-blue-400 underline"
                                                 placeholder="https://"
-                                                value={tempLicense.access_url}
+                                                value={tempLicense.access_url || ''}
                                                 onChange={e => setTempLicense({ ...tempLicense, access_url: e.target.value })}
                                             />
                                             <button className="group/tooltip relative p-2 bg-slate-100 dark:bg-slate-800 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
@@ -2344,7 +2575,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                     </div>
                                     <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
                                         {editingIndex !== null && (
-                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLicense({ license_name: '', number: '', expiration_date: '', access_url: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
+                                            <Button size="sm" variant="secondary" onClick={() => { setEditingIndex(null); setTempLicense({ license_name: '', number: '', license_number: '', expiration_date: '', expiry_date: '', access_url: '' }); setIsFormExpanded(false); }}>Cancelar</Button>
                                         )}
                                         <Button size="sm" icon={editingIndex !== null ? <Save size={16} /> : <Plus size={16} />} onClick={handleAddLicense}>
                                             {editingIndex !== null ? 'Salvar Edição' : 'Adicionar Licença'}
@@ -2357,7 +2588,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {licenses.map((item, index) => {
-                                            const expDate = item.expiration_date || item.expiry_date;
+                                            const expDate = item.expiry_date || item.expiration_date;
                                             const daysRemaining = expDate ? Math.ceil((new Date(expDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
                                             
                                             let statusColor = 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800/50';
@@ -2387,7 +2618,13 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                                                 <Tooltip content="Editar" position="top">
                                                                     <button 
                                                                         type="button"
-                                                                        onClick={() => { setTempLicense({ ...item, expiration_date: item.expiration_date || item.expiry_date, number: item.number || item.license_number }); setEditingIndex(index); setIsFormExpanded(true); }} 
+                                                                        onClick={() => { 
+                                                                            const exp = item.expiry_date || item.expiration_date || '';
+                                                                            const num = item.license_number !== undefined ? item.license_number : (item.number || '');
+                                                                            setTempLicense({ ...item, expiration_date: exp, expiry_date: exp, number: num, license_number: num }); 
+                                                                            setEditingIndex(index); 
+                                                                            setIsFormExpanded(true); 
+                                                                        }} 
                                                                         className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all"
                                                                     >
                                                                         <Pencil size={14} />

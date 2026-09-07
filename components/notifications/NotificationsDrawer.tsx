@@ -70,7 +70,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
 
   // Helpers para distinguir Certificados e Licenças
   const isCertType = (type: string, title?: string, message?: string) => {
-    if (['certificate_expired', 'certificate_renewed'].includes(type)) return true;
+    if (['certificate_expired', 'certificate_renewed', 'certificate_updated'].includes(type)) return true;
     if (type === 'license_expiring') {
       const text = `${title || ''} ${message || ''}`.toLowerCase();
       return text.includes('certificado');
@@ -79,7 +79,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
   };
 
   const isLicenseType = (type: string, title?: string, message?: string) => {
-    if (['license_expired', 'license_renewed'].includes(type)) return true;
+    if (['license_expired', 'license_renewed', 'license_updated'].includes(type)) return true;
     if (type === 'license_expiring') {
       const text = `${title || ''} ${message || ''}`.toLowerCase();
       return !text.includes('certificado');
@@ -451,8 +451,10 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       case 'license_expiring': return <ShieldAlert size={16} className="text-orange-500" />;
       case 'license_expired': return <ShieldAlert size={16} className="text-rose-600" />;
       case 'license_renewed': return <ShieldCheck size={16} className="text-emerald-500" />;
+      case 'license_updated': return <ShieldCheck size={16} className="text-indigo-500" />;
       case 'certificate_expired': return <KeyRound size={16} className="text-rose-600" />;
       case 'certificate_renewed': return <CheckCircle size={16} className="text-teal-500" />;
+      case 'certificate_updated': return <KeyRound size={16} className="text-indigo-500" />;
       case 'client_created': return <Building2 size={16} className="text-emerald-500" />;
       case 'task_reassigned': return <ArrowRightLeft size={16} className="text-indigo-500" />;
       case 'client_tax_regime_changed': return <Scale size={16} className="text-amber-500" />;
@@ -674,8 +676,10 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               <option value="client_contact_updated">Contato Adicionado / Atualizado</option>
               <option value="client_address_changed">Mudança de Domicílio Fiscal / Endereço</option>
               <option value="certificate_renewed">Certificado Digital Renovado</option>
+              <option value="certificate_updated">Certificado Digital Atualizado</option>
               <option value="certificate_expired">Certificado Digital Vencido</option>
               <option value="license_renewed">Licença / Alvará Renovado</option>
+              <option value="license_updated">Licença / Alvará Atualizado</option>
               <option value="license_expiring">Certificado / Licença Expirando</option>
               <option value="license_expired">Licença / Alvará Vencido</option>
               <option value="task_alert">Alertas Fiscais (Sublimite / Exclusão)</option>

@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
     FileSpreadsheet,
     Download,
@@ -21,9 +22,9 @@ import {
     BookOpen,
     HelpCircle,
     Check,
-    Ban
+    Ban,
+    ChevronUp
 } from 'lucide-react';
-import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import {
     downloadClientTemplate,
@@ -73,6 +74,46 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
     } | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isVisible, setIsVisible] = useState(false);
+    const [shouldRender, setShouldRender] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setShouldRender(true);
+            const timer = setTimeout(() => setIsVisible(true), 20);
+            document.body.style.overflow = 'hidden';
+            return () => clearTimeout(timer);
+        } else {
+            setIsVisible(false);
+        }
+    }, [isOpen]);
+
+    const handleTransitionEnd = () => {
+        if (!isVisible) {
+            setShouldRender(false);
+            document.body.style.overflow = 'unset';
+        }
+    };
+
+    const handleClose = () => {
+        if (step !== 'importing') {
+            handleReset();
+            onClose();
+        }
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isOpen && step !== 'importing') {
+                handleClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen, step]);
 
     const handleReset = () => {
         setStep('upload');
@@ -148,7 +189,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
         }
     };
 
-    if (!isOpen) return null;
+    if (!shouldRender) return null;
 
     // Linhas filtradas na aba de clientes
     const filteredClientRows = parseResult ? parseResult.rows.filter(row => {
@@ -168,113 +209,87 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
     const allLegislations = parseResult?.rows.flatMap(r => r.legislations) || [];
     const allDfe = parseResult?.rows.flatMap(r => r.dfeSeries) || [];
 
-    return (
-        <Modal
-            isOpen={isOpen}
-            onClose={() => {
-                if (step !== 'importing') {
-                    handleReset();
-                    onClose();
-                }
-            }}
-            title={
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg flex-shrink-0 shadow-sm">
-                        <FileSpreadsheet size={18} className="text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <div className="flex flex-col text-left">
-                        <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
-                            Importar Clientes via Planilha
-                        </h1>
-                        <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
-                    </div>
-                </div>
-            }
-            size="6xl"
-            footer={
-                mainTab === 'import' && step === 'preview' ? (
-                    <div className="flex items-center justify-between w-full">
-                        <Button
-                            variant="secondary"
-                            onClick={handleReset}
-                            icon={<RefreshCw size={16} />}
-                        >
-                            Trocar Planilha
-                        </Button>
+    return createPortal(
+        <div className="fixed inset-0 z-[10000] overflow-hidden">
+            {/* Backdrop escurecido com desfoque */}
+            <div
+                className={`fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out ${
+                    isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+                onClick={handleClose}
+            />
+
+            {/* Top Drawer: Desce suavemente do topo da tela */}
+            <div
+                onTransitionEnd={handleTransitionEnd}
+                className={`fixed top-0 inset-x-0 flex justify-center pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+                }`}
+            >
+                <div className="w-full max-w-[1600px] max-h-[92vh] flex flex-col pointer-events-auto bg-white dark:bg-slate-900 border-b border-x border-slate-200/90 dark:border-slate-800 shadow-2xl rounded-b-2xl md:rounded-b-3xl overflow-hidden">
+                    {/* Header Fixo no Topo */}
+                    <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shrink-0">
+                        {/* Título e Ícone no padrão dos Drawers */}
                         <div className="flex items-center gap-3">
-                            <Button
-                                variant="ghost"
-                                onClick={() => {
-                                    handleReset();
-                                    onClose();
-                                }}
-                            >
-                                Cancelar
-                            </Button>
-                            <Button
-                                variant="primary"
-                                onClick={handleStartImport}
-                                disabled={!parseResult || parseResult.validCount === 0}
-                                icon={<ArrowRight size={16} />}
-                            >
-                                Importar {parseResult?.validCount || 0} {parseResult?.validCount === 1 ? 'Cliente Válido' : 'Clientes Válidos'}
-                            </Button>
+                            <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg flex-shrink-0 shadow-sm">
+                                <FileSpreadsheet size={18} className="text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div className="flex flex-col text-left">
+                                <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                                    Importar Clientes via Planilha
+                                </h1>
+                                <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+                            </div>
+                        </div>
+
+                        {/* Abas Superiores (Importação / Instruções) e Botão Fechar */}
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+                            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+                                <button
+                                    onClick={() => setMainTab('import')}
+                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                        mainTab === 'import'
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                    }`}
+                                >
+                                    <Upload size={14} />
+                                    <span>Importação</span>
+                                </button>
+                                <button
+                                    onClick={() => setMainTab('instructions')}
+                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                        mainTab === 'instructions'
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                    }`}
+                                >
+                                    <BookOpen size={14} />
+                                    <span className="hidden md:inline">Instruções & Regras</span>
+                                    <span className="md:hidden">Instruções</span>
+                                </button>
+                            </div>
+
+                            {/* Botão Fechar com Atalho ESC */}
+                            <div className="flex items-center gap-1.5 pl-1.5 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
+                                <button
+                                    onClick={handleClose}
+                                    disabled={step === 'importing'}
+                                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed group flex items-center gap-1.5"
+                                    title="Recolher gaveta (Esc)"
+                                >
+                                    <span className="hidden md:inline text-[10px] font-mono text-slate-400 group-hover:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                        ESC
+                                    </span>
+                                    <ChevronUp size={20} className="hidden sm:inline" />
+                                    <X size={20} className="sm:hidden" />
+                                </button>
+                            </div>
                         </div>
                     </div>
-                ) : mainTab === 'import' && step === 'finished' ? (
-                    <div className="flex justify-end w-full">
-                        <Button
-                            variant="primary"
-                            onClick={() => {
-                                handleReset();
-                                onClose();
-                            }}
-                            icon={<CheckCircle2 size={16} />}
-                        >
-                            Concluir e Ver Clientes
-                        </Button>
-                    </div>
-                ) : null
-            }
-        >
-            {/* NAVEGAÇÃO DE ABAS SUPERIORES: IMPORTAR vs INSTRUÇÕES */}
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 mb-5">
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setMainTab('import')}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                            mainTab === 'import'
-                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                    >
-                        <Upload size={14} />
-                        Importar Arquivo
-                    </button>
-                    <button
-                        onClick={() => setMainTab('instructions')}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                            mainTab === 'instructions'
-                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                    >
-                        <BookOpen size={14} />
-                        Instruções & Regras da Planilha
-                    </button>
-                </div>
-                {mainTab === 'instructions' && (
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={downloadClientTemplate}
-                        icon={<Download size={14} />}
-                        className="hidden sm:inline-flex"
-                    >
-                        Baixar Modelo (.xlsx)
-                    </Button>
-                )}
-            </div>
+
+                    {/* Corpo Scrollável da Gaveta */}
+                    <div className="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-1 min-h-0">
 
             {/* ABA INFORMATIVA: INSTRUÇÕES & REGRAS */}
             {mainTab === 'instructions' && (
@@ -381,6 +396,9 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                             </li>
                             <li>
                                 <strong>Status</strong>: Preencha com <code>Ativo</code> ou <code>Inativo</code> (caso não informado, assume <em>Ativo</em>).
+                            </li>
+                            <li>
+                                <strong>Regime Tributário & Anexos</strong>: Na aba <code>Regime_Tributario</code>, ao selecionar <em>Simples</em> ou <em>Simples IVA Dual</em>, preencha a coluna <code>ANEXOS</code> com os anexos correspondentes separados por vírgula (ex: <code>Anexo I, Anexo II</code>). Consulte a aba <code>Tabelas_Apoio</code> para ver todos os anexos vigentes.
                             </li>
                         </ul>
                     </div>
@@ -795,6 +813,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                                             <tr>
                                                 <th className="py-2.5 px-3 font-semibold">Documento Cliente</th>
                                                 <th className="py-2.5 px-3 font-semibold">Regime</th>
+                                                <th className="py-2.5 px-3 font-semibold">Anexos</th>
                                                 <th className="py-2.5 px-3 font-semibold">Data Início</th>
                                                 <th className="py-2.5 px-3 font-semibold">Data Fim</th>
                                                 <th className="py-2.5 px-3 font-semibold">Observação</th>
@@ -802,12 +821,28 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                             {allRegimes.length === 0 ? (
-                                                <tr><td colSpan={5} className="py-8 text-center text-slate-400">Nenhum registro de regime tributário na planilha.</td></tr>
+                                                <tr><td colSpan={6} className="py-8 text-center text-slate-400">Nenhum registro de regime tributário na planilha.</td></tr>
                                             ) : (
                                                 allRegimes.map((r, i) => (
                                                     <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                                         <td className="py-2 px-3 font-mono font-medium">{r.documento_cliente}</td>
                                                         <td className="py-2 px-3 font-semibold text-indigo-600 dark:text-indigo-400">{r.regime}</td>
+                                                        <td className="py-2 px-3">
+                                                            {r.annexes && r.annexes.length > 0 ? (
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {r.annexes.map((anx, aIdx) => (
+                                                                        <span
+                                                                            key={aIdx}
+                                                                            className="px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/50 text-[10px] font-semibold"
+                                                                        >
+                                                                            {anx}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-slate-400">-</span>
+                                                            )}
+                                                        </td>
                                                         <td className="py-2 px-3">{r.start_date || '-'}</td>
                                                         <td className="py-2 px-3">{r.end_date || '-'}</td>
                                                         <td className="py-2 px-3 text-slate-500">{r.observation || '-'}</td>
@@ -1129,6 +1164,114 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                     )}
                 </>
             )}
-        </Modal>
+                    </div>
+
+                    {/* Rodapé Fixo */}
+                    <div className="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md flex items-center justify-between shrink-0 gap-3">
+                        {mainTab === 'import' && step === 'upload' && (
+                            <>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={downloadClientTemplate}
+                                    icon={<Download size={15} />}
+                                >
+                                    Baixar Modelo (.xlsx)
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleClose}
+                                >
+                                    Cancelar
+                                </Button>
+                            </>
+                        )}
+
+                        {mainTab === 'import' && step === 'preview' && (
+                            <>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleReset}
+                                    icon={<RefreshCw size={15} />}
+                                >
+                                    Trocar Planilha
+                                </Button>
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleClose}
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={handleStartImport}
+                                        disabled={!parseResult || parseResult.validCount === 0}
+                                        icon={<ArrowRight size={15} />}
+                                    >
+                                        Importar {parseResult?.validCount || 0} {parseResult?.validCount === 1 ? 'Cliente Válido' : 'Clientes Válidos'}
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+
+                        {mainTab === 'import' && step === 'importing' && (
+                            <div className="flex items-center justify-center w-full py-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                <RefreshCw size={14} className="animate-spin mr-2 text-indigo-600 dark:text-indigo-400" />
+                                Gravando clientes no banco de dados com isolamento multi-tenant... Não feche a janela.
+                            </div>
+                        )}
+
+                        {mainTab === 'import' && step === 'finished' && (
+                            <div className="flex justify-end w-full">
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={handleClose}
+                                    icon={<CheckCircle2 size={16} />}
+                                >
+                                    Concluir e Ver Clientes
+                                </Button>
+                            </div>
+                        )}
+
+                        {mainTab === 'instructions' && (
+                            <>
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={downloadClientTemplate}
+                                    icon={<Download size={15} />}
+                                >
+                                    Baixar Planilha Modelo (.xlsx)
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setMainTab('import')}
+                                    icon={<Upload size={15} />}
+                                >
+                                    Ir para Importação
+                                </Button>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Alça inferior decorativa para recolher */}
+                    <div
+                        onClick={step !== 'importing' ? handleClose : undefined}
+                        className="w-full flex justify-center py-1 bg-slate-100 dark:bg-slate-950 border-t border-slate-200/60 dark:border-slate-800/60 cursor-pointer group hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors"
+                        title={step !== 'importing' ? "Clique para recolher a gaveta" : undefined}
+                    >
+                        <div className="w-12 h-1 rounded-full bg-slate-300 dark:bg-slate-700 group-hover:bg-indigo-500 transition-colors" />
+                    </div>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 };

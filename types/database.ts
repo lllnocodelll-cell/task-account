@@ -989,6 +989,7 @@ export type Database = {
       }
       client_tax_regime_history: {
         Row: {
+          annexes: string[] | null
           client_id: string
           created_at: string | null
           end_date: string | null
@@ -998,6 +999,7 @@ export type Database = {
           start_date: string | null
         }
         Insert: {
+          annexes?: string[] | null
           client_id: string
           created_at?: string | null
           end_date?: string | null
@@ -1007,6 +1009,7 @@ export type Database = {
           start_date?: string | null
         }
         Update: {
+          annexes?: string[] | null
           client_id?: string
           created_at?: string | null
           end_date?: string | null

@@ -252,8 +252,10 @@ export const Notifications: React.FC<NotificationsProps> = ({
       case 'license_expiring': return <ShieldAlert size={20} className="text-orange-500" />;
       case 'license_expired': return <ShieldAlert size={20} className="text-rose-600" />;
       case 'license_renewed': return <ShieldCheck size={20} className="text-emerald-500" />;
+      case 'license_updated': return <ShieldCheck size={20} className="text-indigo-500" />;
       case 'certificate_expired': return <KeyRound size={20} className="text-rose-600" />;
       case 'certificate_renewed': return <CheckCircle size={20} className="text-teal-500" />;
+      case 'certificate_updated': return <KeyRound size={20} className="text-indigo-500" />;
       case 'client_created': return <Building2 size={20} className="text-emerald-500" />;
       case 'task_reassigned': return <ArrowRightLeft size={20} className="text-indigo-500" />;
       case 'client_tax_regime_changed': return <Scale size={20} className="text-amber-500" />;
@@ -265,7 +267,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
   };
 
   const isLicenseType = (type: string, title?: string, message?: string) => {
-    if (['license_expired', 'license_renewed'].includes(type)) return true;
+    if (['license_expired', 'license_renewed', 'license_updated'].includes(type)) return true;
     if (type === 'license_expiring') {
       const text = `${title || ''} ${message || ''}`.toLowerCase();
       return !text.includes('certificado');

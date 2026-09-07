@@ -1973,7 +1973,8 @@ export const Tasks: React.FC<{
             city: c.city,
             state: c.state,
             updated_at: c.updated_at,
-            tax_regime: currentRegime?.regime
+            tax_regime: currentRegime?.regime,
+            annexes: currentRegime?.annexes || []
           };
         });
         setClients(mappedClients);

@@ -159,6 +159,18 @@ export interface Client {
   city?: string;
   state?: string;
   tax_regime?: string;
+  annexes?: string[];
+}
+
+export interface ClientTaxRegime {
+  id?: string;
+  client_id?: string;
+  start_date?: string;
+  end_date?: string;
+  regime: string;
+  observation?: string;
+  annexes?: string[];
+  created_at?: string;
 }
 
 export interface Member {

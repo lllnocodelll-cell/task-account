@@ -36,6 +36,7 @@ import { Task, TaskStatus, Priority, Client, TAX_REGIME_GROUPS } from '../types'
 import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { calculateAdjustedDate } from '../utils/dateUtils';
+import { BatchClientSelectionDrawer } from './tasks/BatchClientSelectionDrawer';
 
 interface ClientConfig {
   taxRegime: string;
@@ -195,15 +196,20 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
   const [activeClientId, setActiveClientId] = useState<string | null>(
     initialData?.clientName || null
   );
+  const [isClientDrawerOpen, setIsClientDrawerOpen] = useState(false);
 
   // Default config for new clients
   const createDefaultConfig = (data?: Task | null, clientName?: string): ClientConfig => {
     let defaultRegime = data?.taxRegime;
+    let defaultAnnexes = data?.selectedAnnexes;
     
-    if (!defaultRegime && clientName) {
+    if (clientName) {
       const client = clients.find(c => c.companyName === clientName);
-      if (client?.tax_regime) {
+      if (client?.tax_regime && !defaultRegime) {
         defaultRegime = client.tax_regime;
+      }
+      if ((!defaultAnnexes || defaultAnnexes.length === 0) && client?.annexes && client.annexes.length > 0) {
+        defaultAnnexes = client.annexes;
       }
     }
 
@@ -211,7 +217,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
       taxRegime: defaultRegime || 'simples',
       regimeRegistro: data?.registrationRegime || 'competencia',
       semMovimento: data?.noMovement || false,
-      selectedAnnexes: data?.selectedAnnexes || [],
+      selectedAnnexes: defaultAnnexes || [],
       excedeuSublimite: data?.exceededSublimit || false,
       fatorR: data?.factorR || false,
       notifiedExclusion: data?.notifiedExclusion || false,
@@ -228,6 +234,26 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
       ? { [initialData.clientName]: createDefaultConfig(initialData, initialData.clientName) }
       : {}
   );
+
+  const handleConfirmBatchClients = (newSelected: string[]) => {
+    setSelectedClientIds(newSelected);
+
+    if (!newSelected.includes(activeClientId || '')) {
+      setActiveClientId(newSelected[0] || null);
+    }
+
+    setClientConfigs(prev => {
+      const updated: Record<string, ClientConfig> = {};
+      newSelected.forEach(name => {
+        if (prev[name]) {
+          updated[name] = prev[name];
+        } else {
+          updated[name] = createDefaultConfig(null, name);
+        }
+      });
+      return updated;
+    });
+  };
 
   const [activeTab, setActiveTab] = useState('simples');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1002,72 +1028,102 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
             )}
             <div className="space-y-6">
               <div className="space-y-4">
-                <SearchableSelect
-                  label="Empresa"
-                  disabled={isEditing}
-                  options={clients
-                    .filter(c => c.status === 'Ativo' && !selectedClientIds.includes(c.companyName))
-                    .map(c => ({
-                      value: c.companyName,
-                      label: c.companyName
-                    }))}
-                  value={isEditing ? (activeClientId || "") : ""}
-                  onChange={(val) => {
-                    if (val && !selectedClientIds.includes(val)) {
-                      if (selectedClientIds.length >= 100) {
-                        return showNotify('Você atingiu o limite máximo de 100 empresas selecionadas.', 'warning');
-                      }
-                      const newIds = [...selectedClientIds, val];
-                      setSelectedClientIds(newIds);
-                      if (!activeClientId) setActiveClientId(val);
-                      setClientConfigs(prev => ({
-                        ...prev,
-                        [val]: createDefaultConfig(null, val)
-                      }));
-                    }
-                  }}
-                  placeholder="Selecione e adicione empresas..."
-                />
-
-                {selectedClientIds.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresas Selecionadas</label>
-                      <span className={`text-[10px] font-bold ${selectedClientIds.length >= 100 ? 'text-rose-500' : 'text-slate-400'}`}>
-                        {selectedClientIds.length}/100
+                {isEditing ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Empresa</label>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                      <Building2 size={16} className="text-slate-400" />
+                      <span>{activeClientId || initialData?.clientName}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Empresas do Lote</label>
+                      <span className={`text-[10px] font-bold ${selectedClientIds.length >= 100 ? 'text-rose-500 font-black' : 'text-slate-400'}`}>
+                        {selectedClientIds.length}/100 selecionadas
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedClientIds.map(id => (
-                        <div
-                          key={id}
-                          onClick={() => setActiveClientId(id)}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all ${activeClientId === id
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 hover:border-indigo-300'
-                            }`}
-                        >
-                          <span className="truncate max-w-[150px]">{id}</span>
-                          {!isEditing && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const newIds = selectedClientIds.filter(x => x !== id);
-                                setSelectedClientIds(newIds);
-                                if (activeClientId === id) setActiveClientId(newIds[0] || null);
-                                setClientConfigs(prev => {
-                                  const { [id]: _, ...rest } = prev;
-                                  return rest;
-                                });
-                              }}
-                              className={`p-0.5 rounded-full hover:bg-white/20 ${activeClientId === id ? 'text-indigo-100' : 'text-slate-400'}`}
-                            >
-                              <X size={12} />
-                            </button>
-                          )}
+
+                    <button
+                      type="button"
+                      onClick={() => setIsClientDrawerOpen(true)}
+                      className="w-full flex items-center justify-between p-3.5 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800/80 bg-indigo-50/50 dark:bg-indigo-950/20 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium transition-all group shadow-sm hover:shadow cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-lg bg-indigo-600 text-white shadow-sm group-hover:scale-105 transition-transform">
+                          <Building2 size={16} />
                         </div>
-                      ))}
-                    </div>
+                        <div className="text-left">
+                          <div className="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-200">
+                            {selectedClientIds.length === 0 ? 'Selecionar Empresas' : 'Gerenciar Empresas do Lote'}
+                          </div>
+                          <div className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 font-normal">
+                            {selectedClientIds.length === 0
+                              ? 'Clique para abrir o painel lateral de seleção'
+                              : `${selectedClientIds.length} ${selectedClientIds.length === 1 ? 'empresa selecionada' : 'empresas selecionadas'}`}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-200/80 dark:border-indigo-800/60 shadow-xs">
+                        <span>{selectedClientIds.length === 0 ? 'Selecionar' : 'Alterar'}</span>
+                        <ChevronRight size={14} />
+                      </div>
+                    </button>
+
+                    {selectedClientIds.length > 0 && (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            Empresas Selecionadas
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedClientIds([]);
+                              setActiveClientId(null);
+                              setClientConfigs({});
+                            }}
+                            className="text-[10px] font-bold text-rose-500 hover:underline cursor-pointer"
+                          >
+                            Limpar todas
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1">
+                          {selectedClientIds.map(id => (
+                            <div
+                              key={id}
+                              onClick={() => setActiveClientId(id)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
+                                activeClientId === id
+                                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
+                              }`}
+                            >
+                              <span className="truncate max-w-[140px] text-[11px]">{id}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newIds = selectedClientIds.filter(x => x !== id);
+                                  setSelectedClientIds(newIds);
+                                  if (activeClientId === id) setActiveClientId(newIds[0] || null);
+                                  setClientConfigs(prev => {
+                                    const { [id]: _, ...rest } = prev;
+                                    return rest;
+                                  });
+                                }}
+                                className={`p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/20 ${
+                                  activeClientId === id ? 'text-indigo-100' : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1137,16 +1193,55 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 px-4 py-3 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
-                      }`}
+                    className={`flex-1 px-4 py-3 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800'
+                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
+                    }`}
                   >
                     {tab.label}
                   </button>
                 ))}
             </div>
-            <div className="p-4 max-h-[400px] overflow-auto custom-scrollbar">
+            <div className="p-4 max-h-[420px] overflow-auto custom-scrollbar">
+              {/* ESTADO VAZIO: NENHUMA EMPRESA SELECIONADA */}
+              {!activeClientId && (
+                <div className="flex flex-col items-center justify-center py-10 px-4 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                    <Building2 size={20} />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Nenhuma empresa selecionada
+                  </p>
+                  <p className="text-[11px] text-slate-400 max-w-xs">
+                    Selecione ao menos uma empresa no painel acima para visualizar e editar as configurações desta aba.
+                  </p>
+                </div>
+              )}
+
+              {/* ABA SIMPLES NACIONAL */}
               {activeTab === 'simples' && activeClientId && clientConfigs[activeClientId] && (
-                <div className="space-y-6">
+                <div className="space-y-4">
+                  {/* Banner Informativo de Configuração Individual */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
+                      <Building2 size={15} />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                          Configuração Individual
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                          Por Empresa
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Os parâmetros e anexos do Simples Nacional aplicam-se exclusivamente à empresa <strong className="text-slate-700 dark:text-slate-200">{activeClientId}</strong>. Para configurar outras empresas do lote, selecione-as na lista de empresas acima.
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                     <Toggle
                       label="Exclusão Notificada"
@@ -1194,23 +1289,67 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                 </div>
               )}
 
+              {/* ABA OBSERVAÇÃO */}
               {activeTab === 'observacao' && activeClientId && clientConfigs[activeClientId] && (
-                <textarea
-                  value={clientConfigs[activeClientId].observation}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setClientConfigs(prev => ({
-                      ...prev,
-                      [activeClientId]: { ...prev[activeClientId], observation: val }
-                    }));
-                  }}
-                  className="w-full h-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Observações gerais para este cliente..."
-                />
+                <div className="space-y-3">
+                  {/* Banner Informativo de Configuração Individual */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
+                      <Building2 size={15} />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                          Configuração Individual
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                          Por Empresa
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        A observação inserida abaixo será vinculada exclusivamente à tarefa da empresa <strong className="text-slate-700 dark:text-slate-200">{activeClientId}</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={clientConfigs[activeClientId].observation}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setClientConfigs(prev => ({
+                        ...prev,
+                        [activeClientId]: { ...prev[activeClientId], observation: val }
+                      }));
+                    }}
+                    className="w-full h-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Observações específicas para esta empresa..."
+                  />
+                </div>
               )}
 
+              {/* ABA ARQUIVOS */}
               {activeTab === 'arquivos' && activeClientId && clientConfigs[activeClientId] && (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                  {/* Banner Informativo de Configuração Individual */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
+                      <Building2 size={15} />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                          Configuração Individual
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                          Por Empresa
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Os arquivos anexados nesta aba pertencerão unicamente à tarefa da empresa <strong className="text-slate-700 dark:text-slate-200">{activeClientId}</strong>.
+                      </p>
+                    </div>
+                  </div>
+
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -1288,8 +1427,31 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                 </div>
               )}
 
+              {/* ABA WORKFLOW */}
               {activeTab === 'workflow' && activeClientId && clientConfigs[activeClientId] && (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                  {/* Banner Informativo de Configuração Geral */}
+                  <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/40 flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-indigo-600 text-white shrink-0 mt-0.5">
+                      <Layers size={15} />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-950 dark:text-indigo-200">
+                          Configuração Geral (Lote)
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-200/70 dark:bg-indigo-800/60 text-indigo-800 dark:text-indigo-200">
+                          Todas as Empresas
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-indigo-700/90 dark:text-indigo-300/80 leading-relaxed">
+                        {!isEditing && selectedClientIds.length > 1
+                          ? `Os itens de checklist e etapas de workflow definidos aqui serão replicados automaticamente para todas as ${selectedClientIds.length} empresas selecionadas no lote.`
+                          : 'Os itens de checklist e etapas de workflow definidos aqui serão aplicados para as tarefas criadas neste lote.'}
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="flex items-end gap-3 bg-slate-50/50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                     <div className="flex-1">
                       <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Novo Checklist</label>
@@ -1913,6 +2075,16 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
           </div>
         </div>
       </Modal>
+
+      {/* Drawer Lateral de Seleção de Empresas em Lote */}
+      <BatchClientSelectionDrawer
+        isOpen={isClientDrawerOpen}
+        onClose={() => setIsClientDrawerOpen(false)}
+        clients={clients}
+        selectedCompanyNames={selectedClientIds}
+        onConfirm={handleConfirmBatchClients}
+        maxLimit={100}
+      />
     </div>
   );
 }

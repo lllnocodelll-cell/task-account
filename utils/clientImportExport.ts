@@ -43,6 +43,7 @@ export interface ImportedClientRow {
 export interface ImportedTaxRegimeRow {
     documento_cliente: string;
     regime: string;
+    annexes?: string[];
     start_date?: string | null;
     end_date?: string | null;
     observation?: string;
@@ -293,14 +294,14 @@ export const downloadClientTemplate = async () => {
     XLSX.utils.book_append_sheet(wb, wsClients, 'Clientes');
 
     // 2. Aba Regime_Tributario
-    const regimeHeaders = ['documento_cliente', 'regime', 'data_inicio', 'data_fim', 'observacao'];
+    const regimeHeaders = ['documento_cliente', 'regime', 'anexos', 'data_inicio', 'data_fim', 'observacao'];
     const regimeRows = [
         regimeHeaders,
-        ['12.345.678/0001-90', 'Simples', '01/01/2024', '', 'Enquadrado no Simples Nacional com Anexo I e II'],
-        ['98.765.432/0001-10', 'Lucro Presumido', '01/01/2024', '', 'Alíquota de presunção 32% (Serviços)']
+        ['12.345.678/0001-90', 'Simples', 'Anexo I, Anexo II', '01/01/2024', '', 'Enquadrado no Simples Nacional com Anexo I e II'],
+        ['98.765.432/0001-10', 'Lucro Presumido', '', '01/01/2024', '', 'Alíquota de presunção 32% (Serviços)']
     ];
     const wsRegime = XLSX.utils.aoa_to_sheet(regimeRows);
-    wsRegime['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 45 }];
+    wsRegime['!cols'] = [{ wch: 22 }, { wch: 20 }, { wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 45 }];
     XLSX.utils.book_append_sheet(wb, wsRegime, 'Regime_Tributario');
 
     // 3. Aba Contatos
@@ -463,13 +464,22 @@ export const downloadClientTemplate = async () => {
         'IRPF'
     ];
 
-    const maxRows = Math.max(SEGMENTS_LIST.length, DFE_MODELS.length, REGIMES_LIST.length);
+    const SIMPLES_ANNEXES = [
+        'Anexo I - Comércio',
+        'Anexo II - Indústria',
+        'Anexo III - Serviços',
+        'Anexo IV - Serviços',
+        'Anexo V - Serviços'
+    ];
+
+    const maxRows = Math.max(SEGMENTS_LIST.length, DFE_MODELS.length, REGIMES_LIST.length, SIMPLES_ANNEXES.length);
     const apoioHeaders = [
         'Segmentos_Disponiveis',
         'Modelos_DFe_Sigla',
         'Modelo_Fiscal',
         'Descricao_DFe',
         'Regimes_Tributarios',
+        'Anexos_Simples_Nacional',
         'Estabelecimentos'
     ];
 
@@ -478,8 +488,9 @@ export const downloadClientTemplate = async () => {
         const seg = SEGMENTS_LIST[r] || '';
         const dfe = DFE_MODELS[r] || ['', '', ''];
         const reg = REGIMES_LIST[r] || '';
+        const anx = SIMPLES_ANNEXES[r] || '';
         const est = r === 0 ? 'Matriz' : r === 1 ? 'Filial' : '';
-        apoioRows.push([seg, dfe[0], dfe[1], dfe[2], reg, est]);
+        apoioRows.push([seg, dfe[0], dfe[1], dfe[2], reg, anx, est]);
     }
 
     const wsApoio = XLSX.utils.aoa_to_sheet(apoioRows);
@@ -489,6 +500,7 @@ export const downloadClientTemplate = async () => {
         { wch: 22 },
         { wch: 42 },
         { wch: 30 },
+        { wch: 25 },
         { wch: 18 }
     ];
     XLSX.utils.book_append_sheet(wb, wsApoio, 'Tabelas_Apoio');
@@ -762,9 +774,12 @@ export const parseAndValidateClientWorkbook = async (
         const targetClient = clientMapByDoc.get(doc);
         if (targetClient) {
             const rawRegime = String(r['regime'] || r['Regime'] || 'Simples').trim();
+            const rawAnnexes = String(r['anexos'] || r['Anexos'] || r['anexo'] || '').trim();
+            const parsedAnnexes = rawAnnexes ? rawAnnexes.split(/[,;]/).map(s => s.trim()).filter(Boolean) : [];
             targetClient.taxRegimes.push({
                 documento_cliente: doc,
                 regime: normalizeTaxRegime(rawRegime),
+                annexes: parsedAnnexes,
                 start_date: parseExcelDate(r['data_inicio'] || r['Data Início']),
                 end_date: parseExcelDate(r['data_fim'] || r['Data Fim']),
                 observation: String(r['observacao'] || r['Observação'] || '').trim() || undefined
@@ -1030,7 +1045,8 @@ export const executeClientBatchImport = async (
                     regime: r.regime,
                     start_date: r.start_date || null,
                     end_date: r.end_date || null,
-                    observation: r.observation || null
+                    observation: r.observation || null,
+                    annexes: r.annexes || []
                 }));
                 const { error: regErr } = await (supabase.from('client_tax_regime_history') as any).insert(regimesToInsert);
                 if (!regErr) secondaryCounts.taxRegimes += regimesToInsert.length;

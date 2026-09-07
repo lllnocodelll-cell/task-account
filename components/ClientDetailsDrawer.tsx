@@ -102,6 +102,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [liveClient, setLiveClient] = useState<Client | null>(client);
   const [currentTaxRegime, setCurrentTaxRegime] = useState<string | null>(client?.tax_regime || null);
+  const [currentAnnexes, setCurrentAnnexes] = useState<string[]>(client?.annexes || []);
 
   // Estado para a ordem das seções, inicializado a partir do localStorage ou ordem padrão
   const [sectionsOrder, setSectionsOrder] = useState<string[]>(() => {
@@ -224,6 +225,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
         const active = history.find((r: any) => !r.end_date) || 
                        [...history].sort((a: any, b: any) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime())[0];
         setCurrentTaxRegime(active?.regime || null);
+        setCurrentAnnexes(active?.annexes || []);
         setLiveClient(prev => ({
           ...(prev || client),
           id: c.id,
@@ -600,6 +602,15 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">
                         {TAX_REGIME_LABELS[currentTaxRegime || currentClient.tax_regime || ''] || currentTaxRegime || currentClient.tax_regime || 'Não Informado'}
                       </span>
+                      {currentAnnexes && currentAnnexes.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {currentAnnexes.map(a => (
+                            <span key={a} className="px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold border border-emerald-200/60 dark:border-emerald-800/40">
+                              {a}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-0.5 border-l border-slate-100 dark:border-slate-800 pl-3">
                       <div className="flex items-center gap-1 mb-0.5">

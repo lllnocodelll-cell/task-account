@@ -181,6 +181,34 @@ const formatPhone = (v: string, type: 'fixed' | 'mobile') => {
     }
 };
 
+/**
+ * Aplica máscara dinâmica para CPF (11 dígitos) e CNPJ Alfanumérico (14 caracteres).
+ * Suporta o novo padrão da Receita Federal onde o CNPJ permite letras (A-Z) e números (0-9).
+ */
+const formatCpfCnpjFilter = (v: string): string => {
+    if (!v) return '';
+    // Mantém apenas letras e números, normalizando em maiúsculo
+    const clean = v.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 14);
+    if (!clean) return '';
+
+    const hasLetters = /[A-Z]/.test(clean);
+
+    // Se contém letras ou mais de 11 caracteres, trata como CNPJ Alfanumérico (XX.XXX.XXX/XXXX-XX)
+    if (hasLetters || clean.length > 11) {
+        if (clean.length <= 2) return clean;
+        if (clean.length <= 5) return `${clean.slice(0, 2)}.${clean.slice(2)}`;
+        if (clean.length <= 8) return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5)}`;
+        if (clean.length <= 12) return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5, 8)}/${clean.slice(8)}`;
+        return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5, 8)}/${clean.slice(8, 12)}-${clean.slice(12, 14)}`;
+    }
+
+    // Apenas números e até 11 dígitos: formata como CPF (000.000.000-00)
+    if (clean.length <= 3) return clean;
+    if (clean.length <= 6) return `${clean.slice(0, 3)}.${clean.slice(3)}`;
+    if (clean.length <= 9) return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6)}`;
+    return `${clean.slice(0, 3)}.${clean.slice(3, 6)}.${clean.slice(6, 9)}-${clean.slice(9, 11)}`;
+};
+
 export const Clients: React.FC<{ userProfile: any, initialClientId?: string | null, onClearInitialClientId?: () => void }> = ({ userProfile, initialClientId, onClearInitialClientId }) => {
     const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
     const [displayMode, setDisplayMode] = useState<'table' | 'cards'>(() => typeof window !== 'undefined' && window.innerWidth < 1024 ? 'cards' : 'table');
@@ -298,7 +326,8 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                             neighborhood: (data as any).neighborhood,
                             city: (data as any).city,
                             state: (data as any).state,
-                            tax_regime: currentRegime?.regime
+                            tax_regime: currentRegime?.regime,
+                            annexes: currentRegime?.annexes || []
                         };
                         handleViewClientDetails(mapped);
                     }
@@ -358,7 +387,8 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         city: c.city,
                         state: c.state,
                         created_at: c.created_at,
-                        tax_regime: currentRegime?.regime
+                        tax_regime: currentRegime?.regime,
+                        annexes: currentRegime?.annexes || []
                     };
                 });
                 
@@ -489,10 +519,16 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
             (client.city || '').toLowerCase().includes(companySearch) ||
             (client.state || '').toLowerCase().includes(companySearch);
 
+        const cleanDocFilter = (filters.document || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        const cleanClientDoc = (client.document || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        const matchesDoc = !filters.document ||
+            (client.document || '').toLowerCase().includes(filters.document.toLowerCase()) ||
+            (cleanDocFilter ? cleanClientDoc.includes(cleanDocFilter) : false);
+
         return (
             (client.code || '').toLowerCase().includes(filters.code.toLowerCase()) &&
             matchesCompany &&
-            (client.document || '').includes(filters.document) &&
+            matchesDoc &&
             (client.contactName || '').toLowerCase().includes(filters.contactName.toLowerCase()) &&
             (client.phoneFixed || '').includes(filters.phoneFixed) &&
             (client.phoneMobile || '').includes(filters.phoneMobile) &&
@@ -589,7 +625,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">CPF / CNPJ</label>
-                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.document} onChange={e => handleFilterChange('document', e.target.value)} placeholder="000.000.000-00" />
+                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.document} onChange={e => handleFilterChange('document', formatCpfCnpjFilter(e.target.value))} placeholder="000.000.000-00 ou CNPJ..." />
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Contato</label>
@@ -806,7 +842,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         <TableColumnFilter label="CPF/CNPJ" isActive={docActive} activeCount={docCount}>
                                                             <div>
                                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Documento</label>
-                                                                <input type="text" className={headerInputClass} value={filters.document} onChange={e => handleFilterChange('document', e.target.value)} autoFocus placeholder="Documento..." />
+                                                                <input type="text" className={headerInputClass} value={filters.document} onChange={e => handleFilterChange('document', formatCpfCnpjFilter(e.target.value))} autoFocus placeholder="000.000.000-00 ou CNPJ..." />
                                                             </div>
                                                             {docActive && (
                                                                 <button onClick={() => handleFilterChange('document', '')} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">Limpar filtro</button>
