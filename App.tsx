@@ -25,6 +25,7 @@ import { Modal } from './components/ui/Modal';
 import { Button } from './components/ui/Button';
 import { updateTabMeta, TAB_CONFIG } from './utils/tabFavicon';
 import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
+import { ThemeTransitionOverlay } from './components/ui/ThemeTransitionOverlay';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -69,6 +70,7 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
   const [isTutorialsOpen, setIsTutorialsOpen] = useState(false);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
   const [isPWAInstallOpen, setIsPWAInstallOpen] = useState(false);
@@ -571,7 +573,20 @@ function App() {
   };
 
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
+    const nextTheme = !isDarkMode;
+    setIsThemeTransitioning(true);
+
+    const html = document.documentElement;
+    if (nextTheme) {
+      html.classList.add('dark');
+    } else {
+      html.classList.remove('dark');
+    }
+    setIsDarkMode(nextTheme);
+
+    setTimeout(() => {
+      setIsThemeTransitioning(false);
+    }, 450);
   };
 
   const handleLogout = async () => {
@@ -829,6 +844,7 @@ function App() {
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
         />
+        <ThemeTransitionOverlay isVisible={isThemeTransitioning} targetTheme={isDarkMode ? 'dark' : 'light'} />
         {renderDeactivatedModal()}
         {renderCredentialsChangedModal()}
       </>
@@ -908,6 +924,8 @@ function App() {
         forceOpen={isPWAInstallOpen}
         onCloseForce={() => setIsPWAInstallOpen(false)}
       />
+
+      <ThemeTransitionOverlay isVisible={isThemeTransitioning} targetTheme={isDarkMode ? 'dark' : 'light'} />
 
       {renderDeactivatedModal()}
       {renderCredentialsChangedModal()}

@@ -238,7 +238,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
       return;
     }
 
-    setTempSelected(prev => [...prev, companyName]);
+    setTempSelected(prev => Array.from(new Set([...prev, companyName])));
   };
 
   // Selecionar todas as empresas filtradas respeitando a regra de regime único
@@ -271,24 +271,25 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
       return;
     }
 
+    const uniqueCandidateNames = Array.from(new Set(compatibleCandidates.map(c => c.companyName)));
     const availableSlots = maxLimit - tempSelected.length;
     if (availableSlots <= 0) {
       setWarningMessage(`Limite máximo de ${maxLimit} empresas já foi atingido.`);
       return;
     }
 
-    const actuallyAdded = compatibleCandidates.slice(0, availableSlots).map(c => c.companyName);
+    const actuallyAdded = uniqueCandidateNames.slice(0, availableSlots);
     const unselectedFromOtherRegimes = filteredClients.filter(c => !tempSelected.includes(c.companyName)).length - actuallyAdded.length;
 
     if (unselectedFromOtherRegimes > 0) {
       setWarningMessage(
         `Foram marcadas ${actuallyAdded.length} empresa(s) do regime "${targetRegimeLabel}". Outras empresas de regimes divergentes foram ignoradas para manter a exclusividade do lote.`
       );
-    } else if (compatibleCandidates.length > availableSlots) {
+    } else if (uniqueCandidateNames.length > availableSlots) {
       setWarningMessage(`Foram adicionadas ${availableSlots} empresas para respeitar o limite máximo de ${maxLimit}.`);
     }
 
-    setTempSelected(prev => [...prev, ...actuallyAdded]);
+    setTempSelected(prev => Array.from(new Set([...prev, ...actuallyAdded])));
   };
 
   // Desmarcar todas as empresas filtradas
@@ -306,7 +307,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
 
   // Confirmação
   const handleConfirm = () => {
-    onConfirm(tempSelected);
+    onConfirm(Array.from(new Set(tempSelected)));
     onClose();
   };
 
@@ -524,7 +525,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
               </p>
             </div>
           ) : (
-            filteredClients.map(client => {
+            filteredClients.map((client, index) => {
               const isSelected = tempSelected.includes(client.companyName);
               const regimeBadge = getRegimeBadge(client.tax_regime);
               const formattedDoc = formatDocument(client.document);
@@ -533,7 +534,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
 
               return (
                 <div
-                  key={client.id || client.companyName}
+                  key={client.id ? `drawer-client-${client.id}` : `drawer-client-${client.companyName}-${client.document || index}`}
                   onClick={() => toggleClient(client)}
                   className={`group relative flex items-start gap-3 p-3 sm:p-3.5 rounded-xl border transition-all select-none ${
                     isDisabled

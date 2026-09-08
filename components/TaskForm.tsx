@@ -236,15 +236,16 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
   );
 
   const handleConfirmBatchClients = (newSelected: string[]) => {
-    setSelectedClientIds(newSelected);
+    const uniqueSelected = Array.from(new Set(newSelected));
+    setSelectedClientIds(uniqueSelected);
 
-    if (!newSelected.includes(activeClientId || '')) {
-      setActiveClientId(newSelected[0] || null);
+    if (!uniqueSelected.includes(activeClientId || '')) {
+      setActiveClientId(uniqueSelected[0] || null);
     }
 
     setClientConfigs(prev => {
       const updated: Record<string, ClientConfig> = {};
-      newSelected.forEach(name => {
+      uniqueSelected.forEach(name => {
         if (prev[name]) {
           updated[name] = prev[name];
         } else {
@@ -1090,9 +1091,9 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                           </button>
                         </div>
                         <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pr-1">
-                          {selectedClientIds.map(id => (
+                          {selectedClientIds.map((id, index) => (
                             <div
-                              key={id}
+                              key={`${id}-${index}`}
                               onClick={() => setActiveClientId(id)}
                               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
                                 activeClientId === id

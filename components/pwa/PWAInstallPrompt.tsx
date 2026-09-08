@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Share, PlusSquare, X, Smartphone, CheckCircle2, MoreVertical, Info } from 'lucide-react';
+import { Download, Share, PlusSquare, X, Smartphone, CheckCircle2, MoreVertical, Info, Zap } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 interface PWAInstallPromptProps {
@@ -38,15 +38,18 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ forceOpen = 
       }
     }
 
-    // Delay suave para não incomodar imediatamente ao carregar a página
+    // Não mostra automaticamente se o navegador não suporta instalação e não é iOS
+    if (!canInstall && !isIOS) {
+      return;
+    }
+
+    // Delay de 4 segundos após entrar para não ser invasivo
     const timer = setTimeout(() => {
-      if (canInstall) {
-        setIsOpen(true);
-      }
+      setIsOpen(true);
     }, 4000);
 
     return () => clearTimeout(timer);
-  }, [canInstall, isStandalone, isInstalled, forceOpen, isIOS]);
+  }, [canInstall, isStandalone, isIOS, isInstalled, forceOpen]);
 
   const handleDismiss = () => {
     setIsOpen(false);
@@ -85,12 +88,8 @@ export const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ forceOpen = 
         {/* Header com botão fechar */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700/60 p-1.5 flex items-center justify-center shrink-0 shadow-inner">
-              <img
-                src="/1.1 Logo Dark.png"
-                alt="Task Account"
-                className="w-full h-full object-contain"
-              />
+            <div className="w-11 h-11 rounded-xl bg-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)] shrink-0">
+              <Zap size={22} className="fill-slate-950 stroke-slate-950" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">

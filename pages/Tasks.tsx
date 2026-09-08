@@ -636,14 +636,6 @@ interface KanbanColFilter {
   hasTag: boolean;
 }
 
-const getInitialColCompetence = () => {
-  const now = new Date();
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  return `${lastMonth.getFullYear()}-${(lastMonth.getMonth() + 1).toString().padStart(2, '0')}`;
-};
-
-const DEFAULT_COL_COMPETENCE = getInitialColCompetence();
-
 const EMPTY_COL_FILTER: KanbanColFilter = {
   taskName: '', 
   responsible: '', 
@@ -651,7 +643,7 @@ const EMPTY_COL_FILTER: KanbanColFilter = {
   taxRegime: '', 
   clientName: '', 
   dueDate: '',
-  competence: DEFAULT_COL_COMPETENCE,
+  competence: '',
   clientDocument: '',
   clientCity: '',
   clientState: '',
@@ -666,6 +658,7 @@ interface KanbanColumnProps {
   title: string;
   status: TaskStatus;
   tasks: Task[];
+  totalTasks: number;
   onEdit: (task: Task) => void;
   onConclude: (id: string) => void;
   onDelete: (task: Task) => void;
@@ -690,6 +683,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   title,
   status,
   tasks,
+  totalTasks,
   onEdit,
   onConclude,
   onDelete,
@@ -755,8 +749,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [isFilterOpen]);
 
-  const activeFilterCount = Object.entries(colFilter).filter(([key, value]) => {
-    if (key === 'competence') return value !== '';
+  const activeFilterCount = Object.entries(colFilter).filter(([_, value]) => {
     return value !== '' && value !== false;
   }).length;
   const isFilterActive = activeFilterCount > 0;
@@ -868,12 +861,23 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
           <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">{title}</h3>
 
           <div className="flex items-center gap-1.5">
-            {/* Contador: X/Y quando filtrado, apenas Y quando normal */}
-            <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] px-1.5 py-0.5 rounded font-bold">
-              {isFilterActive ? `${localFilteredTasks.length}/${tasks.length}` : tasks.length}
-            </span>
+            {/* Contador: X/Total de tarefas */}
+            <Tooltip
+              content={
+                isFilterActive
+                  ? `${localFilteredTasks.length} de ${totalTasks} tarefa${totalTasks === 1 ? '' : 's'} (${tasks.length} nesta coluna)`
+                  : `${tasks.length} de ${totalTasks} tarefa${totalTasks === 1 ? '' : 's'}`
+              }
+              position="top"
+            >
+              <span className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] px-1.5 py-0.5 rounded font-bold cursor-default">
+                {isFilterActive ? `${localFilteredTasks.length}/${totalTasks}` : `${tasks.length}/${totalTasks}`}
+              </span>
+            </Tooltip>
             <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${accent.badge}`}>
-              {percent}%
+              {totalTasks > 0
+                ? Math.round(((isFilterActive ? localFilteredTasks.length : tasks.length) / totalTasks) * 100)
+                : 0}%
             </span>
 
             {/* Botão de Filtro */}
@@ -1146,7 +1150,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       : `${activeFilterCount} filtro${activeFilterCount > 1 ? 's' : ''} ativo${activeFilterCount > 1 ? 's' : ''}`}
                   </span>
                   <button
-                    onClick={() => setColFilter({ ...EMPTY_COL_FILTER, competence: '' })}
+                    onClick={() => setColFilter({ ...EMPTY_COL_FILTER })}
                     disabled={!isFilterActive}
                     className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-all ${
                       isFilterActive
@@ -1690,48 +1694,12 @@ export const Tasks: React.FC<{
     return (a.dueDate || '').localeCompare(b.dueDate || '');
   });
 
-  // Base de tarefas para o Kanban: ignora filtros de data/competência e status
-  // para permitir que os filtros internos de cada coluna funcionem sem conflito.
-  const kanbanBaseTasks = tasks.filter((task) => {
-    const recurrenceMatch = !filters.recurrence || (() => {
-      const rec = (task.recurrence || '').trim().toLowerCase();
-      if (filters.recurrence === 'unica') {
-        return !rec || rec === 'unica' || rec === 'única';
-      }
-      return rec === filters.recurrence.toLowerCase();
-    })();
-
-    return (
-      task.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) &&
-      (filters.clientDocument === '' || (task.clientDocument ?? '').toLowerCase().includes(filters.clientDocument.toLowerCase())) &&
-      (filters.clientCity === '' || (task.clientCity ?? '').toLowerCase().includes(filters.clientCity.toLowerCase())) &&
-      (filters.clientState === '' || task.clientState === filters.clientState) &&
-      task.taskName.toLowerCase().includes(filters.taskName.toLowerCase()) &&
-      (!filters.noMovement || task.noMovement === true) &&
-      recurrenceMatch &&
-      (filters.taxRegime === '' || task.taxRegime === filters.taxRegime) &&
-      (filters.selectedAnnex === '' || (task.selectedAnnexes ?? []).includes(filters.selectedAnnex)) &&
-      (!filters.exceededSublimit || task.exceededSublimit === true) &&
-      (!filters.notifiedExclusion || task.notifiedExclusion === true) &&
-      (filters.priority === '' || task.priority === filters.priority) &&
-      (filters.sector === '' || task.sector === filters.sector) &&
-      (filters.responsibleList.length > 0
-        ? (task.responsibles && task.responsibles.length > 0
-            ? task.responsibles.some(r => filters.responsibleList.includes(r))
-            : filters.responsibleList.includes(task.responsible))
-        : (task.responsibles && task.responsibles.length > 0
-            ? task.responsibles.some(r => r.toLowerCase().includes(filters.responsible.toLowerCase()))
-            : task.responsible.toLowerCase().includes(filters.responsible.toLowerCase())))
-    );
-  }).sort((a, b) => {
-    const compCompare = (a.competence || '').localeCompare(b.competence || '');
-    if (compCompare !== 0) return compCompare;
-    return (a.dueDate || '').localeCompare(b.dueDate || '');
-  });
+  // Base de tarefas para o Kanban e cards: respeita todos os filtros globais (exceto status)
+  const kanbanBaseTasks = cardsTasks;
 
   const totalTasks = cardsTasks.length;
   const pendingCount = cardsTasks.filter(t => t.status === TaskStatus.PENDENTE).length;
-  const inProgressCount = cardsTasks.filter(t => t.status === TaskStatus.INICIADA).length;
+  const inProgressCount = cardsTasks.filter(t => t.status === TaskStatus.INICIADA || t.status === TaskStatus.PAUSADA).length;
   const delayedCount = cardsTasks.filter(t => t.status === TaskStatus.ATRASADA).length;
   const completedCount = cardsTasks.filter(t => t.status === TaskStatus.CONCLUIDA).length;
   const getPercent = (count: number) => totalTasks > 0 ? ((count / totalTasks) * 100).toFixed(0) : '0';
@@ -2608,7 +2576,7 @@ export const Tasks: React.FC<{
 
   const isKanbanLimitBannerVisible = layoutMode === 'kanban' && (
     kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE).length > MAX_RENDER_KANBAN ||
-    kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA).length > MAX_RENDER_KANBAN ||
+    kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA || t.status === TaskStatus.PAUSADA).length > MAX_RENDER_KANBAN ||
     kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA).length > MAX_RENDER_KANBAN ||
     kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA).length > MAX_RENDER_KANBAN
   );
@@ -3508,6 +3476,7 @@ export const Tasks: React.FC<{
                   title="Pendentes"
                   status={TaskStatus.PENDENTE}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE).slice(0, MAX_RENDER_KANBAN)}
+                  totalTasks={kanbanBaseTasks.length}
                   percent={kanbanBaseTasks.length > 0 ? Math.round((kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE).length / kanbanBaseTasks.length) * 100) : 0}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
@@ -3539,6 +3508,7 @@ export const Tasks: React.FC<{
                   title="Iniciadas"
                   status={TaskStatus.INICIADA}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA || t.status === TaskStatus.PAUSADA).slice(0, MAX_RENDER_KANBAN)}
+                  totalTasks={kanbanBaseTasks.length}
                   percent={kanbanBaseTasks.length > 0 ? Math.round((kanbanBaseTasks.filter(t => t.status === TaskStatus.INICIADA || t.status === TaskStatus.PAUSADA).length / kanbanBaseTasks.length) * 100) : 0}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
@@ -3570,6 +3540,7 @@ export const Tasks: React.FC<{
                   title="Atrasadas"
                   status={TaskStatus.ATRASADA}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA).slice(0, MAX_RENDER_KANBAN)}
+                  totalTasks={kanbanBaseTasks.length}
                   percent={kanbanBaseTasks.length > 0 ? Math.round((kanbanBaseTasks.filter(t => t.status === TaskStatus.ATRASADA).length / kanbanBaseTasks.length) * 100) : 0}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}
@@ -3601,6 +3572,7 @@ export const Tasks: React.FC<{
                   title="Concluídas"
                   status={TaskStatus.CONCLUIDA}
                   tasks={kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA).slice(0, MAX_RENDER_KANBAN)}
+                  totalTasks={kanbanBaseTasks.length}
                   percent={kanbanBaseTasks.length > 0 ? Math.round((kanbanBaseTasks.filter(t => t.status === TaskStatus.CONCLUIDA).length / kanbanBaseTasks.length) * 100) : 0}
                   onEdit={handleEdit}
                   onConclude={openConcludeModal}

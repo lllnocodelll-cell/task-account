@@ -968,13 +968,16 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                 selectedOptions.map(opt => (
                   <span key={opt.value} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded text-[11px] font-medium truncate max-w-[150px]">
                     <span className="truncate">{opt.label}</span>
-                    <button 
-                      type="button" 
+                    <span 
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); toggleOption(String(opt.value)); }}
-                      className="hover:text-indigo-900 dark:hover:text-indigo-100 p-0.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-500/30 transition-colors shrink-0"
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleOption(String(opt.value)); } }}
+                      className="hover:text-indigo-900 dark:hover:text-indigo-100 p-0.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-500/30 transition-colors shrink-0 cursor-pointer"
+                      title="Remover"
                     >
                       <X size={10} />
-                    </button>
+                    </span>
                   </span>
                 ))
               ) : (

@@ -4,7 +4,7 @@ import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
-import { TAX_REGIME_GROUPS } from '../types';
+import { TAX_REGIME_GROUPS, TAX_REGIME_LABELS } from '../types';
 import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
@@ -4115,6 +4115,79 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const [sendEmailCopy, setSendEmailCopy] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
 
+  // Filtros de seleção de clientes na seção "Mensagem Direcionada"
+  const [clientListStatusFilter, setClientListStatusFilter] = useState<'all' | 'Ativo' | 'Inativo'>('Ativo');
+  const [clientListRegimeFilter, setClientListRegimeFilter] = useState<string>('');
+
+  const clientRegimeFilterGroups = useMemo(() => [
+    ...TAX_REGIME_GROUPS,
+    {
+      category: 'Outros Regimes / Sem Regime',
+      options: [
+        { value: 'sem_regime', label: 'Sem regime tributário definido' }
+      ]
+    }
+  ], []);
+
+  const filteredClientsForTarget = useMemo(() => {
+    return clients.filter(c => {
+      // Filtro de Status
+      if (clientListStatusFilter !== 'all' && c.status !== clientListStatusFilter) {
+        return false;
+      }
+      // Filtro de Regime Tributário
+      if (clientListRegimeFilter) {
+        if (clientListRegimeFilter === 'sem_regime') {
+          if (c.tax_regime) return false;
+        } else {
+          if (c.tax_regime !== clientListRegimeFilter) return false;
+        }
+      }
+      return true;
+    });
+  }, [clients, clientListStatusFilter, clientListRegimeFilter]);
+
+  const clientMultiSelectOptions = useMemo(() => {
+    const list = [...filteredClientsForTarget];
+    const targetSet = new Set(targetClientIds);
+    const existingIds = new Set(list.map(c => c.id));
+
+    // Garante que clientes previamente selecionados continuem visíveis com rótulo formatado
+    clients.forEach(c => {
+      if (targetSet.has(c.id) && !existingIds.has(c.id)) {
+        list.push(c);
+      }
+    });
+
+    return list.map(c => {
+      const regime = c.tax_regime && TAX_REGIME_LABELS[c.tax_regime] ? ` [${TAX_REGIME_LABELS[c.tax_regime]}]` : '';
+      const status = c.status === 'Inativo' ? ' (Inativo)' : '';
+      const trade = c.trade_name ? ` (${c.trade_name})` : '';
+      return {
+        value: c.id,
+        label: `${c.company_name}${trade}${regime}${status}`
+      };
+    });
+  }, [filteredClientsForTarget, targetClientIds, clients]);
+
+  const selectedFilteredCount = useMemo(() => {
+    return filteredClientsForTarget.filter(c => targetClientIds.includes(c.id)).length;
+  }, [filteredClientsForTarget, targetClientIds]);
+
+  const handleSelectAllFiltered = () => {
+    const idsToAdd = filteredClientsForTarget.map(c => c.id);
+    setTargetClientIds(prev => Array.from(new Set([...prev, ...idsToAdd])));
+  };
+
+  const handleDeselectFiltered = () => {
+    const filteredIdSet = new Set(filteredClientsForTarget.map(c => c.id));
+    setTargetClientIds(prev => prev.filter(id => !filteredIdSet.has(id)));
+  };
+
+  const handleClearAllSelected = () => {
+    setTargetClientIds([]);
+  };
+
   const addSchedule = () => {
     if (schedules.length >= 5) {
       addToast('error', 'Limite de Agendamentos', 'Cada modelo permite no máximo 5 disparos programados.');
@@ -4650,6 +4723,8 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setSchedules([{ trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }]);
     setSendEmailCopy(false);
     setEmailSubject('');
+    setClientListStatusFilter('Ativo');
+    setClientListRegimeFilter('');
     setIsFormExpanded(false);
   };
 
@@ -5409,13 +5484,133 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
 
               {/* Segmentação & Destinatários */}
               <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Target size={14} /> Mensagem Direcionada
-                  </h3>
-                  <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 px-2.5 py-0.5 rounded-full">
-                    {targetClientIds.length} {targetClientIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                      <Target size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                        Mensagem Direcionada
+                      </h3>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Filtre e selecione clientes específicos para o envio desta mensagem
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 px-2.5 py-1 rounded-full">
+                      {targetClientIds.length} {targetClientIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Barra de Filtros */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/70 dark:border-slate-800/70 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                    <ListFilter size={14} className="text-indigo-500" />
+                    <span>Filtros da Lista de Clientes</span>
+                    <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
+                      ({filteredClientsForTarget.length} {filteredClientsForTarget.length === 1 ? 'cliente correspondente' : 'clientes correspondentes'})
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                    {/* Filtro por Status */}
+                    <div className="flex flex-col gap-1.5 font-sans">
+                      <div className="flex items-center gap-1.5 h-5">
+                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-none">
+                          Status do Cliente
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 p-1 h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg box-border">
+                        <button
+                          type="button"
+                          onClick={() => setClientListStatusFilter('all')}
+                          className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
+                            clientListStatusFilter === 'all'
+                              ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          Todos
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setClientListStatusFilter('Ativo')}
+                          className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
+                            clientListStatusFilter === 'Ativo'
+                              ? 'bg-emerald-600 text-white shadow-sm font-semibold'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          Ativos
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setClientListStatusFilter('Inativo')}
+                          className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
+                            clientListStatusFilter === 'Inativo'
+                              ? 'bg-rose-600 text-white shadow-sm font-semibold'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          Inativos
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filtro por Regime Tributário */}
+                    <div>
+                      <GroupedSelect
+                        label="Regime Tributário"
+                        groups={clientRegimeFilterGroups}
+                        value={clientListRegimeFilter}
+                        onChange={setClientListRegimeFilter}
+                        placeholder="Todos os regimes tributários"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ações Rápidas de Seleção em Lote */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/50 text-xs">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleSelectAllFiltered}
+                        disabled={filteredClientsForTarget.length === 0}
+                        icon={<Check size={12} />}
+                        className="text-xs h-7 py-0 px-2.5"
+                      >
+                        Selecionar filtrados ({filteredClientsForTarget.length})
+                      </Button>
+
+                      {selectedFilteredCount > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleDeselectFiltered}
+                          icon={<X size={12} />}
+                          className="text-xs h-7 py-0 px-2.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                        >
+                          Desmarcar filtrados ({selectedFilteredCount})
+                        </Button>
+                      )}
+                    </div>
+
+                    {targetClientIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearAllSelected}
+                        className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 hover:underline cursor-pointer ml-auto"
+                      >
+                        Limpar seleção total ({targetClientIds.length})
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="w-full">
@@ -5424,7 +5619,8 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     tooltip="As mensagens serão direcionadas apenas para os clientes adicionados a lista."
                     value={targetClientIds}
                     onChange={setTargetClientIds}
-                    options={clients.map(c => ({ value: c.id, label: c.company_name }))}
+                    options={clientMultiSelectOptions}
+                    placeholder="Selecione os clientes..."
                   />
                 </div>
               </div>
