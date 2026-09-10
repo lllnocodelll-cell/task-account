@@ -1019,6 +1019,9 @@ export const Chat: React.FC = () => {
   }, [enrichedChannels, currentUser, userId, profiles]);
 
   const selectedChannel = enrichedChannels.find(c => c.id === selectedChannelId);
+  const isTeamChat = selectedChannel 
+    ? selectedChannel.type !== 'support' 
+    : activeTab === 'chats';
   const currentMessages = selectedChannelId ? (messages[selectedChannelId] || []) : [];
 
   const displayedMessages = currentMessages.filter(msg => {
@@ -3932,18 +3935,145 @@ export const Chat: React.FC = () => {
   };
 
   const handleSelectTemplate = async (template: any) => {
+    if (!selectedChannelId || !userId) {
+      addToast('error', 'Selecione uma conversa', 'Abra uma conversa antes de enviar um modelo de mensagem.');
+      return;
+    }
+
     const textProcessed = await replaceTemplatePlaceholders(template.content, template);
-    setMessageInput(textProcessed);
     setIsTemplateDrawerOpen(false);
-    
-    // Focar no textarea e ajustar a altura dele
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+
+    const selectedChannel = enrichedChannels.find(c => c.id === selectedChannelId);
+    const isSupport = selectedChannel?.type === 'support';
+    const isClosed = selectedChannel?.status === 'closed' || selectedChannel?.support_status === 'resolved';
+
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Message = {
+      id: tempId,
+      sender_id: userId,
+      text: textProcessed,
+      created_at: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      status: 'sent',
+      reply_to_id: replyingTo ? replyingTo.id : undefined,
+      rawCreatedAt: new Date().toISOString(),
+      attachment_url: (template.header_image_url && template.header_image_url.trim()) ? template.header_image_url.trim() : undefined,
+      attachments: (template.header_image_url && template.header_image_url.trim()) ? [
+        {
+          name: 'Cabeçalho do Modelo',
+          url: template.header_image_url.trim(),
+          type: 'image'
+        }
+      ] : undefined
+    };
+
+    setReplyingTo(null);
+
+    setMessages(prev => ({
+      ...prev,
+      [selectedChannelId]: [...(prev[selectedChannelId] || []), optimisticMsg]
+    }));
+
+    try {
+      if (isSupport) {
+        // Obter perfil do usuário
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('full_name, role')
+          .eq('id', userId)
+          .single();
+
+        const isUserClient = userProfile?.role === 'cliente' || selectedChannel?.created_by === userId;
+        const isStaff = !isUserClient;
+
+        if (isUserClient && isClosed) {
+          console.log("[Reabertura] Reabrindo atendimento pelo disparo de mensagem modelo...");
+          const nowIso = new Date().toISOString();
+          const { error: updateError } = await supabase
+            .from('chat_channels')
+            .update({
+              status: 'open',
+              support_status: 'pending',
+              assigned_to: null,
+              opened_at: nowIso,
+              resolved_at: null,
+              last_duration_seconds: null
+            } as any)
+            .eq('id', selectedChannelId);
+
+          if (updateError) throw updateError;
+
+          await supabase
+            .from('chat_messages')
+            .insert({
+              channel_id: selectedChannelId,
+              sender_id: userId,
+              text: `Atendimento reaberto pelo cliente.`,
+              status: 'sent',
+              is_system: true
+            } as any);
+
+          await fetchChannels(userId);
+        } else if (isStaff) {
+          const { data: isMember } = await supabase
+            .from('chat_channel_members')
+            .select('id')
+            .eq('channel_id', selectedChannelId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (!isMember) {
+            await supabase.from('chat_channel_members').insert({
+              channel_id: selectedChannelId,
+              user_id: userId,
+              role: 'member'
+            });
+          }
+        }
       }
-    }, 50);
+
+      // Preparar payload completo da mensagem incluindo imagem do cabeçalho se houver
+      const msgPayload: any = {
+        channel_id: selectedChannelId,
+        contact_id: null as any,
+        sender_id: userId,
+        text: textProcessed,
+        status: 'sent',
+        is_me: true,
+        reply_to_id: optimisticMsg.reply_to_id || null,
+        is_private: selectedChannel?.is_private ?? false
+      };
+
+      if (template.header_image_url && template.header_image_url.trim()) {
+        const cleanUrl = template.header_image_url.trim();
+        msgPayload.attachment_url = cleanUrl;
+        msgPayload.file_name = 'Cabeçalho do Modelo';
+        msgPayload.file_type = 'image/png';
+        msgPayload.attachments = [
+          {
+            name: 'Cabeçalho do Modelo',
+            url: cleanUrl,
+            type: 'image'
+          }
+        ];
+      }
+
+      const { error: msgErr } = await supabase
+        .from('chat_messages')
+        .insert(msgPayload as any);
+
+      if (msgErr) throw msgErr;
+
+      markChannelAsRead(selectedChannelId);
+      addToast('success', 'Mensagem enviada', 'O modelo foi enviado diretamente no chat com sucesso.');
+    } catch (error) {
+      console.error('Error sending template message directly:', error);
+      setMessages(prev => ({
+        ...prev,
+        [selectedChannelId]: (prev[selectedChannelId] || []).filter(m => m.id !== tempId)
+      }));
+      addToast('error', 'Erro ao enviar', 'Não foi possível enviar a mensagem modelo.');
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -5994,16 +6124,28 @@ export const Chat: React.FC = () => {
                     />
 
                     {currentUser?.role !== 'cliente' && (
-                      <Tooltip content="Mensagens Modelos (Drawer & Favoritos)" position="top">
+                      <Tooltip content={isTeamChat ? "Mensagens Modelos (Equipe / Interno)" : "Mensagens Modelos (Clientes / Externo)"} position="top">
                         <button
                           type="button"
                           onClick={() => {
                             setIsTemplateDrawerOpen(true);
                             setShowEmojiPicker(false);
                           }}
-                          className={`p-2 rounded-lg transition-colors hidden sm:block ${isTemplateDrawerOpen ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'}`}
+                          className={`p-2 rounded-lg transition-colors hidden sm:block ${
+                            isTemplateDrawerOpen 
+                              ? isTeamChat
+                                ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30'
+                                : 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30'
+                              : isTeamChat
+                                ? 'text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                                : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                          }`}
                         >
-                          <Zap size={20} className={isTemplateDrawerOpen ? 'text-indigo-500 fill-indigo-500' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'} />
+                          <Zap size={20} className={
+                            isTemplateDrawerOpen 
+                              ? isTeamChat ? 'text-purple-500 fill-purple-500' : 'text-indigo-500 fill-indigo-500'
+                              : ''
+                          } />
                         </button>
                       </Tooltip>
                     )}
@@ -6734,6 +6876,7 @@ export const Chat: React.FC = () => {
         userId={userId}
         onSelectTemplate={handleSelectTemplate}
         sectors={sectors}
+        audienceScope={isTeamChat ? 'internal' : 'external'}
       />
     </div>
   );

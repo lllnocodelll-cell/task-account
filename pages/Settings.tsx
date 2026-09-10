@@ -4066,6 +4066,7 @@ interface MessageTemplate {
   target_segments: string[];
   target_client_ids: string[];
   reference_task_type_id: string | null;
+  target_audience?: 'internal' | 'external' | null;
   is_automated: boolean;
   trigger_type: 'day_of_month' | 'days_before_due' | 'manual';
   trigger_value: number | null;
@@ -4107,6 +4108,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const [targetSectors, setTargetSectors] = useState<string[]>([]);
   const [targetClientIds, setTargetClientIds] = useState<string[]>([]);
   const [referenceTaskTypeId, setReferenceTaskTypeId] = useState('');
+  const [targetAudience, setTargetAudience] = useState<'external' | 'internal'>('external');
   const [templateType, setTemplateType] = useState<'tarefa' | 'geral'>('geral');
   const [isAutomated, setIsAutomated] = useState(false);
   const [schedules, setSchedules] = useState<TemplateSchedule[]>([
@@ -4244,6 +4246,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   const [searchFilter, setSearchFilter] = useState('');
   const [sectorFilter, setSectorFilter] = useState('');
   const [taxRegimeFilter, setTaxRegimeFilter] = useState('');
+  const [audienceFilter, setAudienceFilter] = useState<'all' | 'internal' | 'external'>('all');
   const [automationFilter, setAutomationFilter] = useState<'all' | 'automated' | 'manual' | 'email'>('all');
 
   const filteredTemplates = templates.filter(tmpl => {
@@ -4252,6 +4255,11 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       const matchTitle = tmpl.title?.toLowerCase().includes(q);
       const matchContent = tmpl.content?.toLowerCase().includes(q);
       if (!matchTitle && !matchContent) return false;
+    }
+
+    if (audienceFilter !== 'all') {
+      const currentAudience = tmpl.target_audience || 'external';
+      if (currentAudience !== audienceFilter) return false;
     }
 
     if (sectorFilter) {
@@ -4595,22 +4603,24 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const isInternal = targetAudience === 'internal';
       const firstSchedule = schedules[0];
       const templateData = {
         org_id: userProfile.org_id,
         title: title.trim(),
         content: content.trim(),
         header_image_url: headerImageUrl ? headerImageUrl.trim() : null,
-        target_tax_regimes: targetTaxRegimes,
+        target_audience: targetAudience,
+        target_tax_regimes: isInternal ? [] : targetTaxRegimes,
         target_sectors: targetSectors,
-        target_client_ids: targetClientIds,
-        reference_task_type_id: referenceTaskTypeId || null,
-        is_automated: isAutomated,
-        trigger_type: isAutomated ? (firstSchedule?.trigger_type || 'day_of_month') : 'manual',
-        trigger_value: isAutomated ? (firstSchedule?.trigger_value || 10) : null,
-        trigger_time: isAutomated ? ((firstSchedule?.trigger_time || '09:00') + ':00') : '09:00:00',
-        send_email_copy: sendEmailCopy,
-        email_subject: sendEmailCopy ? emailSubject.trim() : null,
+        target_client_ids: isInternal ? [] : targetClientIds,
+        reference_task_type_id: isInternal ? null : (referenceTaskTypeId || null),
+        is_automated: isInternal ? false : isAutomated,
+        trigger_type: (!isInternal && isAutomated) ? (firstSchedule?.trigger_type || 'day_of_month') : 'manual',
+        trigger_value: (!isInternal && isAutomated) ? (firstSchedule?.trigger_value || 10) : null,
+        trigger_time: (!isInternal && isAutomated) ? ((firstSchedule?.trigger_time || '09:00') + ':00') : '09:00:00',
+        send_email_copy: isInternal ? false : sendEmailCopy,
+        email_subject: (!isInternal && sendEmailCopy && emailSubject) ? emailSubject.trim() : null,
         created_by: user.id
       };
 
@@ -4674,6 +4684,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setTitle(template.title);
     setContent(template.content);
     setHeaderImageUrl(template.header_image_url || '');
+    setTargetAudience(template.target_audience === 'internal' ? 'internal' : 'external');
     setTargetTaxRegimes(template.target_tax_regimes || []);
     setTargetSectors(template.target_sectors || []);
     setTargetClientIds(template.target_client_ids || []);
@@ -4714,6 +4725,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
     setTitle('');
     setContent('');
     setHeaderImageUrl('');
+    setTargetAudience('external');
     setTargetTaxRegimes([]);
     setTargetSectors([]);
     setTargetClientIds([]);
@@ -4754,6 +4766,11 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   };
 
   const handleBulkSend = async (template: MessageTemplate) => {
+    if (template.target_audience === 'internal') {
+      addToast('warning', 'Ação não permitida', 'Mensagens internas são de uso exclusivo da equipe e não podem ser disparadas para clientes. Utilize o Chat.');
+      return;
+    }
+
     setSendTemplate(template);
     setSendProgress(0);
     setSendLogs([]);
@@ -5135,69 +5152,168 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
         <div className={`grid transition-all duration-300 ease-in-out ${isFormExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
           <div className="overflow-hidden">
             <div className="space-y-6 pt-4">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <Input 
-                  label="Nome do Modelo" 
-                  value={title} 
-                  onChange={e => setTitle(e.target.value)} 
-                  placeholder="Pgdas, Feriado Nacional..." 
-                />
-
-                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-xl h-10 self-end">
-                  <div className="flex flex-col text-left">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                      Associar modelo a tarefa?
-                    </span>
-                    <span className="text-[9px] text-slate-400">
-                      {templateType === 'tarefa' 
-                        ? 'Permite vincular o modelo a uma tarefa existente.' 
-                        : 'Modelo de mensagem geral'}
+              {/* Seleção do Destino / Público-Alvo */}
+              <div className="flex flex-col gap-2 p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Target size={14} className="text-indigo-500" />
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                      Destino da Mensagem
                     </span>
                   </div>
-                  <Toggle
-                    checked={templateType === 'tarefa'}
-                    onChange={(checked) => {
-                      const newType = checked ? 'tarefa' : 'geral';
-                      setTemplateType(newType);
-                      if (newType === 'geral') {
-                        setReferenceTaskTypeId('');
-                      }
-                    }}
-                  />
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {targetAudience === 'external' ? 'Mensagem direcionada aos clientes (Portal do Cliente)' : 'Mensagem para equipe interna / escritório'}
+                  </span>
                 </div>
-                
-                <div id="reference-task-type-select">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setTargetAudience('external')}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all ${
+                      targetAudience === 'external'
+                        ? 'bg-white dark:bg-slate-900 border-indigo-500 dark:border-indigo-400 shadow-sm ring-2 ring-indigo-500/20'
+                        : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg shrink-0 ${
+                      targetAudience === 'external'
+                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                    }`}>
+                      <Globe size={18} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className={`text-xs font-bold ${
+                        targetAudience === 'external'
+                          ? 'text-indigo-600 dark:text-indigo-400'
+                          : 'text-slate-700 dark:text-slate-300'
+                      }`}>
+                        Externa (Portal do Cliente)
+                      </span>
+                      <span className="text-[10px] text-slate-400 truncate">
+                        Para avisos a clientes, impostos e cobranças
+                      </span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTargetAudience('internal')}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all ${
+                      targetAudience === 'internal'
+                        ? 'bg-white dark:bg-slate-900 border-purple-500 dark:border-purple-400 shadow-sm ring-2 ring-purple-500/20'
+                        : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg shrink-0 ${
+                      targetAudience === 'internal'
+                        ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                    }`}>
+                      <Users size={18} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className={`text-xs font-bold ${
+                        targetAudience === 'internal'
+                          ? 'text-purple-600 dark:text-purple-400'
+                          : 'text-slate-700 dark:text-slate-300'
+                      }`}>
+                        Interna (Equipe / Escritório)
+                      </span>
+                      <span className="text-[10px] text-slate-400 truncate">
+                        Para comunicados operacionais e alinhamentos da equipe
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {targetAudience === 'internal' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input 
+                    label="Nome do Modelo" 
+                    value={title} 
+                    onChange={e => setTitle(e.target.value)} 
+                    placeholder="Comunicado Interno, Férias Coletivas..." 
+                  />
+
                   <SearchableSelect
-                    label="Tarefa de Referência"
-                    tooltip="Vincule um tipo de tarefa para liberar os placeholders dinâmicos de vencimento"
-                    value={referenceTaskTypeId}
-                    onChange={setReferenceTaskTypeId}
-                    options={taskTypes.map(t => ({ value: t.id, label: t.name }))}
-                    placeholder={templateType === 'geral' ? "Bloqueado para modelos gerais" : "Sem vinculação de tarefa"}
-                    disabled={templateType === 'geral'}
+                    label="Setor"
+                    value={targetSectors[0] || ''}
+                    onChange={val => setTargetSectors(val ? [val] : [])}
+                    options={sectors.map(s => ({ value: s.id, label: s.name }))}
+                    placeholder="Selecione um Setor (Opcional)"
                     clearable
                   />
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <Input 
+                      label="Nome do Modelo" 
+                      value={title} 
+                      onChange={e => setTitle(e.target.value)} 
+                      placeholder="Pgdas, Feriado Nacional..." 
+                    />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <GroupedSelect
-                  label="Regime Tributário"
-                  groups={TAX_REGIME_GROUPS}
-                  value={targetTaxRegimes[0] || ''}
-                  onChange={(value) => setTargetTaxRegimes(value ? [value] : [])}
-                  placeholder="Selecione um Regime"
-                />
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-xl h-10 self-end">
+                      <div className="flex flex-col text-left">
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          Associar modelo a tarefa?
+                        </span>
+                        <span className="text-[9px] text-slate-400">
+                          {templateType === 'tarefa' 
+                            ? 'Permite vincular o modelo a uma tarefa existente.' 
+                            : 'Modelo de mensagem geral'}
+                        </span>
+                      </div>
+                      <Toggle
+                        checked={templateType === 'tarefa'}
+                        onChange={(checked) => {
+                          const newType = checked ? 'tarefa' : 'geral';
+                          setTemplateType(newType);
+                          if (newType === 'geral') {
+                            setReferenceTaskTypeId('');
+                          }
+                        }}
+                      />
+                    </div>
+                    
+                    <div id="reference-task-type-select">
+                      <SearchableSelect
+                        label="Tarefa de Referência"
+                        tooltip="Vincule um tipo de tarefa para liberar os placeholders dinâmicos de vencimento"
+                        value={referenceTaskTypeId}
+                        onChange={setReferenceTaskTypeId}
+                        options={taskTypes.map(t => ({ value: t.id, label: t.name }))}
+                        placeholder={templateType === 'geral' ? "Bloqueado para modelos gerais" : "Sem vinculação de tarefa"}
+                        disabled={templateType === 'geral'}
+                        clearable
+                      />
+                    </div>
+                  </div>
 
-                <SearchableSelect
-                  label="Setor"
-                  value={targetSectors[0] || ''}
-                  onChange={val => setTargetSectors(val ? [val] : [])}
-                  options={sectors.map(s => ({ value: s.id, label: s.name }))}
-                  placeholder="Selecione um Setor"
-                  clearable
-                />
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <GroupedSelect
+                      label="Regime Tributário"
+                      groups={TAX_REGIME_GROUPS}
+                      value={targetTaxRegimes[0] || ''}
+                      onChange={(value) => setTargetTaxRegimes(value ? [value] : [])}
+                      placeholder="Selecione um Regime"
+                    />
+
+                    <SearchableSelect
+                      label="Setor"
+                      value={targetSectors[0] || ''}
+                      onChange={val => setTargetSectors(val ? [val] : [])}
+                      options={sectors.map(s => ({ value: s.id, label: s.name }))}
+                      placeholder="Selecione um Setor"
+                      clearable
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Imagem de Cabeçalho / Banner do Modelo */}
               <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
@@ -5385,84 +5501,86 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     </div>
 
                     {/* Placeholders Rápidos com Tooltips Personalizados */}
-                    <div className="flex flex-wrap gap-1">
-                      <Tooltip content="Primeiro nome do contato principal" position="top">
-                        <button
-                          type="button"
-                          onClick={() => insertPlaceholder('{nome_contato}')}
-                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        >
-                          {`{nome_contato}`}
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Razão Social da Empresa" position="top">
-                        <button
-                          type="button"
-                          onClick={() => insertPlaceholder('{razao_social}')}
-                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        >
-                          {`{razao_social}`}
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="CNPJ/CPF do Cliente" position="top">
-                        <button
-                          type="button"
-                          onClick={() => insertPlaceholder('{cnpj_empresa}')}
-                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        >
-                          {`{cnpj_empresa}`}
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Regime Tributário do Cliente" position="top">
-                        <button
-                          type="button"
-                          onClick={() => insertPlaceholder('{regime_tributario}')}
-                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        >
-                          {`{regime_tributario}`}
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Mês corrente (MM/AAAA)" position="top">
-                        <button
-                          type="button"
-                          onClick={() => insertPlaceholder('{mes_competencia}')}
-                          className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
-                        >
-                          {`{mes_competencia}`}
-                        </button>
-                      </Tooltip>
-                      {referenceTaskTypeId && (
-                        <>
-                          <Tooltip content="Nome da tarefa vinculada" position="top">
-                            <button
-                              type="button"
-                              onClick={() => insertPlaceholder('{nome_tarefa}')}
-                              className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
-                            >
-                              {`{nome_tarefa}`}
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Vencimento Padrão do Tipo de Tarefa" position="top">
-                            <button
-                              type="button"
-                              onClick={() => insertPlaceholder('{vencimento_padrao}')}
-                              className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
-                            >
-                              {`{vencimento_padrao}`}
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Data de Vencimento Específica da Tarefa do Cliente" position="top">
-                            <button
-                              type="button"
-                              onClick={() => insertPlaceholder('{vencimento_tarefa}')}
-                              className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
-                            >
-                              {`{vencimento_tarefa}`}
-                            </button>
-                          </Tooltip>
-                        </>
-                      )}
-                    </div>
+                    {targetAudience !== 'internal' && (
+                      <div className="flex flex-wrap gap-1">
+                        <Tooltip content="Primeiro nome do contato principal" position="top">
+                          <button
+                            type="button"
+                            onClick={() => insertPlaceholder('{nome_contato}')}
+                            className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                          >
+                            {`{nome_contato}`}
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Razão Social da Empresa" position="top">
+                          <button
+                            type="button"
+                            onClick={() => insertPlaceholder('{razao_social}')}
+                            className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                          >
+                            {`{razao_social}`}
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="CNPJ/CPF do Cliente" position="top">
+                          <button
+                            type="button"
+                            onClick={() => insertPlaceholder('{cnpj_empresa}')}
+                            className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                          >
+                            {`{cnpj_empresa}`}
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Regime Tributário do Cliente" position="top">
+                          <button
+                            type="button"
+                            onClick={() => insertPlaceholder('{regime_tributario}')}
+                            className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                          >
+                            {`{regime_tributario}`}
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Mês corrente (MM/AAAA)" position="top">
+                          <button
+                            type="button"
+                            onClick={() => insertPlaceholder('{mes_competencia}')}
+                            className="px-2 py-1 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 rounded border border-indigo-200/50"
+                          >
+                            {`{mes_competencia}`}
+                          </button>
+                        </Tooltip>
+                        {referenceTaskTypeId && (
+                          <>
+                            <Tooltip content="Nome da tarefa vinculada" position="top">
+                              <button
+                                type="button"
+                                onClick={() => insertPlaceholder('{nome_tarefa}')}
+                                className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                              >
+                                {`{nome_tarefa}`}
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Vencimento Padrão do Tipo de Tarefa" position="top">
+                              <button
+                                type="button"
+                                onClick={() => insertPlaceholder('{vencimento_padrao}')}
+                                className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                              >
+                                {`{vencimento_padrao}`}
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Data de Vencimento Específica da Tarefa do Cliente" position="top">
+                              <button
+                                type="button"
+                                onClick={() => insertPlaceholder('{vencimento_tarefa}')}
+                                className="px-2 py-1 text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 rounded border border-emerald-200/50"
+                              >
+                                {`{vencimento_tarefa}`}
+                              </button>
+                            </Tooltip>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <textarea
@@ -5476,314 +5594,339 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     onKeyUp={checkTextareaSelection}
                     onMouseUp={checkTextareaSelection}
                     onKeyDown={handleTextareaKeyDown}
-                    placeholder="Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} já está disponível no portal."
+                    placeholder={
+                      targetAudience === 'internal'
+                        ? "Convidamos nossa equipe para o próximo [nome do evento da empresa], onde vamos discutir [descrição do assunto principal]."
+                        : "Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} já está disponível no portal."
+                    }
                     className="w-full min-h-[120px] overflow-hidden resize-none px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-b-xl border-t-0 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-100 placeholder:text-slate-400 dark:text-white leading-relaxed"
                   />
                 </div>
               </div>
 
-              {/* Segmentação & Destinatários */}
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
-                      <Target size={16} />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">
-                        Mensagem Direcionada
-                      </h3>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Filtre e selecione clientes específicos para o envio desta mensagem
-                      </p>
-                    </div>
+              {targetAudience === 'internal' ? (
+                <div className="p-5 bg-purple-50/70 dark:bg-purple-950/30 rounded-xl border border-purple-200/60 dark:border-purple-800/50 flex items-start gap-3.5">
+                  <div className="p-2.5 bg-purple-100 dark:bg-purple-900/50 rounded-xl text-purple-600 dark:text-purple-300 shrink-0 shadow-sm">
+                    <Users size={20} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 px-2.5 py-1 rounded-full">
-                      {targetClientIds.length} {targetClientIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
-                    </span>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-purple-900 dark:text-purple-200 uppercase tracking-wider">
+                      Critérios de Envio Interno (Equipe)
+                    </h4>
+                    <p className="text-xs text-purple-700 dark:text-purple-300 leading-relaxed">
+                      Modelos com destino interno são exclusivos para a comunicação entre colaboradores. O agendamento automático (cron) e o disparo em lote para clientes ficam desabilitados.
+                    </p>
+                    <p className="text-[11px] text-purple-600/90 dark:text-purple-400/90 mt-1">
+                      💬 Para utilizar este modelo, basta abrir o <strong>Chat</strong> em qualquer conversa da equipe (mensagens diretas, setores ou grupos) e selecioná-lo pelo botão de modelos (⚡).
+                    </p>
                   </div>
                 </div>
-
-                {/* Barra de Filtros */}
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/70 dark:border-slate-800/70 space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
-                    <ListFilter size={14} className="text-indigo-500" />
-                    <span>Filtros da Lista de Clientes</span>
-                    <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
-                      ({filteredClientsForTarget.length} {filteredClientsForTarget.length === 1 ? 'cliente correspondente' : 'clientes correspondentes'})
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
-                    {/* Filtro por Status */}
-                    <div className="flex flex-col gap-1.5 font-sans">
-                      <div className="flex items-center gap-1.5 h-5">
-                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-none">
-                          Status do Cliente
-                        </label>
+              ) : (
+                <>
+                  {/* Segmentação & Destinatários */}
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                          <Target size={16} />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+                            Mensagem Direcionada
+                          </h3>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Filtre e selecione clientes específicos para o envio desta mensagem
+                          </p>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-1 p-1 h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg box-border">
-                        <button
-                          type="button"
-                          onClick={() => setClientListStatusFilter('all')}
-                          className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
-                            clientListStatusFilter === 'all'
-                              ? 'bg-indigo-600 text-white shadow-sm font-semibold'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                          }`}
-                        >
-                          Todos
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setClientListStatusFilter('Ativo')}
-                          className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
-                            clientListStatusFilter === 'Ativo'
-                              ? 'bg-emerald-600 text-white shadow-sm font-semibold'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                          }`}
-                        >
-                          Ativos
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setClientListStatusFilter('Inativo')}
-                          className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
-                            clientListStatusFilter === 'Inativo'
-                              ? 'bg-rose-600 text-white shadow-sm font-semibold'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                          }`}
-                        >
-                          Inativos
-                        </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 px-2.5 py-1 rounded-full">
+                          {targetClientIds.length} {targetClientIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Filtro por Regime Tributário */}
-                    <div>
-                      <GroupedSelect
-                        label="Regime Tributário"
-                        groups={clientRegimeFilterGroups}
-                        value={clientListRegimeFilter}
-                        onChange={setClientListRegimeFilter}
-                        placeholder="Todos os regimes tributários"
+                    {/* Barra de Filtros */}
+                    <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/70 dark:border-slate-800/70 space-y-3">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                        <ListFilter size={14} className="text-indigo-500" />
+                        <span>Filtros da Lista de Clientes</span>
+                        <span className="text-[10px] font-normal text-slate-400 dark:text-slate-500">
+                          ({filteredClientsForTarget.length} {filteredClientsForTarget.length === 1 ? 'cliente correspondente' : 'clientes correspondentes'})
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                        {/* Filtro por Status */}
+                        <div className="flex flex-col gap-1.5 font-sans">
+                          <div className="flex items-center gap-1.5 h-5">
+                            <label className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-none">
+                              Status do Cliente
+                            </label>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1 p-1 h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg box-border">
+                            <button
+                              type="button"
+                              onClick={() => setClientListStatusFilter('all')}
+                              className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
+                                clientListStatusFilter === 'all'
+                                  ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              Todos
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setClientListStatusFilter('Ativo')}
+                              className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
+                                clientListStatusFilter === 'Ativo'
+                                  ? 'bg-emerald-600 text-white shadow-sm font-semibold'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              Ativos
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setClientListStatusFilter('Inativo')}
+                              className={`h-full flex items-center justify-center text-xs font-medium rounded-md transition-all ${
+                                clientListStatusFilter === 'Inativo'
+                                  ? 'bg-rose-600 text-white shadow-sm font-semibold'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              Inativos
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Filtro por Regime Tributário */}
+                        <div>
+                          <GroupedSelect
+                            label="Regime Tributário"
+                            groups={clientRegimeFilterGroups}
+                            value={clientListRegimeFilter}
+                            onChange={setClientListRegimeFilter}
+                            placeholder="Todos os regimes tributários"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Ações Rápidas de Seleção em Lote */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/50 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleSelectAllFiltered}
+                            disabled={filteredClientsForTarget.length === 0}
+                            icon={<Check size={12} />}
+                            className="text-xs h-7 py-0 px-2.5"
+                          >
+                            Selecionar filtrados ({filteredClientsForTarget.length})
+                          </Button>
+
+                          {selectedFilteredCount > 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleDeselectFiltered}
+                              icon={<X size={12} />}
+                              className="text-xs h-7 py-0 px-2.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                            >
+                              Desmarcar filtrados ({selectedFilteredCount})
+                            </Button>
+                          )}
+                        </div>
+
+                        {targetClientIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleClearAllSelected}
+                            className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 hover:underline cursor-pointer ml-auto"
+                          >
+                            Limpar seleção total ({targetClientIds.length})
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="w-full">
+                      <MultiSelect
+                        label="Lista de clientes"
+                        tooltip="As mensagens serão direcionadas apenas para os clientes adicionados a lista."
+                        value={targetClientIds}
+                        onChange={setTargetClientIds}
+                        options={clientMultiSelectOptions}
+                        placeholder="Selecione os clientes..."
                       />
                     </div>
                   </div>
 
-                  {/* Ações Rápidas de Seleção em Lote */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/50 text-xs">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleSelectAllFiltered}
-                        disabled={filteredClientsForTarget.length === 0}
-                        icon={<Check size={12} />}
-                        className="text-xs h-7 py-0 px-2.5"
-                      >
-                        Selecionar filtrados ({filteredClientsForTarget.length})
-                      </Button>
-
-                      {selectedFilteredCount > 0 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleDeselectFiltered}
-                          icon={<X size={12} />}
-                          className="text-xs h-7 py-0 px-2.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20"
-                        >
-                          Desmarcar filtrados ({selectedFilteredCount})
-                        </Button>
-                      )}
+                  {/* Agendamento Automático */}
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Clock size={14} /> Agendamento e Disparo Automático (pg_cron)
+                      </h3>
+                      <Toggle checked={isAutomated} onChange={(checked) => {
+                        setIsAutomated(checked);
+                        if (checked && (!schedules || schedules.length === 0)) {
+                          setSchedules([{ trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }]);
+                        }
+                      }} />
                     </div>
 
-                    {targetClientIds.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleClearAllSelected}
-                        className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 hover:underline cursor-pointer ml-auto"
-                      >
-                        Limpar seleção total ({targetClientIds.length})
-                      </button>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="w-full">
-                  <MultiSelect
-                    label="Lista de clientes"
-                    tooltip="As mensagens serão direcionadas apenas para os clientes adicionados a lista."
-                    value={targetClientIds}
-                    onChange={setTargetClientIds}
-                    options={clientMultiSelectOptions}
-                    placeholder="Selecione os clientes..."
-                  />
-                </div>
-              </div>
-
-              {/* Agendamento Automático */}
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Clock size={14} /> Agendamento e Disparo Automático (pg_cron)
-                  </h3>
-                  <Toggle checked={isAutomated} onChange={(checked) => {
-                    setIsAutomated(checked);
-                    if (checked && (!schedules || schedules.length === 0)) {
-                      setSchedules([{ trigger_type: 'day_of_month', trigger_value: 10, trigger_time: '09:00' }]);
-                    }
-                  }} />
-                </div>
-
-                {isAutomated && (
-                  <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                        Regras de Disparo Programado ({schedules.length}/5)
-                      </span>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={addSchedule}
-                        disabled={schedules.length >= 5}
-                        icon={<Plus size={14} />}
-                        className="text-xs"
-                      >
-                        {schedules.length >= 5 ? 'Limite Atingido (5/5)' : 'Adicionar Agendamento'}
-                      </Button>
-                    </div>
-
-                    {schedules.map((sched, index) => (
-                      <div key={index} className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 space-y-2.5">
-                        {/* Grid de Inputs Perfeitamente Alinhados */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                          <div className="md:col-span-5">
-                            <SearchableSelect
-                              label={`Agendamento #${index + 1} - Tipo`}
-                              tooltip={index > 0 ? "O tipo de agendamento é fixado pelo Agendamento #1" : undefined}
-                              value={sched.trigger_type}
-                              onChange={val => updateSchedule(index, 'trigger_type', val)}
-                              disabled={index > 0}
-                              options={[
-                                { value: 'day_of_month', label: index > 0 && sched.trigger_type === 'day_of_month' ? 'Dia Fixo do Mês (Padrão #1)' : 'Dia Fixo do Mês' },
-                                { value: 'days_before_due', label: index > 0 && sched.trigger_type === 'days_before_due' ? 'Antecedência de Vencimento (Padrão #1)' : 'Dias de Antecedência do Vencimento' }
-                              ]}
-                              placeholder="Tipo de agendamento"
-                              clearable={false}
-                            />
-                          </div>
-
-                          <div className="md:col-span-3">
-                            {sched.trigger_type === 'day_of_month' ? (
-                              <Input
-                                label="Dia do Disparo (1-31)"
-                                type="number"
-                                min="1"
-                                max="31"
-                                value={sched.trigger_value || ''}
-                                onChange={e => updateSchedule(index, 'trigger_value', e.target.value ? Number(e.target.value) : '')}
-                                placeholder="Ex: 20"
-                              />
-                            ) : (
-                              <Input
-                                label="Dias Antes Vencimento"
-                                type="number"
-                                min="1"
-                                value={sched.trigger_value || ''}
-                                onChange={e => updateSchedule(index, 'trigger_value', e.target.value ? Number(e.target.value) : '')}
-                                placeholder={referenceTaskTypeId ? "Ex: 5" : "Bloqueado"}
-                                disabled={!referenceTaskTypeId}
-                                required={sched.trigger_type === 'days_before_due'}
-                              />
-                            )}
-                          </div>
-
-                          <div className="md:col-span-3">
-                            <SearchableSelect
-                              label="Horário"
-                              tooltip="Disparos executados nas horas cheias pelo agendador pg_cron."
-                              value={sched.trigger_time || '09:00'}
-                              onChange={val => updateSchedule(index, 'trigger_time', val)}
-                              options={HOURLY_TIME_OPTIONS}
-                              placeholder="Horário"
-                              clearable={false}
-                            />
-                          </div>
-
-                          <div className="md:col-span-1 flex justify-end pb-1">
-                            {schedules.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeSchedule(index)}
-                                className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
-                                title="Remover agendamento"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
+                    {isAutomated && (
+                      <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                            Regras de Disparo Programado ({schedules.length}/5)
+                          </span>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={addSchedule}
+                            disabled={schedules.length >= 5}
+                            icon={<Plus size={14} />}
+                            className="text-xs"
+                          >
+                            {schedules.length >= 5 ? 'Limite Atingido (5/5)' : 'Adicionar Agendamento'}
+                          </Button>
                         </div>
 
-                        {/* Banner / Status do Vínculo em Linha Separada */}
-                        {sched.trigger_type === 'days_before_due' && (
-                          !referenceTaskTypeId ? (
-                            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-xs animate-in fade-in duration-200">
-                              <div className="flex items-center gap-2">
-                                <AlertCircle size={14} className="text-amber-500 shrink-0" />
-                                <span className="font-semibold text-[11px]">
-                                  Selecione a <strong>"Tarefa de Referência"</strong> no topo do formulário para liberar este campo.
-                                </span>
+                        {schedules.map((sched, index) => (
+                          <div key={index} className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 space-y-2.5">
+                            {/* Grid de Inputs Perfeitamente Alinhados */}
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                              <div className="md:col-span-5">
+                                <SearchableSelect
+                                  label={`Agendamento #${index + 1} - Tipo`}
+                                  tooltip={index > 0 ? "O tipo de agendamento é fixado pelo Agendamento #1" : undefined}
+                                  value={sched.trigger_type}
+                                  onChange={val => updateSchedule(index, 'trigger_type', val)}
+                                  disabled={index > 0}
+                                  options={[
+                                    { value: 'day_of_month', label: index > 0 && sched.trigger_type === 'day_of_month' ? 'Dia Fixo do Mês (Padrão #1)' : 'Dia Fixo do Mês' },
+                                    { value: 'days_before_due', label: index > 0 && sched.trigger_type === 'days_before_due' ? 'Antecedência de Vencimento (Padrão #1)' : 'Dias de Antecedência do Vencimento' }
+                                  ]}
+                                  placeholder="Tipo de agendamento"
+                                  clearable={false}
+                                />
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const el = document.getElementById('reference-task-type-select');
-                                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }}
-                                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 shrink-0 cursor-pointer bg-white/60 dark:bg-slate-900/60 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-800 self-start sm:self-auto"
-                              >
-                                <Link2 size={10} /> Ir para Tarefa de Referência ↗
-                              </button>
+
+                              <div className="md:col-span-3">
+                                {sched.trigger_type === 'day_of_month' ? (
+                                  <Input
+                                    label="Dia do Disparo (1-31)"
+                                    type="number"
+                                    min="1"
+                                    max="31"
+                                    value={sched.trigger_value || ''}
+                                    onChange={e => updateSchedule(index, 'trigger_value', e.target.value ? Number(e.target.value) : '')}
+                                    placeholder="Ex: 20"
+                                  />
+                                ) : (
+                                  <Input
+                                    label="Dias Antes Vencimento"
+                                    type="number"
+                                    min="1"
+                                    value={sched.trigger_value || ''}
+                                    onChange={e => updateSchedule(index, 'trigger_value', e.target.value ? Number(e.target.value) : '')}
+                                    placeholder={referenceTaskTypeId ? "Ex: 5" : "Bloqueado"}
+                                    disabled={!referenceTaskTypeId}
+                                    required={sched.trigger_type === 'days_before_due'}
+                                  />
+                                )}
+                              </div>
+
+                              <div className="md:col-span-3">
+                                <SearchableSelect
+                                  label="Horário"
+                                  tooltip="Disparos executados nas horas cheias pelo agendador pg_cron."
+                                  value={sched.trigger_time || '09:00'}
+                                  onChange={val => updateSchedule(index, 'trigger_time', val)}
+                                  options={HOURLY_TIME_OPTIONS}
+                                  placeholder="Horário"
+                                  clearable={false}
+                                />
+                              </div>
+
+                              <div className="md:col-span-1 flex justify-end pb-1">
+                                {schedules.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSchedule(index)}
+                                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
+                                    title="Remover agendamento"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                          ) : (
-                            <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-between text-xs animate-in fade-in duration-200">
-                              <span className="text-[11px] font-bold flex items-center gap-1.5">
-                                <Check size={13} className="text-emerald-500" /> Vencimento vinculado a: <strong className="underline">{taskTypes.find(t => t.id === referenceTaskTypeId)?.name || 'Tarefa de Referência'}</strong>
-                              </span>
-                            </div>
-                          )
-                        )}
+
+                            {/* Banner / Status do Vínculo em Linha Separada */}
+                            {sched.trigger_type === 'days_before_due' && (
+                              !referenceTaskTypeId ? (
+                                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-xs animate-in fade-in duration-200">
+                                  <div className="flex items-center gap-2">
+                                    <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                                    <span className="font-semibold text-[11px]">
+                                      Selecione a <strong>"Tarefa de Referência"</strong> no topo do formulário para liberar este campo.
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const el = document.getElementById('reference-task-type-select');
+                                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }}
+                                    className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 shrink-0 cursor-pointer bg-white/60 dark:bg-slate-900/60 px-2 py-1 rounded border border-indigo-200 dark:border-indigo-800 self-start sm:self-auto"
+                                  >
+                                    <Link2 size={10} /> Ir para Tarefa de Referência ↗
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-between text-xs animate-in fade-in duration-200">
+                                  <span className="text-[11px] font-bold flex items-center gap-1.5">
+                                    <Check size={13} className="text-emerald-500" /> Vencimento vinculado a: <strong className="underline">{taskTypes.find(t => t.id === referenceTaskTypeId)?.name || 'Tarefa de Referência'}</strong>
+                                  </span>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Cópia Multicanal */}
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Mail size={14} /> Enviar também cópia por E-mail
-                  </h3>
-                  <Toggle checked={sendEmailCopy} onChange={setSendEmailCopy} />
-                </div>
+                  {/* Cópia Multicanal */}
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Mail size={14} /> Enviar também cópia por E-mail
+                      </h3>
+                      <Toggle checked={sendEmailCopy} onChange={setSendEmailCopy} />
+                    </div>
 
-                {sendEmailCopy && (
-                  <div className="pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <Input
-                      label="Assunto do E-mail"
-                      value={emailSubject}
-                      onChange={e => setEmailSubject(e.target.value)}
-                      placeholder="Ex: Guia do Simples Nacional - Santos & Associados"
-                    />
+                    {sendEmailCopy && (
+                      <div className="pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <Input
+                          label="Assunto do E-mail"
+                          value={emailSubject}
+                          onChange={e => setEmailSubject(e.target.value)}
+                          placeholder="Ex: Guia do Simples Nacional - Santos & Associados"
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
 
               {/* Botões de Ação */}
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
@@ -5817,7 +5960,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
 
         {/* Barra de Busca e Filtros */}
         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Busca de texto livre */}
             <div className="relative flex items-center w-full">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -5838,6 +5981,18 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 </button>
               )}
             </div>
+
+            {/* Filtro por Destino (Público-Alvo) */}
+            <SearchableSelect
+              placeholder="Todos os Destinos"
+              value={audienceFilter === 'all' ? '' : audienceFilter}
+              onChange={val => setAudienceFilter((val || 'all') as any)}
+              options={[
+                { value: 'external', label: '🌐 Clientes (Externo)' },
+                { value: 'internal', label: '👥 Equipe (Interno)' }
+              ]}
+              clearable
+            />
 
             {/* Filtro por Setor */}
             <SearchableSelect
@@ -5870,7 +6025,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
             />
           </div>
 
-          {(searchFilter || sectorFilter || taxRegimeFilter || automationFilter !== 'all') && (
+          {(searchFilter || audienceFilter !== 'all' || sectorFilter || taxRegimeFilter || automationFilter !== 'all') && (
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
               <span className="text-slate-500 dark:text-slate-400 font-medium">
                 Exibindo <strong className="text-indigo-600 dark:text-indigo-400">{filteredTemplates.length}</strong> de {templates.length} modelos salvos
@@ -5879,6 +6034,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 type="button"
                 onClick={() => {
                   setSearchFilter('');
+                  setAudienceFilter('all');
                   setSectorFilter('');
                   setTaxRegimeFilter('');
                   setAutomationFilter('all');
@@ -5949,6 +6105,15 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     </div>
 
                     <div className="flex flex-wrap items-center gap-1 shrink-0 justify-end">
+                      {tmpl.target_audience === 'internal' ? (
+                        <span className="text-[9px] bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-purple-200/50">
+                          <Users size={11} /> Equipe (Interno)
+                        </span>
+                      ) : (
+                        <span className="text-[9px] bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border border-blue-200/50">
+                          <Globe size={11} /> Cliente (Externo)
+                        </span>
+                      )}
                       {tmpl.is_automated && (
                         tmpl.schedules && tmpl.schedules.length > 0 ? (
                           tmpl.schedules.map((s, idx) => (
@@ -6012,14 +6177,29 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 {/* Footer do Card com Botão Disparar Agora, Autor e Ações */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleBulkSend(tmpl)}
-                      icon={<Send size={14} />}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-1.5 px-3 rounded-lg shadow-sm"
-                    >
-                      Disparar Agora
-                    </Button>
+                    {tmpl.target_audience === 'internal' ? (
+                      <Tooltip content="Disparo em lote desabilitado para mensagens internas. Envie individualmente ou em grupo diretamente pelo Chat da Equipe." position="top">
+                        <div>
+                          <Button
+                            size="sm"
+                            disabled
+                            icon={<Send size={14} />}
+                            className="opacity-50 cursor-not-allowed bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 font-semibold text-xs py-1.5 px-3 rounded-lg border border-slate-200/60 dark:border-slate-700/60"
+                          >
+                            Disparar Agora
+                          </Button>
+                        </div>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handleBulkSend(tmpl)}
+                        icon={<Send size={14} />}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-1.5 px-3 rounded-lg shadow-sm"
+                      >
+                        Disparar Agora
+                      </Button>
+                    )}
                     <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                       Criado por <strong className="text-slate-600 dark:text-slate-300 font-bold">{getUserName(tmpl.created_by)}</strong>
                     </span>

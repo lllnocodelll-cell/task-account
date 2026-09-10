@@ -32,12 +32,14 @@ import {
   GripVertical,
   Scale,
   Award,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import { Client, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { Modal } from './ui/Modal';
+import { Tooltip } from './ui/Tooltip';
 import { useToast } from '../contexts/ToastContext';
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -142,6 +144,12 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<any | null>(null);
+
+  // Estados para Protocolo de Leitura
+  const [protocolModalOpen, setProtocolModalOpen] = useState(false);
+  const [selectedProtocolDoc, setSelectedProtocolDoc] = useState<any | null>(null);
+  const [protocolLogs, setProtocolLogs] = useState<any[]>([]);
+  const [protocolLoading, setProtocolLoading] = useState(false);
 
   // Estados dos filtros
   const [competenceFilter, setCompetenceFilter] = useState('');
@@ -406,6 +414,32 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     }
   };
 
+  const handleViewProtocol = async (doc: any) => {
+    setSelectedProtocolDoc(doc);
+    setProtocolModalOpen(true);
+    setProtocolLoading(true);
+    setProtocolLogs([]);
+    try {
+      const { data, error } = await (supabase as any)
+        .from('client_document_logs')
+        .select(`*, profiles:user_id(full_name)`)
+        .eq('document_id', doc.id)
+        .order('read_at', { ascending: false });
+
+      if (error) throw error;
+      setProtocolLogs(data || []);
+    } catch {
+      const { data } = await (supabase as any)
+        .from('client_document_logs')
+        .select('*')
+        .eq('document_id', doc.id)
+        .order('read_at', { ascending: false });
+      setProtocolLogs(data || []);
+    } finally {
+      setProtocolLoading(false);
+    }
+  };
+
   const currentClient = liveClient || client;
 
   if (!shouldRender || !currentClient) return null;
@@ -455,7 +489,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     const isDragged = draggedSectionId === sectionId;
     const isDragOver = dragOverSectionId === sectionId;
     const isOpen = openSections[sectionId];
-    return `bg-white dark:bg-slate-800/40 border rounded-2xl ${isOpen ? 'overflow-visible' : 'overflow-hidden'} shadow-sm transition-all duration-200 shrink-0 ${
+    return `bg-white dark:bg-slate-800/40 border rounded-2xl ${isOpen ? 'overflow-visible' : 'overflow-hidden'} shadow-sm transition-all duration-200 shrink-0 max-w-full min-w-0 w-full ${
       isDragged ? 'opacity-30 border-dashed border-indigo-500 dark:border-indigo-400 scale-[0.98]' : 
       isDragOver ? 'border-indigo-500 scale-[1.01] shadow-md bg-indigo-50/5 dark:bg-indigo-500/5' : 
       'border-slate-200 dark:border-slate-700/50'
@@ -531,7 +565,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
       
       <div 
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[450px] max-w-full overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header */}
@@ -565,7 +599,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-col gap-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar flex flex-col gap-4 max-w-full">
           
           {/* Section 01: Dados Iniciais */}
           <div 
@@ -1094,19 +1128,19 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-bold border border-indigo-100 dark:border-indigo-800/40 transition-all truncate hover:underline shadow-2xs max-w-[210px]"
-                                title={`Abrir link do órgão competente: ${lic.access_url}`}
                               >
                                 <ExternalLink size={10} className="shrink-0" />
                                 <span className="truncate">{getSimpleUrlLabel(lic.access_url)}</span>
                               </a>
-                              <button
-                                type="button"
-                                onClick={(e) => copyToClipboard(lic.access_url, `lic-url-${idx}`, e)}
-                                className="p-1 text-slate-400 hover:text-indigo-500 rounded hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors shrink-0"
-                                title="Copiar link completo do órgão competente"
-                              >
-                                <Copy size={11} />
-                              </button>
+                              <Tooltip content="Copiar link" position="top">
+                                <button
+                                  type="button"
+                                  onClick={(e) => copyToClipboard(lic.access_url, `lic-url-${idx}`, e)}
+                                  className="p-1 text-slate-400 hover:text-indigo-500 rounded hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors shrink-0"
+                                >
+                                  <Copy size={11} />
+                                </button>
+                              </Tooltip>
                               {copyFeedback === `lic-url-${idx}` && (
                                 <span className="text-[8px] font-bold text-emerald-500 shrink-0 animate-in fade-in">Copiado!</span>
                               )}
@@ -1194,12 +1228,12 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.documents ? 'rotate-180' : ''}`} size={16} />
             </button>
-            <div className={`grid transition-all duration-300 ease-in-out ${openSections.documents ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
-              <div className={openSections.documents ? 'overflow-visible' : 'overflow-hidden'}>
-                <div className="p-4 pt-0 flex flex-col gap-4">
+            <div className={`grid transition-all duration-300 ease-in-out w-full max-w-full min-w-0 ${openSections.documents ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+              <div className={`w-full max-w-full min-w-0 ${openSections.documents ? 'overflow-visible' : 'overflow-hidden'}`}>
+                <div className="p-4 pt-0 flex flex-col gap-4 max-w-full min-w-0 w-full">
                   
                   {/* Formulário/Botão de Upload */}
-                  <div className={`border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30 relative ${isUploadCalendarOpen ? 'z-30' : ''}`}>
+                  <div className={`border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30 relative min-w-0 max-w-full w-full ${isUploadCalendarOpen ? 'z-50' : 'z-10'}`}>
                     {!showUploadForm ? (
                       <button
                         onClick={() => setShowUploadForm(true)}
@@ -1209,7 +1243,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         Enviar Novo Documento
                       </button>
                     ) : (
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-3 min-w-0 max-w-full w-full">
                         <div className="flex justify-between items-center">
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Novo Documento</span>
                           <button onClick={() => { setShowUploadForm(false); setUploadFile(null); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
@@ -1217,13 +1251,13 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          <div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0 max-w-full w-full">
+                          <div className="min-w-0 w-full">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Setor Destino *</label>
                             <select
                               value={uploadSectorId}
                               onChange={(e) => setUploadSectorId(e.target.value)}
-                              className="w-full text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                              className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none truncate"
                             >
                               <option value="">Selecione o Setor</option>
                               {sectors.map(s => (
@@ -1231,19 +1265,19 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                               ))}
                             </select>
                           </div>
-                          <div className={`relative ${isUploadCalendarOpen ? 'z-40' : ''}`} ref={uploadCalendarRef}>
+                          <div className={`relative min-w-0 w-full ${isUploadCalendarOpen ? 'z-50' : ''}`} ref={uploadCalendarRef}>
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Competência (Mês/Ano) *</label>
                             <button
                               type="button"
                               onClick={() => setIsUploadCalendarOpen(!isUploadCalendarOpen)}
-                              className="w-full text-left text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none flex items-center justify-between font-bold text-slate-700 dark:text-slate-200"
+                              className="w-full min-w-0 text-left text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none flex items-center justify-between font-bold text-slate-700 dark:text-slate-200"
                             >
-                              <span>{uploadCompetence || 'Selecione...'}</span>
-                              <ChevronDown size={14} className={`text-slate-400 transition-transform ${isUploadCalendarOpen ? 'rotate-180' : ''}`} />
+                              <span className="truncate">{uploadCompetence || 'Selecione...'}</span>
+                              <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${isUploadCalendarOpen ? 'rotate-180' : ''}`} />
                             </button>
 
                             {isUploadCalendarOpen && (
-                              <div className="absolute right-0 mt-1 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 p-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                              <div className="absolute right-0 mt-1 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-3 animate-in fade-in slide-in-from-top-2 duration-150">
                                 {/* Seletor de Ano */}
                                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
                                   <button
@@ -1295,38 +1329,40 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          <div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0 max-w-full w-full">
+                          <div className="min-w-0 w-full">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Nome de Exibição (Opcional)</label>
                             <input
                               type="text"
                               placeholder="Ex: Guia do DAS Simples"
                               value={uploadName}
                               onChange={(e) => setUploadName(e.target.value)}
-                              className="w-full text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                              className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
                             />
                           </div>
-                          <div>
+                          <div className="min-w-0 w-full">
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Data de Vencimento (Opcional)</label>
                             <input
                               type="date"
                               value={uploadDueDate}
                               onChange={(e) => setUploadDueDate(e.target.value)}
-                              className="w-full text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                              className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
                             />
                           </div>
                         </div>
 
-                        <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors relative">
+                        <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors relative min-w-0 max-w-full w-full overflow-hidden">
                           <input
                             type="file"
                             onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                           />
-                          <Upload className="mx-auto text-slate-400 mb-2" size={20} />
-                          <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
-                            {uploadFile ? uploadFile.name : 'Clique para selecionar ou arraste o arquivo'}
-                          </span>
+                          <Upload className="mx-auto text-slate-400 mb-2 shrink-0" size={20} />
+                          <div className="w-full min-w-0 max-w-full overflow-hidden px-2">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 break-all line-clamp-2 max-w-full text-center" title={uploadFile ? uploadFile.name : undefined}>
+                              {uploadFile ? uploadFile.name : 'Clique para selecionar ou arraste o arquivo'}
+                            </p>
+                          </div>
                         </div>
 
                         <button
@@ -1348,31 +1384,31 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                   </div>
 
                   {/* Filtros e Barra de Pesquisa */}
-                  <div className={`flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 relative ${isFilterCalendarOpen ? 'z-30' : 'z-10'}`}>
-                    <div className="relative">
+                  <div className={`flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 relative min-w-0 max-w-full w-full ${isFilterCalendarOpen ? 'z-50' : 'z-20'}`}>
+                    <div className="relative min-w-0 max-w-full w-full">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                       <input
                         type="text"
                         placeholder="Buscar documento pelo nome..."
                         value={searchFilter}
                         onChange={(e) => setSearchFilter(e.target.value)}
-                        className="w-full pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none"
+                        className="w-full min-w-0 pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none"
                       />
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className={`relative ${isFilterCalendarOpen ? 'z-40' : ''}`} ref={filterCalendarRef}>
+                    <div className="grid grid-cols-3 gap-2 min-w-0 max-w-full w-full">
+                      <div className={`relative min-w-0 w-full ${isFilterCalendarOpen ? 'z-50' : ''}`} ref={filterCalendarRef}>
                         <button
                           type="button"
                           onClick={() => setIsFilterCalendarOpen(!isFilterCalendarOpen)}
-                          className="w-full text-left text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
+                          className="w-full min-w-0 text-left text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
                         >
                           <span className="truncate">{competenceFilter || 'Período'}</span>
                           <ChevronDown size={12} className={`text-slate-400 shrink-0 transition-transform ${isFilterCalendarOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {isFilterCalendarOpen && (
-                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 p-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
                             {/* Seletor de Ano */}
                             <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
                               <button
@@ -1480,7 +1516,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                       }).map((doc, idx) => {
                         const sec = sectors.find(s => s.id === doc.sector_id);
                         return (
-                          <div key={doc.id || idx} className="flex gap-0 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors">
+                          <div key={doc.id || idx} className="flex gap-0 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors w-full max-w-full min-w-0">
                             {/* Faixa lateral com Setor na Vertical (90º) */}
                             <div className={`w-6 shrink-0 flex items-center justify-center ${getSectorStyle(sec?.name).bar} relative`}>
                               <span className="text-[7.5px] font-black uppercase tracking-widest text-white/90 [writing-mode:vertical-lr] rotate-180 whitespace-nowrap py-1 select-none">
@@ -1490,17 +1526,17 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
 
                             <div className="flex items-center justify-between p-2.5 flex-1 min-w-0">
                               <div className="min-w-0 flex-1 pl-1.5">
-                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate" title={doc.name}>{doc.name}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-[9px] font-black text-slate-400 uppercase">{doc.competence_month}</span>
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate break-words" title={doc.name}>{doc.name}</p>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">{doc.competence_month}</span>
                                   {doc.due_date && (
                                     <>
-                                      <span className="text-[9px] font-black text-slate-400">•</span>
-                                      <span className="text-[9px] font-bold text-red-500 dark:text-red-400">Venc. {formatDate(doc.due_date)}</span>
+                                      <span className="text-[9px] font-black text-slate-400 shrink-0">•</span>
+                                      <span className="text-[9px] font-bold text-red-500 dark:text-red-400 shrink-0">Venc. {formatDate(doc.due_date)}</span>
                                     </>
                                   )}
-                                  <span className="text-[9px] font-black text-slate-400">•</span>
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                                  <span className="text-[9px] font-black text-slate-400 shrink-0">•</span>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
                                     doc.status === 'Pago' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' :
                                     doc.status === 'Lido' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' :
                                     'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
@@ -1511,20 +1547,30 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                               </div>
 
                               <div className="flex items-center gap-1 shrink-0 ml-2">
-                                <button
-                                  onClick={() => handleDownloadDocument(doc)}
-                                  className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
-                                  title="Baixar documento"
-                                >
-                                  <Download size={14} />
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmDoc(doc)}
-                                  className="p-1.5 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                                  title="Excluir documento"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                                <Tooltip content="Protocolo de leitura" position="top">
+                                  <button
+                                    onClick={() => handleViewProtocol(doc)}
+                                    className="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
+                                  >
+                                    <Eye size={14} />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content="Baixar documento" position="top">
+                                  <button
+                                    onClick={() => handleDownloadDocument(doc)}
+                                    className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
+                                  >
+                                    <Download size={14} />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip content="Excluir documento" position="top">
+                                  <button
+                                    onClick={() => setDeleteConfirmDoc(doc)}
+                                    className="p-1.5 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </Tooltip>
                               </div>
                             </div>
                           </div>
@@ -1575,6 +1621,79 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
         <div className="p-6 text-sm text-slate-600 dark:text-slate-300">
           <p>Você tem certeza que deseja excluir o documento <strong>{deleteConfirmDoc?.name}</strong>?</p>
           <p className="mt-2 text-xs text-slate-400">Essa ação é permanente e removerá o arquivo do portal do cliente.</p>
+        </div>
+      </Modal>
+
+      {/* Modal Protocolo de Leitura */}
+      <Modal
+        isOpen={protocolModalOpen}
+        onClose={() => {
+          setProtocolModalOpen(false);
+          setSelectedProtocolDoc(null);
+        }}
+        title="Protocolo de Leitura"
+        size="md"
+        footer={
+          <button
+            onClick={() => {
+              setProtocolModalOpen(false);
+              setSelectedProtocolDoc(null);
+            }}
+            className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 rounded-xl transition-colors"
+          >
+            Fechar
+          </button>
+        }
+      >
+        <div className="space-y-4">
+          {/* Info do documento */}
+          <div className="flex items-center gap-3 p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-full shrink-0">
+              <Eye size={18} />
+            </div>
+            <div className="min-w-0">
+              <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">{selectedProtocolDoc?.name}</h4>
+              <p className="text-xs text-slate-500">Histórico de visualizações deste arquivo pelo cliente</p>
+            </div>
+          </div>
+
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+            {protocolLoading ? (
+              <div className="flex flex-col items-center justify-center p-10 text-slate-400">
+                <Loader2 size={22} className="animate-spin mb-2 text-indigo-500" />
+                <span className="text-xs font-bold uppercase tracking-wider">Carregando protocolos...</span>
+              </div>
+            ) : protocolLogs.length > 0 ? (
+              protocolLogs.map(log => (
+                <div key={log.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                        {log.profiles?.full_name || 'Cliente / Usuário'}
+                      </p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                        <CheckCircle2 size={10} className="text-emerald-500 shrink-0" />
+                        {new Date(log.read_at).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[9px] uppercase font-black tracking-wider text-emerald-600 bg-emerald-100 dark:bg-emerald-500/10 px-2 py-1 rounded-lg">
+                      Visualizado
+                    </span>
+                  </div>
+                  {log.user_agent && (
+                    <div className="mt-2 text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-100 dark:border-slate-800 break-all leading-relaxed">
+                      {log.user_agent}
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="p-10 text-center text-slate-500 text-sm">
+                <Eye size={28} className="mx-auto mb-2 text-slate-300 dark:text-slate-700" />
+                Nenhum protocolo registrado ainda. O cliente ainda não visualizou este documento.
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
     </>,

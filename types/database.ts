@@ -295,6 +295,7 @@ export type Database = {
           org_id: string | null
           reference_task_type_id: string | null
           send_email_copy: boolean
+          target_audience: 'internal' | 'external' | null
           target_client_ids: string[] | null
           target_sectors: string[] | null
           target_segments: string[] | null
@@ -316,6 +317,7 @@ export type Database = {
           org_id?: string | null
           reference_task_type_id?: string | null
           send_email_copy?: boolean
+          target_audience?: 'internal' | 'external' | null
           target_client_ids?: string[] | null
           target_sectors?: string[] | null
           target_segments?: string[] | null
@@ -337,6 +339,7 @@ export type Database = {
           org_id?: string | null
           reference_task_type_id?: string | null
           send_email_copy?: boolean
+          target_audience?: 'internal' | 'external' | null
           target_client_ids?: string[] | null
           target_sectors?: string[] | null
           target_segments?: string[] | null
