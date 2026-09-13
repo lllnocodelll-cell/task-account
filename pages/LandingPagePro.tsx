@@ -26,7 +26,10 @@ import {
   FolderLock,
   Check,
   Sun,
-  Moon
+  Moon,
+  Building2,
+  ArrowDown,
+  ChevronLeft
 } from 'lucide-react';
 import { TenantOnboardingModal, PlanDetails } from '../components/TenantOnboardingModal';
 
@@ -86,7 +89,7 @@ const modules: ShowcaseModule[] = [
     tag: 'CRM & AUDITORIA',
     title: 'CRM e Dossiê Completo de Clientes',
     desc: 'O cadastro contábil mais detalhado do mercado. Centralize credenciais DF-e, acessos governamentais, histórico de regimes e alertas de vencimento de certificados.',
-    image: '/app-clients.png',
+    image: '/showcase-clients-dark.png',
     stats: [
       { label: 'CERTIFICADOS', value: 'A1 / A3' },
       { label: 'DF-E SUPORTADOS', value: '12+ Tipos' },
@@ -252,9 +255,35 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
   toggleTheme
 }) => {
   const [activeModule, setActiveModule] = useState<string>('dashboard');
+  const [chatSlideIndex, setChatSlideIndex] = useState<number>(0);
   const [selectedPlanForOnboarding, setSelectedPlanForOnboarding] = useState<PlanDetails | null>(null);
 
   const currentMod = modules.find(m => m.id === activeModule) || modules[0];
+
+  const chatSlides = [
+    {
+      id: 'client',
+      title: 'Atendimento a Clientes (CRM)',
+      tabLabel: 'Chat com Clientes',
+      badge: 'CRM EXTERNO & NOTIFICAÇÕES',
+      code: 'INTERFACE // CHAT_CLIENTE_LIVE',
+      darkImage: '/showcase-chat-client-dark.png',
+      lightImage: '/showcase-chat-client-light.png',
+      caption: 'Comunicação direta com empresas e envio de comunicados fiscais (NFSe Nacional).'
+    },
+    {
+      id: 'team',
+      title: 'Chat Interno da Equipe',
+      tabLabel: 'Chat da Equipe',
+      badge: 'COMUNICAÇÃO INTERSETORIAL',
+      code: 'INTERFACE // CHAT_EQUIPE_LIVE',
+      darkImage: '/showcase-chat-team-dark.png',
+      lightImage: '/showcase-chat-team-light.png',
+      caption: 'Alinhamentos ágeis entre departamentos (Fiscal, Pessoal, Contábil) e cronogramas.'
+    }
+  ];
+
+  const currentChatSlide = chatSlides[chatSlideIndex] || chatSlides[0];
 
   const handleSelectPlan = (plan: typeof plans[0]) => {
     if (plan.name === 'Elite') {
@@ -383,44 +412,63 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             </h1>
           </div>
 
-          {/* Subtítulo Sóbrio e Direto */}
-          <p className="text-slate-600 dark:text-slate-400 text-base sm:text-lg md:text-xl max-w-2xl mx-auto text-center font-normal leading-relaxed mb-12">
-            A central de comando definitiva para escritórios de contabilidade. 
-            Controle de prazos, equipe, clientes e rotinas fiscais com rigor arquitetônico e zero planilhas.
+          {/* Subtítulo de Alto Impacto */}
+          <p className="text-slate-600 dark:text-slate-400 text-base sm:text-lg md:text-xl max-w-3xl mx-auto text-center font-normal leading-relaxed mb-8">
+            A plataforma unificada que transforma a rotina contábil em máxima eficiência. 
+            Controle de ponta a ponta prazos, equipe, compliance fiscal e relacionamento com clientes em um único ambiente.
           </p>
 
-          {/* ─── HUD PRINCIPAL DO PRODUTO COM CALLOUTS E PINS FLUTUANTES ─── */}
+          {/* Pílulas Visuais dos 4 Grandes Pilares */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-5xl mx-auto mb-12 px-2">
+            {/* Pilar 1: Cadastro Ultra */}
+            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-amber-400/60 dark:hover:border-yellow-400/40 shadow-sm dark:shadow-none transition-all group">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-yellow-400/10 border border-amber-300/60 dark:border-yellow-400/20 flex items-center justify-center text-amber-600 dark:text-yellow-400 shrink-0 group-hover:scale-105 transition-transform">
+                <Building2 size={16} />
+              </div>
+              <div className="text-left">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">Cadastro Ultra</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Certificados, licenças, senhas e modelos DF-e</p>
+              </div>
+            </div>
+
+            {/* Pilar 2: Cockpit Analítico */}
+            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-indigo-400/60 dark:hover:border-indigo-400/40 shadow-sm dark:shadow-none transition-all group">
+              <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-400/10 border border-indigo-300/60 dark:border-indigo-400/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-105 transition-transform">
+                <BarChart3 size={16} />
+              </div>
+              <div className="text-left">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">Cockpit Analítico</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Calendário operacional, tempo de execução e KPIs</p>
+              </div>
+            </div>
+
+            {/* Pilar 3: Motor de Tarefas */}
+            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-emerald-400/60 dark:hover:border-emerald-400/40 shadow-sm dark:shadow-none transition-all group">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-400/10 border border-emerald-300/60 dark:border-emerald-400/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+                <Zap size={16} />
+              </div>
+              <div className="text-left">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">Controle de Tarefas</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Conformidade entre setores e zero perda de prazos</p>
+              </div>
+            </div>
+
+            {/* Pilar 4: CRM & Chat Integrado */}
+            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-sky-400/60 dark:hover:border-sky-400/40 shadow-sm dark:shadow-none transition-all group">
+              <div className="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-400/10 border border-sky-300/60 dark:border-sky-400/20 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
+                <MessageSquare size={16} />
+              </div>
+              <div className="text-left">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">CRM & Atendimento</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Chat interno/externo, comunicados e histórico</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── HUD PRINCIPAL DO PRODUTO COM COMPOSIÇÃO EM CAMADAS (TABELA + KANBAN) ─── */}
           <div id="cockpit" className="relative mt-8 max-w-6xl mx-auto">
             
-            {/* Callout Esquerda Superior (NX-456 style) */}
-            <div className="hidden lg:block absolute -top-8 -left-6 z-20 w-64 bg-white/95 dark:bg-[#121722]/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 p-4 rounded-2xl shadow-xl shadow-slate-300/40 dark:shadow-2xl">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-yellow-400">MOD • 01</span>
-                <span className="text-[9px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300/60 dark:border-emerald-800/40 px-1.5 py-0.5 rounded font-bold">
-                  ATIVO
-                </span>
-              </div>
-              <p className="text-xs font-bold text-slate-900 dark:text-white mb-1">Calendário Operacional</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                Prazos ajustados automaticamente por feriados nacionais e regras de dias úteis.
-              </p>
-            </div>
-
-            {/* Callout Direita Superior (Status / Prazos) */}
-            <div className="hidden lg:block absolute -top-8 -right-6 z-20 w-64 bg-white/95 dark:bg-[#121722]/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 p-4 rounded-2xl shadow-xl shadow-slate-300/40 dark:shadow-2xl">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-yellow-400">KPI • TELEMETRIA</span>
-                <span className="text-[9px] font-mono text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-950/60 border border-indigo-300/60 dark:border-indigo-800/40 px-1.5 py-0.5 rounded font-bold">
-                  100% REGULAR
-                </span>
-              </div>
-              <p className="text-xs font-bold text-slate-900 dark:text-white mb-1">Simples & Lucro Real</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                Monitoramento de Fator R, sublimites e histórico de regimes tributários.
-              </p>
-            </div>
-
-            {/* Moldura Central com Imagem Real da Aplicação */}
+            {/* Moldura Central com Imagem Real da Aplicação em Camadas */}
             <div className="relative rounded-3xl p-2 sm:p-3 bg-gradient-to-b from-slate-200/60 via-slate-100/30 to-transparent dark:from-white/15 dark:via-white/5 dark:to-white/0 border border-slate-200/90 dark:border-white/10 shadow-2xl shadow-slate-300/50 dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden group transition-colors">
               
               {/* Barra de Título Técnica estilo Janela/Terminal */}
@@ -430,39 +478,111 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
                   <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-2 tracking-wider">
-                    APP://TASK-ACCOUNT/DASHBOARD_LIVE
+                    APP://TASK-ACCOUNT/TAREFAS_FISCAIS_LIVE
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <span className="hidden sm:inline-block text-[9px] font-mono text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded font-bold">
+                    REGIME: SIMPLES NACIONAL (ANEXO III)
+                  </span>
                   <span className="text-[9px] font-mono text-slate-600 dark:text-slate-400 uppercase bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-transparent px-2 py-0.5 rounded font-bold">
                     CONEXÃO SEGURA TLS
                   </span>
                 </div>
               </div>
 
-              {/* Imagem Real do Dashboard */}
-              <div className="relative overflow-hidden rounded-b-2xl bg-slate-900">
-                <img 
-                  src="/app-dashboard.png" 
-                  alt="Dashboard Task Account" 
-                  className="w-full h-auto object-cover transform group-hover:scale-[1.01] transition-transform duration-700"
-                />
+              {/* Palco Visual em Camadas (Tabela com Card Kanban Sobreposto) */}
+              <div className="relative overflow-hidden rounded-b-2xl bg-slate-100 dark:bg-[#080B11] p-3 sm:p-5 min-h-[460px] sm:min-h-[520px] lg:min-h-[580px] flex flex-col justify-start transition-colors">
+                
+                {/* Camada 1: Tabela de Tarefas e Obrigações */}
+                <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/90 shadow-lg dark:shadow-2xl transition-colors">
+                  <img 
+                    src={isDarkMode ? "/showcase-tasks-table.png" : "/showcase-tasks-table-light.png"} 
+                    alt="Tabela de Tarefas e Obrigações Fiscais" 
+                    className="w-full h-auto block"
+                  />
 
-                {/* Pins Interativos Sobre a Imagem */}
-                <div className="absolute top-[22%] left-[18%] hidden sm:flex items-center gap-2 bg-slate-950/95 backdrop-blur-md border border-yellow-400/50 px-3 py-1.5 rounded-xl shadow-xl animate-bounce">
-                  <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                  <span className="text-[10px] font-mono font-bold text-white uppercase">
-                    18 WIDGETS CONFIGURÁVEIS
-                  </span>
+                  {/* Pin Flutuante na Tabela */}
+                  <div className="absolute top-2.5 left-2.5 hidden md:flex items-center gap-2 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border border-amber-400/60 px-3 py-1.5 rounded-xl shadow-md dark:shadow-xl">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse" />
+                    <span className="text-[10px] font-mono font-bold text-slate-900 dark:text-white uppercase">
+                      FILTROS FISCAIS • COMPETÊNCIAS CONSECUTIVAS
+                    </span>
+                  </div>
                 </div>
 
-                <div className="absolute bottom-[20%] right-[15%] hidden sm:flex items-center gap-2 bg-slate-950/95 backdrop-blur-md border border-emerald-400/50 px-3 py-1.5 rounded-xl shadow-xl">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span className="text-[10px] font-mono font-bold text-white uppercase">
-                    MÉTRICAS POR COLABORADOR
-                  </span>
+                {/* Camada 2: Card Flutuante do Modo Kanban com Efeito 3D e Elevação */}
+                <div className="mt-4 md:mt-0 md:absolute md:bottom-4 md:right-6 lg:right-8 z-20 w-full max-w-[340px] md:w-[290px] lg:w-[330px] rounded-2xl p-1 bg-gradient-to-b from-amber-400/40 via-yellow-400/20 to-slate-200 dark:from-amber-400/50 dark:via-yellow-400/20 dark:to-slate-900 border border-amber-400/60 dark:border-yellow-400/70 shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.95)] transform md:hover:-translate-y-1.5 transition-all duration-300 mx-auto md:mx-0">
+                  <div className="relative rounded-xl overflow-hidden bg-white dark:bg-[#0F1420] transition-colors">
+                    {/* Header do Card Kanban Flutuante */}
+                    <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
+                        <span className="text-[9px] font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                          MODO KANBAN • TIMER ATIVO
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-mono text-amber-700 dark:text-yellow-400 bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 px-1.5 py-0.5 rounded font-bold">
+                        AO VIVO
+                      </span>
+                    </div>
+
+                    {/* Imagem do Card Kanban Completa sem Cortes */}
+                    <img 
+                      src={isDarkMode ? "/showcase-tasks-kanban.png" : "/showcase-tasks-kanban-light.png"} 
+                      alt="Card de Tarefa no Modo Kanban com Temporizador" 
+                      className="w-full h-auto block"
+                    />
+                  </div>
+                </div>
+
+                {/* Botão Chamativo "Saiba mais" sobre a Imagem do Hero */}
+                <div className="mt-4 md:mt-0 md:absolute md:bottom-5 md:left-6 lg:left-8 z-30 flex items-center justify-center md:justify-start">
+                  <a
+                    href="#modulos"
+                    className="group inline-flex items-center gap-2.5 px-5 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[11px] sm:text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(250,204,21,0.6)] hover:shadow-[0_0_35px_rgba(250,204,21,0.9)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-yellow-200/60"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping" />
+                    <span>Saiba mais</span>
+                    <div className="w-5 h-5 rounded-full bg-slate-950/20 flex items-center justify-center group-hover:translate-y-0.5 transition-transform">
+                      <ArrowDown size={12} className="stroke-[3]" />
+                    </div>
+                  </a>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Barra de Módulos Rápidos (Dock de Navegação por Valor Operacional) */}
+            <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left">
+                <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_#F59E0B]" />
+                <div>
+                  <p className="text-[11px] font-bold text-slate-900 dark:text-white leading-tight">1. Tarefas & Obrigações</p>
+                  <p className="text-[10px] text-amber-700 dark:text-yellow-400 font-mono">Tabela + Kanban Ativa</p>
                 </div>
               </div>
+              <a href="#modulos" onClick={() => setActiveModule('dashboard')} className="flex items-center gap-2.5 p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
+                <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-indigo-400 transition-colors" />
+                <div>
+                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight">2. Cockpit Analítico</p>
+                  <p className="text-[10px] text-slate-400 font-mono">18 widgets operacionais</p>
+                </div>
+              </a>
+              <a href="#modulos" onClick={() => setActiveModule('clients')} className="flex items-center gap-2.5 p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
+                <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-emerald-400 transition-colors" />
+                <div>
+                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight">3. Dossiê de Clientes</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Certificados & licenças</p>
+                </div>
+              </a>
+              <a href="#modulos" onClick={() => setActiveModule('chat')} className="flex items-center gap-2.5 p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
+                <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-sky-400 transition-colors" />
+                <div>
+                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight">4. Chat & Atendimento</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Canais com vídeo nativo</p>
+                </div>
+              </a>
             </div>
 
             {/* Barra Inferior com Call to Action Direto */}
@@ -585,22 +705,137 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 </button>
               </div>
 
-              {/* Imagem Real do Módulo (7 colunas) */}
+              {/* Imagem Real do Módulo (7 colunas) com Carrossel Especial para Chat */}
               <div className="lg:col-span-7">
-                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-950 p-2 shadow-xl overflow-hidden group">
-                  <div className="px-3 py-2 bg-slate-900 dark:bg-[#121722] border-b border-slate-800 flex items-center justify-between mb-2 rounded-t-lg">
-                    <span className="text-[9px] font-mono text-slate-400">INTERFACE // {currentMod.id.toUpperCase()}</span>
-                    <div className="flex gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-slate-700" />
-                      <div className="w-2 h-2 rounded-full bg-slate-700" />
+                {currentMod.id === 'chat' ? (
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-2 sm:p-2.5 shadow-xl overflow-hidden group transition-colors">
+                    {/* Header do Mockup com Seletor do Carrossel */}
+                    <div className="px-3 py-2 bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 mb-2 rounded-t-xl transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1.5 hidden sm:inline">
+                          {currentChatSlide.code}
+                        </span>
+                      </div>
+
+                      {/* Seletor de Abas do Carrossel (Clientes vs Equipe) */}
+                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0B0E14] p-1 rounded-xl border border-slate-200 dark:border-slate-800/80">
+                        {chatSlides.map((slide, idx) => {
+                          const isSlideActive = chatSlideIndex === idx;
+                          return (
+                            <button
+                              key={slide.id}
+                              onClick={() => setChatSlideIndex(idx)}
+                              className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+                                isSlideActive
+                                  ? 'bg-yellow-400 text-slate-950 shadow-sm'
+                                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${isSlideActive ? 'bg-slate-950' : 'bg-slate-400'}`} />
+                              <span>{slide.tabLabel}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Tag do Slide */}
+                      <span className="text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded">
+                        {currentChatSlide.badge}
+                      </span>
+                    </div>
+
+                    {/* Palco da Imagem do Carrossel (Sem Cortes) */}
+                    <div className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+                      <img
+                        key={`${chatSlideIndex}-${isDarkMode}`}
+                        src={isDarkMode ? currentChatSlide.darkImage : currentChatSlide.lightImage}
+                        alt={currentChatSlide.title}
+                        className="w-full h-auto block rounded-lg transition-all duration-300"
+                      />
+
+                      {/* Botão Anterior */}
+                      <button
+                        onClick={() => setChatSlideIndex((prev) => (prev === 0 ? 1 : 0))}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg z-10"
+                        title="Ver tela anterior"
+                        aria-label="Anterior"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+
+                      {/* Botão Próximo */}
+                      <button
+                        onClick={() => setChatSlideIndex((prev) => (prev === 1 ? 0 : 1))}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg z-10"
+                        title="Ver próxima tela"
+                        aria-label="Próximo"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+
+                    {/* Rodapé Informativo e Dots do Carrossel */}
+                    <div className="mt-2.5 px-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span className="font-medium truncate max-w-[80%]">
+                        {currentChatSlide.caption}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {chatSlides.map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setChatSlideIndex(i)}
+                            className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                              chatSlideIndex === i
+                                ? 'w-5 bg-amber-500 dark:bg-yellow-400'
+                                : 'w-1.5 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400'
+                            }`}
+                            aria-label={`Ir para slide ${i + 1}`}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <img
-                    src={currentMod.image}
-                    alt={currentMod.title}
-                    className="w-full h-auto rounded-lg object-cover transform group-hover:scale-[1.01] transition-transform duration-500"
-                  />
-                </div>
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-2 shadow-xl overflow-hidden group transition-colors">
+                    <div className="px-3 py-2 bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between mb-2 rounded-t-lg transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1.5">
+                          INTERFACE // {currentMod.id.toUpperCase()}
+                        </span>
+                      </div>
+                      {currentMod.id === 'clients' ? (
+                        <span className="text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded">
+                          DOSSIÊ CADASTRAL • 398 CLIENTES
+                        </span>
+                      ) : (
+                        <div className="flex gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-700" />
+                          <div className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-700" />
+                        </div>
+                      )}
+                    </div>
+                    <img
+                      key={`${currentMod.id}-${isDarkMode}`}
+                      src={
+                        currentMod.id === 'clients'
+                          ? (isDarkMode ? '/showcase-clients-dark.png' : '/showcase-clients-light.png')
+                          : currentMod.image
+                      }
+                      alt={currentMod.title}
+                      className="w-full h-auto rounded-lg block transform group-hover:scale-[1.01] transition-transform duration-500"
+                    />
+                  </div>
+                )}
               </div>
 
             </div>
