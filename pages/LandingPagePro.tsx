@@ -29,7 +29,10 @@ import {
   Moon,
   Building2,
   ArrowDown,
-  ChevronLeft
+  ChevronLeft,
+  Pause,
+  Maximize2,
+  X
 } from 'lucide-react';
 import { TenantOnboardingModal, PlanDetails } from '../components/TenantOnboardingModal';
 
@@ -37,41 +40,28 @@ import { TenantOnboardingModal, PlanDetails } from '../components/TenantOnboardi
 
 interface ShowcaseModule {
   id: string;
-  code: string;
+  code?: string;
   tag: string;
   title: string;
   desc: string;
   image: string;
+  darkImage?: string;
+  lightImage?: string;
+  badge?: string;
   stats: { label: string; value: string }[];
   bulletPoints: string[];
 }
 
 const modules: ShowcaseModule[] = [
   {
-    id: 'dashboard',
-    code: 'MOD-01',
-    tag: 'PAINEL DE CONTROLE',
-    title: 'Cockpit Operacional em Tempo Real',
-    desc: 'Visão executiva e telemetria completa da operação contábil. Monitore obrigações, prazos e métricas da equipe com dados vivos em vez de suposições.',
-    image: '/app-dashboard.png',
-    stats: [
-      { label: 'DISPONIBILIDADE', value: '99.9%' },
-      { label: 'TEMPO MÉDIO', value: '1.8h' },
-      { label: 'ATUALIZAÇÃO', value: 'Tempo Real' }
-    ],
-    bulletPoints: [
-      '18 widgets analíticos configuráveis com múltiplos cenários salvos',
-      'Calendário operacional com cálculo automático de dias úteis no Brasil',
-      'Monitoramento de regimes tributários, Simples Nacional e Fator R'
-    ]
-  },
-  {
     id: 'tasks',
-    code: 'MOD-02',
     tag: 'FLUXO & KANBAN',
     title: 'Gestão Inteligente de Tarefas e Prazos',
     desc: 'Controle de ponta a ponta de todas as rotinas fiscais, contábeis e trabalhistas. Motor autônomo de recorrência que projeta e ajusta prazos por até 12 meses.',
-    image: '/app-tasks.png',
+    image: '/showcase-tasks-table.png',
+    darkImage: '/showcase-tasks-table.png',
+    lightImage: '/showcase-tasks-table-light.png',
+    badge: 'TABELA FISCAL • COMPETÊNCIAS CONSECUTIVAS',
     stats: [
       { label: 'PONTUALIDADE', value: '98.4%' },
       { label: 'RECORRÊNCIA', value: '12 Meses' },
@@ -84,30 +74,12 @@ const modules: ShowcaseModule[] = [
     ]
   },
   {
-    id: 'clients',
-    code: 'MOD-03',
-    tag: 'CRM & AUDITORIA',
-    title: 'CRM e Dossiê Completo de Clientes',
-    desc: 'O cadastro contábil mais detalhado do mercado. Centralize credenciais DF-e, acessos governamentais, histórico de regimes e alertas de vencimento de certificados.',
-    image: '/showcase-clients-dark.png',
-    stats: [
-      { label: 'CERTIFICADOS', value: 'A1 / A3' },
-      { label: 'DF-E SUPORTADOS', value: '12+ Tipos' },
-      { label: 'ALVARÁS', value: 'Monitorados' }
-    ],
-    bulletPoints: [
-      'Cofre seguro de credenciais, sistemas e senhas de órgãos públicos',
-      'Acompanhamento de alvarás, licenças sanitárias e corpo de bombeiros',
-      'Histórico evolutivo de enquadramento e regimes de tributação'
-    ]
-  },
-  {
     id: 'chat',
-    code: 'MOD-04',
     tag: 'CENTRAL DE ATENDIMENTO',
     title: 'Chat Setorial & Portal do Cliente',
     desc: 'Comunicação direta entre setores internos e clientes. Envie guias, relatórios e notificações automáticas com chamadas de áudio e vídeo integradas.',
     image: '/app-chat.png',
+    badge: 'ATENDIMENTO MULTICANAL • VÍDEO',
     stats: [
       { label: 'VÍDEO / VOZ', value: 'Nativo' },
       { label: 'NOTIFICAÇÕES', value: 'Automáticas' },
@@ -118,39 +90,46 @@ const modules: ShowcaseModule[] = [
       'Modelos de mensagens automáticas com tags dinâmicas por vencimento',
       'Portal do cliente exclusivo para consulta e download de guias por competência'
     ]
-  }
-];
-
-const technicalSpecs = [
-  {
-    code: 'SPEC-01',
-    title: 'Cálculo de Dias Úteis BR',
-    desc: 'Ajuste automático de vencimentos considerando feriados nacionais e regras de antecipação/postergação.'
   },
   {
-    code: 'SPEC-02',
-    title: 'Motor de Recorrência',
-    desc: 'Geração autônoma de obrigações com horizonte de até 12 meses e auto-recomposição resiliente.'
+    id: 'dashboard',
+    tag: 'PAINEL DE CONTROLE',
+    title: 'Cockpit Operacional em Tempo Real',
+    desc: 'Visão executiva e telemetria completa da operação contábil. Monitore obrigações, prazos e métricas da equipe com dados vivos em vez de suposições.',
+    image: '/showcase-dashboard-dark.png',
+    darkImage: '/showcase-dashboard-dark.png',
+    lightImage: '/showcase-dashboard-light.png',
+    badge: 'TELEMETRIA AO VIVO • 18 WIDGETS',
+    stats: [
+      { label: 'DISPONIBILIDADE', value: '99.9%' },
+      { label: 'TEMPO MÉDIO', value: '1.8h' },
+      { label: 'ATUALIZAÇÃO', value: 'Tempo Real' }
+    ],
+    bulletPoints: [
+      '18 widgets analíticos configuráveis com múltiplos cenários salvos',
+      'Calendário operacional com cálculo automático de dias úteis no Brasil',
+      'Monitoramento de regimes tributários, Simples Nacional e Fator R'
+    ]
   },
   {
-    code: 'SPEC-03',
-    title: 'Telemetria por Colaborador',
-    desc: 'Monitoramento de taxa de entregas, velocidade média de conclusão e índice de pontualidade.'
-  },
-  {
-    code: 'SPEC-04',
-    title: 'Gestão de Certificados & Licenças',
-    desc: 'Alertas preventivos de expiração de certificados digitais (A1/A3) e alvarás sanitários/bombeiros.'
-  },
-  {
-    code: 'SPEC-05',
-    title: 'Segurança & Criptografia',
-    desc: 'Proteção de credenciais de acesso e controle rigoroso de permissões com Row Level Security.'
-  },
-  {
-    code: 'SPEC-06',
-    title: 'Videoconferência Integrada',
-    desc: 'Reuniões de áudio e vídeo em tempo real diretamente dentro dos canais de atendimento do cliente.'
+    id: 'clients',
+    tag: 'CRM & AUDITORIA',
+    title: 'CRM e Dossiê Completo de Clientes',
+    desc: 'O cadastro contábil mais detalhado do mercado. Centralize credenciais DF-e, acessos governamentais, histórico de regimes e alertas de vencimento de certificados.',
+    image: '/showcase-clients-dark.png',
+    darkImage: '/showcase-clients-dark.png',
+    lightImage: '/showcase-clients-light.png',
+    badge: 'DOSSIÊ CADASTRAL • 398 CLIENTES',
+    stats: [
+      { label: 'CERTIFICADOS', value: 'A1 / A3' },
+      { label: 'DF-E SUPORTADOS', value: '12+ Tipos' },
+      { label: 'ALVARÁS', value: 'Monitorados' }
+    ],
+    bulletPoints: [
+      'Cofre seguro de credenciais, sistemas e senhas de órgãos públicos',
+      'Acompanhamento de alvarás, licenças sanitárias e corpo de bombeiros',
+      'Histórico evolutivo de enquadramento e regimes de tributação'
+    ]
   }
 ];
 
@@ -254,11 +233,25 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
   isDarkMode = true,
   toggleTheme
 }) => {
-  const [activeModule, setActiveModule] = useState<string>('dashboard');
   const [chatSlideIndex, setChatSlideIndex] = useState<number>(0);
   const [selectedPlanForOnboarding, setSelectedPlanForOnboarding] = useState<PlanDetails | null>(null);
+  const [zoomImage, setZoomImage] = useState<{ src: string; title: string; subtitle?: string } | null>(null);
 
-  const currentMod = modules.find(m => m.id === activeModule) || modules[0];
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setZoomImage(null);
+      }
+    };
+    if (zoomImage) {
+      window.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [zoomImage]);
 
   const chatSlides = [
     {
@@ -285,6 +278,212 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
   const currentChatSlide = chatSlides[chatSlideIndex] || chatSlides[0];
 
+  const renderModuleMockup = (m: ShowcaseModule) => {
+    if (m.id === 'chat') {
+      const activeChatImg = isDarkMode ? currentChatSlide.darkImage : currentChatSlide.lightImage;
+      return (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-1.5 sm:p-2.5 shadow-xl overflow-hidden group/chat transition-colors">
+          {/* Header do Mockup com Seletor do Carrossel */}
+          <div className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 rounded-t-xl transition-colors">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex gap-1 sm:gap-1.5">
+                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500/80" />
+                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500/80" />
+                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500/80" />
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1 hidden xs:inline sm:inline">
+                {currentChatSlide.code}
+              </span>
+            </div>
+
+            {/* Seletor de Abas do Carrossel (Clientes vs Equipe) */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0B0E14] p-0.5 sm:p-1 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-800/80">
+              {chatSlides.map((slide, idx) => {
+                const isSlideActive = chatSlideIndex === idx;
+                return (
+                  <button
+                    key={slide.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setChatSlideIndex(idx);
+                    }}
+                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 ${
+                      isSlideActive
+                        ? 'bg-yellow-400 text-slate-950 shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSlideActive ? 'bg-slate-950' : 'bg-slate-400'}`} />
+                    <span>{slide.tabLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Tag do Slide e Botão de Expandir */}
+            <div className="flex items-center gap-1.5">
+              <span className="hidden sm:inline-block text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded">
+                {currentChatSlide.badge}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomImage({
+                    src: activeChatImg,
+                    title: `Módulo 02 // ${currentChatSlide.title}`,
+                    subtitle: currentChatSlide.caption
+                  });
+                }}
+                className="p-1 sm:p-1.5 rounded-md text-slate-400 hover:text-amber-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+                title="Ampliar visualização (tela cheia)"
+                aria-label="Ampliar visualização"
+              >
+                <Maximize2 size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Palco da Imagem do Carrossel (Sem Cortes + Click para Zoom) */}
+          <div 
+            onClick={() => setZoomImage({
+              src: activeChatImg,
+              title: `Módulo 02 // ${currentChatSlide.title}`,
+              subtitle: currentChatSlide.caption
+            })}
+            className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center cursor-zoom-in group/stage"
+          >
+            <img
+              key={`${chatSlideIndex}-${isDarkMode}`}
+              src={activeChatImg}
+              alt={currentChatSlide.title}
+              className="w-full h-auto block rounded-lg transition-transform duration-500 group-hover/stage:scale-[1.015]"
+            />
+
+            {/* Overlay sutil de dica de zoom no hover */}
+            <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover/stage:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 text-white text-[11px] font-semibold backdrop-blur-md border border-white/20 shadow-xl">
+                <Maximize2 size={12} className="text-yellow-400" />
+                Clique para ampliar
+              </span>
+            </div>
+
+            {/* Botão Anterior */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setChatSlideIndex((prev) => (prev === 0 ? 1 : 0));
+              }}
+              className="absolute left-1.5 sm:left-2.5 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg z-10"
+              title="Ver tela anterior"
+              aria-label="Anterior"
+            >
+              <ChevronLeft size={14} className="sm:scale-110" />
+            </button>
+
+            {/* Botão Próximo */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setChatSlideIndex((prev) => (prev === 1 ? 0 : 1));
+              }}
+              className="absolute right-1.5 sm:right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg z-10"
+              title="Ver próxima tela"
+              aria-label="Próximo"
+            >
+              <ChevronRight size={14} className="sm:scale-110" />
+            </button>
+          </div>
+
+          {/* Rodapé Informativo e Dots do Carrossel */}
+          <div className="mt-1.5 sm:mt-2.5 px-1.5 sm:px-2 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-medium truncate max-w-[75%] sm:max-w-[80%] text-[10px] sm:text-[11px]">
+              {currentChatSlide.caption}
+            </span>
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              {chatSlides.map((_, dotIdx) => (
+                <button
+                  key={dotIdx}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setChatSlideIndex(dotIdx);
+                  }}
+                  className={`h-1 sm:h-1.5 rounded-full transition-all cursor-pointer ${
+                    chatSlideIndex === dotIdx
+                      ? 'w-4 sm:w-5 bg-amber-500 dark:bg-yellow-400'
+                      : 'w-1 sm:w-1.5 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400'
+                  }`}
+                  aria-label={`Ir para slide ${dotIdx + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const moduleImg = isDarkMode ? (m.darkImage || m.image) : (m.lightImage || m.image);
+    return (
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-1.5 sm:p-2.5 shadow-xl overflow-hidden group/img transition-colors">
+        <div className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between mb-1.5 sm:mb-2 rounded-t-lg transition-colors">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex gap-1 sm:gap-1.5">
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500/80" />
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500/80" />
+              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500/80" />
+            </div>
+            <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1 truncate max-w-[170px] sm:max-w-none">
+              INTERFACE // {m.id.toUpperCase()}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {m.badge && (
+              <span className="text-[8px] sm:text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-1.5 sm:px-2 py-0.5 rounded truncate max-w-[120px] sm:max-w-none">
+                {m.badge}
+              </span>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setZoomImage({
+                  src: moduleImg,
+                  title: m.title,
+                  subtitle: m.tag
+                });
+              }}
+              className="p-1 sm:p-1.5 rounded-md text-slate-400 hover:text-amber-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+              title="Ampliar visualização (tela cheia)"
+              aria-label="Ampliar visualização"
+            >
+              <Maximize2 size={13} />
+            </button>
+          </div>
+        </div>
+        <div 
+          onClick={() => setZoomImage({
+            src: moduleImg,
+            title: m.title,
+            subtitle: m.tag
+          })}
+          className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-[#070A12] flex items-center justify-center cursor-zoom-in group/stage"
+        >
+          <img
+            key={`${m.id}-${isDarkMode}`}
+            src={moduleImg}
+            alt={m.title}
+            className="w-full h-auto rounded-lg block transform group-hover/stage:scale-[1.015] transition-transform duration-500"
+          />
+          {/* Overlay sutil de dica de zoom no hover */}
+          <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover/stage:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 text-white text-[11px] font-semibold backdrop-blur-md border border-white/20 shadow-xl">
+              <Maximize2 size={12} className="text-yellow-400" />
+              Clique para ampliar
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handleSelectPlan = (plan: typeof plans[0]) => {
     if (plan.name === 'Elite') {
       window.open('https://wa.me/5511999999999?text=Olá,%20gostaria%20de%20saber%20mais%20sobre%20o%20plano%20Elite%20do%20Task%20Account', '_blank');
@@ -302,7 +501,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0E14] text-slate-900 dark:text-slate-100 selection:bg-yellow-400 selection:text-black font-sans antialiased overflow-x-hidden transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0E14] text-slate-900 dark:text-slate-100 selection:bg-yellow-400 selection:text-black font-sans antialiased [overflow-x:clip] transition-colors duration-300">
       
       {/* ─── HEADER / NAVBAR FLUTUANTE ─── */}
       <header className="fixed top-0 left-0 right-0 z-50 px-3 sm:px-8 py-3 sm:py-6 pointer-events-none">
@@ -331,9 +530,6 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             </a>
             <a href="#modulos" className="px-3.5 py-1.5 rounded-lg hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
               Módulos
-            </a>
-            <a href="#engenharia" className="px-3.5 py-1.5 rounded-lg hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
-              Diferenciais
             </a>
             <a href="#planos" className="px-3.5 py-1.5 rounded-lg hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
               Planos
@@ -370,7 +566,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
       </header>
 
       {/* ─── HERO SECTION: ARQUITETURA TÉCNICA + DISPLAY GIGANTE ─── */}
-      <section className="relative pt-36 sm:pt-44 pb-20 px-4 sm:px-8 overflow-hidden">
+      <section className="relative pt-24 sm:pt-36 md:pt-44 pb-14 sm:pb-20 px-3 sm:px-8 overflow-hidden">
         
         {/* Iluminação Zenital & Grid de Engenharia de Fundo */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -392,20 +588,21 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         <div className="max-w-7xl mx-auto relative z-10">
           
           {/* Tag de Status Técnica Superior */}
-          <div className="flex justify-center mb-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 dark:bg-[#161D2B] border border-amber-300/70 dark:border-yellow-500/30 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm dark:shadow-lg dark:shadow-black/50">
-              <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-yellow-400 animate-pulse" />
+          <div className="flex justify-center mb-4 sm:mb-6">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-amber-50 dark:bg-[#161D2B] border border-amber-300/70 dark:border-yellow-500/30 text-amber-900 dark:text-yellow-400 text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm dark:shadow-lg dark:shadow-black/50">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 dark:bg-yellow-400 animate-pulse" />
               <span>SISTEMA DE GESTÃO OPERACIONAL CONTÁBIL</span>
             </div>
           </div>
 
           {/* TÍTULO HERO DISPLAY: Gestão ⚡ Contábil */}
-          <div className="text-center mb-6">
-            <h1 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight text-slate-900 dark:text-white leading-[0.95] flex items-center justify-center flex-wrap gap-x-4 sm:gap-x-8">
+          <div className="text-center mb-4 sm:mb-6">
+            <h1 className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.05] sm:leading-[0.95] flex items-center justify-center flex-wrap gap-x-2.5 sm:gap-x-8">
               <span>Gestão</span>
-              <span className="inline-flex items-center justify-center align-middle my-1">
-                <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(250,204,21,0.5)] transform -rotate-6 hover:rotate-0 transition-transform">
-                  <Zap size={36} className="fill-slate-950 stroke-slate-950 sm:scale-125" />
+              <span className="inline-flex items-center justify-center align-middle my-0.5 sm:my-1">
+                <div className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 rounded-xl sm:rounded-3xl flex items-center justify-center shadow-[0_0_25px_rgba(250,204,21,0.5)] transform -rotate-6 hover:rotate-0 transition-transform">
+                  <Zap size={22} className="fill-slate-950 stroke-slate-950 sm:hidden" />
+                  <Zap size={36} className="fill-slate-950 stroke-slate-950 hidden sm:block sm:scale-125" />
                 </div>
               </span>
               <span>Contábil</span>
@@ -413,86 +610,90 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           </div>
 
           {/* Subtítulo de Alto Impacto */}
-          <p className="text-slate-600 dark:text-slate-400 text-base sm:text-lg md:text-xl max-w-3xl mx-auto text-center font-normal leading-relaxed mb-8">
-            A plataforma unificada que transforma a rotina contábil em máxima eficiência. 
+          <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-base md:text-xl max-w-3xl mx-auto text-center font-normal leading-relaxed mb-6 sm:mb-8 px-2">
+            A plataforma unificada que transforma a gestão de tarefas contábeis em máxima eficiência. 
             Controle de ponta a ponta prazos, equipe, compliance fiscal e relacionamento com clientes em um único ambiente.
           </p>
 
-          {/* Pílulas Visuais dos 4 Grandes Pilares */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-5xl mx-auto mb-12 px-2">
+          {/* Pílulas Visuais dos 4 Grandes Pilares (Grid 2x2 no mobile, 4 colunas no desktop) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 max-w-5xl mx-auto mb-8 sm:mb-12 px-1 sm:px-2">
             {/* Pilar 1: Cadastro Ultra */}
-            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-amber-400/60 dark:hover:border-yellow-400/40 shadow-sm dark:shadow-none transition-all group">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-yellow-400/10 border border-amber-300/60 dark:border-yellow-400/20 flex items-center justify-center text-amber-600 dark:text-yellow-400 shrink-0 group-hover:scale-105 transition-transform">
-                <Building2 size={16} />
+            <div className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-amber-400/60 dark:hover:border-yellow-400/40 shadow-sm dark:shadow-none transition-all group">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-100 dark:bg-yellow-400/10 border border-amber-300/60 dark:border-yellow-400/20 flex items-center justify-center text-amber-600 dark:text-yellow-400 shrink-0 group-hover:scale-105 transition-transform">
+                <Building2 size={14} className="sm:hidden" />
+                <Building2 size={16} className="hidden sm:block" />
               </div>
               <div className="text-left">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">Cadastro Ultra</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Certificados, licenças, senhas e modelos DF-e</p>
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white leading-tight">Cadastro Ultra</h4>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5 line-clamp-2 sm:line-clamp-none">Certificados, licenças e modelos DF-e</p>
               </div>
             </div>
 
             {/* Pilar 2: Cockpit Analítico */}
-            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-indigo-400/60 dark:hover:border-indigo-400/40 shadow-sm dark:shadow-none transition-all group">
-              <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-400/10 border border-indigo-300/60 dark:border-indigo-400/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-105 transition-transform">
-                <BarChart3 size={16} />
+            <div className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-indigo-400/60 dark:hover:border-indigo-400/40 shadow-sm dark:shadow-none transition-all group">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-100 dark:bg-indigo-400/10 border border-indigo-300/60 dark:border-indigo-400/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-105 transition-transform">
+                <BarChart3 size={14} className="sm:hidden" />
+                <BarChart3 size={16} className="hidden sm:block" />
               </div>
               <div className="text-left">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">Cockpit Analítico</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Calendário operacional, tempo de execução e KPIs</p>
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white leading-tight">Cockpit Analítico</h4>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5 line-clamp-2 sm:line-clamp-none">Calendário operacional e KPIs ao vivo</p>
               </div>
             </div>
 
             {/* Pilar 3: Motor de Tarefas */}
-            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-emerald-400/60 dark:hover:border-emerald-400/40 shadow-sm dark:shadow-none transition-all group">
-              <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-400/10 border border-emerald-300/60 dark:border-emerald-400/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
-                <Zap size={16} />
+            <div className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-emerald-400/60 dark:hover:border-emerald-400/40 shadow-sm dark:shadow-none transition-all group">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-100 dark:bg-emerald-400/10 border border-emerald-300/60 dark:border-emerald-400/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+                <Zap size={14} className="sm:hidden" />
+                <Zap size={16} className="hidden sm:block" />
               </div>
               <div className="text-left">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">Controle de Tarefas</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Conformidade entre setores e zero perda de prazos</p>
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white leading-tight">Controle de Tarefas</h4>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5 line-clamp-2 sm:line-clamp-none">Conformidade e zero perda de prazos</p>
               </div>
             </div>
 
             {/* Pilar 4: CRM & Chat Integrado */}
-            <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-sky-400/60 dark:hover:border-sky-400/40 shadow-sm dark:shadow-none transition-all group">
-              <div className="w-8 h-8 rounded-xl bg-sky-100 dark:bg-sky-400/10 border border-sky-300/60 dark:border-sky-400/20 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
-                <MessageSquare size={16} />
+            <div className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/80 dark:border-white/10 hover:border-sky-400/60 dark:hover:border-sky-400/40 shadow-sm dark:shadow-none transition-all group">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-sky-100 dark:bg-sky-400/10 border border-sky-300/60 dark:border-sky-400/20 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
+                <MessageSquare size={14} className="sm:hidden" />
+                <MessageSquare size={16} className="hidden sm:block" />
               </div>
               <div className="text-left">
-                <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">CRM & Atendimento</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Chat interno/externo, comunicados e histórico</p>
+                <h4 className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white leading-tight">CRM & Atendimento</h4>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5 line-clamp-2 sm:line-clamp-none">Chat setorial, avisos e histórico</p>
               </div>
             </div>
           </div>
 
           {/* ─── HUD PRINCIPAL DO PRODUTO COM COMPOSIÇÃO EM CAMADAS (TABELA + KANBAN) ─── */}
-          <div id="cockpit" className="relative mt-8 max-w-6xl mx-auto">
+          <div id="cockpit" className="relative mt-4 sm:mt-8 max-w-6xl mx-auto">
             
             {/* Moldura Central com Imagem Real da Aplicação em Camadas */}
-            <div className="relative rounded-3xl p-2 sm:p-3 bg-gradient-to-b from-slate-200/60 via-slate-100/30 to-transparent dark:from-white/15 dark:via-white/5 dark:to-white/0 border border-slate-200/90 dark:border-white/10 shadow-2xl shadow-slate-300/50 dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden group transition-colors">
+            <div className="relative rounded-2xl sm:rounded-3xl p-1.5 sm:p-3 bg-gradient-to-b from-slate-200/60 via-slate-100/30 to-transparent dark:from-white/15 dark:via-white/5 dark:to-white/0 border border-slate-200/90 dark:border-white/10 shadow-xl sm:shadow-2xl shadow-slate-300/50 dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden group transition-colors">
               
               {/* Barra de Título Técnica estilo Janela/Terminal */}
-              <div className="bg-slate-100 dark:bg-[#121722] border border-slate-200 dark:border-slate-800/80 px-4 py-2.5 rounded-t-2xl flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-2 tracking-wider">
+              <div className="bg-slate-100 dark:bg-[#121722] border border-slate-200 dark:border-slate-800/80 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl sm:rounded-t-2xl flex items-center justify-between">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500/80" />
+                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500/80" />
+                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500/80" />
+                  <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1 sm:ml-2 tracking-wider truncate max-w-[140px] sm:max-w-none">
                     APP://TASK-ACCOUNT/TAREFAS_FISCAIS_LIVE
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <span className="hidden sm:inline-block text-[9px] font-mono text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded font-bold">
                     REGIME: SIMPLES NACIONAL (ANEXO III)
                   </span>
-                  <span className="text-[9px] font-mono text-slate-600 dark:text-slate-400 uppercase bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-transparent px-2 py-0.5 rounded font-bold">
-                    CONEXÃO SEGURA TLS
+                  <span className="text-[8px] sm:text-[9px] font-mono text-slate-600 dark:text-slate-400 uppercase bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-transparent px-1.5 sm:px-2 py-0.5 rounded font-bold">
+                    TLS ATIVO
                   </span>
                 </div>
               </div>
 
               {/* Palco Visual em Camadas (Tabela com Card Kanban Sobreposto) */}
-              <div className="relative overflow-hidden rounded-b-2xl bg-slate-100 dark:bg-[#080B11] p-3 sm:p-5 min-h-[460px] sm:min-h-[520px] lg:min-h-[580px] flex flex-col justify-start transition-colors">
+              <div className="relative overflow-hidden rounded-b-xl sm:rounded-b-2xl bg-slate-100 dark:bg-[#080B11] p-2 sm:p-5 sm:min-h-[520px] lg:min-h-[580px] flex flex-col justify-start transition-colors">
                 
                 {/* Camada 1: Tabela de Tarefas e Obrigações */}
                 <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/90 shadow-lg dark:shadow-2xl transition-colors">
@@ -512,17 +713,17 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 </div>
 
                 {/* Camada 2: Card Flutuante do Modo Kanban com Efeito 3D e Elevação */}
-                <div className="mt-4 md:mt-0 md:absolute md:bottom-4 md:right-6 lg:right-8 z-20 w-full max-w-[340px] md:w-[290px] lg:w-[330px] rounded-2xl p-1 bg-gradient-to-b from-amber-400/40 via-yellow-400/20 to-slate-200 dark:from-amber-400/50 dark:via-yellow-400/20 dark:to-slate-900 border border-amber-400/60 dark:border-yellow-400/70 shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.95)] transform md:hover:-translate-y-1.5 transition-all duration-300 mx-auto md:mx-0">
+                <div className="mt-3 md:mt-0 md:absolute md:bottom-4 md:right-6 lg:right-8 z-20 w-full max-w-[280px] sm:max-w-[340px] md:w-[290px] lg:w-[330px] rounded-2xl p-1 bg-gradient-to-b from-amber-400/40 via-yellow-400/20 to-slate-200 dark:from-amber-400/50 dark:via-yellow-400/20 dark:to-slate-900 border border-amber-400/60 dark:border-yellow-400/70 shadow-lg md:shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:md:shadow-[0_25px_60px_rgba(0,0,0,0.95)] transform md:hover:-translate-y-1.5 transition-all duration-300 mx-auto md:mx-0">
                   <div className="relative rounded-xl overflow-hidden bg-white dark:bg-[#0F1420] transition-colors">
                     {/* Header do Card Kanban Flutuante */}
-                    <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <div className="px-2.5 sm:px-3 py-1.5 bg-slate-50 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                        <span className="text-[9px] font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                        <span className="text-[8px] sm:text-[9px] font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                           MODO KANBAN • TIMER ATIVO
                         </span>
                       </div>
-                      <span className="text-[9px] font-mono text-amber-700 dark:text-yellow-400 bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 px-1.5 py-0.5 rounded font-bold">
+                      <span className="text-[8px] sm:text-[9px] font-mono text-amber-700 dark:text-yellow-400 bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 px-1.5 py-0.5 rounded font-bold">
                         AO VIVO
                       </span>
                     </div>
@@ -537,15 +738,15 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 </div>
 
                 {/* Botão Chamativo "Saiba mais" sobre a Imagem do Hero */}
-                <div className="mt-4 md:mt-0 md:absolute md:bottom-5 md:left-6 lg:left-8 z-30 flex items-center justify-center md:justify-start">
+                <div className="mt-3 md:mt-0 md:absolute md:bottom-5 md:left-6 lg:left-8 z-30 flex items-center justify-center md:justify-start">
                   <a
                     href="#modulos"
-                    className="group inline-flex items-center gap-2.5 px-5 py-2.5 sm:py-3 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[11px] sm:text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(250,204,21,0.6)] hover:shadow-[0_0_35px_rgba(250,204,21,0.9)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-yellow-200/60"
+                    className="group inline-flex items-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[10px] sm:text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(250,204,21,0.5)] hover:shadow-[0_0_35px_rgba(250,204,21,0.9)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-yellow-200/60"
                   >
-                    <span className="w-2 h-2 rounded-full bg-slate-950 animate-ping" />
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-950 animate-ping" />
                     <span>Saiba mais</span>
-                    <div className="w-5 h-5 rounded-full bg-slate-950/20 flex items-center justify-center group-hover:translate-y-0.5 transition-transform">
-                      <ArrowDown size={12} className="stroke-[3]" />
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-950/20 flex items-center justify-center group-hover:translate-y-0.5 transition-transform">
+                      <ArrowDown size={11} className="stroke-[3]" />
                     </div>
                   </a>
                 </div>
@@ -554,334 +755,149 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             </div>
 
             {/* Barra de Módulos Rápidos (Dock de Navegação por Valor Operacional) */}
-            <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left">
-                <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_#F59E0B]" />
-                <div>
-                  <p className="text-[11px] font-bold text-slate-900 dark:text-white leading-tight">1. Tarefas & Obrigações</p>
-                  <p className="text-[10px] text-amber-700 dark:text-yellow-400 font-mono">Tabela + Kanban Ativa</p>
-                </div>
-              </div>
-              <a href="#modulos" onClick={() => setActiveModule('dashboard')} className="flex items-center gap-2.5 p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
-                <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-indigo-400 transition-colors" />
-                <div>
-                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight">2. Cockpit Analítico</p>
-                  <p className="text-[10px] text-slate-400 font-mono">18 widgets operacionais</p>
+            <div className="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              <a href="#modulo-tasks" className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left hover:border-amber-500/50 transition-colors">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 shadow-[0_0_8px_#F59E0B] shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-900 dark:text-white leading-tight truncate">1. Tarefas & Prazos</p>
+                  <p className="text-[9px] sm:text-[10px] text-amber-700 dark:text-yellow-400 font-mono truncate">Tabela + Kanban</p>
                 </div>
               </a>
-              <a href="#modulos" onClick={() => setActiveModule('clients')} className="flex items-center gap-2.5 p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
-                <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-emerald-400 transition-colors" />
-                <div>
-                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight">3. Dossiê de Clientes</p>
-                  <p className="text-[10px] text-slate-400 font-mono">Certificados & licenças</p>
+              <a href="#modulo-chat" className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 group-hover:bg-sky-400 transition-colors shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight truncate">2. Chat & Suporte</p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">Vídeo & canais</p>
                 </div>
               </a>
-              <a href="#modulos" onClick={() => setActiveModule('chat')} className="flex items-center gap-2.5 p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
-                <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-sky-400 transition-colors" />
-                <div>
-                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight">4. Chat & Atendimento</p>
-                  <p className="text-[10px] text-slate-400 font-mono">Canais com vídeo nativo</p>
+              <a href="#modulo-dashboard" className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 group-hover:bg-indigo-400 transition-colors shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight truncate">3. Cockpit Executivo</p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">18 widgets</p>
+                </div>
+              </a>
+              <a href="#modulo-clients" className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 group-hover:bg-emerald-400 transition-colors shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight truncate">4. Dossiê Clientes</p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">Alvarás & DF-e</p>
                 </div>
               </a>
             </div>
-
-            {/* Barra Inferior com Call to Action Direto */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/90 dark:bg-[#121722]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 rounded-2xl shadow-lg shadow-slate-200/50 dark:shadow-none transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 flex items-center justify-center text-amber-600 dark:text-yellow-400 shrink-0">
-                  <ShieldCheck size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900 dark:text-white">Pronto para elevar o padrão do seu escritório?</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Acesso instantâneo a todos os módulos operacionais.</p>
-                </div>
-              </div>
-
-              <button
-                onClick={onLoginClick}
-                className="w-full sm:w-auto px-6 py-3 bg-slate-950 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-md"
-              >
-                <span>Acessar Plataforma</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-
           </div>
 
         </div>
       </section>
 
-      {/* ─── SEÇÃO DE MÓDULOS INTERATIVOS (DEMONSTRAÇÃO DE TELAS REAIS) ─── */}
-      <section id="modulos" className="py-24 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-slate-100/60 dark:bg-[#0D1017] transition-colors">
+      {/* ─── SEÇÃO DE MÓDULOS (STACKING CARDS - COBERTURA TOTAL RESPONSIVA) ─── */}
+      <section id="modulos" className="py-14 sm:py-20 md:py-24 px-3 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-slate-100/60 dark:bg-[#0D1017] transition-colors">
         <div className="max-w-7xl mx-auto">
           
           {/* Cabeçalho da Seção */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-600 dark:text-yellow-400 block mb-2">
-                ARQUITETURA DE MÓDULOS
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-                Engenharia para o seu dia a dia.
-              </h2>
-            </div>
-            <p className="text-slate-600 dark:text-slate-400 text-sm max-w-md">
-              Cada módulo foi desenvolvido para eliminar redundâncias e garantir que nenhuma obrigação fiscal ou prazo seja perdido.
+          <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-16 md:mb-20">
+            <span className="text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-widest text-amber-600 dark:text-yellow-400 block mb-1.5 sm:mb-2">
+              ARQUITETURA DE MÓDULOS
+            </span>
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
+              Engenharia para o seu dia a dia.
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm md:text-base mt-2 sm:mt-3 max-w-2xl mx-auto">
+              Cada módulo foi projetado de raiz para resolver os gargalos reais da rotina contábil, eliminando redundâncias e garantindo máxima conformidade.
             </p>
           </div>
 
-          {/* Seletor de Módulos (Tabs Técnicas) */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-            {modules.map((m) => {
-              const isActive = activeModule === m.id;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => setActiveModule(m.id)}
-                  className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[90px] ${
-                    isActive
-                      ? 'bg-white dark:bg-[#161D2B] border-amber-500 dark:border-yellow-400/80 shadow-md dark:shadow-lg dark:shadow-yellow-500/10'
-                      : 'bg-white/60 dark:bg-[#121722]/50 border-slate-200/70 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/15 hover:bg-white dark:hover:bg-[#121722]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-amber-600 dark:text-yellow-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                      {m.code}
-                    </span>
-                    {isActive && <div className="w-2 h-2 rounded-full bg-amber-500 dark:bg-yellow-400 shadow-[0_0_8px_#FACC15]" />}
-                  </div>
-                  <span className={`text-xs font-bold ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
-                    {m.tag}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Painel do Módulo Ativo */}
-          <div className="bg-white dark:bg-[#121722] border border-slate-200/90 dark:border-white/10 rounded-3xl p-6 sm:p-10 shadow-xl dark:shadow-2xl transition-colors">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+          {/* Trilha de Cards Empilhados (Stacking Track - Ampliado para max-w-7xl) */}
+          <div className="relative max-w-7xl mx-auto pb-16 sm:pb-24 space-y-10 sm:space-y-16 md:space-y-24">
+            {modules.map((m, i) => {
+              const stepNumber = String(i + 1).padStart(2, '0');
+              const totalSteps = String(modules.length).padStart(2, '0');
               
-              {/* Informações do Módulo (5 colunas) */}
-              <div className="lg:col-span-5 space-y-6">
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-amber-800 dark:text-yellow-400 uppercase tracking-widest bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 px-2.5 py-1 rounded-md">
-                    {currentMod.code} • {currentMod.tag}
-                  </span>
-                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-4 leading-tight">
-                    {currentMod.title}
-                  </h3>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mt-3">
-                    {currentMod.desc}
-                  </p>
-                </div>
-
-                {/* Métricas do Módulo */}
-                <div className="grid grid-cols-3 gap-2 py-4 border-y border-slate-200 dark:border-slate-800">
-                  {currentMod.stats.map((stat, i) => (
-                    <div key={i} className="flex flex-col">
-                      <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase">{stat.label}</span>
-                      <span className="text-sm font-black text-slate-900 dark:text-white mt-0.5">{stat.value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Bullets de Funcionalidades */}
-                <ul className="space-y-3">
-                  {currentMod.bulletPoints.map((bp, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-snug">
-                      <Check size={14} className="text-amber-500 dark:text-yellow-400 shrink-0 mt-0.5" />
-                      <span>{bp}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  onClick={onLoginClick}
-                  className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-600 dark:text-yellow-400 hover:text-amber-500 dark:hover:text-yellow-300 transition-colors pt-2 cursor-pointer"
+              return (
+                <div
+                  key={m.id}
+                  id={`modulo-${m.id}`}
+                  style={{ zIndex: 10 + i * 5 }}
+                  className="sticky top-16 sm:top-20 md:top-24 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 md:p-8 lg:p-8 bg-white dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 dark:border-t-yellow-400/30 shadow-[0_-8px_25px_rgba(0,0,0,0.06),0_15px_35px_rgba(0,0,0,0.04)] dark:shadow-[0_-14px_40px_rgba(0,0,0,0.95),0_20px_45px_rgba(0,0,0,0.8)] transition-all duration-300 group"
                 >
-                  <span>Experimentar este módulo</span>
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-
-              {/* Imagem Real do Módulo (7 colunas) com Carrossel Especial para Chat */}
-              <div className="lg:col-span-7">
-                {currentMod.id === 'chat' ? (
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-2 sm:p-2.5 shadow-xl overflow-hidden group transition-colors">
-                    {/* Header do Mockup com Seletor do Carrossel */}
-                    <div className="px-3 py-2 bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 mb-2 rounded-t-xl transition-colors">
-                      <div className="flex items-center gap-2">
-                        <div className="flex gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
-                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-                        </div>
-                        <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1.5 hidden sm:inline">
-                          {currentChatSlide.code}
-                        </span>
-                      </div>
-
-                      {/* Seletor de Abas do Carrossel (Clientes vs Equipe) */}
-                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0B0E14] p-1 rounded-xl border border-slate-200 dark:border-slate-800/80">
-                        {chatSlides.map((slide, idx) => {
-                          const isSlideActive = chatSlideIndex === idx;
-                          return (
-                            <button
-                              key={slide.id}
-                              onClick={() => setChatSlideIndex(idx)}
-                              className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                                isSlideActive
-                                  ? 'bg-yellow-400 text-slate-950 shadow-sm'
-                                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                              }`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${isSlideActive ? 'bg-slate-950' : 'bg-slate-400'}`} />
-                              <span>{slide.tabLabel}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Tag do Slide */}
-                      <span className="text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded">
-                        {currentChatSlide.badge}
+                  {/* Header interno do Card */}
+                  <div className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-5 border-b border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <span className="text-[9px] sm:text-[10px] font-mono font-bold text-amber-800 dark:text-yellow-400 uppercase tracking-widest bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
+                        {m.tag}
                       </span>
-                    </div>
-
-                    {/* Palco da Imagem do Carrossel (Sem Cortes) */}
-                    <div className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-                      <img
-                        key={`${chatSlideIndex}-${isDarkMode}`}
-                        src={isDarkMode ? currentChatSlide.darkImage : currentChatSlide.lightImage}
-                        alt={currentChatSlide.title}
-                        className="w-full h-auto block rounded-lg transition-all duration-300"
-                      />
-
-                      {/* Botão Anterior */}
-                      <button
-                        onClick={() => setChatSlideIndex((prev) => (prev === 0 ? 1 : 0))}
-                        className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg z-10"
-                        title="Ver tela anterior"
-                        aria-label="Anterior"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-
-                      {/* Botão Próximo */}
-                      <button
-                        onClick={() => setChatSlideIndex((prev) => (prev === 1 ? 0 : 1))}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg z-10"
-                        title="Ver próxima tela"
-                        aria-label="Próximo"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-
-                    {/* Rodapé Informativo e Dots do Carrossel */}
-                    <div className="mt-2.5 px-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                      <span className="font-medium truncate max-w-[80%]">
-                        {currentChatSlide.caption}
-                      </span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {chatSlides.map((_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setChatSlideIndex(i)}
-                            className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                              chatSlideIndex === i
-                                ? 'w-5 bg-amber-500 dark:bg-yellow-400'
-                                : 'w-1.5 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400'
-                            }`}
-                            aria-label={`Ir para slide ${i + 1}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-2 shadow-xl overflow-hidden group transition-colors">
-                    <div className="px-3 py-2 bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between mb-2 rounded-t-lg transition-colors">
-                      <div className="flex items-center gap-2">
-                        <div className="flex gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
-                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-                        </div>
-                        <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1.5">
-                          INTERFACE // {currentMod.id.toUpperCase()}
+                      {m.badge && (
+                        <span className="hidden sm:inline-block text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-md">
+                          {m.badge}
                         </span>
-                      </div>
-                      {currentMod.id === 'clients' ? (
-                        <span className="text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded">
-                          DOSSIÊ CADASTRAL • 398 CLIENTES
-                        </span>
-                      ) : (
-                        <div className="flex gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-700" />
-                          <div className="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-700" />
-                        </div>
                       )}
                     </div>
-                    <img
-                      key={`${currentMod.id}-${isDarkMode}`}
-                      src={
-                        currentMod.id === 'clients'
-                          ? (isDarkMode ? '/showcase-clients-dark.png' : '/showcase-clients-light.png')
-                          : currentMod.image
-                      }
-                      alt={currentMod.title}
-                      className="w-full h-auto rounded-lg block transform group-hover:scale-[1.01] transition-transform duration-500"
-                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl sm:text-3xl md:text-4xl font-black font-mono text-slate-300 dark:text-white/10 group-hover:text-amber-500/30 dark:group-hover:text-yellow-400/25 transition-colors select-none">
+                        {stepNumber} / {totalSteps}
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
 
-            </div>
-          </div>
+                  {/* Grid Otimizado: 4 Colunas para Textos vs 8 Colunas para a Imagem (67% de largura no Desktop) */}
+                  <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-7 lg:gap-8 items-stretch lg:items-center">
+                    
+                    {/* Informações do Módulo (4 colunas no Desktop) */}
+                    <div className="lg:col-span-4 flex flex-col space-y-3 sm:space-y-4">
+                      <div>
+                        <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white leading-tight">
+                          {m.title}
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed mt-1 sm:mt-2.5 line-clamp-2 sm:line-clamp-none">
+                          {m.desc}
+                        </p>
+                      </div>
 
-        </div>
-      </section>
+                      {/* Mockup da Interface no Mobile */}
+                      <div className="block lg:hidden my-1">
+                        {renderModuleMockup(m)}
+                      </div>
 
-      {/* ─── GRID DE ESPECIFICAÇÕES TÉCNICAS (ESTILO BLUEPRINT) ─── */}
-      <section id="engenharia" className="py-24 px-4 sm:px-8 bg-slate-50 dark:bg-[#0B0E14] border-t border-slate-200 dark:border-white/5 transition-colors">
-        <div className="max-w-7xl mx-auto">
-          
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-600 dark:text-yellow-400 block mb-2">
-              DIFERENCIAIS TÉCNICOS
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-              Construído para a complexidade brasileira.
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mt-3">
-              Não adaptamos ferramentas genéricas. O Task Account foi projetado de raiz para resolver os gargalos reais do setor contábil.
-            </p>
-          </div>
+                      {/* Métricas do Módulo (Compactas e alinhadas em 3 colunas) */}
+                      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 py-2 sm:py-3.5 border-y border-slate-200 dark:border-slate-800">
+                        {m.stats.map((stat, sIdx) => (
+                          <div key={sIdx} className="flex flex-col">
+                            <span className="text-[8px] sm:text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase truncate">{stat.label}</span>
+                            <span className="text-xs sm:text-sm lg:text-base font-black text-slate-900 dark:text-white mt-0.5">{stat.value}</span>
+                          </div>
+                        ))}
+                      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {technicalSpecs.map((spec, i) => (
-              <div 
-                key={i}
-                className="p-6 rounded-2xl bg-white dark:bg-[#121722]/60 border border-slate-200/80 dark:border-white/5 hover:border-amber-400/60 dark:hover:border-yellow-400/40 hover:bg-amber-50/20 dark:hover:bg-[#121722] shadow-sm dark:shadow-none transition-all duration-300 flex flex-col justify-between min-h-[160px] group"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-yellow-400/80 group-hover:text-amber-500 dark:group-hover:text-yellow-400">
-                      {spec.code}
-                    </span>
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 group-hover:bg-amber-500 dark:group-hover:bg-yellow-400 transition-colors" />
+                      {/* Bullets de Funcionalidades */}
+                      <ul className="space-y-2 sm:space-y-3 hidden sm:block">
+                        {m.bulletPoints.map((bp, bIdx) => (
+                          <li key={bIdx} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-snug">
+                            <Check size={14} className="text-amber-500 dark:text-yellow-400 shrink-0 mt-0.5" />
+                            <span>{bp}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <div className="pt-0.5 sm:pt-1">
+                        <button
+                          onClick={onLoginClick}
+                          className="inline-flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-600 dark:text-yellow-400 hover:text-amber-500 dark:hover:text-yellow-300 transition-colors cursor-pointer"
+                        >
+                          <span>Experimentar este módulo</span>
+                          <ArrowRight size={13} className="sm:scale-110" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Imagem Real do Módulo no Desktop (8 colunas à direita = 67% da largura) */}
+                    <div className="hidden lg:block lg:col-span-8">
+                      {renderModuleMockup(m)}
+                    </div>
+
                   </div>
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white mb-2 group-hover:text-amber-600 dark:group-hover:text-yellow-400 transition-colors">
-                    {spec.title}
-                  </h4>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                    {spec.desc}
-                  </p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
         </div>
@@ -1012,6 +1028,58 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             setSelectedPlanForOnboarding(null);
           }}
         />
+      )}
+
+      {/* ─── MODAL / LIGHTBOX DE VISUALIZAÇÃO AMPLIADA DOS MÓDULOS ─── */}
+      {zoomImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setZoomImage(null)}
+        >
+          {/* Barra de controle superior */}
+          <div 
+            className="w-full max-w-6xl flex items-center justify-between py-2.5 px-3.5 sm:px-5 mb-2 sm:mb-3 bg-slate-900/90 border border-white/15 rounded-xl backdrop-blur-md text-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-400 shrink-0 animate-pulse" />
+              <h4 className="text-xs sm:text-sm font-bold truncate text-slate-100">{zoomImage.title}</h4>
+              {zoomImage.subtitle && (
+                <span className="text-[10px] sm:text-xs text-slate-400 hidden md:inline truncate border-l border-white/15 pl-3">
+                  {zoomImage.subtitle}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] sm:text-xs text-slate-400 font-mono hidden sm:inline">
+                ESC para fechar
+              </span>
+              <button
+                onClick={() => setZoomImage(null)}
+                className="p-1 sm:p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                title="Fechar visualização"
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Palco da Imagem Ampliada com alta resolução */}
+          <div 
+            className="relative max-w-6xl max-h-[85vh] flex items-center justify-center overflow-auto rounded-2xl border border-white/15 shadow-2xl bg-slate-950/70 p-1 sm:p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={zoomImage.src}
+              alt={zoomImage.title}
+              className="max-w-full max-h-[82vh] w-auto h-auto object-contain rounded-xl select-none"
+            />
+          </div>
+        </div>
       )}
 
     </div>
