@@ -1,6 +1,6 @@
 /**
  * Utilitário para gerenciamento de notificações da Web Notification API nativa.
- * Permite alertar o usuário mesmo quando a aba do navegador não está em foco.
+ * Permite alertar o usuário mesmo quando a aba do navegador não está em foco ou no celular.
  */
 
 export async function requestBrowserNotificationPermission(): Promise<NotificationPermission> {
@@ -22,33 +22,44 @@ export function isBrowserNotificationSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
 
-export function sendBrowserNotification(title: string, options?: { body?: string; tag?: string; onClick?: () => void }) {
+export function sendBrowserNotification(
+  title: string,
+  options?: {
+    body?: string;
+    tag?: string;
+    icon?: string;
+    force?: boolean;
+    onClick?: () => void;
+  }
+) {
   if (!isBrowserNotificationSupported() || Notification.permission !== 'granted') {
     return;
   }
 
   try {
-    // Apenas dispara se o documento estiver oculto ou fora de foco para não ser redundante com o som/toast
     const isDocHidden = typeof document !== 'undefined' && document.hidden;
-    if (!isDocHidden) {
+    // Se force for verdadeiro ou a página estiver em segundo plano, exibe a notificação
+    if (!isDocHidden && !options?.force) {
       return;
     }
 
     const n = new Notification(title, {
       body: options?.body,
       tag: options?.tag || 'task-account-alert',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico'
+      icon: options?.icon || '/pwa-192x192.png',
+      badge: '/favicon.png'
     });
 
-    if (options?.onClick) {
-      n.onclick = () => {
+    n.onclick = () => {
+      try {
         window.focus();
-        options.onClick?.();
-        n.close();
-      };
-    }
-  } catch {
-    // Silencioso em caso de bloqueio
+      } catch {
+        // Silencioso se o sistema impedir foco automático
+      }
+      options?.onClick?.();
+      n.close();
+    };
+  } catch (err) {
+    console.warn('Erro ao enviar notificação nativa:', err);
   }
 }

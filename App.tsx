@@ -26,6 +26,7 @@ import { Button } from './components/ui/Button';
 import { updateTabMeta, TAB_CONFIG } from './utils/tabFavicon';
 import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
 import { ThemeTransitionOverlay } from './components/ui/ThemeTransitionOverlay';
+import { registerPushSubscription } from './utils/webPush';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -551,6 +552,9 @@ function App() {
 
       setUserRole(profileData.role as UserRole);
       setUserProfile(finalProfile);
+
+      // Registrar/atualizar a inscrição de Notificações Web Push PWA
+      registerPushSubscription(session.user.id, finalProfile.org_id).catch(() => {});
 
       // Buscar clientes para o TutorialsModal
       const effectiveOrgId = finalProfile.org_id || session.user.id;

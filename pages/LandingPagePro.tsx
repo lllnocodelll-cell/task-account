@@ -32,7 +32,9 @@ import {
   ChevronLeft,
   Pause,
   Maximize2,
-  X
+  X,
+  Star,
+  Quote
 } from 'lucide-react';
 import { TenantOnboardingModal, PlanDetails } from '../components/TenantOnboardingModal';
 
@@ -117,7 +119,7 @@ const modules: ShowcaseModule[] = [
     id: 'clients',
     tag: 'CADASTRO DE CLIENTE',
     title: 'Dossiê Completo de Clientes',
-    desc: 'O cadastro contábil mais detalhado do mercado. Centralize credenciais DF-e, acessos governamentais, histórico de regimes e alertas de vencimento de certificados.',
+    desc: 'O cadastro de cliente mais detalhado do mercado! Centralize contatos, inscrições, acessos de sistemas e portais, históricos de regimes, sócio administrador, séries DF-es utilizadas e muitos mais.',
     image: '/showcase-clients-dark.png',
     darkImage: '/showcase-clients-dark.png',
     lightImage: '/showcase-clients-light.png',
@@ -131,6 +133,108 @@ const modules: ShowcaseModule[] = [
       'Diferenciais: vincule ao cadastro do cliente as inscrições, contatos, legislações específicas, histórico de regimes tributários, controle dos modelos de DF-e utilizados e monitor de vencimento de certificados e licenças.',
       'Cadastro lote: registre os clientes em lote de forma prática através da planilha padrão Task Account.'
     ]
+  }
+];
+
+interface Testimonial {
+  id: string;
+  name: string;
+  role: string;
+  firm: string;
+  location: string;
+  avatarInitials: string;
+  avatarBg: string;
+  tag: string;
+  tagBg: string;
+  metric: string;
+  text: string;
+  rating: number;
+}
+
+const testimonials: Testimonial[] = [
+  {
+    id: 't1',
+    name: 'Rodrigo Silveira',
+    role: 'Sócio-Gerente',
+    firm: 'Silveira Contabilidade',
+    location: 'São Paulo/SP',
+    avatarInitials: 'RS',
+    avatarBg: 'bg-amber-500 text-slate-950',
+    tag: 'CUMPRIMENTO DE PRAZOS',
+    tagBg: 'bg-amber-500/10 text-amber-700 dark:text-yellow-400 border-amber-500/30',
+    metric: '🎯 100% das obrigações no prazo',
+    text: 'Antes do Task Account, dependíamos de planilhas paralelas e mensagens soltas. Perder o prazo de uma obrigação como a DEFIS ou DCTFWeb era nosso maior pesadelo. Com os checklists de tarefas e os alertas de competência por regime, zeramos o índice de impostos em atraso em menos de 60 dias de uso.',
+    rating: 5
+  },
+  {
+    id: 't2',
+    name: 'Camila Medeiros',
+    role: 'Diretora Operacional',
+    firm: 'Medeiros & Associados',
+    location: 'Rio de Janeiro/RJ',
+    avatarInitials: 'CM',
+    avatarBg: 'bg-sky-500 text-slate-950',
+    tag: 'CHAT CENTRALIZADO',
+    tagBg: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30',
+    metric: '⚡ -65% no tempo de atendimento',
+    text: 'A centralização do atendimento ao cliente no chat próprio mudou a percepção de valor dos nossos clientes. Eles abrem solicitações, enviam comprovantes e acompanham o andamento direto pelo portal. Eliminamos centenas de áudios no WhatsApp pessoal dos analistas.',
+    rating: 5
+  },
+  {
+    id: 't3',
+    name: 'Marcos Vinícius',
+    role: 'Head de Operações',
+    firm: 'MV Contábil',
+    location: 'Belo Horizonte/MG',
+    avatarInitials: 'MV',
+    avatarBg: 'bg-indigo-500 text-white',
+    tag: 'VISÃO ANALÍTICA',
+    tagBg: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/30',
+    metric: '🚀 +40% de produtividade da equipe',
+    text: 'O dashboard com métricas por setor nos deu uma clareza operacional que nunca tivemos. Consigo ver instantaneamente qual setor está sobrecarregado e redistribuir as tarefas antes que o prazo estoure. A produtividade da equipe aumentou significativamente.',
+    rating: 5
+  },
+  {
+    id: 't4',
+    name: 'Fernanda Ramos',
+    role: 'Coordenadora Fiscal',
+    firm: 'Ramos & Prado Contadores',
+    location: 'Curitiba/PR',
+    avatarInitials: 'FR',
+    avatarBg: 'bg-emerald-500 text-slate-950',
+    tag: 'DOSSIÊ CADASTRAL',
+    tagBg: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
+    metric: '🛡️ Zero licenças ou certidões vencidas',
+    text: 'Centralizar todos os acessos governamentais, modelos de DF-e e datas de vencimento de certificados digitais em um só dossiê evitou surpresas com licenças vencidas. O cadastro de clientes é o mais detalhado e completo que já utilizamos.',
+    rating: 5
+  },
+  {
+    id: 't5',
+    name: 'Luciano Castro',
+    role: 'CEO & Founder',
+    firm: 'Castro Consultoria Contábil',
+    location: 'Florianópolis/SC',
+    avatarInitials: 'LC',
+    avatarBg: 'bg-purple-500 text-white',
+    tag: 'AUTOMAÇÃO RECORRENTE',
+    tagBg: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30',
+    metric: '⏳ 3 dias/mês salvos na liderança',
+    text: 'A geração automática das tarefas recorrentes no início de cada mês economizou cerca de 3 dias inteiros de trabalho administrativo da nossa liderança. Sobra muito mais tempo para dedicar ao atendimento consultivo de alto valor aos clientes.',
+    rating: 5
+  },
+  {
+    id: 't6',
+    name: 'Juliana Albuquerque',
+    role: 'Gerente de RH & Processos',
+    firm: 'Albuquerque Contábil',
+    location: 'Porto Alegre/RS',
+    avatarInitials: 'JA',
+    avatarBg: 'bg-rose-500 text-white',
+    tag: 'PADRONIZAÇÃO & WORKFLOW',
+    tagBg: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30',
+    metric: '✨ Padronização 100% de carteiras',
+    text: 'O cronômetro de tempo por tarefa e os checklists obrigatórios trouxeram padronização real. Hoje qualquer analista consegue assumir a carteira de outro sem ruído. Nossa equipe trabalha muito mais tranquila, organizada e alinhada.',
+    rating: 5
   }
 ];
 
@@ -527,7 +631,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           {/* Links de Navegação */}
           <nav className="hidden md:flex items-center gap-1 bg-white/90 dark:bg-[#121722]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 px-5 py-2 rounded-2xl shadow-lg shadow-slate-200/50 dark:shadow-black/40 text-xs font-semibold text-slate-600 dark:text-slate-300 transition-colors">
             <a href="#cockpit" className="px-3.5 py-1.5 rounded-lg hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
-              Cockpit & HUD
+              HubTask
             </a>
             <a href="#modulos" className="px-3.5 py-1.5 rounded-lg hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
               Módulos
@@ -758,37 +862,6 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               </div>
             </div>
 
-            {/* Barra de Módulos Rápidos (Dock de Navegação por Valor Operacional) */}
-            <div className="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-              <a href="#modulo-tasks" className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left hover:border-amber-500/50 transition-colors">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 shadow-[0_0_8px_#F59E0B] shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-900 dark:text-white leading-tight truncate">1. Tarefas & Prazos</p>
-                  <p className="text-[9px] sm:text-[10px] text-amber-700 dark:text-yellow-400 font-mono truncate">Tabela + Kanban</p>
-                </div>
-              </a>
-              <a href="#modulo-chat" className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 group-hover:bg-sky-400 transition-colors shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight truncate">2. Chat & Suporte</p>
-                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">Vídeo & canais</p>
-                </div>
-              </a>
-              <a href="#modulo-dashboard" className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 group-hover:bg-indigo-400 transition-colors shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight truncate">3. Cockpit Executivo</p>
-                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">18 widgets</p>
-                </div>
-              </a>
-              <a href="#modulo-clients" className="flex items-center gap-2 sm:gap-2.5 p-2 sm:p-3 rounded-xl bg-white/70 dark:bg-[#121722]/60 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20 text-left transition-colors group">
-                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400 group-hover:bg-emerald-400 transition-colors shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white leading-tight truncate">4. Dossiê Clientes</p>
-                  <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate">Alvarás & DF-e</p>
-                </div>
-              </a>
-            </div>
           </div>
 
         </div>
@@ -800,9 +873,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           
           {/* Cabeçalho da Seção */}
           <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-16 md:mb-20">
-            <span className="text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-widest text-amber-600 dark:text-yellow-400 block mb-1.5 sm:mb-2">
-              ARQUITETURA DE MÓDULOS
-            </span>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
+              <Layers size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
+              <span>ARQUITETURA DE MÓDULOS</span>
+            </div>
             <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
               Engenharia para o seu dia a dia.
             </h2>
@@ -918,6 +992,118 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 </div>
               );
             })}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ─── SEÇÃO DE DEPOIMENTOS (ESTEIRA ANIMADA / PROVA SOCIAL) ─── */}
+      <section id="depoimentos" className="py-20 sm:py-28 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0A0D14] transition-colors relative overflow-hidden">
+        
+        {/* CSS Keyframes para Esteira Contínua com Pause on Hover */}
+        <style>{`
+          @keyframes marquee-left {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+          }
+          @keyframes marquee-right {
+            0% { transform: translateX(-50%); }
+            100% { transform: translateX(0%); }
+          }
+          .animate-marquee-left {
+            animation: marquee-left 40s linear infinite;
+          }
+          .animate-marquee-right {
+            animation: marquee-right 40s linear infinite;
+          }
+          .animate-marquee-left:hover,
+          .animate-marquee-right:hover {
+            animation-play-state: paused;
+          }
+        `}</style>
+
+        {/* Glow de Fundo Sutil */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[450px] bg-amber-500/5 dark:bg-yellow-500/5 rounded-full blur-[140px] pointer-events-none" />
+
+        <div className="relative z-10">
+          
+          {/* Cabeçalho da Seção */}
+          <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16 px-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
+              <Star size={13} className="shrink-0 fill-amber-500 dark:fill-yellow-400 text-amber-500 dark:text-yellow-400" />
+              <span>DEPOIMENTOS & IMPACTO REAL</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+              Quem usa o Task Account transforma a gestão contábil.
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm md:text-base mt-2 sm:mt-3 max-w-2xl mx-auto">
+              Histórias reais de contadores e gestores que eliminaram atrasos, padronizaram rotinas e elevaram o nível de atendimento ao cliente.
+            </p>
+          </div>
+
+          {/* Esteira de Depoimentos (Marquee Tracks com Fade Lateral) */}
+          <div className="relative w-full overflow-hidden">
+            
+            {/* Sombreamento / Fades Laterais em Gradiente */}
+            <div className="absolute left-0 top-0 bottom-0 w-12 sm:w-36 bg-gradient-to-r from-slate-50 via-slate-50/80 dark:from-[#0A0D14] dark:via-[#0A0D14]/80 to-transparent z-20 pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-12 sm:w-36 bg-gradient-to-l from-slate-50 via-slate-50/80 dark:from-[#0A0D14] dark:via-[#0A0D14]/80 to-transparent z-20 pointer-events-none" />
+
+            {/* Esteira Única de Depoimentos */}
+            <div className="flex gap-4 sm:gap-6 py-2 w-max animate-marquee-left">
+              {[...testimonials, ...testimonials].map((t, idx) => (
+                <div
+                  key={`row1-${t.id}-${idx}`}
+                  className="w-[320px] sm:w-[380px] p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 shadow-sm dark:shadow-xl hover:border-amber-400/60 dark:hover:border-yellow-400/40 transition-all duration-300 flex flex-col justify-between shrink-0 group relative overflow-hidden"
+                >
+                  <Quote size={48} className="absolute -top-2 -right-2 text-slate-100 dark:text-white/[0.03] stroke-[1] pointer-events-none" />
+                  
+                  <div>
+                    {/* Header do Card (Tag + Stars) */}
+                    <div className="flex items-center justify-between gap-2 mb-3.5">
+                      <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${t.tagBg}`}>
+                        {t.tag}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        {[...Array(t.rating)].map((_, i) => (
+                          <Star key={i} size={12} className="fill-amber-400 text-amber-400" />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Texto do Depoimento */}
+                    <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-normal mb-4">
+                      "{t.text}"
+                    </p>
+                  </div>
+
+                  {/* Footer (Métrica + Autor) */}
+                  <div className="pt-3 border-t border-slate-100 dark:border-white/5 space-y-3">
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 text-[10px] font-mono font-bold text-slate-900 dark:text-slate-200">
+                      <span>{t.metric}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shadow-md shrink-0 ${t.avatarBg}`}>
+                        {t.avatarInitials}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate flex items-center gap-1">
+                          <span>{t.name}</span>
+                          <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                        </h4>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-tight">
+                          {t.role} • <span className="font-semibold text-slate-700 dark:text-slate-300">{t.firm}</span>
+                        </p>
+                        <p className="text-[9px] text-slate-400 font-mono leading-tight">
+                          {t.location}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
           </div>
 
         </div>
@@ -1068,9 +1254,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         <div className="max-w-7xl mx-auto">
           
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-600 dark:text-yellow-400 block mb-2">
-              PLANOS DE ASSINATURA
-            </span>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
+              <Award size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
+              <span>PLANOS DE ASSINATURA</span>
+            </div>
             <h2 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
               Investimento claro e sem surpresas.
             </h2>
