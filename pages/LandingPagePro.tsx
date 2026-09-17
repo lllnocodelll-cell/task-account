@@ -57,78 +57,79 @@ const modules: ShowcaseModule[] = [
     id: 'tasks',
     tag: 'FLUXO & KANBAN',
     title: 'Gestão Inteligente de Tarefas e Prazos',
-    desc: 'Controle de ponta a ponta de todas as rotinas fiscais, contábeis e trabalhistas. Motor autônomo de recorrência que projeta e ajusta prazos por até 12 meses.',
+    desc: 'Controle de ponta a ponta de todas as rotinas fiscais, contábeis e trabalhistas.',
     image: '/showcase-tasks-table.png',
     darkImage: '/showcase-tasks-table.png',
     lightImage: '/showcase-tasks-table-light.png',
-    badge: 'TABELA FISCAL • COMPETÊNCIAS CONSECUTIVAS',
+    badge: 'TABELA DE TAREFAS',
     stats: [
       { label: 'PONTUALIDADE', value: '98.4%' },
-      { label: 'RECORRÊNCIA', value: '12 Meses' },
+      { label: 'RECORRÊNCIA', value: 'Dinâmica' },
       { label: 'CHECKLISTS', value: '100% Auditáveis' }
     ],
     bulletPoints: [
-      'Visão dupla: Tabela avançada com filtros em cascata e Quadro Kanban',
-      'Checklists com etapas obrigatórias e rastreamento de responsáveis',
-      'Regras flexíveis de vencimento: antecipação ou postergação por feriados'
+      'Tabela e Kanban: entrega uma visão completa da tarefa em execução.',
+      'Drawers: acesse com um clique as gavetas de dados do cliente, senhas fáceis, observações, legislação e muito mais, sem precisar sair do módulo de tarefas.',
+      'Workflow: crie fluxos de execução e garanta que todos os pontos importantes da tarefa foram checados antes da conclusão final.',
+      'Cards e métricas: visualize a quantidade de tarefas por status através dos cards e métricas disponíveis no módulo.',
+      'Criação de tarefas: cadastre tarefas em lote e ganhe tempo operacional.',
+      'Timer: controle o tempo de execução de cada tarefa e descubra quais obrigações mais tomam tempo da sua equipe.'
     ]
   },
   {
     id: 'chat',
     tag: 'CENTRAL DE ATENDIMENTO',
-    title: 'Chat Setorial & Portal do Cliente',
-    desc: 'Comunicação direta entre setores internos e clientes. Envie guias, relatórios e notificações automáticas com chamadas de áudio e vídeo integradas.',
+    title: 'Chat Interno e Atendimento ao Cliente',
+    desc: 'Comunicação direta e facilitada entre setores internos e clientes',
     image: '/app-chat.png',
-    badge: 'ATENDIMENTO MULTICANAL • VÍDEO',
+    badge: 'ATENDIMENTO MULTICANAL',
     stats: [
-      { label: 'VÍDEO / VOZ', value: 'Nativo' },
       { label: 'NOTIFICAÇÕES', value: 'Automáticas' },
-      { label: 'PORTAL', value: 'Exclusivo' }
+      { label: 'CHAT', value: 'Unificado' },
+      { label: 'HISTÓRICO', value: 'Preservado' },
+      { label: 'SEGURANÇA', value: 'Isolada (RLS)' }
     ],
     bulletPoints: [
-      'Canais segregados por departamento (Fiscal, Pessoal, Contábil, Societário)',
-      'Modelos de mensagens automáticas com tags dinâmicas por vencimento',
-      'Portal do cliente exclusivo para consulta e download de guias por competência'
+      'Chat centralizado: ferramenta completa de comunicação interna e de atendimento ao cliente, com opção de criação de grupos, interações, controle unificado do histórico de atendimento e muito mais.',
+      'Mensagens modelos: crie mensagens padronizadas para envios automáticos aos clientes, como lembretes de vencimentos, avisos de férias coletivas, atualizações sobre legislações e muito mais.'
     ]
   },
   {
     id: 'dashboard',
-    tag: 'PAINEL DE CONTROLE',
+    tag: 'CENTRAL DE DASHBOARDS',
     title: 'Cockpit Operacional em Tempo Real',
-    desc: 'Visão executiva e telemetria completa da operação contábil. Monitore obrigações, prazos e métricas da equipe com dados vivos em vez de suposições.',
+    desc: 'Dashboards robustos e modernos que auxiliam no monitoramento operacional do escritório.',
     image: '/showcase-dashboard-dark.png',
     darkImage: '/showcase-dashboard-dark.png',
     lightImage: '/showcase-dashboard-light.png',
     badge: 'TELEMETRIA AO VIVO • 18 WIDGETS',
     stats: [
-      { label: 'DISPONIBILIDADE', value: '99.9%' },
-      { label: 'TEMPO MÉDIO', value: '1.8h' },
-      { label: 'ATUALIZAÇÃO', value: 'Tempo Real' }
+      { label: 'WIDGETS', value: '18' },
+      { label: 'ATUALIZAÇÃO', value: 'Tempo Real' },
+      { label: 'VISÃO', value: 'Ampla' }
     ],
     bulletPoints: [
-      '18 widgets analíticos configuráveis com múltiplos cenários salvos',
-      'Calendário operacional com cálculo automático de dias úteis no Brasil',
-      'Monitoramento de regimes tributários, Simples Nacional e Fator R'
+      '18 widgets analíticos: painel operacional, calendário de obrigações, próximos vencimentos, segmentos mais atendidos, exclusão do simples, índices econômicos e controle dos vencimentos de certificados digitais e licenças.',
+      'Cenários: crie diversos cenários com os widgets que desejar para acessar de forma rápida.'
     ]
   },
   {
     id: 'clients',
-    tag: 'CRM & AUDITORIA',
-    title: 'CRM e Dossiê Completo de Clientes',
+    tag: 'CADASTRO DE CLIENTE',
+    title: 'Dossiê Completo de Clientes',
     desc: 'O cadastro contábil mais detalhado do mercado. Centralize credenciais DF-e, acessos governamentais, histórico de regimes e alertas de vencimento de certificados.',
     image: '/showcase-clients-dark.png',
     darkImage: '/showcase-clients-dark.png',
     lightImage: '/showcase-clients-light.png',
     badge: 'DOSSIÊ CADASTRAL • 398 CLIENTES',
     stats: [
-      { label: 'CERTIFICADOS', value: 'A1 / A3' },
-      { label: 'DF-E SUPORTADOS', value: '12+ Tipos' },
-      { label: 'ALVARÁS', value: 'Monitorados' }
+      { label: 'CADASTRO', value: 'Facilitado' },
+      { label: 'ALVARÁS', value: 'Até 15' },
+      { label: 'CERTIFICADOS', value: 'Até 15' }
     ],
     bulletPoints: [
-      'Cofre seguro de credenciais, sistemas e senhas de órgãos públicos',
-      'Acompanhamento de alvarás, licenças sanitárias e corpo de bombeiros',
-      'Histórico evolutivo de enquadramento e regimes de tributação'
+      'Diferenciais: vincule ao cadastro do cliente as inscrições, contatos, legislações específicas, histórico de regimes tributários, controle dos modelos de DF-e utilizados e monitor de vencimento de certificados e licenças.',
+      'Cadastro lote: registre os clientes em lote de forma prática através da planilha padrão Task Account.'
     ]
   }
 ];
@@ -531,6 +532,9 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             <a href="#modulos" className="px-3.5 py-1.5 rounded-lg hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
               Módulos
             </a>
+            <a href="#sobre-nos" className="px-3.5 py-1.5 rounded-lg hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
+              Sobre Nós
+            </a>
             <a href="#planos" className="px-3.5 py-1.5 rounded-lg hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
               Planos
             </a>
@@ -840,7 +844,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   </div>
 
                   {/* Grid Otimizado: 4 Colunas para Textos vs 8 Colunas para a Imagem (67% de largura no Desktop) */}
-                  <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-7 lg:gap-8 items-stretch lg:items-center">
+                  <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-7 lg:gap-8 items-stretch lg:items-start">
                     
                     {/* Informações do Módulo (4 colunas no Desktop) */}
                     <div className="lg:col-span-4 flex flex-col space-y-3 sm:space-y-4">
@@ -858,8 +862,8 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                         {renderModuleMockup(m)}
                       </div>
 
-                      {/* Métricas do Módulo (Compactas e alinhadas em 3 colunas) */}
-                      <div className="grid grid-cols-3 gap-1.5 sm:gap-2 py-2 sm:py-3.5 border-y border-slate-200 dark:border-slate-800">
+                      {/* Métricas do Módulo (Compactas e dinâmicas) */}
+                      <div className={`grid gap-1.5 sm:gap-2 py-2 sm:py-3.5 border-y border-slate-200 dark:border-slate-800 ${m.stats.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
                         {m.stats.map((stat, sIdx) => (
                           <div key={sIdx} className="flex flex-col">
                             <span className="text-[8px] sm:text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase truncate">{stat.label}</span>
@@ -870,12 +874,28 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
                       {/* Bullets de Funcionalidades */}
                       <ul className="space-y-2 sm:space-y-3 hidden sm:block">
-                        {m.bulletPoints.map((bp, bIdx) => (
-                          <li key={bIdx} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-snug">
-                            <Check size={14} className="text-amber-500 dark:text-yellow-400 shrink-0 mt-0.5" />
-                            <span>{bp}</span>
-                          </li>
-                        ))}
+                        {m.bulletPoints.map((bp, bIdx) => {
+                          const colonIndex = bp.indexOf(':');
+                          if (colonIndex !== -1) {
+                            const title = bp.substring(0, colonIndex + 1);
+                            const rest = bp.substring(colonIndex + 1);
+                            return (
+                              <li key={bIdx} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-snug">
+                                <Check size={14} className="text-amber-500 dark:text-yellow-400 shrink-0 mt-0.5" />
+                                <span>
+                                  <strong className="font-bold text-slate-900 dark:text-white">{title}</strong>
+                                  {rest}
+                                </span>
+                              </li>
+                            );
+                          }
+                          return (
+                            <li key={bIdx} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-snug">
+                              <Check size={14} className="text-amber-500 dark:text-yellow-400 shrink-0 mt-0.5" />
+                              <span>{bp}</span>
+                            </li>
+                          );
+                        })}
                       </ul>
 
                       <div className="pt-0.5 sm:pt-1">
@@ -898,6 +918,146 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 </div>
               );
             })}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ─── SEÇÃO SOBRE NÓS: CELSOFTWARE LTDA, PROPÓSITO & VISÃO DE FUTURO ─── */}
+      <section id="sobre-nos" className="py-20 sm:py-28 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0A0D14] transition-colors relative overflow-hidden">
+        
+        {/* Glow de Fundo Sutil */}
+        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-amber-500/5 dark:bg-yellow-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          
+          {/* Cabeçalho da Seção */}
+          <div className="text-center max-w-3xl mx-auto mb-14 sm:mb-20">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest mb-4">
+              <Building2 size={12} className="shrink-0" />
+              <span>CELSOFTWARE LTDA • DESDE AGOSTO DE 2021</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+              Nascemos da união entre a vivência contábil e a inovação tecnológica.
+            </h2>
+          </div>
+
+          {/* Grid Principal: História do Fundador vs Pilares do Propósito */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 items-stretch mb-16">
+            
+            {/* Card História & Fundador (7 colunas) */}
+            <div className="lg:col-span-7 flex flex-col justify-between p-6 sm:p-8 md:p-10 rounded-3xl bg-slate-50 dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 shadow-sm dark:shadow-2xl relative overflow-hidden">
+              <div className="space-y-4 sm:space-y-6 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-yellow-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-yellow-400/20 shrink-0">
+                    CA
+                  </div>
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Celso Andrade</h3>
+                    <p className="text-xs font-mono text-amber-600 dark:text-yellow-400">Contador & Fundador da Celsoftware Ltda</p>
+                  </div>
+                </div>
+
+                <p className="text-slate-700 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                  A <strong className="text-slate-900 dark:text-white font-bold">Celsoftware Ltda</strong> é uma software house fundada em agosto de 2021 por Celso Andrade, contador formado em Ciências Contábeis e empresário com forte atuação no setor. Nossa história começou a partir de uma percepção clara das trincheiras do mercado: a rotina contábil é complexa, e as ferramentas disponíveis muitas vezes não acompanham a necessidade de agilidade que a área exige.
+                </p>
+
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
+                  Vivenciando diariamente os desafios, gargalos e as demandas de um escritório de contabilidade, Celso decidiu criar uma empresa de tecnologia focada exclusivamente em resolver as dores reais do contador.
+                </p>
+              </div>
+
+              {/* Estatísticas Rápidas da Empresa */}
+              <div className="grid grid-cols-3 gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 text-center">
+                <div>
+                  <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">2021</span>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase">Fundação</span>
+                </div>
+                <div>
+                  <span className="block text-xl sm:text-2xl font-black text-amber-600 dark:text-yellow-400 font-mono">100%</span>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase">Foco Contábil</span>
+                </div>
+                <div>
+                  <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">3 Pilares</span>
+                  <span className="text-[10px] font-mono text-slate-400 uppercase">Soluções</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card Pilares & Propósito (5 colunas) */}
+            <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
+              <div className="p-6 sm:p-8 rounded-3xl bg-slate-50 dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 space-y-3">
+                <div className="flex items-center gap-2.5 text-amber-600 dark:text-yellow-400 font-mono text-xs font-bold uppercase tracking-wider">
+                  <Award size={16} />
+                  <span>NOSSO PROPÓSITO</span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Desenvolvemos soluções inteligentes com três pilares fundamentais. Sabemos que o tempo do contador é valioso, por isso criamos sistemas que simplificam processos e automatizam a rotina.
+                </p>
+              </div>
+
+              {/* 3 Pilares em Cards */}
+              <div className="grid grid-cols-1 gap-3">
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm">
+                  <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
+                    <Layers size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">1. Organização</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Centralização inteligente de tarefas, prazos, dossiê do cliente e arquivos sem bagunça.</p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm">
+                  <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
+                    <Zap size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">2. Produtividade</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Eliminação de tarefas manuais repetitivas através de automação e cronometragem de rotinas.</p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm">
+                  <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
+                    <TrendingUp size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">3. Escalabilidade</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Estrutura preparada para o seu escritório crescer em carteira de clientes mantendo a alta performance.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Banner Visão de Futuro */}
+          <div className="p-6 sm:p-10 rounded-3xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent dark:from-yellow-400/10 dark:via-amber-500/5 dark:to-transparent border border-amber-300/60 dark:border-yellow-400/20 relative overflow-hidden">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+              <div className="space-y-2 max-w-3xl">
+                <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-amber-700 dark:text-yellow-400 uppercase tracking-widest">
+                  <Sparkles size={15} />
+                  <span>NOSSA VISÃO DE FUTURO</span>
+                </div>
+                <p className="text-sm sm:text-base text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
+                  O mercado contábil está em constante evolução, e nós também. Acompanhamos as principais tendências de tecnologia e design para entregar plataformas modernas, com interfaces limpas, rápidas e de operacionalização extremamente simples e intuitiva.
+                </p>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                  "Acreditamos que um bom software não deve gerar dúvidas, mas sim resultados. Na Celsoftware, construímos exatamente o que o setor contábil precisa, com a fluidez e a inovação que o futuro exige."
+                </p>
+              </div>
+
+              <div className="shrink-0 pt-2 md:pt-0">
+                <button
+                  onClick={onLoginClick}
+                  className="px-6 py-3.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs tracking-wider uppercase shadow-lg shadow-yellow-400/20 transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <span>Conhecer o Task Account</span>
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -1004,17 +1164,17 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
       {/* ─── FOOTER MINIMALISTA E SÓBRIO ─── */}
       <footer className="py-12 px-4 sm:px-8 bg-slate-900 dark:bg-[#080B10] border-t border-slate-800 dark:border-white/5 text-xs text-slate-400 dark:text-slate-500 transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <div className="w-6 h-6 rounded bg-yellow-400 flex items-center justify-center text-slate-950 font-black">
               <Zap size={13} className="fill-slate-950 stroke-slate-950" />
             </div>
             <span className="font-bold text-white tracking-tight uppercase">Task Account</span>
             <span className="text-slate-600">|</span>
-            <span>A central de comando contábil</span>
+            <span>Desenvolvido por <a href="#sobre-nos" className="text-slate-300 hover:text-yellow-400 transition-colors font-semibold">Celsoftware Ltda</a></span>
           </div>
 
           <p className="text-center md:text-right">
-            © {new Date().getFullYear()} Task Account. Todos os direitos reservados. Fim das Planilhas.
+            © {new Date().getFullYear()} Task Account / Celsoftware Ltda. Todos os direitos reservados.
           </p>
         </div>
       </footer>
