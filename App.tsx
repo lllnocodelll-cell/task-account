@@ -40,6 +40,10 @@ interface UserProfile {
   org_name: string | null;
   job_title?: string | null;
   org_id: string | null;
+  client_id?: string | null;
+  client_ids?: string[];
+  sector_id?: string | null;
+  sector_ids?: string[];
 }
 
 const getInitialTab = (): string => {
@@ -68,6 +72,8 @@ function App() {
   const [initialClientsTabClientId, setInitialClientsTabClientId] = useState<string | null>(null);
   const [initialTasksTabTaskId, setInitialTasksTabTaskId] = useState<string | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState<number>(0);
+  const [pendingDocsCount, setPendingDocsCount] = useState<number>(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -570,6 +576,54 @@ function App() {
     }
   };
 
+  // Buscar e escutar em tempo real documentos pendentes de visualização para clientes
+  useEffect(() => {
+    if (!userProfile) return;
+    const clientIds = Array.isArray(userProfile.client_ids) && userProfile.client_ids.length > 0
+      ? userProfile.client_ids.filter(Boolean)
+      : userProfile.client_id ? [userProfile.client_id] : [];
+
+    if (clientIds.length === 0) return;
+
+    const fetchPendingDocs = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('client_documents')
+          .select('*', { count: 'exact', head: true })
+          .in('client_id', clientIds)
+          .eq('status', 'Pendente')
+          .neq('status', 'Excluído');
+
+        if (!error && count !== null) {
+          setPendingDocsCount(count);
+        }
+      } catch (err) {
+        console.error('Error fetching pending docs count:', err);
+      }
+    };
+
+    fetchPendingDocs();
+
+    const channel = supabase
+      .channel(`app-pending-docs-${userProfile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'client_documents',
+        },
+        () => {
+          fetchPendingDocs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userProfile]);
+
   const refreshUserProfile = () => {
     if (session) {
       fetchUserProfile(session);
@@ -651,7 +705,14 @@ function App() {
           />
         );
       case 'client-portal':
-        return <ClientPortal userProfile={userProfile} onNavigateToChat={() => setActiveTab('chat')} />;
+        return (
+          <ClientPortal 
+            userProfile={userProfile} 
+            onNavigateToChat={() => setActiveTab('chat')} 
+            onPendingDocsCountChange={setPendingDocsCount}
+            chatUnreadCount={chatUnreadCount}
+          />
+        );
       case 'support':
         return (
           <div className="flex flex-col items-center justify-center h-[60vh] text-center">
@@ -873,6 +934,8 @@ function App() {
         userRole={userRole}
         isDarkMode={isDarkMode}
         toggleTheme={toggleTheme}
+        pendingDocsCount={pendingDocsCount}
+        onChatUnreadCountChange={setChatUnreadCount}
       />
 
       <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
@@ -889,6 +952,8 @@ function App() {
           onUnreadCountChange={setUnreadNotificationsCount}
           userRole={userRole}
           userProfile={userProfile}
+          chatUnreadCount={chatUnreadCount}
+          pendingDocsCount={pendingDocsCount}
         />
 
         <main className={`flex-1 overflow-x-hidden ${['tasks', 'clients'].includes(activeTab) ? 'px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4' : 'p-4 md:p-8'}`}>

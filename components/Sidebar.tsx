@@ -32,6 +32,8 @@ interface SidebarProps {
   userRole: UserRole;
   isDarkMode?: boolean;
   toggleTheme?: () => void;
+  pendingDocsCount?: number;
+  onChatUnreadCountChange?: (count: number) => void;
 }
 
 interface MenuItemProps {
@@ -56,7 +58,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenInstall,
   userRole,
   isDarkMode,
-  toggleTheme
+  toggleTheme,
+  pendingDocsCount = 0,
+  onChatUnreadCountChange
 }) => {
   const { isStandalone, isInstalled } = usePWAInstall();
   const [unreadCounts, setUnreadCounts] = useState<{ internal: number; support: number; notification: number }>({ internal: 0, support: 0, notification: 0 });
@@ -150,6 +154,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })
       );
       setUnreadCounts({ internal: internalTotal, support: supportTotal, notification: notificationTotal });
+      const totalUnread = userRole === 'cliente' 
+        ? (supportTotal + notificationTotal) 
+        : (internalTotal + supportTotal + notificationTotal);
+      onChatUnreadCountChange?.(totalUnread);
     } catch (error) {
       console.error('Error polling chats count:', error);
     }
@@ -222,7 +230,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const mainMenuItems: MenuItemProps[] = userRole === 'cliente' 
     ? [
-        { id: 'client-portal', label: 'Área do Cliente', icon: <UserCircle size={20} /> },
+        { 
+          id: 'client-portal', 
+          label: 'Área do Cliente', 
+          icon: <UserCircle size={20} />,
+          badgeNotification: pendingDocsCount > 0 ? pendingDocsCount : undefined,
+        },
         {
           id: 'chat',
           label: 'Atendimento',

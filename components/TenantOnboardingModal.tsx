@@ -22,6 +22,7 @@ import { Input } from './ui/Input';
 import { supabase } from '../utils/supabaseClient';
 import { formatCnpjCpf } from '../utils/stringUtils';
 import { BrandLogo } from './ui/BrandLogo';
+import { LegalModal, LegalTabType } from './lgpd/LegalModal';
 
 export interface PlanDetails {
   name: string;
@@ -82,6 +83,9 @@ export const TenantOnboardingModal: React.FC<TenantOnboardingModalProps> = ({
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvc, setCardCvc] = useState('');
   const [pixCopied, setPixCopied] = useState(false);
+  const [agreeLegal, setAgreeLegal] = useState<boolean>(true);
+  const [legalModalOpen, setLegalModalOpen] = useState<boolean>(false);
+  const [legalInitialTab, setLegalInitialTab] = useState<LegalTabType>('terms');
 
   // Máscara CNPJ Alfanumérico / CPF
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -642,15 +646,57 @@ export const TenantOnboardingModal: React.FC<TenantOnboardingModalProps> = ({
                 </div>
               </div>
 
-              <div className="pt-4 flex items-center justify-between gap-2.5">
+              {/* Consentimento Obrigatório LGPD & Termos de Uso */}
+              <div className="pt-2">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none text-[11px] sm:text-xs text-slate-600 dark:text-slate-400">
+                  <input
+                    type="checkbox"
+                    checked={agreeLegal}
+                    onChange={(e) => setAgreeLegal(e.target.checked)}
+                    required
+                    className="mt-0.5 rounded border-slate-300 dark:border-white/20 text-yellow-500 focus:ring-yellow-400 w-4 h-4 cursor-pointer shrink-0"
+                  />
+                  <span className="leading-tight">
+                    Declaro que li e concordo com os{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setLegalInitialTab('terms');
+                        setLegalModalOpen(true);
+                      }}
+                      className="text-amber-600 dark:text-yellow-400 font-bold hover:underline cursor-pointer"
+                    >
+                      Termos de Uso
+                    </button>{' '}
+                    e com a{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setLegalInitialTab('privacy');
+                        setLegalModalOpen(true);
+                      }}
+                      className="text-amber-600 dark:text-yellow-400 font-bold hover:underline cursor-pointer"
+                    >
+                      Política de Privacidade (LGPD)
+                    </button>{' '}
+                    da Celsoftware Ltda.
+                  </span>
+                </label>
+              </div>
+
+              <div className="pt-3 flex items-center justify-between gap-2.5">
                 <Button type="button" variant="secondary" onClick={() => setStep(2)} icon={<ArrowLeft size={16} />} disabled={loading}>
                   Voltar
                 </Button>
                 <Button 
                   type="submit" 
                   size="lg" 
-                  className="bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black shadow-lg shadow-yellow-400/20"
-                  disabled={loading}
+                  className={`bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black shadow-lg shadow-yellow-400/20 ${!agreeLegal ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={loading || !agreeLegal}
                 >
                   {loading ? (
                     <span className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
@@ -672,6 +718,13 @@ export const TenantOnboardingModal: React.FC<TenantOnboardingModalProps> = ({
         </div>
 
       </div>
+
+      {/* Central de Termos e LGPD integrada ao Onboarding */}
+      <LegalModal
+        isOpen={legalModalOpen}
+        onClose={() => setLegalModalOpen(false)}
+        initialTab={legalInitialTab}
+      />
     </div>
   );
 };

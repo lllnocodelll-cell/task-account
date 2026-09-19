@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Bell, Sun, Moon, Menu, Link2, MonitorPlay, ExternalLink } from 'lucide-react';
+import { Bell, Sun, Moon, Menu, Link2, MonitorPlay, ExternalLink, MessageSquareMore, UserCircle } from 'lucide-react';
 import { UserRole } from '../types';
 import { NotificationsDrawer } from './notifications/NotificationsDrawer';
 import { UsefulLinksDrawer } from './UsefulLinksDrawer';
@@ -33,6 +33,8 @@ interface HeaderProps {
   onUnreadCountChange?: (count: number) => void;
   userRole: UserRole;
   userProfile: UserProfile | null;
+  chatUnreadCount?: number;
+  pendingDocsCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,7 +49,9 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateToClient,
   onUnreadCountChange,
   userRole,
-  userProfile
+  userProfile,
+  chatUnreadCount = 0,
+  pendingDocsCount = 0
 }) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -111,6 +115,47 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center justify-end flex-nowrap shrink-0 gap-1.5 sm:gap-2 md:gap-3 ml-auto">
+        {/* Atalhos Rápidos para o Cliente: Área do Cliente & Chat (dispensa abrir a sidebar no celular) */}
+        {(userRole === 'cliente' || activeTab === 'client-portal') && onNavigateToTab && (
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-0.5 sm:p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shrink-0">
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('client-portal')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
+                activeTab === 'client-portal'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              <UserCircle size={15} />
+              <span className="hidden sm:inline">Área do Cliente</span>
+              <span className="sm:hidden text-[11px]">Portal</span>
+              {pendingDocsCount > 0 && (
+                <span className="min-w-[17px] h-[17px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center animate-in zoom-in duration-200 shadow-xs">
+                  {pendingDocsCount > 99 ? '99+' : pendingDocsCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('chat')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
+                activeTab === 'chat'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              <MessageSquareMore size={15} />
+              <span className="text-[11px] sm:text-xs">Chat</span>
+              {chatUnreadCount > 0 && (
+                <span className="min-w-[17px] h-[17px] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center animate-in zoom-in duration-200 shadow-xs">
+                  {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
         {userRole !== 'cliente' && (
           <>
             <div className="tooltip-container tooltip-bottom shrink-0">
