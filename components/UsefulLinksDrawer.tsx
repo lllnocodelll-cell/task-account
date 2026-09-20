@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabaseClient';
 import { Button } from './ui/Button';
 import { Input, Select } from './ui/Input';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { DrawerBackButton } from './ui/DrawerBackButton';
 import { useToast } from '../contexts/ToastContext';
 
 interface UsefulLinksDrawerProps {
@@ -292,12 +293,7 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
                 Novo
               </button>
             )}
-            <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
+            <DrawerBackButton onClick={onClose} />
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Dashboard } from './pages/Dashboard';
@@ -26,6 +26,7 @@ import { updateTabMeta, TAB_CONFIG } from './utils/tabFavicon';
 import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
 import { ThemeTransitionOverlay } from './components/ui/ThemeTransitionOverlay';
 import { registerPushSubscription } from './utils/webPush';
+import { GlobalChatNotifier } from './components/chat/GlobalChatNotifier';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -93,6 +94,17 @@ function App() {
   const [isDeactivatedModalOpen, setIsDeactivatedModalOpen] = useState(false);
   const [isCredentialsChangedModalOpen, setIsCredentialsChangedModalOpen] = useState(false);
   const [updatedEmailInfo, setUpdatedEmailInfo] = useState<{ oldEmail: string; newEmail: string } | null>(null);
+  const previousTabRef = useRef<string | null>(null);
+  const prevActiveTabRef = useRef<string>(activeTab);
+
+  useEffect(() => {
+    if (prevActiveTabRef.current !== activeTab) {
+      if (prevActiveTabRef.current !== 'profile' && prevActiveTabRef.current !== 'settings') {
+        previousTabRef.current = prevActiveTabRef.current;
+      }
+      prevActiveTabRef.current = activeTab;
+    }
+  }, [activeTab]);
 
   const handleNavigateToClient = (clientId: string) => {
     setInitialClientsTabClientId(clientId);
@@ -145,6 +157,9 @@ function App() {
     }
 
     updateTabMeta(activeTab, userRole, unreadNotificationsCount);
+    if (activeTab === 'chat') {
+      window.scrollTo(0, 0);
+    }
 
     // Synchronize URL search params (?tab=...) without reloading page
     try {
@@ -690,9 +705,20 @@ function App() {
       case 'chat':
         return <Chat />;
       case 'settings':
-        return <Settings userProfile={userProfile} />;
+        return (
+          <Settings 
+            userProfile={userProfile} 
+            onBack={() => setActiveTab(previousTabRef.current || (userRole === 'cliente' ? 'client-portal' : 'dashboard'))}
+          />
+        );
       case 'profile':
-        return <Profile userProfile={userProfile} onProfileUpdate={refreshUserProfile} />;
+        return (
+          <Profile 
+            userProfile={userProfile} 
+            onProfileUpdate={refreshUserProfile} 
+            onBack={() => setActiveTab(previousTabRef.current || (userRole === 'cliente' ? 'client-portal' : 'dashboard'))}
+          />
+        );
       case 'notifications':
         return (
           <Notifications 
@@ -917,7 +943,7 @@ function App() {
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-300">
+      <div className={`min-h-screen ${activeTab === 'chat' ? 'h-screen md:min-h-screen overflow-hidden md:overflow-visible' : ''} bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-300`}>
       <Sidebar
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -937,7 +963,7 @@ function App() {
         onChatUnreadCountChange={setChatUnreadCount}
       />
 
-      <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${activeTab === 'chat' ? 'h-full max-h-full overflow-hidden' : ''} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
         <Header
           activeTab={activeTab}
           isDarkMode={isDarkMode}
@@ -955,8 +981,8 @@ function App() {
           pendingDocsCount={pendingDocsCount}
         />
 
-        <main className={`flex-1 overflow-x-hidden ${['tasks', 'clients'].includes(activeTab) ? 'px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4' : 'p-4 md:p-8'}`}>
-          <div className="max-w-[1600px] mx-auto w-full">
+        <main className={`flex-1 min-h-0 ${activeTab === 'chat' ? 'fixed inset-x-0 top-16 bottom-0 md:relative md:inset-auto md:top-auto p-0 md:p-8 overflow-hidden flex flex-col' : ['tasks', 'clients'].includes(activeTab) ? 'overflow-x-clip px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4' : 'overflow-x-clip p-4 md:p-8'}`}>
+          <div className={`mx-auto w-full ${activeTab === 'chat' ? 'h-full flex-1 min-h-0 flex flex-col max-w-[1600px]' : 'max-w-[1600px]'}`}>
             {renderContent()}
           </div>
         </main>
@@ -974,6 +1000,22 @@ function App() {
       )}
 
       <ToastContainer />
+
+      {userProfile && (
+        <GlobalChatNotifier
+          userProfile={userProfile}
+          activeTab={activeTab}
+          onNavigateToChat={(channelId) => {
+            setActiveTab('chat');
+            if (channelId) {
+              const url = new URL(window.location.href);
+              url.searchParams.set('tab', 'chat');
+              url.searchParams.set('channelId', channelId);
+              window.history.replaceState({}, '', url.toString());
+            }
+          }}
+        />
+      )}
 
       <ProfileDrawer 
         isOpen={isProfileDrawerOpen} 

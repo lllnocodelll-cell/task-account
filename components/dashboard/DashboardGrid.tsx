@@ -6,6 +6,7 @@ import 'react-resizable/css/styles.css';
 import { supabase } from '../../utils/supabaseClient';
 import { Settings2, LayoutGrid, X, GripVertical, FolderHeart, ChevronDown, Plus, Trash2, Edit3, Search, CheckSquare, Square } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
+import { DrawerBackButton } from '../ui/DrawerBackButton';
 
 // Import Widgets
 import { StatusByUserWidget } from './widgets/StatusByUserWidget';
@@ -942,12 +943,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                             <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
                         </div>
                     </div>
-                    <button 
-                        onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 rounded-full transition-all duration-200"
-                    >
-                        <X size={20} />
-                    </button>
+                    <DrawerBackButton onClick={onClose} />
                 </div>
 
                 {/* Content */}

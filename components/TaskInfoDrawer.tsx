@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Task } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { DrawerBackButton } from './ui/DrawerBackButton';
 
 interface TaskInfoDrawerProps {
   isOpen: boolean;
@@ -139,12 +140,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
               </div>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"
-          >
-            <X size={20} />
-          </button>
+          <DrawerBackButton onClick={onClose} />
         </div>
 
         {/* Content */}

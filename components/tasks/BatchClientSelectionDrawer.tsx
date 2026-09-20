@@ -11,6 +11,7 @@ import {
   Lock
 } from 'lucide-react';
 import { Client, TAX_REGIME_LABELS } from '../../types';
+import { DrawerBackButton } from '../ui/DrawerBackButton';
 
 interface BatchClientSelectionDrawerProps {
   isOpen: boolean;
@@ -354,13 +355,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
               <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            <X size={18} />
-          </button>
+          <DrawerBackButton onClick={onClose} />
         </div>
 
         {/* Área Superior de Filtros e Busca */}

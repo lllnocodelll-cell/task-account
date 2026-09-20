@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { DrawerBackButton } from './ui/DrawerBackButton';
 import { TaskTimer } from './tasks/TaskTimer';
 import { Tooltip } from './ui/Tooltip';
 
@@ -792,12 +793,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               <Pencil size={14} />
               Editar
             </button>
-            <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
+            <DrawerBackButton onClick={onClose} />
           </div>
         </div>
 

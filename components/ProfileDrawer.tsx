@@ -19,6 +19,7 @@ import {
   Landmark
 } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
+import { DrawerBackButton } from './ui/DrawerBackButton';
 import { calculateStoragePercentage, getStorageUsageStatus, bytesToGb, formatStorageUsed } from '../constants/plans';
 
 interface UserProfile {
@@ -204,12 +205,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
               <Pencil size={14} />
               Editar
             </button>
-            <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
+            <DrawerBackButton onClick={onClose} />
           </div>
         </div>
 

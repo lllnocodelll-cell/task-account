@@ -29,6 +29,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
+import { DrawerBackButton } from '../ui/DrawerBackButton';
 import { soundEffects } from '../../utils/soundEffects';
 import { 
   sendBrowserNotification, 
@@ -511,12 +512,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                 <span>Lidas</span>
               </button>
             </Tooltip>
-            <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
+            <DrawerBackButton onClick={onClose} />
           </div>
         </div>
 

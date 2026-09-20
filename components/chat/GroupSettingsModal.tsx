@@ -4,8 +4,9 @@ import { supabase } from '../../utils/supabaseClient';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Loader2, Users, Trash2, UserPlus, UserMinus, Pencil, AlertTriangle, UserCog, X, Check, Search } from 'lucide-react';
+import { Loader2, Users, Trash2, UserPlus, UserMinus, Pencil, AlertTriangle, UserCog, Check, Search } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
+import { DrawerBackButton } from '../ui/DrawerBackButton';
 
 interface Profile {
     id: string;
@@ -280,12 +281,7 @@ export const GroupSettingsDrawer: React.FC<GroupSettingsDrawerProps> = ({
                             <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
                         </div>
                     </div>
-                    <button 
-                        onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-                    >
-                        <X size={20} />
-                    </button>
+                    <DrawerBackButton onClick={onClose} />
                 </div>
 
                 {/* Drawer Body (Scrollable) */}

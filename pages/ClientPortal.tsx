@@ -41,6 +41,7 @@ import { supabase } from '../utils/supabaseClient';
 import { Modal } from '../components/ui/Modal';
 import { Tooltip } from '../components/ui/Tooltip';
 import { useToast } from '../contexts/ToastContext';
+import { PushNotificationBanner } from '../components/pwa/PushNotificationBanner';
 
 interface ClientPortalProps {
   userProfile: any;
@@ -649,26 +650,15 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             Aqui estão os documentos da sua empresa.
           </p>
         </div>
-
-        {/* Atalho Rápido para o Chat de Atendimento */}
-        {onNavigateToChat && (
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={onNavigateToChat}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
-            >
-              <MessageSquare size={14} />
-              <span>Falar no Chat</span>
-              {chatUnreadCount > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-                  {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                </span>
-              )}
-            </button>
-          </div>
-        )}
       </header>
+
+      {/* ── Banner de Notificações Web Push (PWA) ── */}
+      {userProfile?.id && (
+        <PushNotificationBanner 
+          userId={userProfile.id} 
+          orgId={userProfile.org_id} 
+        />
+      )}
 
       {/* ── Dashboard Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

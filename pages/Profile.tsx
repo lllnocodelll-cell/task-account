@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { User, Mail, Phone, MapPin, Camera, Shield, Key, Save, LogOut, Loader2, Briefcase, ScanFace, Building2, Upload, FileText, ExternalLink, HardDrive, ChevronDown, Eye, EyeOff, Check, X, Lock } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Shield, Key, Save, LogOut, Loader2, Briefcase, ScanFace, Building2, Upload, FileText, ExternalLink, HardDrive, ChevronDown, Eye, EyeOff, Check, X, Lock, ArrowLeft } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Modal } from '../components/ui/Modal';
 import { UserRole, TAX_REGIME_LABELS } from '../types';
@@ -11,6 +11,7 @@ import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { PasswordStrengthMeter } from '../components/ui/PasswordStrengthMeter';
 import { formatCnpjCpf } from '../utils/stringUtils';
+import { PushNotificationBanner } from '../components/pwa/PushNotificationBanner';
 import { 
    PLANS_LIST, 
    getPlanConfig, 
@@ -25,6 +26,7 @@ import {
 interface ProfileProps {
    userProfile: any;
    onProfileUpdate?: () => void;
+   onBack?: () => void;
 }
 
 interface UserProfile {
@@ -41,7 +43,7 @@ interface UserProfile {
    client_ids?: string[];
 }
 
-export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }) => {
+export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, onBack }) => {
    const [activeTab, setActiveTab] = useState('personal');
    const [loading, setLoading] = useState(true);
    const [updating, setUpdating] = useState(false);
@@ -585,6 +587,43 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
       }
    };
 
+   const handleBack = () => {
+      if (onBack) {
+         onBack();
+      } else {
+         window.history.back();
+      }
+   };
+
+   const handleCancelPersonal = () => {
+      if (profile) {
+         setFullName(profile.full_name || '');
+         setPhone(profile.phone || '');
+         setLocation(profile.location || '');
+         setOrgName(profile.org_name || '');
+         setJobTitle(profile.job_title || '');
+         setRole(profile.role || 'gestor');
+      }
+      addToast('info', 'Alterações Descartadas', 'Os dados pessoais foram restaurados.');
+   };
+
+   const handleCancelSecurity = () => {
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+      addToast('info', 'Campos Limpos', 'Os campos de senha foram cancelados.');
+   };
+
+   const handleCancelOffice = () => {
+      if (profile?.org_id) {
+         fetchOfficeDetails(profile.org_id);
+      }
+      addToast('info', 'Alterações Descartadas', 'Os dados do escritório foram restaurados.');
+   };
+
    if (loading) {
       return (
          <div className="flex items-center justify-center p-12">
@@ -595,16 +634,29 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
 
    return (
       <div className="space-y-6">
-         <div className="flex items-center gap-3 mb-2 md:mb-0">
-            <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
-               <ScanFace size={18} className="text-slate-500 dark:text-slate-400" />
+         <div className="flex items-center justify-between mb-2 md:mb-0">
+            <div className="flex items-center gap-3">
+               <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                  <ScanFace size={18} className="text-slate-500 dark:text-slate-400" />
+               </div>
+               <div className="flex flex-col">
+                  <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                     Meu Perfil
+                  </h1>
+                  <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+               </div>
             </div>
-            <div className="flex flex-col">
-               <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
-                  Meu Perfil
-               </h1>
-               <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
-            </div>
+
+            <Button
+               type="button"
+               variant="secondary"
+               size="sm"
+               onClick={handleBack}
+               icon={<ArrowLeft size={16} />}
+               className="font-semibold text-xs shadow-2xs"
+            >
+               Voltar
+            </Button>
          </div>
 
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -764,14 +816,35 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                  placeholder="São Paulo, SP"
                               />
                            </div>
-                           <div className="flex justify-end pt-4">
+                           <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                               <Button
-                                 icon={updating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                                 onClick={handleUpdateProfile}
-                                 disabled={updating}
+                                 type="button"
+                                 variant="ghost"
+                                 onClick={handleBack}
+                                 icon={<ArrowLeft size={16} />}
                               >
-                                 {updating ? 'Salvando...' : 'Salvar Alterações'}
+                                 Voltar
                               </Button>
+                              <div className="flex items-center justify-end gap-3">
+                                 <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={handleCancelPersonal}
+                                    disabled={updating}
+                                    icon={<X size={16} />}
+                                 >
+                                    Cancelar
+                                 </Button>
+                                 <Button
+                                    type="button"
+                                    variant="primary"
+                                    icon={updating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                    onClick={handleUpdateProfile}
+                                    disabled={updating}
+                                 >
+                                    {updating ? 'Salvando...' : 'Salvar Alterações'}
+                                 </Button>
+                              </div>
                            </div>
                         </div>
                      )}
@@ -878,14 +951,51 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                               </div>
                            </div>
 
-                           <div className="flex justify-end pt-4">
+                                                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">
+                                 Notificações no Dispositivo (Web Push)
+                              </h3>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                                 Receba alertas em tempo real no seu smartphone ou navegador mesmo com o aplicativo fechado.
+                              </p>
+                              {profile?.id && (
+                                 <PushNotificationBanner 
+                                    compact 
+                                    userId={profile.id} 
+                                    orgId={profile.org_id} 
+                                 />
+                              )}
+                           </div>
+
+<div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                               <Button
-                                 icon={updatingPassword ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                                 onClick={handleUpdatePassword}
-                                 disabled={updatingPassword || (confirmNewPassword.length > 0 && confirmNewPassword !== newPassword)}
+                                 type="button"
+                                 variant="ghost"
+                                 onClick={handleBack}
+                                 icon={<ArrowLeft size={16} />}
                               >
-                                 {updatingPassword ? 'Atualizando...' : 'Atualizar Segurança'}
+                                 Voltar
                               </Button>
+                              <div className="flex items-center justify-end gap-3">
+                                 <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={handleCancelSecurity}
+                                    disabled={updatingPassword}
+                                    icon={<X size={16} />}
+                                 >
+                                    Cancelar
+                                 </Button>
+                                 <Button
+                                    type="button"
+                                    variant="primary"
+                                    icon={updatingPassword ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                    onClick={handleUpdatePassword}
+                                    disabled={updatingPassword || (confirmNewPassword.length > 0 && confirmNewPassword !== newPassword)}
+                                 >
+                                    {updatingPassword ? 'Atualizando...' : 'Atualizar Segurança'}
+                                 </Button>
+                              </div>
                            </div>
                         </div>
                      )}
@@ -980,6 +1090,17 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                  })}
                               </div>
                            )}
+
+                           <div className="flex justify-start pt-4 border-t border-slate-100 dark:border-slate-800">
+                              <Button
+                                 type="button"
+                                 variant="ghost"
+                                 onClick={handleBack}
+                                 icon={<ArrowLeft size={16} />}
+                              >
+                                 Voltar
+                              </Button>
+                           </div>
                         </div>
                      )}
 
@@ -1101,14 +1222,35 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                                          </div>
                                                       </div>
 
-                                                      <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                                                      <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                                                          <Button
-                                                            icon={savingOffice ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                                                            onClick={handleSaveOffice}
-                                                            disabled={savingOffice}
+                                                            type="button"
+                                                            variant="ghost"
+                                                            onClick={handleBack}
+                                                            icon={<ArrowLeft size={16} />}
                                                          >
-                                                            {savingOffice ? 'Salvando Escritório...' : 'Salvar Dados do Escritório'}
+                                                            Voltar
                                                          </Button>
+                                                         <div className="flex items-center justify-end gap-3">
+                                                            <Button
+                                                               type="button"
+                                                               variant="secondary"
+                                                               onClick={handleCancelOffice}
+                                                               disabled={savingOffice}
+                                                               icon={<X size={16} />}
+                                                            >
+                                                               Cancelar
+                                                            </Button>
+                                                            <Button
+                                                               type="button"
+                                                               variant="primary"
+                                                               icon={savingOffice ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                                                               onClick={handleSaveOffice}
+                                                               disabled={savingOffice}
+                                                            >
+                                                               {savingOffice ? 'Salvando Escritório...' : 'Salvar Dados do Escritório'}
+                                                            </Button>
+                                                         </div>
                                                       </div>
                                                    </div>
                                                 ) : (
@@ -1152,6 +1294,16 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate }
                                                             </div>
                                                          </div>
                                                       )}
+                                                      <div className="flex justify-start pt-4 border-t border-slate-100 dark:border-slate-800">
+                                                         <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            onClick={handleBack}
+                                                            icon={<ArrowLeft size={16} />}
+                                                         >
+                                                            Voltar
+                                                         </Button>
+                                                      </div>
                                                    </div>
                                                 )}
                                              </div>

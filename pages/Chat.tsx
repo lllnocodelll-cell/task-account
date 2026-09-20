@@ -58,6 +58,7 @@ import { formatMessageText, stripFormatting } from '../utils/stringUtils';
 import { Tooltip } from '../components/ui/Tooltip';
 import { useToast } from '../contexts/ToastContext';
 import { MessageTemplatesDrawer } from '../components/chat/MessageTemplatesDrawer';
+import { triggerPushNotification } from '../utils/webPush';
 
 interface Channel {
   id: string;
@@ -432,7 +433,19 @@ const showBrowserNotification = (title: string, options?: NotificationOptions) =
   if (typeof window !== 'undefined' && 'Notification' in window) {
     if (Notification.permission === 'granted') {
       try {
-        new Notification(title, options);
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(title, {
+              ...options,
+              icon: options?.icon || '/pwa-192x192.png',
+              badge: '/favicon.png'
+            });
+          }).catch(() => {
+            new Notification(title, options);
+          });
+        } else {
+          new Notification(title, options);
+        }
       } catch (e) {
         console.warn('Erro ao disparar notificação:', e);
       }
@@ -1139,7 +1152,22 @@ export const Chat: React.FC = () => {
   const isFetchingMoreRef = useRef<boolean>(false);
 
   const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    const scrollContainer = () => {
+      const container = messagesContainerRef.current;
+      if (container) {
+        if (behavior === 'smooth') {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+          });
+        } else {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+    };
+
+    scrollContainer();
+    requestAnimationFrame(scrollContainer);
   };
 
   const fetchSectors = async (effectiveOrgId?: string) => {
@@ -1256,6 +1284,11 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     selectedChannelIdRef.current = selectedChannelId;
   }, [selectedChannelId]);
+
+  // Garantir que a janela nunca fique com scroll deslocado no celular ao alternar conversas
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [selectedChannelId, showSidebarOnMobile]);
 
   // Listener global protegido: incrementar badge de não lidas com filtros "in.()"
   const channelIdsStr = channels.map(c => c.id).sort().join(',');
@@ -4386,6 +4419,16 @@ export const Chat: React.FC = () => {
 
       // Manter last_read_at atualizado ao enviar mensagem
       markChannelAsRead(selectedChannelId);
+
+      // Disparar notificação Web Push em segundo plano para os membros do canal
+      const senderProfile = profiles.find(p => p.id === userId);
+      triggerPushNotification({
+        channelId: selectedChannelId,
+        senderId: userId,
+        senderName: senderProfile?.full_name || 'Usuário',
+        senderAvatar: senderProfile?.avatar_url || undefined,
+        text: textToSend || (filesToSend.length > 0 ? '📎 Enviou um anexo' : 'Nova mensagem')
+      });
     } catch (error) {
       console.error('Error sending message:', error);
       // Remover a mensagem otimista em caso de falha
@@ -4622,7 +4665,7 @@ export const Chat: React.FC = () => {
   });
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-x border-b md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative -mx-4 -mt-4 -mb-4 md:mx-0 md:mt-0 md:mb-0">
+    <div className="flex h-full md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-0 md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative m-0 md:m-0">
 
       {/* Sidebar - Contact List */}
       <div className={`transition-all duration-300 ease-in-out overflow-hidden h-full flex-col bg-slate-50/50 dark:bg-slate-950/30 absolute md:relative z-10 ${showSidebarOnMobile ? 'w-full flex' : 'w-0 hidden md:flex'} ${isSidebarCollapsed ? 'md:w-0 md:opacity-0 border-r border-transparent pointer-events-none' : 'md:w-[328px] md:opacity-100 border-r border-slate-200 dark:border-slate-800'}`}>
@@ -5304,16 +5347,18 @@ export const Chat: React.FC = () => {
 
       {/* Main Chat Area */}
       {selectedChannel ? (
-        <div className={`flex-1 flex-col min-w-0 h-full ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'}`}>
+        <div className={`flex-1 flex-col min-w-0 h-full overflow-hidden ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'}`}>
 
           {/* Header */}
-          <div className="min-h-16 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 bg-white dark:bg-slate-900 shrink-0">
+          <div className="min-h-16 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 bg-white dark:bg-slate-900 sticky top-0 z-20 shrink-0 select-none">
             <div className="flex items-center gap-2 sm:gap-3">
               <button 
-                className="md:hidden p-1.5 mr-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                type="button"
+                className="md:hidden w-9 h-9 flex items-center justify-center -ml-1 mr-1 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-90 rounded-full transition-all shrink-0 shadow-2xs cursor-pointer"
                 onClick={() => setShowSidebarOnMobile(true)}
+                aria-label="Voltar para conversas"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft size={19} className="stroke-[2.5]" />
               </button>
               {isSidebarCollapsed && (
                 <Tooltip content="Expandir" position="bottom">
@@ -5693,7 +5738,8 @@ export const Chat: React.FC = () => {
           <div 
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4 bg-slate-50/50 dark:bg-slate-950/50"
+            className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4 bg-slate-50/50 dark:bg-slate-950/50 overscroll-y-contain"
+            style={{ overscrollBehaviorY: 'contain' }}
           >
             {loadingMore && (
               <div className="flex justify-center py-2">
@@ -6125,7 +6171,10 @@ export const Chat: React.FC = () => {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 relative">
+          <div 
+            className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 relative z-20"
+            style={{ paddingBottom: 'max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))' }}
+          >
             {showEmojiPicker && (
               <div 
                 ref={emojiPickerRef}
@@ -6387,7 +6436,7 @@ export const Chat: React.FC = () => {
                       </button>
                     </Tooltip>
                   </div>
-                  <div className="text-center mt-2">
+                  <div className="text-center mt-2 hidden sm:block">
                     <p className="text-[10px] text-slate-400 font-medium">
                       Pressione Enter para enviar
                     </p>
@@ -6398,14 +6447,16 @@ export const Chat: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className={`flex-1 flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 text-slate-400 ${!showSidebarOnMobile ? 'flex' : 'hidden'} md:flex relative`}>
+        <div className={`flex-1 flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 text-slate-400 ${!showSidebarOnMobile ? 'flex' : 'hidden'} md:flex relative overflow-hidden h-full`}>
           {/* Barra superior com botão de expandir */}
           <div className="absolute top-0 left-0 right-0 h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
             <button
-              className="md:hidden p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              type="button"
+              className="md:hidden w-9 h-9 flex items-center justify-center -ml-1 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-90 rounded-full transition-all shrink-0 cursor-pointer"
               onClick={() => setShowSidebarOnMobile(true)}
+              aria-label="Voltar para conversas"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={19} className="stroke-[2.5]" />
             </button>
             {isSidebarCollapsed && (
               <div className="hidden md:flex">

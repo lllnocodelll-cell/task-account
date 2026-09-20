@@ -43,6 +43,7 @@ import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { Modal } from './ui/Modal';
 import { Tooltip } from './ui/Tooltip';
+import { DrawerBackButton } from './ui/DrawerBackButton';
 import { useToast } from '../contexts/ToastContext';
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -732,12 +733,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               <Pencil size={14} />
               Editar
             </button>
-            <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
+            <DrawerBackButton onClick={onClose} />
           </div>
         </div>
 

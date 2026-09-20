@@ -58,6 +58,7 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
+          importScripts: ['/sw-push.js'],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           runtimeCaching: [

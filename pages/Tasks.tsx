@@ -70,6 +70,7 @@ import { TaskInfoDrawer } from '../components/TaskInfoDrawer';
 import { TaskDetailsDrawer } from '../components/TaskDetailsDrawer';
 import { TaskTimer } from '../components/tasks/TaskTimer';
 import TaskForm from '../components/TaskForm';
+import { RotateCwFadingClock } from '../components/ui/RotateCwFadingClock';
 
 // --- CONFIGS ---
 
@@ -1397,13 +1398,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   {task.createdAt && (
                     <>
                       <div className="w-px h-3 bg-slate-300 dark:bg-slate-600/60" />
-                      <div 
-                        className="flex items-center gap-1 text-[9.5px] font-bold text-slate-500 dark:text-slate-400 cursor-help" 
-                        title={`Criada em: ${new Date(task.createdAt).toLocaleDateString('pt-BR')} às ${new Date(task.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                      <Tooltip
+                        content={`Criada em: ${new Date(task.createdAt).toLocaleDateString('pt-BR')} às ${new Date(task.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                        position="top"
+                        className="w-fit"
                       >
-                        <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase">Criada:</span>
-                        <span>{new Date(task.createdAt).toLocaleDateString('pt-BR')}</span>
-                      </div>
+                        <div className="flex items-center gap-1 text-[9.5px] font-bold text-slate-500 dark:text-slate-400 cursor-help">
+                          <RotateCwFadingClock size={10} className="shrink-0 text-slate-400 dark:text-slate-500" />
+                          <span>{new Date(task.createdAt).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                      </Tooltip>
                     </>
                   )}
                 </div>
@@ -2820,7 +2824,7 @@ export const Tasks: React.FC<{
               <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
                 <div className="overflow-auto w-full pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
               <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
-                <thead className="bg-slate-200 dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm">
+                <thead className="bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm">
                   <tr>
                     {/* == CLIENTE == */}
                     {(() => {
@@ -3395,15 +3399,18 @@ export const Tasks: React.FC<{
                               </div>
                             )}
                             {task.createdAt && (
-                              <div
-                                className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 dark:text-slate-500 font-medium"
-                                title="Data de Criação"
+                              <Tooltip
+                                content={`Criada em: ${new Date(task.createdAt).toLocaleDateString('pt-BR')} às ${new Date(task.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
+                                position="top"
+                                className="w-fit"
                               >
-                                <span className="text-slate-350 dark:text-slate-655 font-bold">Criada:</span>
-                                <span>
-                                  {new Date(task.createdAt).toLocaleDateString('pt-BR')} {new Date(task.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
+                                <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 dark:text-slate-500 font-medium cursor-help">
+                                  <RotateCwFadingClock size={11} className="shrink-0 text-slate-400 dark:text-slate-500" />
+                                  <span>
+                                    {new Date(task.createdAt).toLocaleDateString('pt-BR')} {new Date(task.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                              </Tooltip>
                             )}
                           </div>
                         </td>

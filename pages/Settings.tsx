@@ -5,83 +5,136 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
 import { TAX_REGIME_GROUPS, TAX_REGIME_LABELS } from '../types';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare, ArrowLeft } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { Toggle } from '../components/ui/Toggle';
 import { Modal } from '../components/ui/Modal';
 import { useToast } from '../contexts/ToastContext';
 import { Tooltip } from '../components/ui/Tooltip';
+import { DrawerBackButton } from '../components/ui/DrawerBackButton';
 import { generateInviteLink } from '../utils/inviteLink';
 
 interface SettingsProps {
   userProfile: any;
+  onBack?: () => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ userProfile }) => {
-  const [activeTab, setActiveTab] = useState<'credenciais' | 'setores' | 'tipos' | 'feriados' | 'templates'>('credenciais');
+type SettingsTabId = 'credenciais' | 'setores' | 'tipos' | 'feriados' | 'templates';
+
+interface SettingsTabItem {
+  id: SettingsTabId;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+}
+
+const SETTINGS_TABS: SettingsTabItem[] = [
+  { id: 'credenciais', label: 'Credenciais', icon: ShieldCheck },
+  { id: 'setores', label: 'Setores', icon: Briefcase },
+  { id: 'tipos', label: 'Tipos de Tarefa', icon: List },
+  { id: 'feriados', label: 'Feriados', icon: Calendar },
+  { id: 'templates', label: 'Modelos de Mensagem', icon: Mail },
+];
+
+export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
+  const [activeTab, setActiveTab] = useState<SettingsTabId>('credenciais');
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      window.history.back();
+    }
+  };
 
   const contentProps = { userProfile };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2 md:mb-0">
-        <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
-          <SettingsIcon size={18} className="text-slate-500 dark:text-slate-400" />
+    <div className="space-y-5">
+      <div className="flex items-center justify-between mb-2 md:mb-0">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <SettingsIcon size={18} className="text-slate-500 dark:text-slate-400" />
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+              Configurações
+            </h1>
+            <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+          </div>
         </div>
-        <div className="flex flex-col">
-          <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
-            Configurações
-          </h1>
-          <div className="h-0.5 w-6 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1.5 rounded-full" />
+
+        {/* Botão Voltar: Computador (Botão 'Voltar') | Celular ('Seta com borda arredondada') */}
+        <div className="flex items-center">
+          {/* Versão Computador */}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleBack}
+            icon={<ArrowLeft size={16} />}
+            className="hidden sm:inline-flex font-semibold text-xs shadow-2xs cursor-pointer"
+          >
+            Voltar
+          </Button>
+
+          {/* Versão Celular: Seta com borda arredondada */}
+          <button
+            type="button"
+            onClick={handleBack}
+            title="Voltar"
+            aria-label="Voltar"
+            className="sm:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-xs flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+          >
+            <ArrowLeft size={18} />
+          </button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('credenciais')}
-            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'credenciais' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-          >
-            <ShieldCheck size={16} /> Credenciais
-          </button>
-          <button
-            onClick={() => setActiveTab('setores')}
-            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'setores' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-          >
-            <Briefcase size={16} /> Setores
-          </button>
-          <button
-            onClick={() => setActiveTab('tipos')}
-            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'tipos' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-          >
-            <List size={16} /> Tipos de Tarefa
-          </button>
-          <button
-            onClick={() => setActiveTab('feriados')}
-            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'feriados' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-          >
-            <Calendar size={16} /> Feriados
-          </button>
-          <button
-            onClick={() => setActiveTab('templates')}
-            className={`flex items-center gap-2 px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === 'templates' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-          >
-            <Mail size={16} /> Modelos de Mensagem
-          </button>
-        </div>
+      {/* Barra de Abas Estilo Segmented Pills Flutuante (Sticky) */}
+      <div className="sticky top-16 z-30 -my-2 py-2.5 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md transition-colors">
+        <div className="bg-slate-200/60 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {SETTINGS_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
 
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none shrink-0 cursor-pointer ${
+                  isActive
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700/70 ring-1 ring-indigo-500/10'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
+                }`}
+              >
+                <div
+                  className={`p-1.5 rounded-lg transition-all duration-200 ${
+                    isActive
+                      ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 scale-105'
+                      : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 group-hover:scale-105'
+                  }`}
+                >
+                  <Icon size={15} />
+                </div>
+                <span className="tracking-tight">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Card Principal com o Conteúdo da Aba */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
         <div className="p-6">
-          {activeTab === 'credenciais' && <TeamSettings {...contentProps} />}
-          {activeTab === 'setores' && <SectorSettings {...contentProps} />}
-          {activeTab === 'tipos' && <TaskTypeSettings {...contentProps} />}
-          {activeTab === 'feriados' && <CalendarSettings {...contentProps} />}
-          {activeTab === 'templates' && <MessageTemplateSettings {...contentProps} />}
+          <div key={activeTab} className="animate-in fade-in duration-200">
+            {activeTab === 'credenciais' && <TeamSettings {...contentProps} />}
+            {activeTab === 'setores' && <SectorSettings {...contentProps} />}
+            {activeTab === 'tipos' && <TaskTypeSettings {...contentProps} />}
+            {activeTab === 'feriados' && <CalendarSettings {...contentProps} />}
+            {activeTab === 'templates' && <MessageTemplateSettings {...contentProps} />}
+          </div>
         </div>
       </div>
     </div>
@@ -1274,6 +1327,15 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [adding, setAdding] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
 
+  // Set of existing sector names for duplicate checking and badge display
+  const existingSectorNamesSet = useMemo(() => {
+    return new Set(sectors.map(s => (s.name || '').toLowerCase().trim()));
+  }, [sectors]);
+
+  const availableSuggestedSectors = useMemo(() => {
+    return SUGGESTED_SECTORS.filter(s => !existingSectorNamesSet.has(s.name.toLowerCase().trim()));
+  }, [existingSectorNamesSet]);
+
   // Drawer & Suggestion States
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [shouldRenderDrawer, setShouldRenderDrawer] = useState(false);
@@ -1350,7 +1412,10 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleAddSector = async () => {
-    if (!name) return addToast('error', 'Erro', 'Nome é obrigatório');
+    if (!name.trim()) return addToast('error', 'Erro', 'Nome é obrigatório');
+    if (existingSectorNamesSet.has(name.toLowerCase().trim())) {
+      return addToast('warning', 'Setor Já Cadastrado', `Já existe um setor cadastrado com o nome "${name.trim()}".`);
+    }
     setAdding(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1379,25 +1444,34 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     }
   };
 
-  // Set of existing sector names for checking and badge display
-  const existingSectorNamesSet = useMemo(() => {
-    return new Set(sectors.map(s => (s.name || '').toLowerCase().trim()));
-  }, [sectors]);
-
   const openSuggestedSectorsDrawer = () => {
     setSelectedSuggestedSectors([]);
     setDrawerSearchTerm('');
     setIsDrawerOpen(true);
   };
 
-  const toggleSectorSelection = (name: string) => {
+  const toggleSectorSelection = (sectorName: string) => {
+    const alreadyExists = existingSectorNamesSet.has(sectorName.toLowerCase().trim());
+    if (alreadyExists) {
+      addToast(
+        'warning',
+        'Setor Já Cadastrado',
+        `O setor "${sectorName}" já foi cadastrado através da gaveta de setores sugeridos e não pode ser selecionado novamente.`
+      );
+      return;
+    }
     setSelectedSuggestedSectors(prev =>
-      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+      prev.includes(sectorName) ? prev.filter(n => n !== sectorName) : [...prev, sectorName]
     );
   };
 
   const selectAllSuggested = () => {
-    setSelectedSuggestedSectors(SUGGESTED_SECTORS.map(s => s.name));
+    const availableNames = availableSuggestedSectors.map(s => s.name);
+    if (availableNames.length === 0) {
+      addToast('info', 'Setores Já Cadastrados', 'Todos os setores sugeridos já foram cadastrados no escritório.');
+      return;
+    }
+    setSelectedSuggestedSectors(availableNames);
   };
 
   const deselectAllSuggested = () => {
@@ -1405,24 +1479,57 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleImportSelectedSectors = async () => {
-    if (selectedSuggestedSectors.length === 0) return;
+    if (selectedSuggestedSectors.length === 0) {
+      return addToast('error', 'Erro', 'Selecione pelo menos um setor para importar.');
+    }
+
+    const selectedSectorsToImport = SUGGESTED_SECTORS.filter(s => selectedSuggestedSectors.includes(s.name));
+
+    // Validação estrita contra duplicidade
+    const alreadyExistingSelected = selectedSectorsToImport.filter(s =>
+      existingSectorNamesSet.has(s.name.toLowerCase().trim())
+    );
+    const newSectorsToImport = selectedSectorsToImport.filter(s =>
+      !existingSectorNamesSet.has(s.name.toLowerCase().trim())
+    );
+
+    if (alreadyExistingSelected.length > 0) {
+      const namesList = alreadyExistingSelected.map(s => `"${s.name}"`).join(', ');
+
+      if (newSectorsToImport.length === 0) {
+        // Bloqueio total: todos os setores selecionados já foram cadastrados anteriormente
+        addToast(
+          'warning',
+          'Setor Já Cadastrado',
+          alreadyExistingSelected.length === 1
+            ? `O setor ${namesList} já foi cadastrado através da gaveta de setores sugeridos. A criação duplicada foi bloqueada.`
+            : `Os setores ${namesList} já foram cadastrados através da gaveta de setores sugeridos. A criação duplicada foi bloqueada.`
+        );
+        setSelectedSuggestedSectors([]);
+        return;
+      } else {
+        // Havia setores novos e já cadastrados: descarta os duplicados e notifica
+        addToast(
+          'warning',
+          'Duplicidade Bloqueada',
+          alreadyExistingSelected.length === 1
+            ? `O setor ${namesList} já foi cadastrado através da gaveta de setores sugeridos e foi desconsiderado.`
+            : `Os setores ${namesList} já foram cadastrados através da gaveta de setores sugeridos e foram desconsiderados.`
+        );
+        setSelectedSuggestedSectors(newSectorsToImport.map(s => s.name));
+      }
+    }
+
+    if (newSectorsToImport.length === 0) {
+      return addToast('error', 'Erro', 'Nenhum novo setor para importar.');
+    }
+
     setImportingSuggested(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const toAdd = SUGGESTED_SECTORS.filter(s =>
-        selectedSuggestedSectors.includes(s.name) &&
-        !existingSectorNamesSet.has(s.name.toLowerCase().trim())
-      );
-
-      if (toAdd.length === 0) {
-        addToast('info', 'Setores', 'Todos os setores selecionados já estão cadastrados.');
-        setIsDrawerOpen(false);
-        return;
-      }
-
-      const newSectorsPayload = toAdd.map(s => ({
+      const newSectorsPayload = newSectorsToImport.map(s => ({
         org_id: userProfile.org_id,
         name: s.name,
         cost_center: s.costCenter || null,
@@ -1439,7 +1546,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
       if (data) {
         setSectors(prev => [...prev, ...data]);
-        addToast('success', 'Sucesso', `${toAdd.length} setor(es) adicionado(s) com sucesso!`);
+        addToast('success', 'Sucesso', `${data.length} setor(es) importado(s) com sucesso!`);
         setIsDrawerOpen(false);
       }
     } catch (error: any) {
@@ -1610,7 +1717,12 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleUpdateSector = async (id: string) => {
-    if (!editName) return alert('Nome é obrigatório');
+    if (!editName.trim()) return addToast('error', 'Erro', 'Nome é obrigatório');
+
+    const isDuplicate = sectors.some(s => s.id !== id && (s.name || '').toLowerCase().trim() === editName.toLowerCase().trim());
+    if (isDuplicate) {
+      return addToast('warning', 'Setor Já Cadastrado', `Já existe outro setor cadastrado com o nome "${editName.trim()}".`);
+    }
 
     // Otimista
     const originalSectors = [...sectors];
@@ -1629,9 +1741,10 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
       if (error) throw error;
       setEditingSectorId(null);
+      addToast('success', 'Sucesso', 'Setor atualizado com sucesso!');
     } catch (error: any) {
       setSectors(originalSectors); // rollback
-      alert('Erro ao atualizar setor: ' + error.message);
+      addToast('error', 'Erro', 'Erro ao atualizar setor: ' + error.message);
     }
   };
 
@@ -2214,14 +2327,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button 
-                  type="button"
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-                  title="Fechar"
-                >
-                  <X size={18} />
-                </button>
+                <DrawerBackButton onClick={() => setIsDrawerOpen(false)} />
               </div>
             </div>
 
@@ -2254,7 +2360,9 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     onClick={selectAllSuggested}
                     className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 transition-colors"
                   >
-                    Marcar Todos ({SUGGESTED_SECTORS.length})
+                    {availableSuggestedSectors.length === SUGGESTED_SECTORS.length
+                      ? `Marcar Todos (${SUGGESTED_SECTORS.length})`
+                      : `Marcar Disponíveis (${availableSuggestedSectors.length})`}
                   </button>
                   <span className="text-slate-300 dark:text-slate-700">•</span>
                   <button
@@ -2280,31 +2388,40 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     const isSelected = selectedSuggestedSectors.includes(sector.name);
                     const alreadyExists = existingSectorNamesSet.has(sector.name.toLowerCase().trim());
 
-                    return (
+                    const cardContent = (
                       <div
-                        key={sector.name}
                         onClick={() => toggleSectorSelection(sector.name)}
-                        className={`group relative p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 select-none ${
-                          isSelected
-                            ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm'
-                            : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                        className={`group relative p-3.5 rounded-2xl border transition-all select-none flex flex-col justify-between gap-2.5 h-full ${
+                          alreadyExists
+                            ? 'bg-slate-50/70 dark:bg-slate-950/50 border-slate-200/60 dark:border-slate-800/70 opacity-70 cursor-not-allowed'
+                            : isSelected
+                              ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm cursor-pointer'
+                              : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <input
                               type="checkbox"
-                              checked={isSelected}
+                              checked={isSelected && !alreadyExists}
+                              disabled={alreadyExists}
                               onChange={() => {}}
-                              className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                              className={`w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 ${
+                                alreadyExists ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                              }`}
                             />
-                            <span className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            <span className={`text-sm font-bold truncate transition-colors ${
+                              alreadyExists
+                                ? 'text-slate-500 dark:text-slate-400 line-through decoration-slate-400/50'
+                                : 'text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                            }`}>
                               {sector.name}
                             </span>
                           </div>
 
                           {alreadyExists && (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 shrink-0">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 shrink-0 flex items-center gap-1 shadow-2xs">
+                              <Check size={10} className="stroke-[2.5]" />
                               Já cadastrado
                             </span>
                           )}
@@ -2326,6 +2443,25 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                         </div>
                       </div>
                     );
+
+                    if (alreadyExists) {
+                      return (
+                        <Tooltip
+                          key={sector.name}
+                          content="Este setor já foi cadastrado através da gaveta de setores sugeridos"
+                          position="top"
+                          className="w-full h-full block"
+                        >
+                          {cardContent}
+                        </Tooltip>
+                      );
+                    }
+
+                    return (
+                      <div key={sector.name} className="w-full h-full">
+                        {cardContent}
+                      </div>
+                    );
                   })}
                 </div>
               )}
@@ -2334,7 +2470,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             {/* Rodapé Fixo */}
             <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                {selectedSuggestedSectors.length} setores selecionados
+                {selectedSuggestedSectors.length} setor(es) selecionado(s)
               </span>
 
               <div className="flex items-center gap-3">
@@ -2350,7 +2486,7 @@ const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   disabled={importingSuggested || selectedSuggestedSectors.length === 0}
                   icon={importingSuggested ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
                 >
-                  {importingSuggested ? 'Importando...' : `Importar ${selectedSuggestedSectors.length} Selecionados`}
+                  {importingSuggested ? 'Importando...' : `Importar ${selectedSuggestedSectors.length} Selecionado${selectedSuggestedSectors.length > 1 ? 's' : ''}`}
                 </Button>
               </div>
             </div>
@@ -2451,6 +2587,15 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const [adding, setAdding] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
 
+  // Existing task names set for duplicate detection across form and drawer
+  const existingTaskNamesSet = useMemo(() => {
+    return new Set(taskTypes.map(t => (t.name || '').toLowerCase().trim()));
+  }, [taskTypes]);
+
+  const availableSuggested = useMemo(() => {
+    return SUGGESTED_TASK_TYPES.filter(t => !existingTaskNamesSet.has(t.name.toLowerCase().trim()));
+  }, [existingTaskNamesSet]);
+
   // Drawer & Suggestion States
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [shouldRenderDrawer, setShouldRenderDrawer] = useState(false);
@@ -2545,7 +2690,10 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleAddToken = async () => {
-    if (!name) return addToast('error', 'Erro', 'Nome obrigatório');
+    if (!name.trim()) return addToast('error', 'Erro', 'Nome obrigatório');
+    if (existingTaskNamesSet.has(name.toLowerCase().trim())) {
+      return addToast('warning', 'Obrigação Já Cadastrada', `Já existe um tipo de tarefa cadastrado com o nome "${name.trim()}".`);
+    }
     setAdding(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -2619,7 +2767,12 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   };
 
   const handleUpdateTaskType = async (id: string) => {
-    if (!editName) return addToast('error', 'Erro', 'Nome é obrigatório');
+    if (!editName.trim()) return addToast('error', 'Erro', 'Nome é obrigatório');
+
+    const isDuplicate = taskTypes.some(t => t.id !== id && (t.name || '').toLowerCase().trim() === editName.toLowerCase().trim());
+    if (isDuplicate) {
+      return addToast('warning', 'Obrigação Já Cadastrada', `Já existe outro tipo de tarefa cadastrado com o nome "${editName.trim()}".`);
+    }
 
     // Otimista parcial (vamos manter backup do estado)
     const originalTaskTypes = [...taskTypes];
@@ -2728,34 +2881,50 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     return matchesSearch && matchesSector;
   });
 
-  // Existing task names set for drawer badge detection
-  const existingTaskNamesSet = useMemo(() => {
-    return new Set(taskTypes.map(t => (t.name || '').toLowerCase().trim()));
-  }, [taskTypes]);
-
   const openSuggestedTasksDrawer = () => {
     setSelectedSuggestedNames([]);
     setDrawerSearchTerm('');
     setIsDrawerOpen(true);
   };
 
-  const toggleTaskSelection = (name: string) => {
+  const toggleTaskSelection = (taskName: string) => {
+    const alreadyExists = existingTaskNamesSet.has(taskName.toLowerCase().trim());
+    if (alreadyExists) {
+      addToast(
+        'warning',
+        'Obrigação Já Cadastrada',
+        `A tarefa "${taskName}" já foi cadastrada através da gaveta de tipos sugeridos e não pode ser selecionada novamente.`
+      );
+      return;
+    }
     setSelectedSuggestedNames(prev => 
-      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+      prev.includes(taskName) ? prev.filter(n => n !== taskName) : [...prev, taskName]
     );
   };
 
   const toggleSectorSelection = (tasksInSector: typeof SUGGESTED_TASK_TYPES, select: boolean) => {
-    const sectorNames = tasksInSector.map(t => t.name);
+    const availableInSector = tasksInSector.filter(t => !existingTaskNamesSet.has(t.name.toLowerCase().trim()));
+    const availableNames = availableInSector.map(t => t.name);
+
     if (select) {
-      setSelectedSuggestedNames(prev => Array.from(new Set([...prev, ...sectorNames])));
+      if (availableNames.length === 0) {
+        addToast('info', 'Setor Completo', 'Todas as obrigações deste setor já foram cadastradas no escritório.');
+        return;
+      }
+      setSelectedSuggestedNames(prev => Array.from(new Set([...prev, ...availableNames])));
     } else {
-      setSelectedSuggestedNames(prev => prev.filter(n => !sectorNames.includes(n)));
+      const allSectorNames = tasksInSector.map(t => t.name);
+      setSelectedSuggestedNames(prev => prev.filter(n => !allSectorNames.includes(n)));
     }
   };
 
   const selectAllSuggested = () => {
-    setSelectedSuggestedNames(SUGGESTED_TASK_TYPES.map(t => t.name));
+    const availableNames = availableSuggested.map(t => t.name);
+    if (availableNames.length === 0) {
+      addToast('info', 'Obrigações Já Cadastradas', 'Todas as tarefas sugeridas já foram cadastradas no escritório.');
+      return;
+    }
+    setSelectedSuggestedNames(availableNames);
   };
 
   const deselectAllSuggested = () => {
@@ -2765,6 +2934,47 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   const handleImportSelectedTasks = async () => {
     if (selectedSuggestedNames.length === 0) {
       return addToast('error', 'Erro', 'Selecione pelo menos uma tarefa para importar.');
+    }
+
+    const selectedTasksToImport = SUGGESTED_TASK_TYPES.filter(t => selectedSuggestedNames.includes(t.name));
+
+    // Validação estrita contra duplicidade
+    const alreadyExistingSelected = selectedTasksToImport.filter(t => 
+      existingTaskNamesSet.has(t.name.toLowerCase().trim())
+    );
+    const newTasksToImport = selectedTasksToImport.filter(t => 
+      !existingTaskNamesSet.has(t.name.toLowerCase().trim())
+    );
+
+    if (alreadyExistingSelected.length > 0) {
+      const namesList = alreadyExistingSelected.map(t => `"${t.name}"`).join(', ');
+
+      if (newTasksToImport.length === 0) {
+        // Bloqueio total: todas as tarefas selecionadas já foram cadastradas anteriormente
+        addToast(
+          'warning',
+          'Obrigação Já Cadastrada',
+          alreadyExistingSelected.length === 1
+            ? `A tarefa ${namesList} já foi cadastrada através da gaveta de tipos sugeridos. A criação duplicada foi bloqueada.`
+            : `As tarefas ${namesList} já foram cadastradas através da gaveta de tipos sugeridos. A criação duplicada foi bloqueada.`
+        );
+        setSelectedSuggestedNames([]);
+        return;
+      } else {
+        // Havia tarefas novas e já cadastradas: descarta as duplicadas e notifica
+        addToast(
+          'warning',
+          'Duplicidade Bloqueada',
+          alreadyExistingSelected.length === 1
+            ? `A tarefa ${namesList} já foi cadastrada através da gaveta de tipos sugeridos e foi desconsiderada.`
+            : `As tarefas ${namesList} já foram cadastradas através da gaveta de tipos sugeridos e foram desconsideradas.`
+        );
+        setSelectedSuggestedNames(newTasksToImport.map(t => t.name));
+      }
+    }
+
+    if (newTasksToImport.length === 0) {
+      return addToast('error', 'Erro', 'Nenhuma nova tarefa para importar.');
     }
 
     setImportingSuggested(true);
@@ -2778,9 +2988,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         if (s.name) sectorNameToIdMap.set(s.name.toLowerCase().trim(), s.id);
       });
 
-      const selectedTasksToImport = SUGGESTED_TASK_TYPES.filter(t => selectedSuggestedNames.includes(t.name));
-
-      const payload = selectedTasksToImport.map(t => ({
+      const payload = newTasksToImport.map(t => ({
         org_id: userProfile.org_id,
         name: t.name,
         sector_id: sectorNameToIdMap.get(t.sectorName.toLowerCase().trim()) || null,
@@ -2806,7 +3014,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         });
 
         setTaskTypes(prev => [...prev, ...enriched]);
-        addToast('success', 'Sucesso', `${data.length} tipos de tarefa importados com sucesso!`);
+        addToast('success', 'Sucesso', `${data.length} tipo(s) de tarefa importado(s) com sucesso!`);
         setIsDrawerOpen(false);
       }
     } catch (error: any) {
@@ -2822,7 +3030,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     <div className="space-y-8">
       <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div 
-          className="flex items-center justify-between mb-4 cursor-pointer group/header"
+          className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 cursor-pointer group/header"
           onClick={() => setIsFormExpanded(!isFormExpanded)}
         >
           <div className="flex items-center gap-3">
@@ -3242,14 +3450,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button 
-                  type="button"
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-                  title="Fechar"
-                >
-                  <X size={18} />
-                </button>
+                <DrawerBackButton onClick={() => setIsDrawerOpen(false)} />
               </div>
             </div>
 
@@ -3282,7 +3483,9 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                     onClick={selectAllSuggested}
                     className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline px-2 py-1 transition-colors"
                   >
-                    Marcar Todas ({SUGGESTED_TASK_TYPES.length})
+                    {availableSuggested.length === SUGGESTED_TASK_TYPES.length
+                      ? `Marcar Todas (${SUGGESTED_TASK_TYPES.length})`
+                      : `Marcar Disponíveis (${availableSuggested.length})`}
                   </button>
                   <span className="text-slate-300 dark:text-slate-700">•</span>
                   <button
@@ -3348,13 +3551,19 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => toggleSectorSelection(matchingTasks, !allSectorSelected)}
-                          className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 px-2.5 py-1 rounded-lg transition-colors"
-                        >
-                          {allSectorSelected ? 'Desmarcar Setor' : 'Marcar Todos do Setor'}
-                        </button>
+                        {matchingTasks.filter(t => !existingTaskNamesSet.has(t.name.toLowerCase().trim())).length === 0 ? (
+                          <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2.5 py-1 rounded-lg">
+                            Todas já cadastradas
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggleSectorSelection(matchingTasks, !allSectorSelected)}
+                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 px-2.5 py-1 rounded-lg transition-colors"
+                          >
+                            {allSectorSelected ? 'Desmarcar Setor' : 'Marcar Disponíveis do Setor'}
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -3366,25 +3575,33 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                             const isSelected = selectedSuggestedNames.includes(t.name);
                             const alreadyExists = existingTaskNamesSet.has(t.name.toLowerCase().trim());
 
-                            return (
+                            const cardContent = (
                               <div
-                                key={t.name}
                                 onClick={() => toggleTaskSelection(t.name)}
-                                className={`group relative p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 select-none ${
-                                  isSelected
-                                    ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm'
-                                    : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                className={`group relative p-2.5 rounded-xl border transition-all select-none flex items-center justify-between gap-2 h-full ${
+                                  alreadyExists
+                                    ? 'bg-slate-50/70 dark:bg-slate-950/50 border-slate-200/60 dark:border-slate-800/70 opacity-70 cursor-not-allowed'
+                                    : isSelected
+                                      ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm cursor-pointer'
+                                      : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
                                 }`}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <input
                                     type="checkbox"
-                                    checked={isSelected}
+                                    checked={isSelected && !alreadyExists}
+                                    disabled={alreadyExists}
                                     onChange={() => {}}
-                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                    className={`w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 ${
+                                      alreadyExists ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                                    }`}
                                   />
                                   <div className="flex flex-col min-w-0">
-                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    <span className={`text-xs font-bold truncate transition-colors ${
+                                      alreadyExists
+                                        ? 'text-slate-500 dark:text-slate-400 line-through decoration-slate-400/50'
+                                        : 'text-slate-800 dark:text-slate-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                                    }`}>
                                       {t.name}
                                     </span>
                                     <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
@@ -3394,10 +3611,30 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                                 </div>
 
                                 {alreadyExists && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 shrink-0">
+                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 shrink-0 flex items-center gap-1 shadow-2xs">
+                                    <Check size={10} className="stroke-[2.5]" />
                                     Já cadastrada
                                   </span>
                                 )}
+                              </div>
+                            );
+
+                            if (alreadyExists) {
+                              return (
+                                <Tooltip
+                                  key={t.name}
+                                  content="Esta obrigação já foi cadastrada através da gaveta de tipos sugeridos"
+                                  position="top"
+                                  className="w-full h-full block"
+                                >
+                                  {cardContent}
+                                </Tooltip>
+                              );
+                            }
+
+                            return (
+                              <div key={t.name} className="w-full h-full">
+                                {cardContent}
                               </div>
                             );
                           })}
@@ -6192,7 +6429,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-2">
                     {tmpl.target_audience === 'internal' ? (
-                      <Tooltip content="Disparo em lote desabilitado para mensagens internas. Envie individualmente ou em grupo diretamente pelo Chat da Equipe." position="top">
+                      <Tooltip content="Desabilitado para mensagens internas." position="top">
                         <div>
                           <Button
                             size="sm"

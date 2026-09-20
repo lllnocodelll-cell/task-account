@@ -19,6 +19,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
+import { DrawerBackButton } from '../ui/DrawerBackButton';
 import { useToast } from '../../contexts/ToastContext';
 
 export interface MessageTemplate {
@@ -301,12 +302,7 @@ export const MessageTemplatesDrawer: React.FC<MessageTemplatesDrawerProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all duration-200"
-            >
-              <X size={20} />
-            </button>
+            <DrawerBackButton onClick={onClose} />
           </div>
         </div>
 
