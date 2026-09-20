@@ -335,7 +335,9 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     setEditFirstName(member.first_name || '');
     setEditLastName(member.last_name || '');
     setEditEmail(member.email || '');
-    setEditSectorIds(member.sector_ids || (member.sector_id ? [member.sector_id] : []));
+    const currentSids = member.sector_ids || (member.sector_id ? [member.sector_id] : []);
+    const validSectorIds = currentSids.filter((sid: string) => sectors.some((s: any) => s.id === sid));
+    setEditSectorIds(validSectorIds);
     setEditRole(member.role || 'operacional');
     setEditClientIds(member.client_ids || []);
   };
@@ -367,17 +369,23 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       return addToast('error', 'Validação', 'Informe apenas um único sobrenome no campo "Sobrenome" (sem espaços).');
     }
 
+    // Filtrar estritamente apenas setores válidos e ativos existentes
+    const validSectorIds = editRole !== 'cliente' 
+      ? editSectorIds.filter((sid: string) => sectors.some((s: any) => s.id === sid))
+      : [];
+    const primarySectorId = validSectorIds.length > 0 ? validSectorIds[0] : null;
+    const sectorName = primarySectorId ? (sectors.find(s => s.id === primarySectorId)?.name || '') : '';
+
     // Otimista parcial
     const originalMembers = [...members];
-    const sectorName = sectors.find(s => s.id === editSectorIds[0])?.name || '';
 
     setMembers(prev => prev.map(m => m.id === id ? {
       ...m,
       first_name: cleanFirstName,
       last_name: cleanLastName,
       email: cleanEmail,
-      sector_id: editRole !== 'cliente' ? (editSectorIds[0] || null) : null,
-      sector_ids: editRole !== 'cliente' ? editSectorIds : [],
+      sector_id: primarySectorId,
+      sector_ids: validSectorIds,
       client_ids: editRole === 'cliente' ? editClientIds : [],
       role: editRole,
       sectors: sectorName ? { name: sectorName } : null
@@ -390,8 +398,8 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         p_last_name: cleanLastName,
         p_new_email: cleanEmail,
         p_role: editRole,
-        p_sector_id: editRole !== 'cliente' ? (editSectorIds[0] || null) : null,
-        p_sector_ids: editRole !== 'cliente' ? editSectorIds : [],
+        p_sector_id: primarySectorId,
+        p_sector_ids: validSectorIds,
         p_client_ids: editRole === 'cliente' ? editClientIds : []
       });
 
@@ -1151,7 +1159,8 @@ const MemberCard: React.FC<any> = ({
                   <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center mr-1">📁</span>
                   {member.sector_ids.slice(0, 2).map((sid: string) => {
                     const foundSector = sectors.find((s: any) => s.id === sid);
-                    const sectorName = foundSector ? foundSector.name : 'Desconhecido';
+                    const sectorName = foundSector ? foundSector.name : null;
+                    if (!sectorName) return null;
                     return (
                       <span 
                         key={sid} 
@@ -1168,7 +1177,7 @@ const MemberCard: React.FC<any> = ({
                         member.sector_ids.slice(2).map((sid: string) => {
                           const foundSector = sectors.find((s: any) => s.id === sid);
                           return foundSector ? foundSector.name : 'Setor';
-                        }).join(', ')
+                        }).filter(Boolean).join(', ')
                       }
                     >
                       <span className="text-[9px] px-1.5 py-0.5 rounded font-black border bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 cursor-help">
@@ -1176,11 +1185,16 @@ const MemberCard: React.FC<any> = ({
                       </span>
                     </Tooltip>
                   )}
+                  {member.sector_ids.every((sid: string) => !sectors.some((s: any) => s.id === sid)) && (
+                    <span className="text-[10px] text-slate-400 font-medium">Nenhum setor vinculado</span>
+                  )}
                 </div>
-              ) : member.sectors?.name && (
+              ) : member.sectors?.name ? (
                 <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
                   📁 {member.sectors.name}
                 </span>
+              ) : (
+                <span className="text-[10px] text-slate-400 font-medium">Nenhum setor vinculado</span>
               )}
             </div>
           </div>

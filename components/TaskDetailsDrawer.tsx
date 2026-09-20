@@ -31,6 +31,7 @@ import {
 import { Task, TaskStatus, Priority, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { TaskTimer } from './tasks/TaskTimer';
+import { Tooltip } from './ui/Tooltip';
 
 interface TaskDetailsDrawerProps {
   isOpen: boolean;
@@ -300,24 +301,25 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     }`;
 
     const renderDragHandle = () => (
-      <div
-        className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-1"
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          setDraggableSectionId(sectionId);
-        }}
-        onMouseUp={(e) => {
-          e.stopPropagation();
-          setDraggableSectionId(null);
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-        }}
-        title="Arraste para reordenar"
-      >
-        <GripVertical size={14} />
-      </div>
+      <Tooltip content="Arrastar para ordenar" position="top">
+        <div
+          className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-1"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            setDraggableSectionId(sectionId);
+          }}
+          onMouseUp={(e) => {
+            e.stopPropagation();
+            setDraggableSectionId(null);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+        >
+          <GripVertical size={14} />
+        </div>
+      </Tooltip>
     );
 
     switch (sectionId) {

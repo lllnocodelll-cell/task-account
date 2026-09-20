@@ -16,7 +16,6 @@ import { InviteActivation } from './pages/InviteActivation';
 import { UserRole, Client } from './types';
 import { supabase } from './utils/supabaseClient';
 import { Loader2, ShieldAlert, UserX, KeyRound, MailCheck, ArrowRight } from 'lucide-react';
-import { GlobalCallListener } from './components/chat/GlobalCallListener';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/ui/Toast';
 import { TutorialsDrawer } from './components/tutorials/TutorialsDrawer';
@@ -963,12 +962,6 @@ function App() {
         </main>
       </div>
 
-      {session?.user && (
-        <GlobalCallListener
-          userId={session.user.id}
-          userName={userProfile?.full_name || 'Usuário Local'}
-        />
-      )}
 
       {userProfile && (
         <TutorialsDrawer

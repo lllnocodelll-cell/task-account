@@ -137,6 +137,26 @@ const modules: ShowcaseModule[] = [
       'Diferenciais: vincule ao cadastro do cliente as inscrições, contatos, legislações específicas, histórico de regimes tributários, controle dos modelos de DF-e utilizados e monitor de vencimento de certificados e licenças.',
       'Cadastro lote: registre os clientes em lote de forma prática através da planilha padrão Task Account.'
     ]
+  },
+  {
+    id: 'portal',
+    tag: 'PORTAL DO CLIENTE',
+    title: 'Portal do Cliente com Auditoria e Guias',
+    desc: 'Ambiente exclusivo e seguro para seus clientes acessarem guias tributárias, folhas de pagamento, relatórios fiscais e notificações em tempo real.',
+    image: '/showcase-portal-dark.png',
+    darkImage: '/showcase-portal-dark.png',
+    lightImage: '/showcase-portal-light.png',
+    badge: 'PORTAL DO CLIENTE • GUIAS & DOCS',
+    stats: [
+      { label: 'STATUS', value: 'Leitura ao Vivo' },
+      { label: 'PRAZOS', value: 'Alertas de Vencimento' },
+      { label: 'HISTÓRICO', value: '100% Organizado' }
+    ],
+    bulletPoints: [
+      'Disponibilização de guias e tributos: entregue balanços, folhas de pagamento, impostos e guias com aviso de vencimento direto no portal do cliente.',
+      'Auditoria de leitura e urgência: saiba exatamente quando o cliente visualizou, baixou ou deixou de ler um documento com controle de urgência.',
+      'Autoatendimento ágil: seu cliente consulta competências fiscais e documentos a qualquer momento com total praticidade e segurança.'
+    ]
   }
 ];
 
@@ -405,16 +425,36 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const [isChatVisible, setIsChatVisible] = useState<boolean>(true);
+
+  // Pausar alternância automática quando o card do Chat não estiver visível na tela
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    const chatEl = document.getElementById('modulo-chat');
+    if (!chatEl) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsChatVisible(entry.isIntersecting);
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(chatEl);
+    return () => observer.disconnect();
+  }, []);
+
   // Alternância automática entre as abas do Chat (Clientes vs Equipe) a cada 4.5 segundos
   useEffect(() => {
-    if (zoomImage || isChatHovered) return;
+    if (zoomImage || isChatHovered || !isChatVisible) return;
 
     const interval = setInterval(() => {
       setChatSlideIndex((prev) => (prev === 0 ? 1 : 0));
     }, 4500);
 
     return () => clearInterval(interval);
-  }, [zoomImage, isChatHovered]);
+  }, [zoomImage, isChatHovered, isChatVisible]);
 
   // Auto-detectar retorno do Stripe Checkout (?checkout=success&plan=NomeDoPlano)
   useEffect(() => {
@@ -561,13 +601,13 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               title: `Módulo 02 // ${currentChatSlide.title}`,
               subtitle: currentChatSlide.caption
             })}
-            className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center cursor-zoom-in group/stage"
+            className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center cursor-zoom-in group/stage aspect-[16/9.2] w-full"
           >
             <img
               key={`${chatSlideIndex}-${isDarkMode}`}
               src={activeChatImg}
               alt={currentChatSlide.title}
-              className="w-full h-auto block rounded-lg transition-transform duration-500 group-hover/stage:scale-[1.015] animate-in fade-in duration-300"
+              className="w-full h-full object-cover object-top block rounded-lg transition-transform duration-500 group-hover/stage:scale-[1.015] animate-in fade-in duration-300"
             />
 
             {/* Overlay sutil de dica de zoom no hover */}
@@ -1542,7 +1582,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest mb-4">
               <Building2 size={12} className="shrink-0" />
-              <span>CELSOFTWARE LTDA • DESDE AGOSTO DE 2021</span>
+              <span>CELSOFTWARE LTDA</span>
             </div>
             <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
               Nascemos da união entre a vivência contábil e a inovação tecnológica.

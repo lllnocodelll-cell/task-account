@@ -3,7 +3,7 @@ import { supabase } from '../../utils/supabaseClient';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, UserRoundPlus, Users } from 'lucide-react';
 
 interface Profile {
     id: string;
@@ -132,7 +132,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
             title={
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
-                        <Users size={18} className="text-slate-500 dark:text-slate-400" />
+                        <UserRoundPlus size={18} className="text-slate-500 dark:text-slate-400" />
                     </div>
                     <div className="flex flex-col text-left">
                         <h1 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">

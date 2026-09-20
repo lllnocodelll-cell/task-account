@@ -2260,16 +2260,77 @@ export const Tasks: React.FC<{
     setLoading(true);
     try {
       if (deleteAttachments && reopenModalTask.attachments && reopenModalTask.attachments.length > 0) {
+        const clientObj = clients.find(c => c.id === reopenModalTask.clientId);
+        const clientName = reopenModalTask.clientName || clientObj?.companyName || clientObj?.tradeName || 'Cliente';
+        const orgId = userProfile?.org_id || (reopenModalTask as any).org_id || (clientObj as any)?.org_id;
+
         for (const attachment of reopenModalTask.attachments) {
-          // Atualiza o status no client portal
-          await supabase.from('client_documents' as any)
-            .update({ status: 'Excluído' })
+          // 1. Buscar metadados completos do documento em client_documents
+          const { data: existingDoc } = await (supabase.from('client_documents' as any) as any)
+            .select('*')
+            .eq('task_id', reopenModalTask.id)
+            .eq('name', attachment.name)
+            .maybeSingle();
+
+          // 2. Verificar se o cliente já leu o documento
+          let wasRead = (existingDoc as any)?.status === 'Lido';
+          let firstReadAt: string | null = null;
+          if ((existingDoc as any)?.id) {
+            const { data: readLog } = await (supabase.from('client_document_logs' as any) as any)
+              .select('read_at')
+              .eq('document_id', (existingDoc as any).id)
+              .order('read_at', { ascending: true })
+              .limit(1)
+              .maybeSingle();
+
+            if (readLog?.read_at) {
+              wasRead = true;
+              firstReadAt = readLog.read_at;
+            }
+          }
+
+          // 3. Registrar na trilha de auditoria imutável com todos os campos obrigatórios
+          if (orgId) {
+            const { error: auditErr } = await (supabase.from('client_document_deletion_logs' as any) as any).insert({
+              org_id: orgId,
+              client_id: reopenModalTask.clientId,
+              client_name: clientName,
+              document_id: (existingDoc as any)?.id || null,
+              document_name: attachment.name,
+              competence_month: (existingDoc as any)?.competence_month || reopenModalTask.competence || null,
+              due_date: (existingDoc as any)?.due_date || reopenModalTask.dueDate || null,
+              document_type: (existingDoc as any)?.type || null,
+              was_read_by_client: wasRead,
+              first_read_at: firstReadAt,
+              deletion_source: 'reopen_task',
+              task_id: reopenModalTask.id,
+              task_title: reopenModalTask.taskName || 'Tarefa',
+              deleted_by_user_id: userProfile?.id || null,
+              deleted_by_name: userProfile?.full_name || 'Operador',
+              deleted_by_role: userProfile?.role || 'operator',
+              reason: `Documento excluído na reabertura da tarefa para status "${reopenModalNewStatus}"`
+            });
+
+            if (auditErr) {
+              console.error('Erro ao registrar auditoria de exclusão na reabertura:', auditErr);
+            }
+          }
+
+          // 4. Remove o documento da área do cliente (client_documents) para que não conste mais como ativo
+          if ((existingDoc as any)?.id) {
+            await (supabase.from('client_documents' as any) as any)
+              .delete()
+              .eq('id', (existingDoc as any).id);
+          }
+          await (supabase.from('client_documents' as any) as any)
+            .delete()
             .eq('task_id', reopenModalTask.id)
             .eq('name', attachment.name);
             
           // Remove o arquivo fisicamente do bucket client-documents
-          if (attachment.storage_path) {
-            await supabase.storage.from('client-documents').remove([attachment.storage_path]);
+          const storagePath = (existingDoc as any)?.storage_path || attachment.storage_path;
+          if (storagePath) {
+            await supabase.storage.from('client-documents').remove([storagePath]);
           }
           
           // Remove da tabela task_attachments
@@ -2766,7 +2827,7 @@ export const Tasks: React.FC<{
                       const clientActive = !!(filters.clientName || filters.clientDocument || filters.clientCity || filters.clientState);
                       const clientCount = [filters.clientName, filters.clientDocument, filters.clientCity, filters.clientState].filter(Boolean).length;
                       return (
-                        <th className={`px-6 py-4 align-top min-w-[200px] rounded-tl-2xl border-t-[3px] border-l border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
+                        <th className={`px-6 py-4 align-top w-[280px] min-w-[240px] max-w-[320px] rounded-tl-2xl border-t-[3px] border-l border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${clientActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Cliente</span>
                             <TableColumnFilter label="Cliente" isActive={clientActive} activeCount={clientCount}>
@@ -3188,10 +3249,11 @@ export const Tasks: React.FC<{
                   ) : (
                     filteredTasks.slice(0, MAX_RENDER_TABLE).map((task) => (
                       <tr key={task.id} className="group relative bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-sm">
-                        <td className="px-6 py-4 rounded-l-xl border-y border-l border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
-                          <div className="flex flex-col">
+                        <td className="px-6 py-4 w-[280px] min-w-[240px] max-w-[320px] rounded-l-xl border-y border-l border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
+                          <div className="flex flex-col max-w-[260px]">
                             <div
-                              className="font-medium text-slate-900 dark:text-white"
+                              className="font-medium text-slate-900 dark:text-white leading-snug line-clamp-2 break-words"
+                              title={task.clientName}
                             >
                               {task.clientName}
                             </div>

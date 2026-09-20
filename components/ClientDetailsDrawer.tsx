@@ -33,7 +33,10 @@ import {
   Scale,
   Award,
   ExternalLink,
-  Eye
+  Eye,
+  AlertTriangle,
+  History,
+  ShieldAlert
 } from 'lucide-react';
 import { Client, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
@@ -144,6 +147,10 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<any | null>(null);
+  const [docsActiveTab, setDocsActiveTab] = useState<'active' | 'deleted'>('active');
+  const [deletedLogs, setDeletedLogs] = useState<any[]>([]);
+  const [loadingDeletedLogs, setLoadingDeletedLogs] = useState(false);
+  const [currentUserProfile, setCurrentUserProfile] = useState<{ id: string; full_name?: string; role?: string; org_id?: string } | null>(null);
 
   // Estados para Protocolo de Leitura
   const [protocolModalOpen, setProtocolModalOpen] = useState(false);
@@ -267,12 +274,82 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
       setCertificates(cert.data || []);
       setLicenses(lics.data || []);
       setActivities(act.data || []);
-      setDocuments(docs.data || []);
       setSectors(secs.data || []);
+
+      // Filtrar apenas documentos verdadeiramente ativos
+      const allDocs = docs.data || [];
+      const activeDocs = allDocs.filter((d: any) => d.status !== 'Excluído');
+      setDocuments(activeDocs);
+
+      // Buscar usuário logado e perfil para auditoria
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user) {
+          const { data: p } = await (supabase.from('profiles') as any)
+            .select('id, full_name, role, org_id')
+            .eq('id', authData.user.id)
+            .single();
+          if (p) setCurrentUserProfile(p);
+        }
+      } catch (authErr) {
+        console.warn('Erro ao obter perfil para auditoria:', authErr);
+      }
+
+      // Auto-cleanup: se houver documentos com status 'Excluído' antigos ainda em client_documents,
+      // remover do banco e garantir registro em client_document_deletion_logs
+      const legacyExcluded = allDocs.filter((d: any) => d.status === 'Excluído');
+      if (legacyExcluded.length > 0) {
+        const clientName = (client as any)?.company_name || (client as any)?.companyName || 'Cliente';
+        for (const exDoc of (legacyExcluded as any[])) {
+          try {
+            await (supabase.from('client_documents' as any) as any).delete().eq('id', exDoc.id);
+            await (supabase.from('client_document_deletion_logs' as any) as any).insert({
+              org_id: exDoc.org_id || (client as any)?.org_id || currentUserProfile?.org_id,
+              client_id: client.id,
+              client_name: clientName,
+              document_id: exDoc.id,
+              document_name: exDoc.name,
+              competence_month: exDoc.competence_month,
+              due_date: exDoc.due_date,
+              document_type: exDoc.type,
+              was_read_by_client: false,
+              first_read_at: null,
+              deletion_source: 'reopen_task',
+              task_id: exDoc.task_id || null,
+              deleted_by_name: currentUserProfile?.full_name || 'Operador',
+              deleted_by_role: currentUserProfile?.role || 'operator',
+              reason: 'Sincronização de documento excluído na reabertura de tarefa'
+            });
+          } catch (cleanErr) {
+            console.warn('Erro ao limpar documento excluído residual:', cleanErr);
+          }
+        }
+      }
+
+      // Buscar histórico de documentos excluídos
+      fetchDeletedLogs();
     } catch (error) {
       console.error('Erro ao buscar dados do cliente:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDeletedLogs = async () => {
+    if (!client?.id) return;
+    setLoadingDeletedLogs(true);
+    try {
+      const { data, error } = await (supabase.from('client_document_deletion_logs' as any) as any)
+        .select('*')
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        setDeletedLogs(data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar logs de exclusão:', err);
+    } finally {
+      setLoadingDeletedLogs(false);
     }
   };
 
@@ -372,10 +449,74 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     if (!deleteConfirmDoc) return;
     const doc = deleteConfirmDoc;
     try {
+      // 1. Identificar operador que está realizando a exclusão
+      let userProfile = currentUserProfile;
+      if (!userProfile) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user) {
+          const { data: p } = await (supabase.from('profiles') as any)
+            .select('id, full_name, role, org_id')
+            .eq('id', authData.user.id)
+            .single();
+          if (p) {
+            userProfile = p;
+            setCurrentUserProfile(p);
+          }
+        }
+      }
+
+      // 2. Verificar se o cliente já leu o documento
+      let wasRead = doc.status === 'Lido';
+      let firstReadAt: string | null = null;
+      try {
+        const { data: readLogs } = await (supabase as any)
+          .from('client_document_logs')
+          .select('read_at')
+          .eq('document_id', doc.id)
+          .order('read_at', { ascending: true })
+          .limit(1);
+
+        if (readLogs && readLogs.length > 0) {
+          wasRead = true;
+          firstReadAt = readLogs[0].read_at;
+        }
+      } catch (checkErr) {
+        console.warn('Não foi possível checar logs de leitura:', checkErr);
+      }
+
+      // 3. Registrar na tabela de auditoria client_document_deletion_logs
+      const orgId = doc.org_id || (client as any)?.org_id || userProfile?.org_id;
+      const clientName = (client as any)?.company_name || (client as any)?.companyName || 'Cliente';
+      const { error: auditError } = await (supabase.from('client_document_deletion_logs' as any) as any).insert({
+        org_id: orgId,
+        client_id: client?.id,
+        client_name: clientName,
+        document_id: doc.id,
+        document_name: doc.name || 'Sem nome',
+        competence_month: doc.competence_month || null,
+        due_date: doc.due_date || null,
+        document_type: doc.type || null,
+        deletion_source: 'client_drawer_manual',
+        task_id: null,
+        task_title: null,
+        deleted_by_user_id: userProfile?.id || null,
+        deleted_by_name: userProfile?.full_name || 'Operador',
+        deleted_by_role: userProfile?.role || 'operator',
+        was_read_by_client: wasRead,
+        first_read_at: firstReadAt,
+        reason: 'Exclusão manual realizada no drawer do cliente'
+      });
+
+      if (auditError) {
+        console.error('Erro ao registrar log de auditoria de exclusão:', auditError);
+      }
+
+      // 4. Remover arquivo do storage
       if (doc.storage_path) {
         await supabase.storage.from('client-documents').remove([doc.storage_path]);
       }
 
+      // 5. Excluir do banco
       const { error: deleteError } = await supabase
         .from('client_documents' as any)
         .delete()
@@ -384,7 +525,8 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
       if (deleteError) throw deleteError;
 
       setDocuments(prev => prev.filter(d => d.id !== doc.id));
-      addToast('success', 'Sucesso', 'Documento excluído com sucesso!');
+      await fetchDeletedLogs();
+      addToast('success', 'Documento Excluído', 'Documento excluído e ocorrência registrada no histórico de auditoria.');
     } catch (err: any) {
       console.error(err);
       addToast('error', 'Erro', 'Erro ao excluir documento: ' + err.message);
@@ -497,24 +639,25 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
   };
 
   const renderDragHandle = (sectionId: string) => (
-    <div
-      className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-1 shrink-0"
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        setDraggableSectionId(sectionId);
-      }}
-      onMouseUp={(e) => {
-        e.stopPropagation();
-        setDraggableSectionId(null);
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-      }}
-      title="Arraste para reordenar"
-    >
-      <GripVertical size={14} />
-    </div>
+    <Tooltip content="Arrastar para ordenar" position="top">
+      <div
+        className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-1 shrink-0"
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          setDraggableSectionId(sectionId);
+        }}
+        onMouseUp={(e) => {
+          e.stopPropagation();
+          setDraggableSectionId(null);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+      >
+        <GripVertical size={14} />
+      </div>
+    </Tooltip>
   );
 
   const InfoField = ({ 
@@ -1232,88 +1375,249 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               <div className={`w-full max-w-full min-w-0 ${openSections.documents ? 'overflow-visible' : 'overflow-hidden'}`}>
                 <div className="p-4 pt-0 flex flex-col gap-4 max-w-full min-w-0 w-full">
                   
-                  {/* Formulário/Botão de Upload */}
-                  <div className={`border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30 relative min-w-0 max-w-full w-full ${isUploadCalendarOpen ? 'z-50' : 'z-10'}`}>
-                    {!showUploadForm ? (
-                      <button
-                        onClick={() => setShowUploadForm(true)}
-                        className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-lg transition-colors border border-dashed border-indigo-200 dark:border-indigo-800"
-                      >
-                        <Upload size={14} />
-                        Enviar Novo Documento
-                      </button>
-                    ) : (
-                      <div className="flex flex-col gap-3 min-w-0 max-w-full w-full">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Novo Documento</span>
-                          <button onClick={() => { setShowUploadForm(false); setUploadFile(null); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                            <X size={14} />
-                          </button>
-                        </div>
+                  {/* Seletor de Abas: Documentos Ativos vs Histórico de Excluídos */}
+                  <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setDocsActiveTab('active')}
+                      className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        docsActiveTab === 'active'
+                          ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <FileText size={13} />
+                      <span>Documentos Ativos ({documents.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDocsActiveTab('deleted')}
+                      className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                        docsActiveTab === 'deleted'
+                          ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <History size={13} />
+                      <span>Histórico de Excluídos ({deletedLogs.length})</span>
+                    </button>
+                  </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0 max-w-full w-full">
-                          <div className="min-w-0 w-full">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Setor Destino *</label>
-                            <select
-                              value={uploadSectorId}
-                              onChange={(e) => setUploadSectorId(e.target.value)}
-                              className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none truncate"
+                  {docsActiveTab === 'active' ? (
+                    <>
+                      {/* Formulário/Botão de Upload */}
+                      <div className={`border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30 relative min-w-0 max-w-full w-full ${isUploadCalendarOpen ? 'z-50' : 'z-10'}`}>
+                        {!showUploadForm ? (
+                          <button
+                            onClick={() => setShowUploadForm(true)}
+                            className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-lg transition-colors border border-dashed border-indigo-200 dark:border-indigo-800"
+                          >
+                            <Upload size={14} />
+                            Enviar Novo Documento
+                          </button>
+                        ) : (
+                          <div className="flex flex-col gap-3 min-w-0 max-w-full w-full">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Novo Documento</span>
+                              <button onClick={() => { setShowUploadForm(false); setUploadFile(null); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <X size={14} />
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0 max-w-full w-full">
+                              <div className="min-w-0 w-full">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Setor Destino *</label>
+                                <select
+                                  value={uploadSectorId}
+                                  onChange={(e) => setUploadSectorId(e.target.value)}
+                                  className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none truncate"
+                                >
+                                  <option value="">Selecione o Setor</option>
+                                  {sectors.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className={`relative min-w-0 w-full ${isUploadCalendarOpen ? 'z-50' : ''}`} ref={uploadCalendarRef}>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Competência (Mês/Ano) *</label>
+                                <button
+                                  type="button"
+                                  onClick={() => setIsUploadCalendarOpen(!isUploadCalendarOpen)}
+                                  className="w-full min-w-0 text-left text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none flex items-center justify-between font-bold text-slate-700 dark:text-slate-200"
+                                >
+                                  <span className="truncate">{uploadCompetence || 'Selecione...'}</span>
+                                  <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${isUploadCalendarOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {isUploadCalendarOpen && (
+                                  <div className="absolute right-0 mt-1 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                                    {/* Seletor de Ano */}
+                                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                                      <button
+                                        type="button"
+                                        onClick={() => setUploadCalendarYear(prev => prev - 1)}
+                                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
+                                      >
+                                        <ChevronLeft size={14} />
+                                      </button>
+                                      <span className="text-xs font-black text-slate-700 dark:text-slate-200 tracking-wider">
+                                        {uploadCalendarYear}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setUploadCalendarYear(prev => prev + 1)}
+                                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
+                                      >
+                                        <ChevronRight size={14} />
+                                      </button>
+                                    </div>
+
+                                    {/* Grid de Meses */}
+                                    <div className="grid grid-cols-4 gap-1.5">
+                                      {['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'].map((mLabel, idx) => {
+                                        const valueToCheck = `${(idx + 1).toString().padStart(2, '0')}/${uploadCalendarYear}`;
+                                        const isSelected = uploadCompetence === valueToCheck;
+
+                                        return (
+                                          <button
+                                            key={mLabel}
+                                            type="button"
+                                            onClick={() => {
+                                              setUploadCompetence(valueToCheck);
+                                              setIsUploadCalendarOpen(false);
+                                            }}
+                                            className={`py-2 text-[10px] font-black rounded-lg transition-all text-center ${
+                                              isSelected
+                                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                                : 'bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                                            }`}
+                                          >
+                                            {mLabel}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0 max-w-full w-full">
+                              <div className="min-w-0 w-full">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Nome de Exibição (Opcional)</label>
+                                <input
+                                  type="text"
+                                  placeholder="Ex: Guia do DAS Simples"
+                                  value={uploadName}
+                                  onChange={(e) => setUploadName(e.target.value)}
+                                  className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                                />
+                              </div>
+                              <div className="min-w-0 w-full">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Data de Vencimento (Opcional)</label>
+                                <input
+                                  type="date"
+                                  value={uploadDueDate}
+                                  onChange={(e) => setUploadDueDate(e.target.value)}
+                                  className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors relative min-w-0 max-w-full w-full overflow-hidden">
+                              <input
+                                type="file"
+                                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                              />
+                              <Upload className="mx-auto text-slate-400 mb-2 shrink-0" size={20} />
+                              <div className="w-full min-w-0 max-w-full overflow-hidden px-2">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 break-all line-clamp-2 max-w-full text-center" title={uploadFile ? uploadFile.name : undefined}>
+                                  {uploadFile ? uploadFile.name : 'Clique para selecionar ou arraste o arquivo'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={handleUploadDocument}
+                              disabled={uploading}
+                              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-2"
                             >
-                              <option value="">Selecione o Setor</option>
-                              {sectors.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                              ))}
-                            </select>
+                              {uploading ? (
+                                <>
+                                  <Loader2 className="animate-spin" size={14} />
+                                  Enviando...
+                                </>
+                              ) : (
+                                'Enviar'
+                              )}
+                            </button>
                           </div>
-                          <div className={`relative min-w-0 w-full ${isUploadCalendarOpen ? 'z-50' : ''}`} ref={uploadCalendarRef}>
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Competência (Mês/Ano) *</label>
+                        )}
+                      </div>
+
+                      {/* Filtros e Barra de Pesquisa */}
+                      <div className={`flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 relative min-w-0 max-w-full w-full ${isFilterCalendarOpen ? 'z-50' : 'z-20'}`}>
+                        <div className="relative min-w-0 max-w-full w-full">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
+                          <input
+                            type="text"
+                            placeholder="Buscar documento pelo nome..."
+                            value={searchFilter}
+                            onChange={(e) => setSearchFilter(e.target.value)}
+                            className="w-full min-w-0 pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none"
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-2 min-w-0 max-w-full w-full">
+                          <div className={`relative min-w-0 w-full ${isFilterCalendarOpen ? 'z-50' : ''}`} ref={filterCalendarRef}>
                             <button
                               type="button"
-                              onClick={() => setIsUploadCalendarOpen(!isUploadCalendarOpen)}
-                              className="w-full min-w-0 text-left text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none flex items-center justify-between font-bold text-slate-700 dark:text-slate-200"
+                              onClick={() => setIsFilterCalendarOpen(!isFilterCalendarOpen)}
+                              className="w-full min-w-0 text-left text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
                             >
-                              <span className="truncate">{uploadCompetence || 'Selecione...'}</span>
-                              <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${isUploadCalendarOpen ? 'rotate-180' : ''}`} />
+                              <span className="truncate">{competenceFilter || 'Período'}</span>
+                              <ChevronDown size={12} className={`text-slate-400 shrink-0 transition-transform ${isFilterCalendarOpen ? 'rotate-180' : ''}`} />
                             </button>
 
-                            {isUploadCalendarOpen && (
-                              <div className="absolute right-0 mt-1 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                            {isFilterCalendarOpen && (
+                              <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
                                 {/* Seletor de Ano */}
-                                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
                                   <button
                                     type="button"
-                                    onClick={() => setUploadCalendarYear(prev => prev - 1)}
-                                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
+                                    onClick={() => setFilterCalendarYear(prev => prev - 1)}
+                                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
                                   >
-                                    <ChevronLeft size={14} />
+                                    <ChevronLeft size={12} />
                                   </button>
-                                  <span className="text-xs font-black text-slate-700 dark:text-slate-200 tracking-wider">
-                                    {uploadCalendarYear}
+                                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 tracking-wider">
+                                    {filterCalendarYear}
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={() => setUploadCalendarYear(prev => prev + 1)}
-                                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
+                                    onClick={() => setFilterCalendarYear(prev => prev + 1)}
+                                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
                                   >
-                                    <ChevronRight size={14} />
+                                    <ChevronRight size={12} />
                                   </button>
                                 </div>
 
                                 {/* Grid de Meses */}
-                                <div className="grid grid-cols-4 gap-1.5">
+                                <div className="grid grid-cols-4 gap-1">
                                   {['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'].map((mLabel, idx) => {
-                                    const valueToCheck = `${(idx + 1).toString().padStart(2, '0')}/${uploadCalendarYear}`;
-                                    const isSelected = uploadCompetence === valueToCheck;
+                                    const valueToCheck = `${(idx + 1).toString().padStart(2, '0')}/${filterCalendarYear}`;
+                                    const isSelected = competenceFilter === valueToCheck;
 
                                     return (
                                       <button
                                         key={mLabel}
                                         type="button"
                                         onClick={() => {
-                                          setUploadCompetence(valueToCheck);
-                                          setIsUploadCalendarOpen(false);
+                                          setCompetenceFilter(valueToCheck);
+                                          setIsFilterCalendarOpen(false);
                                         }}
-                                        className={`py-2 text-[10px] font-black rounded-lg transition-all text-center ${
+                                        className={`py-1 text-[9px] font-black rounded-md transition-all text-center ${
                                           isSelected
                                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                                             : 'bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -1324,264 +1628,225 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                                     );
                                   })}
                                 </div>
+
+                                {/* Rodapé para Limpar */}
+                                <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCompetenceFilter('');
+                                      setIsFilterCalendarOpen(false);
+                                    }}
+                                    className="w-full py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider rounded-md transition-all text-center"
+                                  >
+                                    Ver Todas
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0 max-w-full w-full">
-                          <div className="min-w-0 w-full">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Nome de Exibição (Opcional)</label>
-                            <input
-                              type="text"
-                              placeholder="Ex: Guia do DAS Simples"
-                              value={uploadName}
-                              onChange={(e) => setUploadName(e.target.value)}
-                              className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
-                            />
-                          </div>
-                          <div className="min-w-0 w-full">
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Data de Vencimento (Opcional)</label>
-                            <input
-                              type="date"
-                              value={uploadDueDate}
-                              onChange={(e) => setUploadDueDate(e.target.value)}
-                              className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
-                            />
-                          </div>
-                        </div>
+                          <select
+                            value={sectorFilter}
+                            onChange={(e) => setSectorFilter(e.target.value)}
+                            className="text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold"
+                          >
+                            <option value="">Todos Setores</option>
+                            {sectors.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
 
-                        <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors relative min-w-0 max-w-full w-full overflow-hidden">
-                          <input
-                            type="file"
-                            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                          />
-                          <Upload className="mx-auto text-slate-400 mb-2 shrink-0" size={20} />
-                          <div className="w-full min-w-0 max-w-full overflow-hidden px-2">
-                            <p className="text-xs text-slate-500 dark:text-slate-400 break-all line-clamp-2 max-w-full text-center" title={uploadFile ? uploadFile.name : undefined}>
-                              {uploadFile ? uploadFile.name : 'Clique para selecionar ou arraste o arquivo'}
-                            </p>
-                          </div>
+                          <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold"
+                          >
+                            <option value="">Todos Status</option>
+                            <option value="Enviado">Enviado</option>
+                            <option value="Lido">Lido</option>
+                            <option value="Pago">Pago</option>
+                            <option value="Baixado">Baixado</option>
+                          </select>
                         </div>
-
-                        <button
-                          onClick={handleUploadDocument}
-                          disabled={uploading}
-                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg font-bold text-xs transition-colors flex items-center justify-center gap-2"
-                        >
-                          {uploading ? (
-                            <>
-                              <Loader2 className="animate-spin" size={14} />
-                              Enviando...
-                            </>
-                          ) : (
-                            'Enviar'
-                          )}
-                        </button>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Filtros e Barra de Pesquisa */}
-                  <div className={`flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 relative min-w-0 max-w-full w-full ${isFilterCalendarOpen ? 'z-50' : 'z-20'}`}>
-                    <div className="relative min-w-0 max-w-full w-full">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
-                      <input
-                        type="text"
-                        placeholder="Buscar documento pelo nome..."
-                        value={searchFilter}
-                        onChange={(e) => setSearchFilter(e.target.value)}
-                        className="w-full min-w-0 pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-2 min-w-0 max-w-full w-full">
-                      <div className={`relative min-w-0 w-full ${isFilterCalendarOpen ? 'z-50' : ''}`} ref={filterCalendarRef}>
-                        <button
-                          type="button"
-                          onClick={() => setIsFilterCalendarOpen(!isFilterCalendarOpen)}
-                          className="w-full min-w-0 text-left text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
-                        >
-                          <span className="truncate">{competenceFilter || 'Período'}</span>
-                          <ChevronDown size={12} className={`text-slate-400 shrink-0 transition-transform ${isFilterCalendarOpen ? 'rotate-180' : ''}`} />
-                        </button>
+                      {/* Listagem de Documentos */}
+                      <div className="max-h-[300px] overflow-y-auto pr-1 flex flex-col gap-2 relative z-0">
+                        {documents.filter(doc => {
+                          if (doc.status === 'Excluído') return false;
+                          if (searchFilter && !doc.name.toLowerCase().includes(searchFilter.toLowerCase())) return false;
+                          if (competenceFilter && doc.competence_month !== competenceFilter) return false;
+                          if (sectorFilter && doc.sector_id !== sectorFilter) return false;
+                          if (statusFilter && doc.status !== statusFilter) return false;
+                          return true;
+                        }).length > 0 ? (
+                          documents.filter(doc => {
+                            if (doc.status === 'Excluído') return false;
+                            if (searchFilter && !doc.name.toLowerCase().includes(searchFilter.toLowerCase())) return false;
+                            if (competenceFilter && doc.competence_month !== competenceFilter) return false;
+                            if (sectorFilter && doc.sector_id !== sectorFilter) return false;
+                            if (statusFilter && doc.status !== statusFilter) return false;
+                            return true;
+                          }).map((doc, idx) => {
+                            const sec = sectors.find(s => s.id === doc.sector_id);
+                            return (
+                              <div key={doc.id || idx} className="flex gap-0 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors w-full max-w-full min-w-0">
+                                {/* Faixa lateral com Setor na Vertical (90º) */}
+                                <div className={`w-6 shrink-0 flex items-center justify-center ${getSectorStyle(sec?.name).bar} relative`}>
+                                  <span className="text-[7.5px] font-black uppercase tracking-widest text-white/90 [writing-mode:vertical-lr] rotate-180 whitespace-nowrap py-1 select-none">
+                                    {sec?.name || 'Geral'}
+                                  </span>
+                                </div>
 
-                        {isFilterCalendarOpen && (
-                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
-                            {/* Seletor de Ano */}
-                            <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
-                              <button
-                                type="button"
-                                onClick={() => setFilterCalendarYear(prev => prev - 1)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
-                              >
-                                <ChevronLeft size={12} />
-                              </button>
-                              <span className="text-[11px] font-black text-slate-700 dark:text-slate-200 tracking-wider">
-                                {filterCalendarYear}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setFilterCalendarYear(prev => prev + 1)}
-                                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all active:scale-95"
-                              >
-                                <ChevronRight size={12} />
-                              </button>
-                            </div>
+                                <div className="flex items-center justify-between p-2.5 flex-1 min-w-0">
+                                  <div className="min-w-0 flex-1 pl-1.5">
+                                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate break-words" title={doc.name}>{doc.name}</p>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                      <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">{doc.competence_month}</span>
+                                      {doc.due_date && (
+                                        <>
+                                          <span className="text-[9px] font-black text-slate-400 shrink-0">•</span>
+                                          <span className="text-[9px] font-bold text-red-500 dark:text-red-400 shrink-0">Venc. {formatDate(doc.due_date)}</span>
+                                        </>
+                                      )}
+                                      <span className="text-[9px] font-black text-slate-400 shrink-0">•</span>
+                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                                        doc.status === 'Pago' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' :
+                                        doc.status === 'Lido' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' :
+                                        'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                                      }`}>
+                                        {doc.status || 'Enviado'}
+                                      </span>
+                                    </div>
+                                  </div>
 
-                            {/* Grid de Meses */}
-                            <div className="grid grid-cols-4 gap-1">
-                              {['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'].map((mLabel, idx) => {
-                                const valueToCheck = `${(idx + 1).toString().padStart(2, '0')}/${filterCalendarYear}`;
-                                const isSelected = competenceFilter === valueToCheck;
-
-                                return (
-                                  <button
-                                    key={mLabel}
-                                    type="button"
-                                    onClick={() => {
-                                      setCompetenceFilter(valueToCheck);
-                                      setIsFilterCalendarOpen(false);
-                                    }}
-                                    className={`py-1 text-[9px] font-black rounded-md transition-all text-center ${
-                                      isSelected
-                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                                        : 'bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                                    }`}
-                                  >
-                                    {mLabel}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Rodapé para Limpar */}
-                            <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCompetenceFilter('');
-                                  setIsFilterCalendarOpen(false);
-                                }}
-                                className="w-full py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider rounded-md transition-all text-center"
-                              >
-                                Ver Todas
-                              </button>
-                            </div>
+                                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                                    <Tooltip content="Protocolo de leitura" position="top">
+                                      <button
+                                        onClick={() => handleViewProtocol(doc)}
+                                        className="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
+                                      >
+                                        <Eye size={14} />
+                                      </button>
+                                    </Tooltip>
+                                    <Tooltip content="Baixar documento" position="top">
+                                      <button
+                                        onClick={() => handleDownloadDocument(doc)}
+                                        className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
+                                      >
+                                        <Download size={14} />
+                                      </button>
+                                    </Tooltip>
+                                    <Tooltip content="Excluir documento" position="top">
+                                      <button
+                                        onClick={() => setDeleteConfirmDoc(doc)}
+                                        className="p-1.5 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </Tooltip>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                            Nenhum documento encontrado
                           </div>
                         )}
                       </div>
+                    </>
+                  ) : (
+                    /* Aba Histórico de Excluídos */
+                    <div className="flex flex-col gap-3 min-w-0 max-w-full w-full">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                          Ocorrências Registradas ({deletedLogs.length})
+                        </span>
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <ShieldCheck size={12} className="text-emerald-500" />
+                          Imutável
+                        </span>
+                      </div>
 
-                      <select
-                        value={sectorFilter}
-                        onChange={(e) => setSectorFilter(e.target.value)}
-                        className="text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold"
-                      >
-                        <option value="">Todos Setores</option>
-                        {sectors.map(s => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
+                      {loadingDeletedLogs ? (
+                        <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                          <Loader2 size={20} className="animate-spin mb-2 text-indigo-500" />
+                          <span className="text-xs">Carregando histórico...</span>
+                        </div>
+                      ) : deletedLogs.length > 0 ? (
+                        <div className="max-h-[320px] overflow-y-auto pr-1 flex flex-col gap-2">
+                          {deletedLogs.map((log, idx) => (
+                            <div
+                              key={log.id || idx}
+                              className="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/90 dark:border-slate-800 flex flex-col gap-2 transition-all hover:border-slate-300 dark:hover:border-slate-700"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-red-500 shrink-0">
+                                      <Trash2 size={13} />
+                                    </span>
+                                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate" title={log.document_name}>
+                                      {log.document_name}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[9px] text-slate-400">
+                                    {log.competence_month && (
+                                      <span className="font-bold text-slate-600 dark:text-slate-300 uppercase">
+                                        {log.competence_month}
+                                      </span>
+                                    )}
+                                    {log.competence_month && <span>•</span>}
+                                    <span>Excluído em {new Date(log.created_at).toLocaleString('pt-BR')}</span>
+                                  </div>
+                                </div>
 
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold"
-                      >
-                        <option value="">Todos Status</option>
-                        <option value="Enviado">Enviado</option>
-                        <option value="Lido">Lido</option>
-                        <option value="Pago">Pago</option>
-                        <option value="Baixado">Baixado</option>
-                      </select>
-                    </div>
-                  </div>
+                                {log.was_read_by_client ? (
+                                  <span className="shrink-0 text-[8.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
+                                    <Eye size={10} />
+                                    Lido pelo cliente
+                                  </span>
+                                ) : (
+                                  <span className="shrink-0 text-[8.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                    Não lido
+                                  </span>
+                                )}
+                              </div>
 
-                  {/* Listagem de Documentos */}
-                  <div className="max-h-[300px] overflow-y-auto pr-1 flex flex-col gap-2 relative z-0">
-                    {documents.filter(doc => {
-                      if (searchFilter && !doc.name.toLowerCase().includes(searchFilter.toLowerCase())) return false;
-                      if (competenceFilter && doc.competence_month !== competenceFilter) return false;
-                      if (sectorFilter && doc.sector_id !== sectorFilter) return false;
-                      if (statusFilter && doc.status !== statusFilter) return false;
-                      return true;
-                    }).length > 0 ? (
-                      documents.filter(doc => {
-                        if (searchFilter && !doc.name.toLowerCase().includes(searchFilter.toLowerCase())) return false;
-                        if (competenceFilter && doc.competence_month !== competenceFilter) return false;
-                        if (sectorFilter && doc.sector_id !== sectorFilter) return false;
-                        if (statusFilter && doc.status !== statusFilter) return false;
-                        return true;
-                      }).map((doc, idx) => {
-                        const sec = sectors.find(s => s.id === doc.sector_id);
-                        return (
-                          <div key={doc.id || idx} className="flex gap-0 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors w-full max-w-full min-w-0">
-                            {/* Faixa lateral com Setor na Vertical (90º) */}
-                            <div className={`w-6 shrink-0 flex items-center justify-center ${getSectorStyle(sec?.name).bar} relative`}>
-                              <span className="text-[7.5px] font-black uppercase tracking-widest text-white/90 [writing-mode:vertical-lr] rotate-180 whitespace-nowrap py-1 select-none">
-                                {sec?.name || 'Geral'}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between p-2.5 flex-1 min-w-0">
-                              <div className="min-w-0 flex-1 pl-1.5">
-                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate break-words" title={doc.name}>{doc.name}</p>
-                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                  <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">{doc.competence_month}</span>
-                                  {doc.due_date && (
-                                    <>
-                                      <span className="text-[9px] font-black text-slate-400 shrink-0">•</span>
-                                      <span className="text-[9px] font-bold text-red-500 dark:text-red-400 shrink-0">Venc. {formatDate(doc.due_date)}</span>
-                                    </>
-                                  )}
-                                  <span className="text-[9px] font-black text-slate-400 shrink-0">•</span>
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
-                                    doc.status === 'Pago' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' :
-                                    doc.status === 'Lido' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' :
-                                    'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
-                                  }`}>
-                                    {doc.status || 'Enviado'}
+                              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-1 text-[9px]">
+                                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                                  <User size={11} className="text-slate-400" />
+                                  <span>
+                                    Operador: <strong className="font-semibold">{log.deleted_by_name || 'Usuário'}</strong>
                                   </span>
                                 </div>
-                              </div>
 
-                              <div className="flex items-center gap-1 shrink-0 ml-2">
-                                <Tooltip content="Protocolo de leitura" position="top">
-                                  <button
-                                    onClick={() => handleViewProtocol(doc)}
-                                    className="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors"
-                                  >
-                                    <Eye size={14} />
-                                  </button>
-                                </Tooltip>
-                                <Tooltip content="Baixar documento" position="top">
-                                  <button
-                                    onClick={() => handleDownloadDocument(doc)}
-                                    className="p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors"
-                                  >
-                                    <Download size={14} />
-                                  </button>
-                                </Tooltip>
-                                <Tooltip content="Excluir documento" position="top">
-                                  <button
-                                    onClick={() => setDeleteConfirmDoc(doc)}
-                                    className="p-1.5 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </Tooltip>
+                                <div className="flex items-center gap-1">
+                                  {log.deletion_source === 'reopen_task' ? (
+                                    <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold truncate max-w-[200px]" title={log.task_title ? `Reabertura: ${log.task_title}` : 'Reabertura de Tarefa'}>
+                                      Reabertura: {log.task_title || 'Tarefa'}
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold">
+                                      Exclusão Manual no Cliente
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                        Nenhum documento encontrado
-                      </div>
-                    )}
-                  </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                          <ShieldAlert size={24} className="mx-auto mb-1.5 text-slate-300 dark:text-slate-700" />
+                          Nenhum registro de exclusão para este cliente.
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                 </div>
               </div>
@@ -1618,9 +1883,18 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           </div>
         }
       >
-        <div className="p-6 text-sm text-slate-600 dark:text-slate-300">
+        <div className="p-6 text-sm text-slate-600 dark:text-slate-300 space-y-3">
+          {deleteConfirmDoc?.status === 'Lido' && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 rounded-xl flex items-start gap-2.5 shadow-sm">
+              <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                <strong className="block font-bold mb-0.5 text-amber-900 dark:text-amber-100">Atenção: Este documento já foi lido pelo cliente no portal!</strong>
+                A exclusão ficará permanentemente registrada no log de auditoria e segurança da organização com o seu usuário.
+              </div>
+            </div>
+          )}
           <p>Você tem certeza que deseja excluir o documento <strong>{deleteConfirmDoc?.name}</strong>?</p>
-          <p className="mt-2 text-xs text-slate-400">Essa ação é permanente e removerá o arquivo do portal do cliente.</p>
+          <p className="text-xs text-slate-400">Essa ação removerá o arquivo do portal do cliente e registrará uma ocorrência de auditoria.</p>
         </div>
       </Modal>
 

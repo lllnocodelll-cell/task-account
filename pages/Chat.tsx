@@ -3,8 +3,6 @@ import {
   Search,
   Send,
   MoreVertical,
-  Phone,
-  Video,
   Paperclip,
   Smile,
   Check,
@@ -13,17 +11,16 @@ import {
   Reply,
   Image as ImageIcon,
   Plus,
+  MessageCirclePlus,
+  UserRoundPlus,
   Users,
   X,
-  PhoneCall,
-  PhoneOff,
   EyeOff,
   ArrowLeft,
   PanelLeft,
   Shuffle,
   Loader2,
   MessageSquare,
-  PhoneOutgoing,
   RotateCcw,
   AlertCircle,
   SlidersHorizontal,
@@ -45,7 +42,9 @@ import {
   Unlock,
   CornerUpRight,
   Copy,
-  RefreshCw
+  RefreshCw,
+  Video,
+  ExternalLink
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -53,8 +52,7 @@ import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { CreateGroupModal } from '../components/chat/CreateGroupModal';
 import { GroupSettingsModal } from '../components/chat/GroupSettingsModal';
-import { VideoCallModal } from '../components/chat/VideoCallModal';
-import { getOrCreateDailyRoom } from '../utils/dailyApi';
+import { GoogleMeetModal } from '../components/chat/GoogleMeetModal';
 import EmojiPicker, { EmojiClickData, Theme, SkinTones } from 'emoji-picker-react';
 import { formatMessageText, stripFormatting } from '../utils/stringUtils';
 import { Tooltip } from '../components/ui/Tooltip';
@@ -485,6 +483,30 @@ const formatDateLabel = (isoString?: string) => {
   });
 };
 
+const isGoogleMeetInvite = (text?: string): boolean => {
+  if (!text) return false;
+  return text.includes('[Reunião Google Meet]') || (text.includes('meet.google.com/') && (text.toLowerCase().includes('reunião') || text.toLowerCase().includes('meet')));
+};
+
+const parseGoogleMeetInvite = (text: string) => {
+  const urlMatch = text.match(/https?:\/\/meet\.google\.com\/[a-z0-9-]+/i) || text.match(/meet\.google\.com\/[a-z0-9-]+/i);
+  let url = urlMatch ? urlMatch[0] : '';
+  if (url && !url.startsWith('http')) {
+    url = `https://${url}`;
+  }
+
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  let title = 'Reunião no Google Meet';
+  for (const line of lines) {
+    if (line !== '[Reunião Google Meet]' && !line.toLowerCase().includes('meet.google.com')) {
+      title = line;
+      break;
+    }
+  }
+
+  return { url, title };
+};
+
 export const Chat: React.FC = () => {
   const { addToast } = useToast();
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -510,6 +532,7 @@ export const Chat: React.FC = () => {
   const [showSidebarOnMobile, setShowSidebarOnMobile] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [isMeetModalOpen, setIsMeetModalOpen] = useState(false);
   const [groupMemberCount, setGroupMemberCount] = useState<number | null>(null);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   
@@ -719,7 +742,6 @@ export const Chat: React.FC = () => {
     setDuplicateModal(prev => ({ ...prev, isOpen: false }));
   };
   const [showSupportActionsMenu, setShowSupportActionsMenu] = useState(false);
-  const [showCallMenu, setShowCallMenu] = useState(false);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [reactionMessageId, setReactionMessageId] = useState<string | null>(null);
@@ -732,17 +754,6 @@ export const Chat: React.FC = () => {
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
-
-  // Chamadas
-  const [callState, setCallState] = useState<{
-    isOpen: boolean;
-    isVideoEnabled: boolean;
-    roomUrl: string;
-  }>({
-    isOpen: false,
-    isVideoEnabled: true,
-    roomUrl: ''
-  });
 
   // Transferência de Atendimento
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -771,7 +782,6 @@ export const Chat: React.FC = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const callMenuRef = useRef<HTMLDivElement>(null);
   const supportActionsMenuRef = useRef<HTMLDivElement>(null);
   const statusMenuRef = useRef<HTMLDivElement>(null);
 
@@ -826,9 +836,6 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (showCallMenu && callMenuRef.current && !callMenuRef.current.contains(target)) {
-        setShowCallMenu(false);
-      }
       if (showSupportActionsMenu && supportActionsMenuRef.current && !supportActionsMenuRef.current.contains(target)) {
         setShowSupportActionsMenu(false);
       }
@@ -850,7 +857,7 @@ export const Chat: React.FC = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showCallMenu, showSupportActionsMenu, showStatusMenu, showEmojiPicker, reactionMessageId]);
+  }, [showSupportActionsMenu, showStatusMenu, showEmojiPicker, reactionMessageId]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -1638,7 +1645,6 @@ export const Chat: React.FC = () => {
     if (!selectedChannelId || !userId) return;
 
     setShowSupportActionsMenu(false);
-    setShowCallMenu(false);
     fetchMessages(selectedChannelId);
     fetchFavorites(selectedChannelId);
     markChannelAsRead(selectedChannelId);
@@ -2012,6 +2018,9 @@ export const Chat: React.FC = () => {
           return mName.startsWith(profileName) || profileName.startsWith(mName);
         });
 
+        const memberValidSectorIds = (member?.sector_ids || [])
+          .filter((sid: string) => sectors.some((s: any) => s.id === sid));
+
         // Lidar com o fato de que Supabase pode retornar sectors como objeto ou array
         let sectorName = 'Sem Setor';
         if (member?.sectors) {
@@ -2021,11 +2030,14 @@ export const Chat: React.FC = () => {
             sectorName = (member.sectors as any).name || 'Sem Setor';
           }
         }
+        if (sectorName === 'Sem Setor' && memberValidSectorIds.length > 0) {
+          sectorName = sectors.find(s => s.id === memberValidSectorIds[0])?.name || 'Sem Setor';
+        }
 
         return {
           ...profile,
           sector: sectorName,
-          sector_ids: member?.sector_ids || []
+          sector_ids: memberValidSectorIds
         };
       });
 
@@ -2165,21 +2177,17 @@ export const Chat: React.FC = () => {
 
           const { count, error: countError } = await msgQuery;
 
-          // Buscar IDs das mensagens deste canal para checar reações
-          const { data: messagesIds } = await supabase
-            .from('chat_messages')
-            .select('id')
-            .eq('channel_id', c.id);
-
+          // Contar reações não lidas via RPC otimizada sem baixar IDs de mensagens
           let reactionCount = 0;
-          if (messagesIds && messagesIds.length > 0) {
-            const mIds = messagesIds.map(m => m.id);
-            const { count: rCount } = await supabase
-              .from('chat_reactions')
-              .select('*', { count: 'exact', head: true })
-              .in('message_id', mIds)
-              .gt('created_at', effectiveLastRead);
-            reactionCount = rCount || 0;
+          try {
+            const { data: rCount } = await supabase.rpc('get_channel_unread_reactions', {
+              p_channel_id: c.id,
+              p_last_read: effectiveLastRead,
+              p_user_id: targetUid
+            });
+            reactionCount = typeof rCount === 'number' ? rCount : 0;
+          } catch {
+            reactionCount = 0;
           }
 
           // Buscar a última mensagem real deste canal
@@ -3107,7 +3115,7 @@ export const Chat: React.FC = () => {
     try {
       const { data: userProfile } = await (supabase
         .from('profiles') as any)
-        .select('full_name')
+        .select('full_name, org_id')
         .eq('id', userId)
         .single();
 
@@ -3117,128 +3125,37 @@ export const Chat: React.FC = () => {
         .eq('id', channelId)
         .single();
 
-      const wasResolved = currentChannel?.support_status === 'resolved';
+      if (!currentChannel) return;
 
-      // 1. Identificar o cliente associado a este canal (canal da fila)
-      const { data: channelMembers } = await supabase
-        .from('chat_channel_members')
-        .select('user_id')
-        .eq('channel_id', channelId);
-
-      const memberUserIds = channelMembers?.map(m => m.user_id) || [];
-
-      // Buscar perfil do cliente
-      const { data: clientMemberProfile } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', memberUserIds)
-        .eq('role', 'cliente')
-        .maybeSingle();
-
-      const clientUserId = clientMemberProfile?.id;
-
-      // 2. Se um setor foi escolhido e identificamos o cliente, verificar se esse cliente JÁ POSSUI outro canal deste setor
-      let existingSectorChannelId: string | null = null;
-      if (chosenSectorId && clientUserId) {
-        const { data: clientMemberships } = await supabase
-          .from('chat_channel_members')
-          .select('channel_id')
-          .eq('user_id', clientUserId);
-
-        const clientOtherChannelIds = (clientMemberships || [])
-          .map(m => m.channel_id)
-          .filter(id => id !== channelId);
-
-        if (clientOtherChannelIds.length > 0) {
-          const { data: existingChannels } = await (supabase
-            .from('chat_channels') as any)
-            .select('id, name, status, support_status, sector_id')
-            .eq('type', 'support')
-            .or('is_notification.is.null,is_notification.eq.false')
-            .eq('sector_id', chosenSectorId)
-            .in('id', clientOtherChannelIds)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-          if (existingChannels && existingChannels.length > 0) {
-            existingSectorChannelId = existingChannels[0].id;
-          }
-        }
-      }
-
-      // Identificar o nome do setor escolhido
-      let assignedSectorName = '';
-      let updatedChannelName = currentChannel?.name || 'Atendimento';
-
-      if (chosenSectorId) {
-        const sObj = sectors.find(s => s.id === chosenSectorId);
-        assignedSectorName = sObj?.name || '';
-        if (assignedSectorName && updatedChannelName) {
-          if (/\(Geral\)$/i.test(updatedChannelName)) {
-            updatedChannelName = updatedChannelName.replace(/\(Geral\)$/i, `(${assignedSectorName})`);
-          } else if (/\(.+?\)$/.test(updatedChannelName)) {
-            updatedChannelName = updatedChannelName.replace(/\(.+?\)$/, `(${assignedSectorName})`);
-          }
-        }
-      }
-
+      const wasResolved = currentChannel.support_status === 'resolved';
       const nowIso = new Date().toISOString();
-      let targetChannelId = channelId;
 
-      if (existingSectorChannelId) {
-        // CENÁRIO A: Já existia um canal anterior para este setor (ex: canal do Fiscal que estava fechado).
-        // 1. Reabrir e atribuir o canal existente
-        targetChannelId = existingSectorChannelId;
-        await (supabase.from('chat_channels') as any)
-          .update({
-            assigned_to: userId,
-            support_status: 'in_progress',
-            status: 'open',
-            opened_at: nowIso,
-            resolved_at: null,
-            last_duration_seconds: null,
-            is_private: false
-          })
-          .eq('id', existingSectorChannelId);
+      // Verificar se a reatribuição é para o mesmo setor atual
+      const isSameSector = (currentChannel.sector_id || null) === (chosenSectorId || null);
 
-        // 2. Garantir que o atendente é membro do canal existente
-        const { data: isMemberExisting } = await supabase
-          .from('chat_channel_members')
-          .select('id')
-          .eq('channel_id', existingSectorChannelId)
-          .eq('user_id', userId)
-          .maybeSingle();
+      if (isSameSector) {
+        // FLUXO 1: Mesmo setor (mantém no mesmo canal, apenas reatribui para o gestor/usuário)
+        const updatePayload: any = {
+          assigned_to: userId,
+          support_status: 'in_progress',
+          status: 'open'
+        };
 
-        if (!isMemberExisting) {
-          await supabase.from('chat_channel_members').insert({
-            channel_id: existingSectorChannelId,
-            user_id: userId,
-            role: 'member'
-          });
+        if (wasResolved) {
+          updatePayload.opened_at = nowIso;
+          updatePayload.resolved_at = null;
+          updatePayload.last_duration_seconds = null;
+          updatePayload.is_private = false;
         }
 
-        // 3. Mover mensagens do canal temporário para o canal existente
-        await (supabase.from('chat_messages') as any)
-          .update({ channel_id: existingSectorChannelId })
-          .eq('channel_id', channelId);
+        const { error } = await (supabase
+          .from('chat_channels') as any)
+          .update(updatePayload)
+          .eq('id', channelId);
 
-        // 4. Inserir mensagem de sistema no canal existente
-        const systemText = `${userProfile?.full_name || 'Operador'} assumiu o atendimento a partir de um comunicado e o vinculou a este canal do setor ${assignedSectorName}.`;
-        await supabase.from('chat_messages').insert({
-          channel_id: existingSectorChannelId,
-          sender_id: userId,
-          text: systemText,
-          status: 'sent',
-          is_system: true
-        } as any);
+        if (error) throw error;
 
-        // 5. Excluir o canal temporário da fila para não gerar duplicidade na lista do cliente
-        await supabase.from('chat_channel_members').delete().eq('channel_id', channelId);
-        await supabase.from('chat_channels').delete().eq('id', channelId);
-
-      } else {
-        // CENÁRIO B: Não existia canal anterior para este setor.
-        // O canal atual da fila passa a ser o canal oficial do setor.
+        // Garantir que o usuário seja membro do canal
         const { data: isMember } = await supabase
           .from('chat_channel_members')
           .select('id')
@@ -3254,35 +3171,11 @@ export const Chat: React.FC = () => {
           });
         }
 
-        const updatePayload: any = { 
-          assigned_to: userId,
-          support_status: 'in_progress',
-          status: 'open',
-          sector_id: chosenSectorId || null,
-          name: updatedChannelName
-        };
-
-        if (wasResolved) {
-          updatePayload.opened_at = nowIso;
-          updatePayload.resolved_at = null;
-          updatePayload.last_duration_seconds = null;
-          updatePayload.is_private = false;
-        }
-
-        const { error } = await (supabase
-          .from('chat_channels') as any)
-          .update(updatePayload)
-          .eq('id', channelId);
-          
-        if (error) throw error;
-        
-        let systemText = wasResolved
+        const systemText = wasResolved
           ? `Atendimento retomado por ${userProfile?.full_name || 'Operador'}.`
-          : `${userProfile?.full_name || 'Operador'} assumiu o atendimento.`;
-
-        if (assignedSectorName) {
-          systemText = `${userProfile?.full_name || 'Operador'} assumiu o atendimento e o vinculou ao setor ${assignedSectorName}.`;
-        }
+          : (currentChannel.assigned_to && currentChannel.assigned_to !== userId
+              ? `Atendimento reatribuído para ${userProfile?.full_name || 'Operador'}.`
+              : `${userProfile?.full_name || 'Operador'} assumiu o atendimento.`);
 
         await supabase.from('chat_messages').insert({
           channel_id: channelId,
@@ -3291,13 +3184,213 @@ export const Chat: React.FC = () => {
           status: 'sent',
           is_system: true
         } as any);
+
+        setAssignSectorModalState(prev => ({ ...prev, isOpen: false }));
+        await fetchChannels(userId);
+        setSelectedChannelId(channelId);
+        setSupportSubTab('mine');
+        addToast('success', 'Atendimento Assumido', 'Atendimento atribuído com sucesso.');
+        return;
       }
-      
+
+      // FLUXO 2: Setor DIFERENTE (adota exatamente a mesma lógica comprovada do "Transferir")
+      const targetSector = sectors.find(s => s.id === chosenSectorId);
+      const targetSectorName = targetSector?.name || 'Geral';
+
+      // 1. Identificar o cliente associado a este canal
+      const { data: members, error: membersErr } = await (supabase
+        .from('chat_channel_members') as any)
+        .select('user_id')
+        .eq('channel_id', channelId);
+
+      if (membersErr || !members || members.length === 0) {
+        throw new Error('Não foi possível obter os membros do canal');
+      }
+
+      const memberIds = members.map((m: any) => m.user_id).filter(Boolean) as string[];
+
+      let clientId: string | null = null;
+      let clientName: string = '';
+
+      if (memberIds.length > 0) {
+        const { data: dbProfiles } = await (supabase
+          .from('profiles') as any)
+          .select('id, full_name, role')
+          .in('id', memberIds)
+          .eq('role', 'cliente');
+
+        if (dbProfiles && dbProfiles.length > 0) {
+          clientId = dbProfiles[0].id;
+          clientName = dbProfiles[0].full_name;
+        }
+      }
+
+      // Fallback seguro caso perfil com role 'cliente' não venha direto
+      if (!clientId) {
+        const channelRawName = currentChannel?.name || '';
+        const match = channelRawName.match(/^Atendimento - (.+?)(?:\s*\(|$)/);
+        const detectedClientName = match ? match[1].trim() : '';
+        if (detectedClientName) {
+          const clientProfile = profiles.find(p => (p.full_name || '').trim() === detectedClientName && p.role === 'cliente');
+          if (clientProfile) {
+            clientId = clientProfile.id;
+            clientName = clientProfile.full_name;
+          } else {
+            clientName = detectedClientName;
+          }
+        }
+      }
+
+      // 2. Verificar se esse cliente já possui canal de suporte no setor de destino
+      let targetChannelId = '';
+
+      if (chosenSectorId && clientId) {
+        const { data: targetSectorChannels, error: channelsErr } = await (supabase
+          .from('chat_channels') as any)
+          .select('id, status, support_status, name')
+          .eq('type', 'support')
+          .eq('sector_id', chosenSectorId)
+          .or('is_notification.is.null,is_notification.eq.false');
+
+        if (channelsErr) throw channelsErr;
+
+        if (targetSectorChannels && targetSectorChannels.length > 0) {
+          const channelIds = targetSectorChannels.map(c => c.id);
+          const { data: clientMemberships, error: membersCheckErr } = await supabase
+            .from('chat_channel_members')
+            .select('channel_id')
+            .eq('user_id', clientId)
+            .in('channel_id', channelIds);
+
+          if (membersCheckErr) throw membersCheckErr;
+
+          if (clientMemberships && clientMemberships.length > 0) {
+            targetChannelId = clientMemberships[0].channel_id;
+          }
+        }
+      }
+
+      const hasExisting = !!targetChannelId;
+
+      if (hasExisting) {
+        // Cenário 2A: Reabrir canal existente no setor de destino para o cliente
+        await (supabase.from('chat_channels') as any)
+          .update({
+            status: 'open',
+            support_status: 'in_progress',
+            assigned_to: userId,
+            opened_at: nowIso,
+            resolved_at: null,
+            last_duration_seconds: null,
+            is_private: false
+          })
+          .eq('id', targetChannelId);
+
+        const { data: isMember } = await supabase
+          .from('chat_channel_members')
+          .select('id')
+          .eq('channel_id', targetChannelId)
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (!isMember) {
+          await supabase.from('chat_channel_members').insert({
+            channel_id: targetChannelId,
+            user_id: userId,
+            role: 'member'
+          });
+        }
+      } else {
+        // Cenário 2B: Criar novo canal de atendimento no setor de destino
+        const newChannelName = `Atendimento - ${clientName || 'Cliente'} (${targetSectorName})`;
+        
+        const { data: newChannel, error: createError } = await supabase
+          .from('chat_channels')
+          .insert([{
+            name: newChannelName,
+            type: 'support',
+            created_by: userId,
+            status: 'open',
+            support_status: 'in_progress',
+            assigned_to: userId,
+            sector_id: chosenSectorId || null,
+            opened_at: nowIso,
+            resolved_at: null,
+            last_duration_seconds: null,
+            is_private: false
+          } as any])
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        targetChannelId = newChannel.id;
+
+        const org = currentUser?.org_id || userProfile?.org_id || userId;
+        let staffQuery = supabase
+          .from('profiles')
+          .select('id')
+          .neq('role', 'cliente');
+
+        if (org) {
+          staffQuery = staffQuery.eq('org_id', org);
+        }
+
+        const { data: staffMembers } = await staffQuery;
+
+        const membersToInsert: any[] = [];
+        if (clientId) {
+          membersToInsert.push({ channel_id: targetChannelId, user_id: clientId, role: 'member' });
+        }
+
+        if (staffMembers) {
+          staffMembers.forEach(staff => {
+            membersToInsert.push({
+              channel_id: targetChannelId,
+              user_id: staff.id,
+              role: staff.id === userId ? 'admin' : 'member'
+            });
+          });
+        }
+
+        if (membersToInsert.length > 0) {
+          await supabase.from('chat_channel_members').insert(membersToInsert);
+        }
+      }
+
+      // 3. Encerrar o canal de origem (PRESERVADO INTACTO com seu histórico e setor original)
+      await (supabase.from('chat_channels') as any)
+        .update({
+          support_status: 'resolved',
+          is_private: false,
+          resolved_at: nowIso
+        })
+        .eq('id', channelId);
+
+      // 4. Mensagem de sistema no canal de origem informando a transferência de setor
+      const originMsgText = `Atendimento transferido para o setor ${targetSectorName} aos cuidados de ${userProfile?.full_name || 'Operador'}.`;
+      await supabase.from('chat_messages').insert({
+        channel_id: channelId,
+        sender_id: userId,
+        text: originMsgText,
+        status: 'sent',
+        is_system: true
+      } as any);
+
+      // 5. Mensagem de sistema no canal de destino
+      const targetMsgText = `Atendimento assumido no setor ${targetSectorName} por ${userProfile?.full_name || 'Operador'}.`;
+      await supabase.from('chat_messages').insert({
+        channel_id: targetChannelId,
+        sender_id: userId,
+        text: targetMsgText,
+        status: 'sent',
+        is_system: true
+      } as any);
+
       setAssignSectorModalState(prev => ({ ...prev, isOpen: false }));
       await fetchChannels(userId);
       setSelectedChannelId(targetChannelId);
       setSupportSubTab('mine');
-      addToast('success', 'Atendimento Assumido', `Atendimento vinculado ${assignedSectorName ? `ao setor ${assignedSectorName}` : ''} com sucesso.`);
+      addToast('success', 'Atendimento Reatribuído', `Atendimento vinculado ao setor ${targetSectorName} com sucesso.`);
     } catch (e) {
       console.error('Error executing assign with sector:', e);
       addToast('error', 'Erro', 'Falha ao assumir o atendimento.');
@@ -3321,17 +3414,50 @@ export const Chat: React.FC = () => {
     try {
       const { data: userProfile } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, org_id')
         .eq('id', userId)
         .single();
 
       const activeChan = enrichedChannels.find(c => c.id === finishedChannelId);
       const now = new Date();
-      const openedAtMs = activeChan?.opened_at 
-        ? new Date(activeChan.opened_at).getTime() 
-        : (activeChan?.created_at ? new Date(activeChan.created_at).getTime() : now.getTime());
+      const openedAtDate = activeChan?.opened_at 
+        ? new Date(activeChan.opened_at) 
+        : (activeChan?.created_at ? new Date(activeChan.created_at) : now);
+      const openedAtMs = openedAtDate.getTime();
       const durationSeconds = Math.max(0, Math.floor((now.getTime() - openedAtMs) / 1000));
+      const durationFormatted = formatSupportDuration(null, durationSeconds);
 
+      // Metadados para o registro permanente da sessão
+      const resolvedOrgId = userProfile?.org_id || currentUser?.org_id || (selectedChannel as any)?.org_id;
+
+      // Extrair o nome do cliente / canal
+      const channelRawName = selectedChannel?.rawName || selectedChannel?.name || activeChan?.name || 'Atendimento';
+      const match = channelRawName.match(/^Atendimento - (.+?)(?:\s*\(|$)/);
+      let detectedClientName = match ? match[1].trim() : '';
+
+      let clientProfile = profiles.find(p => (p.full_name || '').trim() === detectedClientName) ||
+        (selectedChannel?.created_by ? profiles.find(p => p.id === selectedChannel.created_by && p.role === 'cliente') : null);
+
+      if (!detectedClientName && clientProfile) {
+        detectedClientName = clientProfile.full_name;
+      }
+
+      const primaryClient = activeChannelCompanies && activeChannelCompanies.length > 0 ? activeChannelCompanies[0] : null;
+      const finalClientId = primaryClient?.id || clientProfile?.client_id || null;
+      const finalClientName = primaryClient?.name || detectedClientName || activeChan?.name || null;
+
+      const sectorObj = sectors.find(s => s.id === selectedChannel?.sector_id);
+      const sectorName = sectorObj ? sectorObj.name : null;
+
+      const assignedProfile = profiles.find(p => p.id === selectedChannel?.assigned_to);
+      const assignedName = assignedProfile ? assignedProfile.full_name : null;
+
+      const { count: msgCount } = await supabase
+        .from('chat_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('channel_id', finishedChannelId);
+
+      // 1. Atualizar canal mantendo retrocompatibilidade
       await supabase.from('chat_channels').update({ 
         support_status: 'resolved',
         assigned_to: null,
@@ -3339,11 +3465,34 @@ export const Chat: React.FC = () => {
         resolved_at: now.toISOString(),
         last_duration_seconds: durationSeconds
       } as any).eq('id', finishedChannelId);
+
+      // 2. Gravar histórico permanente na tabela chat_support_sessions
+      if (resolvedOrgId) {
+        await supabase.from('chat_support_sessions').insert({
+          org_id: resolvedOrgId,
+          channel_id: finishedChannelId,
+          channel_name: selectedChannel?.name || activeChan?.name || 'Atendimento',
+          client_id: finalClientId,
+          client_name: finalClientName,
+          sector_id: selectedChannel?.sector_id || null,
+          sector_name: sectorName,
+          assigned_to: selectedChannel?.assigned_to || null,
+          assigned_name: assignedName,
+          resolved_by: userId,
+          resolved_by_name: userProfile?.full_name || 'Operador',
+          opened_at: openedAtDate.toISOString(),
+          resolved_at: now.toISOString(),
+          duration_seconds: durationSeconds,
+          duration_formatted: durationFormatted,
+          messages_count: typeof msgCount === 'number' ? msgCount : 0
+        } as any);
+      }
       
+      // 3. Registrar mensagem de sistema com a minutagem de atendimento
       await supabase.from('chat_messages').insert({
         channel_id: finishedChannelId,
         sender_id: userId,
-        text: `Atendimento finalizado por ${userProfile?.full_name || 'Operador'}.`,
+        text: `Atendimento finalizado por ${userProfile?.full_name || 'Operador'} • Duração: ${durationFormatted}.`,
         status: 'sent',
         is_system: true
       } as any);
@@ -3702,53 +3851,6 @@ export const Chat: React.FC = () => {
     }
   };
 
-  const startCall = async (isVideoEnabled: boolean) => {
-    if (!selectedChannelId || !userId) return;
-
-    try {
-      const safeRoomName = `TaskAccount_${selectedChannelId.replace(/-/g, '')}`;
-      const url = await getOrCreateDailyRoom(safeRoomName);
-
-      setCallState({ isOpen: true, isVideoEnabled, roomUrl: url });
-
-      const messageText = isVideoEnabled
-        ? '📹 Iniciei uma chamada de vídeo. Clique no ícone de câmera acima ou no botão Atender para entrar.'
-        : '📞 Iniciei uma chamada de áudio. Clique no ícone de telefone acima ou no botão Atender para entrar.';
-
-      await supabase
-        .from('chat_messages')
-        .insert({
-          channel_id: selectedChannelId,
-          contact_id: null as any,
-          sender_id: userId,
-          text: messageText,
-          status: 'sent',
-          is_me: true
-        });
-
-      // --- Sinalização de chamada via Broadcast ---
-      const { data: members } = await supabase
-        .from('chat_channel_members')
-        .select('user_id')
-        .eq('channel_id', selectedChannelId)
-        .neq('user_id', userId);
-
-      if (members) {
-        for (const m of members) {
-          await (supabase as any).from('chat_calls').insert({
-            caller_id: userId,
-            target_id: m.user_id,
-            channel_id: selectedChannelId,
-            is_video: isVideoEnabled,
-            status: 'pending'
-          });
-        }
-      }
-    } catch (e) {
-      console.error('Failed to send call start message or create room', e);
-      alert('Não foi possível iniciar a chamada devido a falha de conexão.');
-    }
-  };
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
     setMessageInput(prev => prev + emojiData.emoji);
@@ -4073,6 +4175,56 @@ export const Chat: React.FC = () => {
         [selectedChannelId]: (prev[selectedChannelId] || []).filter(m => m.id !== tempId)
       }));
       addToast('error', 'Erro ao enviar', 'Não foi possível enviar a mensagem modelo.');
+    }
+  };
+
+  const handleSendGoogleMeet = async (meetUrl: string, title?: string) => {
+    if (!selectedChannelId || !userId) return;
+
+    const selectedChannel = enrichedChannels.find(c => c.id === selectedChannelId);
+    const meetingText = `[Reunião Google Meet]\n${title ? `${title.trim()}\n` : ''}${meetUrl.trim()}`;
+
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Message = {
+      id: tempId,
+      sender_id: userId,
+      text: meetingText,
+      created_at: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      status: 'sent',
+      rawCreatedAt: new Date().toISOString()
+    };
+
+    setMessages(prev => ({
+      ...prev,
+      [selectedChannelId]: [...(prev[selectedChannelId] || []), optimisticMsg]
+    }));
+
+    try {
+      const { error: msgErr } = await supabase
+        .from('chat_messages')
+        .insert({
+          channel_id: selectedChannelId,
+          contact_id: null as any,
+          sender_id: userId,
+          text: meetingText,
+          status: 'sent',
+          is_me: true,
+          reply_to_id: null,
+          is_private: selectedChannel?.is_private ?? false
+        } as any);
+
+      if (msgErr) throw msgErr;
+
+      markChannelAsRead(selectedChannelId);
+      addToast('success', 'Reunião compartilhada', 'O link do Google Meet foi enviado no chat.');
+    } catch (error) {
+      console.error('Error sending Google Meet link:', error);
+      setMessages(prev => ({
+        ...prev,
+        [selectedChannelId]: (prev[selectedChannelId] || []).filter(m => m.id !== tempId)
+      }));
+      addToast('error', 'Erro ao enviar', 'Não foi possível enviar o link da reunião.');
     }
   };
 
@@ -4572,7 +4724,7 @@ export const Chat: React.FC = () => {
                         onClick={() => { fetchClients(); setIsStaffSupportModalOpen(true); }}
                         className="w-[38px] h-[38px] flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
                       >
-                        <Plus size={18} />
+                        <MessageCirclePlus size={18} />
                       </button>
                     </Tooltip>
                   ) : (
@@ -4582,7 +4734,7 @@ export const Chat: React.FC = () => {
                           onClick={() => setIsCreateModalOpen(true)}
                           className="w-[38px] h-[38px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                         >
-                          <Plus size={18} />
+                          <UserRoundPlus size={18} />
                         </button>
                       </Tooltip>
                     )
@@ -4594,7 +4746,7 @@ export const Chat: React.FC = () => {
                     onClick={() => setIsSupportCreateModalOpen(true)}
                     className="w-[38px] h-[38px] flex items-center justify-center bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                   >
-                    <Plus size={18} />
+                    <MessageCirclePlus size={18} />
                   </button>
                 </Tooltip>
               )}
@@ -4870,13 +5022,14 @@ export const Chat: React.FC = () => {
                     isDragging ? 'opacity-40 scale-95' : ''
                   }`}
                 >
-                  <span
-                    className="p-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-slate-500 transition-all shrink-0 -ml-1"
-                    onMouseDown={() => setDraggableChannelId(item.id)}
-                    title="Arrastar para reordenar"
-                  >
-                    <GripVertical size={13} />
-                  </span>
+                  <Tooltip content="Arrastar para ordenar" position="top">
+                    <span
+                      className="p-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-slate-500 transition-all shrink-0 -ml-1"
+                      onMouseDown={() => setDraggableChannelId(item.id)}
+                    >
+                      <GripVertical size={13} />
+                    </span>
+                  </Tooltip>
 
                   <div className="relative shrink-0">
                     <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-semibold overflow-hidden">
@@ -4919,7 +5072,7 @@ export const Chat: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between gap-1">
                       <p className={`text-xs leading-snug truncate ${item.unreadCount > 0 ? 'text-slate-900 dark:text-white font-semibold' : 'text-slate-500'}`}>
-                        {item.lastMessage}
+                        {isGoogleMeetInvite(item.lastMessage) ? '📹 Reunião no Google Meet' : item.lastMessage}
                       </p>
                       {item.unreadCount > 0 && (
                         <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center">
@@ -4956,13 +5109,14 @@ export const Chat: React.FC = () => {
                     isDragging ? 'opacity-40 scale-95' : ''
                   }`}
                 >
-                  <span
-                    className="p-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-slate-500 transition-all shrink-0 -ml-1"
-                    onMouseDown={() => setDraggableChannelId(channel.id)}
-                    title="Arrastar para reordenar"
-                  >
-                    <GripVertical size={13} />
-                  </span>
+                  <Tooltip content="Arrastar para ordenar" position="top">
+                    <span
+                      className="p-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-slate-500 transition-all shrink-0 -ml-1"
+                      onMouseDown={() => setDraggableChannelId(channel.id)}
+                    >
+                      <GripVertical size={13} />
+                    </span>
+                  </Tooltip>
 
                   {currentUser?.role !== 'cliente' && (
                     <div className="relative shrink-0">
@@ -5069,7 +5223,7 @@ export const Chat: React.FC = () => {
                       </div>
                     )}
                     <p className={`text-xs leading-snug truncate ${selectedChannelId === channel.id ? 'text-indigo-700/70 dark:text-indigo-300/70' : 'text-slate-500 dark:text-slate-400'}`}>
-                      {channel.lastMessage}
+                      {isGoogleMeetInvite(channel.lastMessage) ? '📹 Reunião no Google Meet' : channel.lastMessage}
                     </p>
                   </div>
                   {channel.unreadCount > 0 && (
@@ -5326,43 +5480,15 @@ export const Chat: React.FC = () => {
 
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
-              {/* Menu de Chamada de Áudio e Vídeo */}
               {!selectedChannel.is_notification && (
-                <div className="relative" ref={callMenuRef}>
-                  <Tooltip content="Chamada" position="bottom">
-                    <button
-                      onClick={() => setShowCallMenu(!showCallMenu)}
-                      className={`p-2 rounded-lg transition-colors ${showCallMenu ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                    >
-                      <PhoneOutgoing size={20} />
-                    </button>
-                  </Tooltip>
-
-                  {showCallMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <button
-                        onClick={() => {
-                          startCall(false);
-                          setShowCallMenu(false);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
-                      >
-                        <Phone size={16} className="text-emerald-500" />
-                        <span>Chamada de Áudio</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          startCall(true);
-                          setShowCallMenu(false);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 font-medium"
-                      >
-                        <Video size={16} className="text-indigo-500" />
-                        <span>Chamada de Vídeo</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <Tooltip content="Reunião no Google Meet" position="bottom">
+                  <button
+                    onClick={() => setIsMeetModalOpen(true)}
+                    className="p-2 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                  >
+                    <Video size={20} />
+                  </button>
+                </Tooltip>
               )}
 
               {selectedChannel.type === 'group' && currentUser?.role === 'gestor' && (
@@ -5842,11 +5968,94 @@ export const Chat: React.FC = () => {
                           )}
 
                           {msg.text && (
-                             <p 
-                               className="whitespace-pre-wrap break-words" 
-                               dangerouslySetInnerHTML={{ __html: formatMessageText(msg.text) }} 
-                             />
-                           )}
+                            isGoogleMeetInvite(msg.text) ? (
+                              (() => {
+                                const meet = parseGoogleMeetInvite(msg.text);
+                                return (
+                                  <div className={`p-3.5 rounded-xl border min-w-[260px] max-w-full transition-all ${
+                                    msg.isMe
+                                      ? 'bg-indigo-700/60 border-indigo-400/40 text-white'
+                                      : 'bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700/70 shadow-xs'
+                                  }`}>
+                                    <div className="flex items-start justify-between gap-3 mb-2.5">
+                                      <div className="flex items-center gap-2.5">
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-xs ${
+                                          msg.isMe 
+                                            ? 'bg-indigo-800/80 border-indigo-400/50 text-emerald-300' 
+                                            : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400'
+                                        }`}>
+                                          <Video size={18} />
+                                        </div>
+                                        <div>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                                              msg.isMe ? 'text-indigo-200' : 'text-emerald-600 dark:text-emerald-400'
+                                            }`}>
+                                              Google Meet
+                                            </span>
+                                          </div>
+                                          <h4 className={`text-sm font-bold leading-snug line-clamp-1 ${
+                                            msg.isMe ? 'text-white' : 'text-slate-900 dark:text-slate-100'
+                                          }`}>
+                                            {meet.title}
+                                          </h4>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className={`text-xs px-2.5 py-1.5 rounded-lg font-mono mb-3 truncate select-all border ${
+                                      msg.isMe 
+                                        ? 'bg-indigo-900/50 border-indigo-500/30 text-indigo-100' 
+                                        : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                                    }`}>
+                                      {meet.url || 'meet.google.com'}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <a
+                                        href={meet.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-semibold text-xs shadow-xs transition-all ${
+                                          msg.isMe
+                                            ? 'bg-white text-indigo-700 hover:bg-indigo-50 active:scale-[0.98]'
+                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98]'
+                                        }`}
+                                      >
+                                        <Video size={14} />
+                                        <span>Entrar na Reunião</span>
+                                        <ExternalLink size={12} className="opacity-70" />
+                                      </a>
+                                      
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (meet.url) {
+                                            navigator.clipboard.writeText(meet.url);
+                                            addToast('info', 'Link copiado', 'Link do Google Meet copiado para a área de transferência.');
+                                          }
+                                        }}
+                                        title="Copiar link da reunião"
+                                        className={`p-2 rounded-lg text-xs transition-colors border ${
+                                          msg.isMe
+                                            ? 'border-indigo-400/40 hover:bg-indigo-600 text-indigo-100'
+                                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
+                                        }`}
+                                      >
+                                        <Copy size={14} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <p 
+                                className="whitespace-pre-wrap break-words" 
+                                dangerouslySetInnerHTML={{ __html: formatMessageText(msg.text) }} 
+                              />
+                            )
+                          )}
 
                           {selectedChannel?.is_notification && currentUser?.role === 'cliente' && !msg.isMe && (
                             <div className="mt-2.5 pt-2 border-t border-slate-200/50 dark:border-slate-700/50 flex justify-end">
@@ -6241,15 +6450,26 @@ export const Chat: React.FC = () => {
         }}
       />
 
+      <GoogleMeetModal
+        isOpen={isMeetModalOpen}
+        onClose={() => setIsMeetModalOpen(false)}
+        onSendMeeting={handleSendGoogleMeet}
+        channelName={selectedChannel?.name}
+      />
+
       {/* Modal de Transferência de Atendimento */}
       {(() => {
         const selectedTransferUser = profiles.find(p => p.id === transferUserId);
-        const allowedSectors = selectedTransferUser 
-          ? (selectedTransferUser.role === 'gestor' || !selectedTransferUser.sector_ids || selectedTransferUser.sector_ids.length === 0
-              ? sectors.filter(s => s.status !== 'Inativo')
-              : sectors.filter(s => s.status !== 'Inativo' && selectedTransferUser.sector_ids.includes(s.id))
-            )
+        const userValidSectors = selectedTransferUser?.sector_ids 
+          ? sectors.filter(s => s.status !== 'Inativo' && selectedTransferUser.sector_ids.includes(s.id))
           : [];
+
+        const allowedSectors = selectedTransferUser 
+          ? (selectedTransferUser.role === 'gestor' || userValidSectors.length === 0
+              ? sectors.filter(s => s.status !== 'Inativo')
+              : userValidSectors
+            )
+          : sectors.filter(s => s.status !== 'Inativo');
 
         return (
           <Modal
@@ -6321,17 +6541,6 @@ export const Chat: React.FC = () => {
         );
       })()}
 
-      {selectedChannel && (
-        <VideoCallModal
-          isOpen={callState.isOpen}
-          onClose={() => setCallState(prev => ({ ...prev, isOpen: false }))}
-          channelId={selectedChannel.id}
-          userName={currentUser?.full_name || 'Usuário'}
-          roomName={selectedChannel.name}
-          roomUrl={callState.roomUrl}
-          isVideoEnabled={callState.isVideoEnabled}
-        />
-      )}
 
       {isSupportCreateModalOpen && (() => {
         const selectedSector = sectors.find(s => s.id === supportSectorId);
@@ -6342,7 +6551,7 @@ export const Chat: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
                 <h2 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none flex items-center gap-2">
-                  <Plus size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <MessageCirclePlus size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Novo Atendimento</span>
                 </h2>
                 <button
@@ -6432,7 +6641,7 @@ export const Chat: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
                 <h2 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none flex items-center gap-2">
-                  <Plus size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <MessageCirclePlus size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Iniciar Atendimento</span>
                 </h2>
                 <button

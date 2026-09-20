@@ -4,7 +4,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { supabase } from '../../utils/supabaseClient';
-import { Settings2, LayoutGrid, X, GripVertical, FolderHeart, ChevronDown, Plus, Trash2, Edit3, Search } from 'lucide-react';
+import { Settings2, LayoutGrid, X, GripVertical, FolderHeart, ChevronDown, Plus, Trash2, Edit3, Search, CheckSquare, Square } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 
 // Import Widgets
@@ -27,6 +27,8 @@ import { ClientLicensesWidget } from './widgets/ClientLicensesWidget';
 import { CollaboratorPerformanceWidget } from './widgets/CollaboratorPerformanceWidget';
 import { ClientTimeSpentWidget } from './widgets/ClientTimeSpentWidget';
 import { NotesWidget } from './widgets/NotesWidget';
+import { DocumentAuditWidget } from './widgets/DocumentAuditWidget';
+import { SupportAttendanceWidget } from './widgets/SupportAttendanceWidget';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -126,12 +128,22 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         name: 'ANOTAÇÕES',
         component: NotesWidget,
         defaultLayout: { i: 'notes', x: 0, y: 72, w: 6, h: 8, minW: 3, minH: 5 }
+    },
+    documentAudit: {
+        name: 'AUDITORIA DE DOCUMENTOS',
+        component: DocumentAuditWidget,
+        defaultLayout: { i: 'documentAudit', x: 8, y: 18, w: 4, h: 7, minW: 3, minH: 5 }
+    },
+    supportAttendance: {
+        name: 'TEMPO DE ATENDIMENTO (CHAT)',
+        component: SupportAttendanceWidget,
+        defaultLayout: { i: 'supportAttendance', x: 0, y: 18, w: 6, h: 8, minW: 4, minH: 6 }
     }
 };
 
 const DEFAULT_ACTIVE_WIDGETS = [
-    'collaboratorPerformance', 'clientTimeSpent', 'topSegments', 'statusByUser', 'monthlyEvolution',
-    'upcomingDeadlines', 'topTasks', 'documentAlerts',
+    'collaboratorPerformance', 'clientTimeSpent', 'supportAttendance', 'topSegments', 'statusByUser', 'monthlyEvolution',
+    'upcomingDeadlines', 'topTasks', 'documentAlerts', 'documentAudit',
     'clientStatus', 'taxRegimes', 'loggedUsers',
     'notifiedExclusion', 'collaboratorsByDept', 'uncompletedTasks', 'economicIndices', 'operationsCalendar',
     'clientCertificates', 'clientLicenses', 'notes'
@@ -162,7 +174,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     const scenarioDropdownRef = useRef<HTMLDivElement>(null);
 
     const OPERACIONAL_ALLOWED_WIDGETS = [
-        'clientTimeSpent', 'upcomingDeadlines', 'documentAlerts', 'taxRegimes', 
+        'clientTimeSpent', 'upcomingDeadlines', 'documentAlerts', 'documentAudit', 'taxRegimes', 
         'topTasks', 'uncompletedTasks', 'clientStatus', 
         'notifiedExclusion', 'topSegments', 'monthlyEvolution', 'economicIndices', 'operationsCalendar',
         'clientCertificates', 'clientLicenses', 'notes'
@@ -385,6 +397,55 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     
                     newLayouts[bp] = [...newLayouts[bp], { ...defaultLayout, w, y: maxY }];
                 }
+            });
+        }
+
+        const updatedScenarios = {
+            ...scenarios,
+            [activeScenario]: {
+                widgets: newWidgets,
+                layout: newLayouts
+            }
+        };
+        setScenarios(updatedScenarios);
+        saveScenarios(updatedScenarios, activeScenario);
+    };
+
+    const toggleAllWidgets = (selectAll?: boolean) => {
+        const currentScenario = scenarios[activeScenario];
+        if (!currentScenario) return;
+
+        const areAllSelected = allWidgets.every(id => currentScenario.widgets.includes(id));
+        const shouldSelectAll = typeof selectAll === 'boolean' ? selectAll : !areAllSelected;
+
+        let newWidgets: string[];
+        let newLayouts: { [key: string]: any[] } = {};
+
+        if (shouldSelectAll) {
+            newWidgets = [...allWidgets];
+            const existingLg = Array.isArray(currentScenario.layout?.lg) ? [...currentScenario.layout.lg] : [];
+            let maxY = 0;
+            existingLg.forEach(l => {
+                if (l.y + l.h > maxY) maxY = l.y + l.h;
+            });
+
+            const newLg = [...existingLg];
+            allWidgets.forEach(id => {
+                if (!newLg.some(l => l.i === id) && WIDGET_REGISTRY[id]) {
+                    const def = WIDGET_REGISTRY[id].defaultLayout;
+                    newLg.push({ ...def, y: maxY });
+                    maxY += def.h;
+                }
+            });
+
+            newLayouts = {
+                ...currentScenario.layout,
+                lg: newLg
+            };
+        } else {
+            newWidgets = [];
+            Object.keys(currentScenario.layout || {}).forEach(bp => {
+                newLayouts[bp] = [];
             });
         }
 
@@ -670,6 +731,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 allWidgets={allWidgets}
                 activeWidgets={activeWidgets}
                 toggleWidget={toggleWidget}
+                toggleAllWidgets={toggleAllWidgets}
             />
         </div>
     );
@@ -681,6 +743,7 @@ interface WidgetManagerDrawerProps {
     allWidgets: string[];
     activeWidgets: string[];
     toggleWidget: (id: string) => void;
+    toggleAllWidgets: (selectAll?: boolean) => void;
 }
 
 const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
@@ -688,7 +751,8 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
     onClose,
     allWidgets,
     activeWidgets,
-    toggleWidget
+    toggleWidget,
+    toggleAllWidgets
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
@@ -832,6 +896,8 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
             case 'clientCertificates': return 'Painel de controle de vencimento de certificado digital.';
             case 'clientLicenses': return 'Painel de controle de vencimento de licenças.';
             case 'notes': return 'Painel de anotações e lembretes importantes.';
+            case 'documentAudit': return 'Controle de documentos deletados.';
+            case 'supportAttendance': return 'Gerencie o tempo de atendimento.';
             default: return 'Painel informativo customizável.';
         }
     };
@@ -908,6 +974,35 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                                 <X size={12} />
                             </button>
                         )}
+                    </div>
+
+                    {/* Ações de Seleção Rápida */}
+                    <div className="flex items-center justify-between px-1 py-0.5">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                            {activeWidgets.length} de {allWidgets.length} ativos
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => toggleAllWidgets(true)}
+                                disabled={allWidgets.length > 0 && allWidgets.every(id => activeWidgets.includes(id))}
+                                className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1"
+                            >
+                                <CheckSquare size={12} className="text-indigo-500" />
+                                Selecionar tudo
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => toggleAllWidgets(false)}
+                                disabled={activeWidgets.length === 0}
+                                className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1"
+                            >
+                                <Square size={12} className="text-slate-400" />
+                                Desmarcar tudo
+                            </button>
+                        </div>
                     </div>
 
                     <div className="space-y-3">

@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@daily-co/daily-js": "^0.87.0",
     "@supabase/supabase-js": "^2.95.3",
     "browser-image-compression": "^2.0.2",
     "emoji-picker-react": "^4.18.0",

@@ -528,6 +528,105 @@ export type Database = {
           },
         ]
       }
+      chat_support_sessions: {
+        Row: {
+          id: string
+          org_id: string
+          channel_id: string
+          channel_name: string
+          client_id: string | null
+          client_name: string | null
+          sector_id: string | null
+          sector_name: string | null
+          assigned_to: string | null
+          assigned_name: string | null
+          resolved_by: string | null
+          resolved_by_name: string
+          opened_at: string
+          resolved_at: string
+          duration_seconds: number
+          duration_formatted: string
+          messages_count: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          channel_id: string
+          channel_name: string
+          client_id?: string | null
+          client_name?: string | null
+          sector_id?: string | null
+          sector_name?: string | null
+          assigned_to?: string | null
+          assigned_name?: string | null
+          resolved_by?: string | null
+          resolved_by_name: string
+          opened_at: string
+          resolved_at?: string
+          duration_seconds: number
+          duration_formatted: string
+          messages_count?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          channel_id?: string
+          channel_name?: string
+          client_id?: string | null
+          client_name?: string | null
+          sector_id?: string | null
+          sector_name?: string | null
+          assigned_to?: string | null
+          assigned_name?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string
+          opened_at?: string
+          resolved_at?: string
+          duration_seconds?: number
+          duration_formatted?: string
+          messages_count?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_support_sessions_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_support_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_support_sessions_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_support_sessions_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_support_sessions_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       client_accesses: {
         Row: {
           access_name: string
@@ -848,6 +947,72 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_document_deletion_logs: {
+        Row: {
+          id: string
+          org_id: string
+          client_id: string | null
+          client_name: string
+          document_id: string | null
+          document_name: string
+          competence_month: string | null
+          due_date: string | null
+          document_type: string | null
+          was_read_by_client: boolean | null
+          first_read_at: string | null
+          deletion_source: string
+          task_id: string | null
+          task_title: string | null
+          deleted_by_user_id: string | null
+          deleted_by_name: string
+          deleted_by_role: string | null
+          reason: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          client_id?: string | null
+          client_name: string
+          document_id?: string | null
+          document_name: string
+          competence_month?: string | null
+          due_date?: string | null
+          document_type?: string | null
+          was_read_by_client?: boolean | null
+          first_read_at?: string | null
+          deletion_source: string
+          task_id?: string | null
+          task_title?: string | null
+          deleted_by_user_id?: string | null
+          deleted_by_name: string
+          deleted_by_role?: string | null
+          reason?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          client_id?: string | null
+          client_name?: string
+          document_id?: string | null
+          document_name?: string
+          competence_month?: string | null
+          due_date?: string | null
+          document_type?: string | null
+          was_read_by_client?: boolean | null
+          first_read_at?: string | null
+          deletion_source?: string
+          task_id?: string | null
+          task_title?: string | null
+          deleted_by_user_id?: string | null
+          deleted_by_name?: string
+          deleted_by_role?: string | null
+          reason?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
       }
       client_inscriptions: {
         Row: {
@@ -1930,6 +2095,14 @@ export type Database = {
         Returns: string
       }
       get_auth_org_id: { Args: never; Returns: string }
+      get_channel_unread_reactions: {
+        Args: {
+          p_channel_id: string
+          p_last_read: string
+          p_user_id?: string | null
+        }
+        Returns: number
+      }
       is_channel_member: { Args: { channel_uuid: string }; Returns: boolean }
       is_chat_member: { Args: { cid: string }; Returns: boolean }
       process_automated_chat_templates: { Args: never; Returns: undefined }
