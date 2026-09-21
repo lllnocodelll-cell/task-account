@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
     Users,
@@ -22,6 +22,7 @@ import {
     Phone,
     Search,
     Landmark,
+    Scale,
     Key,
     Shield,
     FileCheck,
@@ -741,16 +742,16 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                     currentActivities[editingIndex] = { ...currentActivities[editingIndex], ...tempActivity };
                 } else if (activeTab === 'acessos' && tempAccess.access_name) {
                     currentAccesses[editingIndex] = { ...currentAccesses[editingIndex], ...tempAccess };
-                } else if (activeTab === 'certificados' && tempCertificate.model) {
+                } else if ((activeTab === 'certificados' || activeTab === 'certificado') && tempCertificate.model) {
                     const exp = tempCertificate.expires_at || tempCertificate.expiration_date || '';
                     currentCertificates[editingIndex] = { ...currentCertificates[editingIndex], ...tempCertificate, expires_at: exp, expiration_date: exp };
                 } else if (activeTab === 'licencas' && tempLicense.license_name) {
                     const licNum = tempLicense.license_number !== undefined ? tempLicense.license_number : (tempLicense.number || '');
                     const exp = tempLicense.expiry_date !== undefined ? tempLicense.expiry_date : (tempLicense.expiration_date || '');
                     currentLicenses[editingIndex] = { ...currentLicenses[editingIndex], ...tempLicense, license_number: licNum, number: licNum, expiry_date: exp, expiration_date: exp };
-                } else if (activeTab === 'legislacoes' && tempLegislation.description) {
+                } else if ((activeTab === 'legislacoes' || activeTab === 'legislacao') && tempLegislation.description) {
                     currentLegislations[editingIndex] = { ...currentLegislations[editingIndex], ...tempLegislation };
-                } else if (activeTab === 'series_dfe' && tempDfeSerie.dfe_type) {
+                } else if ((activeTab === 'series_dfe' || activeTab === 'dfe') && tempDfeSerie.dfe_type) {
                     currentDfeSeries[editingIndex] = { ...currentDfeSeries[editingIndex], ...tempDfeSerie };
                 }
             }
@@ -896,17 +897,27 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         setFormData({ ...formData, document: formatted });
     };
 
-    const tabs = [
-        { id: 'inscricoes', label: 'Inscrições' },
-        { id: 'contatos', label: 'Contatos' },
-        { id: 'regime', label: 'Regime Tributário' },
-        { id: 'atividades', label: 'Atividades' },
-        { id: 'acessos', label: 'Acessos' },
-        { id: 'certificado', label: 'Certificado' },
-        { id: 'licencas', label: 'Licenças' },
-        { id: 'legislacao', label: 'Legislação' },
-        { id: 'dfe', label: 'Séries DF-e' },
-    ];
+    const tabs = useMemo(() => [
+        { id: 'inscricoes', label: 'Inscrições', icon: FileText, count: inscriptions.length },
+        { id: 'contatos', label: 'Contatos', icon: Users, count: contacts.length },
+        { id: 'regime', label: 'Regime Tributário', icon: Scale, count: taxRegimes.length },
+        { id: 'atividades', label: 'Atividades', icon: Activity, count: activities.length },
+        { id: 'acessos', label: 'Acessos', icon: Key, count: accesses.length },
+        { id: 'certificado', label: 'Certificado', icon: Shield, count: certificates.length },
+        { id: 'licencas', label: 'Licenças', icon: FileCheck, count: licenses.length },
+        { id: 'legislacao', label: 'Legislação', icon: BookOpen, count: legislations.length },
+        { id: 'dfe', label: 'Séries DF-e', icon: Receipt, count: dfeSeries.length },
+    ], [
+        inscriptions.length,
+        contacts.length,
+        taxRegimes.length,
+        activities.length,
+        accesses.length,
+        certificates.length,
+        licenses.length,
+        legislations.length,
+        dfeSeries.length
+    ]);
 
     // Filtra segmentos com base na busca
     const filteredSegments = segmentSearch.trim()
@@ -1231,77 +1242,105 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             </Card>
 
             {/* Section 3: Tabs */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden min-h-[400px]">
-                <div className="border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
-                    <div className="flex w-max">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => {
-                                    if (editingIndex !== null) {
-                                        if (activeTab === 'inscricoes' && tempInscription.number) {
-                                            const newList = [...inscriptions];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempInscription, type: otherInscriptionType ? tempInscription.custom_name || 'Outra' : tempInscription.type || 'Municipal' } as ClientInscription;
-                                            setInscriptions(newList);
-                                        } else if (activeTab === 'contatos' && tempContact.name) {
-                                            const newList = [...contacts];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempContact } as ClientContact;
-                                            setContacts(newList);
-                                        } else if (activeTab === 'regime' && tempRegime.regime) {
-                                            const isSimples = tempRegime.regime === 'simples' || tempRegime.regime === 'simples_iva';
-                                            const newList = [...taxRegimes];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempRegime, annexes: isSimples ? (tempRegime.annexes || []) : [] } as ClientTaxRegime;
-                                            setTaxRegimes(newList);
-                                        } else if (activeTab === 'atividades' && tempActivity.cnae_code) {
-                                            const newList = [...activities];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempActivity } as ClientActivity;
-                                            setActivities(newList);
-                                        } else if (activeTab === 'acessos' && tempAccess.access_name) {
-                                            const newList = [...accesses];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempAccess } as ClientAccess;
-                                            setAccesses(newList);
-                                        } else if (activeTab === 'certificados' && tempCertificate.model) {
-                                            const exp = tempCertificate.expires_at || tempCertificate.expiration_date || '';
-                                            const newList = [...certificates];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempCertificate, expires_at: exp, expiration_date: exp } as ClientCertificate;
-                                            setCertificates(newList);
-                                        } else if (activeTab === 'licencas' && tempLicense.license_name) {
-                                            const licNum = tempLicense.license_number !== undefined ? tempLicense.license_number : (tempLicense.number || '');
-                                            const exp = tempLicense.expiry_date !== undefined ? tempLicense.expiry_date : (tempLicense.expiration_date || '');
-                                            const newList = [...licenses];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempLicense, license_number: licNum, number: licNum, expiry_date: exp, expiration_date: exp } as ClientLicense;
-                                            setLicenses(newList);
-                                        } else if (activeTab === 'legislacoes' && tempLegislation.description) {
-                                            const newList = [...legislations];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempLegislation } as ClientLegislation;
-                                            setLegislations(newList);
-                                        } else if (activeTab === 'series_dfe' && tempDfeSerie.dfe_type) {
-                                            const newList = [...dfeSeries];
-                                            newList[editingIndex] = { ...newList[editingIndex], ...tempDfeSerie } as ClientDfeSeries;
-                                            setDfeSeries(newList);
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden min-h-[400px] shadow-sm">
+                <div className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 p-2 sm:p-2.5 overflow-x-auto custom-scrollbar">
+                    <div className="flex items-center gap-1.5 sm:gap-2 w-max">
+                        {tabs.map((tab) => {
+                            const IconComponent = tab.icon;
+                            const isActive = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => {
+                                        if (editingIndex !== null) {
+                                            if (activeTab === 'inscricoes' && tempInscription.number) {
+                                                const newList = [...inscriptions];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempInscription, type: otherInscriptionType ? tempInscription.custom_name || 'Outra' : tempInscription.type || 'Municipal' } as ClientInscription;
+                                                setInscriptions(newList);
+                                            } else if (activeTab === 'contatos' && tempContact.name) {
+                                                const newList = [...contacts];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempContact } as ClientContact;
+                                                setContacts(newList);
+                                            } else if (activeTab === 'regime' && tempRegime.regime) {
+                                                const isSimples = tempRegime.regime === 'simples' || tempRegime.regime === 'simples_iva';
+                                                const newList = [...taxRegimes];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempRegime, annexes: isSimples ? (tempRegime.annexes || []) : [] } as ClientTaxRegime;
+                                                setTaxRegimes(newList);
+                                            } else if (activeTab === 'atividades' && tempActivity.cnae_code) {
+                                                const newList = [...activities];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempActivity } as ClientActivity;
+                                                setActivities(newList);
+                                            } else if (activeTab === 'acessos' && tempAccess.access_name) {
+                                                const newList = [...accesses];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempAccess } as ClientAccess;
+                                                setAccesses(newList);
+                                            } else if ((activeTab === 'certificados' || activeTab === 'certificado') && tempCertificate.model) {
+                                                const exp = tempCertificate.expires_at || tempCertificate.expiration_date || '';
+                                                const newList = [...certificates];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempCertificate, expires_at: exp, expiration_date: exp } as ClientCertificate;
+                                                setCertificates(newList);
+                                            } else if (activeTab === 'licencas' && tempLicense.license_name) {
+                                                const licNum = tempLicense.license_number !== undefined ? tempLicense.license_number : (tempLicense.number || '');
+                                                const exp = tempLicense.expiry_date !== undefined ? tempLicense.expiry_date : (tempLicense.expiration_date || '');
+                                                const newList = [...licenses];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempLicense, license_number: licNum, number: licNum, expiry_date: exp, expiration_date: exp } as ClientLicense;
+                                                setLicenses(newList);
+                                            } else if ((activeTab === 'legislacoes' || activeTab === 'legislacao') && tempLegislation.description) {
+                                                const newList = [...legislations];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempLegislation } as ClientLegislation;
+                                                setLegislations(newList);
+                                            } else if ((activeTab === 'series_dfe' || activeTab === 'dfe') && tempDfeSerie.dfe_type) {
+                                                const newList = [...dfeSeries];
+                                                newList[editingIndex] = { ...newList[editingIndex], ...tempDfeSerie } as ClientDfeSeries;
+                                                setDfeSeries(newList);
+                                            }
                                         }
-                                    }
-                                    setActiveTab(tab.id);
-                                    setEditingIndex(null);
-                                    setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' });
-                                    setTempContact({ name: '', email: '', phone_fixed: '', phone_mobile: '', is_main: false });
-                                    setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
-                                    setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' });
-                                    setTempAccess({ access_name: '', username: '', password: '', access_url: '', sector: '' });
-                                    setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', expiration_date: '', password: '' });
-                                    setTempLicense({ license_name: '', number: '', license_number: '', expiration_date: '', expiry_date: '', access_url: '' });
-                                    setTempLegislation({ status: 'vigente', description: '', access_url: '' });
-                                    setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' });
-                                    setOtherInscriptionType(false);
-                                    setCertFile(null);
-                                    setIsFormExpanded(false);
-                                }}
-                                className={`px-6 py-4 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-800/30' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
+                                        setActiveTab(tab.id);
+                                        setEditingIndex(null);
+                                        setTempInscription({ type: 'Municipal', number: '', observation: '', custom_name: '' });
+                                        setTempContact({ name: '', email: '', phone_fixed: '', phone_mobile: '', is_main: false });
+                                        setTempRegime({ regime: 'simples', start_date: '', end_date: '', observation: '' });
+                                        setTempActivity({ order_type: 'principal', cnae_code: '', cnae_description: '' });
+                                        setTempAccess({ access_name: '', username: '', password: '', access_url: '', sector: '' });
+                                        setTempCertificate({ model: 'ecnpj_a1', signatory: 'propria', expires_at: '', expiration_date: '', password: '' });
+                                        setTempLicense({ license_name: '', number: '', license_number: '', expiration_date: '', expiry_date: '', access_url: '' });
+                                        setTempLegislation({ status: 'vigente', description: '', access_url: '' });
+                                        setTempDfeSerie({ dfe_type: 'NF-e', series: '', issuer: '', username: '', password: '', login_url: '' });
+                                        setOtherInscriptionType(false);
+                                        setCertFile(null);
+                                        setIsFormExpanded(false);
+                                    }}
+                                    className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
+                                        isActive
+                                            ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
                                     }`}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
+                                >
+                                    <span className={`p-1 rounded-lg transition-colors ${
+                                        isActive
+                                            ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                            : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                                    }`}>
+                                        <IconComponent size={14} strokeWidth={isActive ? 2.3 : 1.8} />
+                                    </span>
+
+                                    <span className="text-[11px] font-black uppercase tracking-wider">{tab.label}</span>
+
+                                    {tab.count > 0 ? (
+                                        <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black transition-colors ${
+                                            isActive
+                                                ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
+                                                : 'bg-slate-200/70 dark:bg-slate-700/70 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                                        }`}>
+                                            {tab.count}
+                                        </span>
+                                    ) : (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 opacity-40 group-hover:opacity-80" />
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 

@@ -183,7 +183,13 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
             senderId: newMsg.sender_id,
             senderName,
             senderAvatar,
-            text: newMsg.text || '📎 Arquivo recebido',
+            text: newMsg.text || (
+              newMsg.file_type?.startsWith('audio/') || 
+              newMsg.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) ||
+              (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.some((att: any) => att.type === 'audio' || att.url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i)))
+                ? '🎤 Mensagem de áudio'
+                : '📎 Arquivo recebido'
+            ),
             createdAt: newMsg.created_at
           };
 

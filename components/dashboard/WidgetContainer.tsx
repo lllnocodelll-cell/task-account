@@ -74,23 +74,41 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
     const resetZoom = () => setZoomLevel(100);
 
     const zoomControls = allowZoom ? (
-        <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold" onMouseDown={e => e.stopPropagation()}>
+        <div 
+            className="no-drag flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 sm:p-0.5 rounded-lg text-[10px] font-bold select-none" 
+            onMouseDown={e => e.stopPropagation()}
+            onTouchStart={e => e.stopPropagation()}
+            onTouchEnd={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
+        >
             <Tooltip content="Reduzir zoom" position="top">
                 <button
-                    onClick={handleZoomOut}
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleZoomOut();
+                    }}
+                    onPointerDown={e => e.stopPropagation()}
+                    onTouchStart={e => e.stopPropagation()}
                     disabled={zoomLevel <= ZOOM_LEVELS[0]}
-                    className="h-5 w-5 flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 dark:hover:text-white disabled:opacity-30 transition-colors"
+                    className="h-7 w-7 sm:h-5 sm:w-5 flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 dark:hover:text-white active:bg-slate-200 dark:active:bg-slate-700 active:scale-95 disabled:opacity-30 transition-all cursor-pointer touch-manipulation"
                 >
-                    <ZoomOut size={11} />
+                    <ZoomOut size={13} className="sm:w-3 sm:h-3" />
                 </button>
             </Tooltip>
             <Tooltip content="Resetar zoom (100%)" position="top">
                 <button
-                    onClick={resetZoom}
-                    className={`px-1.5 py-0.5 rounded transition-colors text-[9px] font-mono tabular-nums ${
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        resetZoom();
+                    }}
+                    onPointerDown={e => e.stopPropagation()}
+                    onTouchStart={e => e.stopPropagation()}
+                    className={`px-2 py-1 sm:px-1.5 sm:py-0.5 rounded transition-all text-[11px] sm:text-[9px] font-mono tabular-nums active:scale-95 cursor-pointer touch-manipulation ${
                         zoomLevel !== 100 
-                            ? 'bg-indigo-600 text-white dark:bg-indigo-500' 
-                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                            ? 'bg-indigo-600 text-white dark:bg-indigo-500 font-bold' 
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white active:bg-slate-200 dark:active:bg-slate-700'
                     }`}
                 >
                     {zoomLevel}%
@@ -98,11 +116,17 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
             </Tooltip>
             <Tooltip content="Aumentar zoom" position="top">
                 <button
-                    onClick={handleZoomIn}
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleZoomIn();
+                    }}
+                    onPointerDown={e => e.stopPropagation()}
+                    onTouchStart={e => e.stopPropagation()}
                     disabled={zoomLevel >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
-                    className="h-5 w-5 flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 dark:hover:text-white disabled:opacity-30 transition-colors"
+                    className="h-7 w-7 sm:h-5 sm:w-5 flex items-center justify-center rounded text-slate-500 hover:text-indigo-600 dark:hover:text-white active:bg-slate-200 dark:active:bg-slate-700 active:scale-95 disabled:opacity-30 transition-all cursor-pointer touch-manipulation"
                 >
-                    <ZoomIn size={11} />
+                    <ZoomIn size={13} className="sm:w-3 sm:h-3" />
                 </button>
             </Tooltip>
         </div>
@@ -110,24 +134,34 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
 
     return (
         <div className="h-full w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col overflow-hidden relative group">
-            {/* Header (Drag Handle) */}
-            <div className="flex items-center justify-between p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 drag-handle cursor-move select-none">
-                <div className="flex items-center gap-3">
+            {/* Header */}
+            <div className="flex items-center justify-between p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 select-none">
+                {/* Drag Handle: Apenas na área do título e ícone */}
+                <div className="flex items-center gap-3 drag-handle cursor-move flex-1 min-w-0 pr-2">
                     {/* Ícone estilo página */}
                     {icon && (
-                        <div className="p-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md flex-shrink-0 shadow-sm">
+                        <div className="p-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md flex-shrink-0 shadow-sm pointer-events-none">
                             <span className="text-slate-500 dark:text-slate-400 flex items-center">{icon}</span>
                         </div>
                     )}
                     {/* Título estilo página */}
-                    <div className="flex flex-col">
-                        <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none">
+                    <div className="flex flex-col min-w-0 pointer-events-none">
+                        <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none truncate">
                             {title}
                         </h3>
                         <div className="h-0.5 w-4 bg-indigo-500/30 dark:bg-indigo-400/20 mt-1 rounded-full" />
                     </div>
                 </div>
-                <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+
+                {/* Controles e Ações: fora do drag-handle */}
+                <div 
+                    className="no-drag flex items-center gap-1.5 shrink-0" 
+                    onClick={e => e.stopPropagation()}
+                    onMouseDown={e => e.stopPropagation()}
+                    onTouchStart={e => e.stopPropagation()}
+                    onTouchEnd={e => e.stopPropagation()}
+                    onPointerDown={e => e.stopPropagation()}
+                >
                     {/* Header actions (e.g. filters) - always visible */}
                     {headerActions && (
                         <div className="flex items-center">
@@ -138,15 +172,18 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
                     {/* Controles de Zoom Percentual */}
                     {zoomControls}
 
-                    {/* Remove button - visible on hover */}
+                    {/* Remove button - visible on hover or mobile tap */}
                     {onRemove && (
                         <Tooltip content="Remover widget" position="top">
                             <button
+                                type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onRemove();
                                 }}
-                                className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onPointerDown={e => e.stopPropagation()}
+                                onTouchStart={e => e.stopPropagation()}
+                                className="p-1.5 sm:p-1 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 rounded text-slate-400 hover:text-red-500 dark:hover:text-red-400 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all cursor-pointer touch-manipulation"
                             >
                                 <X size={16} />
                             </button>

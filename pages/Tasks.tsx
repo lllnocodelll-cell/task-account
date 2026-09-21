@@ -50,7 +50,9 @@ import {
   CheckCircle2,
   SquarePlus,
   Pause,
-  Loader2
+  Loader2,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -1546,6 +1548,37 @@ export const Tasks: React.FC<{
 }> = ({ userProfile, onNavigateToClient, initialTaskId, onClearInitialTaskId }) => {
   const [viewState, setViewState] = useState<'list' | 'create' | 'edit'>('list');
   const [layoutMode, setLayoutMode] = useState<'list' | 'kanban'>(() => typeof window !== 'undefined' && window.innerWidth < 1024 ? 'kanban' : 'list');
+  const [tableZoom, setTableZoom] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('taskaccount_table_zoom');
+      if (saved) {
+        const num = parseInt(saved, 10);
+        if (!isNaN(num) && num >= 70 && num <= 130) return num;
+      }
+    } catch {}
+    return 100;
+  });
+
+  const handleZoomIn = () => {
+    setTableZoom(prev => {
+      const next = Math.min(130, prev + 10);
+      try { localStorage.setItem('taskaccount_table_zoom', next.toString()); } catch {}
+      return next;
+    });
+  };
+
+  const handleZoomOut = () => {
+    setTableZoom(prev => {
+      const next = Math.max(70, prev - 10);
+      try { localStorage.setItem('taskaccount_table_zoom', next.toString()); } catch {}
+      return next;
+    });
+  };
+
+  const handleResetZoom = () => {
+    setTableZoom(100);
+    try { localStorage.setItem('taskaccount_table_zoom', '100'); } catch {}
+  };
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -2747,6 +2780,50 @@ export const Tasks: React.FC<{
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
               </div>
             </div>
+
+            {layoutMode === 'list' && (
+              <>
+                <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+
+                {/* Controle de Zoom Compacto */}
+                <div className="flex items-center gap-0.5 bg-slate-100/80 dark:bg-slate-900/60 p-0.5 rounded-md border border-slate-200/60 dark:border-slate-800/80 shrink-0">
+                  <Tooltip content="Diminuir zoom da tabela" position="bottom">
+                    <button
+                      type="button"
+                      onClick={handleZoomOut}
+                      disabled={tableZoom <= 70}
+                      className="p-1 rounded text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                      aria-label="Diminuir zoom"
+                    >
+                      <ZoomOut size={13} />
+                    </button>
+                  </Tooltip>
+
+                  <Tooltip content="Clique para redefinir para 100%" position="bottom">
+                    <button
+                      type="button"
+                      onClick={handleResetZoom}
+                      className="px-1.5 py-0.5 text-[10px] font-black text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-mono transition-colors cursor-pointer select-none"
+                      aria-label="Redefinir zoom"
+                    >
+                      {tableZoom}%
+                    </button>
+                  </Tooltip>
+
+                  <Tooltip content="Aumentar zoom da tabela" position="bottom">
+                    <button
+                      type="button"
+                      onClick={handleZoomIn}
+                      disabled={tableZoom >= 130}
+                      className="p-1 rounded text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                      aria-label="Aumentar zoom"
+                    >
+                      <ZoomIn size={13} />
+                    </button>
+                  </Tooltip>
+                </div>
+              </>
+            )}
           </div>
           <Button onClick={handleCreate} icon={<Plus size={18} />} className="hidden md:flex">Nova Tarefa</Button>
         </div>
@@ -2822,7 +2899,13 @@ export const Tasks: React.FC<{
 
             {layoutMode === 'list' ? (
               <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
-                <div className="overflow-auto w-full pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
+                <div 
+                  className="overflow-auto w-full pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] transition-all" 
+                  style={{ 
+                    maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)',
+                    zoom: tableZoom !== 100 ? `${tableZoom}%` : undefined
+                  }}
+                >
               <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
                 <thead className="bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm">
                   <tr>

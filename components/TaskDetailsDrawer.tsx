@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, 
@@ -88,6 +88,79 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
   const [draggableSectionId, setDraggableSectionId] = useState<string | null>(null);
+  const touchStartRef = useRef<{ id: string; startY: number } | null>(null);
+  const touchOverIdRef = useRef<string | null>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = (sectionId: string, e: React.TouchEvent) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+    touchStartRef.current = { id: sectionId, startY: touch.clientY };
+    touchOverIdRef.current = null;
+    setDraggedSectionId(sectionId);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(30);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const touch = e.touches[0];
+    
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetCard = el?.closest('[data-drag-id]');
+    const targetId = targetCard?.getAttribute('data-drag-id');
+    
+    if (targetId && targetId !== touchStartRef.current.id) {
+      if (touchOverIdRef.current !== targetId) {
+        touchOverIdRef.current = targetId;
+        setDragOverSectionId(targetId);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(15);
+        }
+      }
+    } else if (!targetId) {
+      touchOverIdRef.current = null;
+      setDragOverSectionId(null);
+    }
+
+    if (contentScrollRef.current) {
+      const rect = contentScrollRef.current.getBoundingClientRect();
+      const edgeThreshold = 60;
+      if (touch.clientY < rect.top + edgeThreshold) {
+        contentScrollRef.current.scrollTop -= 7;
+      } else if (touch.clientY > rect.bottom - edgeThreshold) {
+        contentScrollRef.current.scrollTop += 7;
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
+    const draggedId = touchStartRef.current?.id;
+    const targetId = touchOverIdRef.current;
+    
+    if (draggedId && targetId && draggedId !== targetId) {
+      const fromIndex = sectionsOrder.indexOf(draggedId);
+      const toIndex = sectionsOrder.indexOf(targetId);
+      if (fromIndex !== -1 && toIndex !== -1) {
+        const newOrder = [...sectionsOrder];
+        newOrder.splice(fromIndex, 1);
+        newOrder.splice(toIndex, 0, draggedId);
+        setSectionsOrder(newOrder);
+        localStorage.setItem('task_drawer_sections_order', JSON.stringify(newOrder));
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(40);
+        }
+      }
+    }
+    
+    touchStartRef.current = null;
+    touchOverIdRef.current = null;
+    setDraggedSectionId(null);
+    setDragOverSectionId(null);
+    setDraggableSectionId(null);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -257,6 +330,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     const sectionIndexLabel = `Seção ${String(indexInVisible + 1).padStart(2, '0')}`;
 
     const dragProps = {
+      'data-drag-id': sectionId,
       draggable: draggableSectionId === sectionId,
       onDragStart: (e: React.DragEvent) => {
         setDraggedSectionId(sectionId);
@@ -304,7 +378,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     const renderDragHandle = () => (
       <Tooltip content="Arrastar para ordenar" position="top">
         <div
-          className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-1"
+          className="cursor-grab active:cursor-grabbing p-1.5 sm:p-1 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-1 shrink-0 touch-none select-none"
           onMouseDown={(e) => {
             e.stopPropagation();
             setDraggableSectionId(sectionId);
@@ -317,8 +391,11 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
             e.stopPropagation();
             e.preventDefault();
           }}
+          onTouchStart={(e) => handleTouchStart(sectionId, e)}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
-          <GripVertical size={14} />
+          <GripVertical size={16} />
         </div>
       </Tooltip>
     );
@@ -798,7 +875,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
+        <div ref={contentScrollRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-4">
           {sectionsOrder.map((sectionId) => renderSection(sectionId))}
         </div>
 

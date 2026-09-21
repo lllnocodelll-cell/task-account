@@ -44,7 +44,8 @@ import {
   Copy,
   RefreshCw,
   Video,
-  ExternalLink
+  ExternalLink,
+  Mic
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -59,6 +60,8 @@ import { Tooltip } from '../components/ui/Tooltip';
 import { useToast } from '../contexts/ToastContext';
 import { MessageTemplatesDrawer } from '../components/chat/MessageTemplatesDrawer';
 import { triggerPushNotification } from '../utils/webPush';
+import { AudioRecorder } from '../components/chat/AudioRecorder';
+import { AudioMessagePlayer } from '../components/chat/AudioMessagePlayer';
 
 interface Channel {
   id: string;
@@ -315,6 +318,7 @@ interface Message {
   attachments?: any[] | null;
   file_name?: string;
   file_type?: string;
+  file_size?: number;
   reply_to_id?: string;
   reactions?: Reaction[];
   is_system?: boolean;
@@ -642,6 +646,9 @@ export const Chat: React.FC = () => {
   const [draggedChannelId, setDraggedChannelId] = useState<string | null>(null);
   const [dragOverChannelId, setDragOverChannelId] = useState<string | null>(null);
   const [draggableChannelId, setDraggableChannelId] = useState<string | null>(null);
+  const channelTouchStartRef = useRef<{ id: string; startY: number } | null>(null);
+  const channelTouchOverIdRef = useRef<string | null>(null);
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const [, setSupportTimerTicker] = useState(0);
 
   // Ticker para atualizar tempo de atendimento a cada minuto
@@ -689,8 +696,71 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const handleChannelTouchStart = (channelId: string, e: React.TouchEvent) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+    channelTouchStartRef.current = { id: channelId, startY: touch.clientY };
+    channelTouchOverIdRef.current = null;
+    setDraggedChannelId(channelId);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(30);
+    }
+  };
+
+  const handleChannelTouchMove = (e: React.TouchEvent) => {
+    if (!channelTouchStartRef.current) return;
+    const touch = e.touches[0];
+
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetCard = el?.closest('[data-drag-id]');
+    const targetId = targetCard?.getAttribute('data-drag-id');
+
+    if (targetId && targetId !== channelTouchStartRef.current.id) {
+      if (channelTouchOverIdRef.current !== targetId) {
+        channelTouchOverIdRef.current = targetId;
+        setDragOverChannelId(targetId);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(15);
+        }
+      }
+    } else if (!targetId) {
+      channelTouchOverIdRef.current = null;
+      setDragOverChannelId(null);
+    }
+
+    if (sidebarScrollRef.current) {
+      const rect = sidebarScrollRef.current.getBoundingClientRect();
+      const edgeThreshold = 60;
+      if (touch.clientY < rect.top + edgeThreshold) {
+        sidebarScrollRef.current.scrollTop -= 7;
+      } else if (touch.clientY > rect.bottom - edgeThreshold) {
+        sidebarScrollRef.current.scrollTop += 7;
+      }
+    }
+  };
+
+  const handleChannelTouchEnd = (currentItems: { id: string }[], e: React.TouchEvent) => {
+    e.stopPropagation();
+    const draggedId = channelTouchStartRef.current?.id;
+    const targetId = channelTouchOverIdRef.current;
+
+    if (draggedId && targetId && draggedId !== targetId) {
+      handleChannelDrop(draggedId, targetId, currentItems);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(40);
+      }
+    }
+
+    channelTouchStartRef.current = null;
+    channelTouchOverIdRef.current = null;
+    setDraggedChannelId(null);
+    setDragOverChannelId(null);
+    setDraggableChannelId(null);
+  };
+
   const getChannelDragProps = (channelId: string, currentItems: { id: string }[]) => {
     return {
+      'data-drag-id': channelId,
       draggable: draggableChannelId === channelId,
       onDragStart: (e: React.DragEvent) => {
         setDraggedChannelId(channelId);
@@ -767,6 +837,8 @@ export const Chat: React.FC = () => {
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [isSendingAudio, setIsSendingAudio] = useState(false);
 
   // Transferência de Atendimento
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -1338,21 +1410,31 @@ export const Chat: React.FC = () => {
                 return;
               }
 
+              const isAudioMsg = newMsg.file_type?.startsWith('audio/') || 
+                newMsg.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) || 
+                (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.some((a: any) => a.type === 'audio'));
+              const lastMsgText = newMsg.text || (isAudioMsg ? '🎤 Mensagem de áudio' : '📎 Anexo');
+
               // Incrementar contagem
               setChannels(prev =>
                 prev.map(ch =>
                   ch.id === newMsg.channel_id
-                    ? { ...ch, unreadCount: (ch.unreadCount || 0) + 1, lastMessage: newMsg.text || '📎 Anexo', lastMessageTime: newMsg.created_at }
+                    ? { ...ch, unreadCount: (ch.unreadCount || 0) + 1, lastMessage: lastMsgText, lastMessageTime: newMsg.created_at }
                     : ch
                 )
               );
             } else {
               // Canais normais (direct, group): só incrementa se não for minha mensagem
               if (newMsg.sender_id !== currentUserId) {
+                const isAudioMsg = newMsg.file_type?.startsWith('audio/') || 
+                  newMsg.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) || 
+                  (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.some((a: any) => a.type === 'audio'));
+                const lastMsgText = newMsg.text || (isAudioMsg ? '🎤 Mensagem de áudio' : '📎 Anexo');
+
                 setChannels(prev =>
                   prev.map(ch =>
                     ch.id === newMsg.channel_id
-                      ? { ...ch, unreadCount: (ch.unreadCount || 0) + 1, lastMessage: newMsg.text || '📎 Anexo', lastMessageTime: newMsg.created_at }
+                      ? { ...ch, unreadCount: (ch.unreadCount || 0) + 1, lastMessage: lastMsgText, lastMessageTime: newMsg.created_at }
                       : ch
                   )
                 );
@@ -2224,9 +2306,9 @@ export const Chat: React.FC = () => {
           }
 
           // Buscar a última mensagem real deste canal
-          const { data: lastMsgData } = await supabase
-            .from('chat_messages')
-            .select('text, created_at, attachment_url')
+          const { data: lastMsgData } = await (supabase
+            .from('chat_messages') as any)
+            .select('text, created_at, attachment_url, file_type, attachments')
             .eq('channel_id', c.id)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -2236,6 +2318,12 @@ export const Chat: React.FC = () => {
           if (lastMsgData) {
             if (lastMsgData.text) {
               lastMessage = lastMsgData.text;
+            } else if (
+              (lastMsgData as any).file_type?.startsWith('audio/') || 
+              lastMsgData.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) ||
+              ((lastMsgData as any).attachments && Array.isArray((lastMsgData as any).attachments) && (lastMsgData as any).attachments.some((a: any) => a.type === 'audio'))
+            ) {
+              lastMessage = '🎤 Mensagem de áudio';
             } else if (lastMsgData.attachment_url) {
               lastMessage = '📎 Anexo';
             }
@@ -4439,6 +4527,176 @@ export const Chat: React.FC = () => {
       alert('Falha ao enviar mensagem');
     }
   };
+
+  const handleSendAudio = async (blob: Blob, durationSeconds: number) => {
+    if (!selectedChannelId || !userId || isSendingAudio) return;
+    setIsSendingAudio(true);
+
+    const selectedChannel = enrichedChannels.find(c => c.id === selectedChannelId);
+    const isSupport = selectedChannel?.type === 'support';
+    const isClosed = selectedChannel?.status === 'closed' || selectedChannel?.support_status === 'resolved';
+
+    const tempId = `temp-audio-${Date.now()}`;
+    const blobUrl = URL.createObjectURL(blob);
+    const mimeType = blob.type || 'audio/webm';
+    const fileExt = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('aac') ? 'aac' : 'webm';
+    const fileName = `audio_${Date.now()}.${fileExt}`;
+
+    const formattedDur = `${Math.floor(durationSeconds / 60)}:${Math.floor(durationSeconds % 60).toString().padStart(2, '0')}`;
+    const optimisticAudioAttachment = {
+      url: blobUrl,
+      name: `Áudio (${formattedDur})`,
+      type: 'audio',
+      duration: durationSeconds,
+      size: blob.size
+    };
+
+    const optimisticMsg: Message = {
+      id: tempId,
+      sender_id: userId,
+      text: '',
+      attachment_url: blobUrl,
+      file_name: fileName,
+      file_type: mimeType,
+      file_size: blob.size,
+      attachments: [optimisticAudioAttachment],
+      created_at: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+      status: 'sent',
+      reply_to_id: replyingTo ? replyingTo.id : undefined,
+      rawCreatedAt: new Date().toISOString(),
+      is_private: selectedChannel?.is_private ?? false
+    };
+
+    setReplyingTo(null);
+
+    setMessages(prev => ({
+      ...prev,
+      [selectedChannelId]: [...(prev[selectedChannelId] || []), optimisticMsg]
+    }));
+
+    try {
+      if (isSupport) {
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('full_name, role')
+          .eq('id', userId)
+          .single();
+
+        const isUserClient = userProfile?.role === 'cliente' || selectedChannel?.created_by === userId;
+        const isStaff = !isUserClient;
+
+        if (isUserClient && isClosed) {
+          const nowIso = new Date().toISOString();
+          await supabase
+            .from('chat_channels')
+            .update({
+              status: 'open',
+              support_status: 'pending',
+              assigned_to: null,
+              opened_at: nowIso,
+              resolved_at: null,
+              last_duration_seconds: null
+            } as any)
+            .eq('id', selectedChannelId);
+
+          await supabase
+            .from('chat_messages')
+            .insert({
+              channel_id: selectedChannelId,
+              sender_id: userId,
+              text: `Atendimento reaberto pelo cliente.`,
+              status: 'sent',
+              is_system: true
+            } as any);
+
+          await fetchChannels(userId);
+        } else if (isStaff) {
+          const { data: isMember } = await supabase
+            .from('chat_channel_members')
+            .select('id')
+            .eq('channel_id', selectedChannelId)
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (!isMember) {
+            await supabase
+              .from('chat_channel_members')
+              .insert({
+                channel_id: selectedChannelId,
+                user_id: userId,
+                role: 'agent'
+              });
+          }
+        }
+      }
+
+      // 1. Upload do blob de áudio para Supabase Storage
+      const filePath = `${selectedChannelId}/audios/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat_attachments')
+        .upload(filePath, blob, { contentType: mimeType });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat_attachments')
+        .getPublicUrl(filePath);
+
+      const serverAudioAttachment = {
+        url: publicUrl,
+        name: `Áudio (${formattedDur})`,
+        type: 'audio',
+        duration: durationSeconds,
+        size: blob.size
+      };
+
+      // 2. Inserir registro na tabela chat_messages
+      const { error: insertError } = await supabase
+        .from('chat_messages')
+        .insert({
+          channel_id: selectedChannelId,
+          contact_id: null as any,
+          sender_id: userId,
+          text: '',
+          status: 'sent',
+          is_me: true,
+          attachment_url: publicUrl,
+          file_name: fileName,
+          file_type: mimeType,
+          file_size: blob.size,
+          attachments: [serverAudioAttachment],
+          reply_to_id: optimisticMsg.reply_to_id || null,
+          is_private: selectedChannel?.is_private ?? false
+        } as any);
+
+      if (insertError) throw insertError;
+
+      // 3. Atualizar leitura e disparar push
+      markChannelAsRead(selectedChannelId);
+
+      const senderProfile = profiles.find(p => p.id === userId);
+      triggerPushNotification({
+        channelId: selectedChannelId,
+        senderId: userId,
+        senderName: senderProfile?.full_name || 'Usuário',
+        senderAvatar: senderProfile?.avatar_url || undefined,
+        text: '🎤 Mensagem de áudio'
+      });
+
+      setIsRecordingAudio(false);
+    } catch (error: any) {
+      console.error('Erro ao enviar áudio:', error);
+      setMessages(prev => ({
+        ...prev,
+        [selectedChannelId]: (prev[selectedChannelId] || []).filter(m => m.id !== tempId)
+      }));
+      addToast('error', 'Falha ao enviar áudio', error.message || 'Tente novamente.');
+    } finally {
+      setIsSendingAudio(false);
+    }
+  };
   const teamItems = React.useMemo(() => {
     if (currentUser?.role === 'cliente') return [];
     
@@ -5035,7 +5293,7 @@ export const Chat: React.FC = () => {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
           {activeTab === 'chats' && currentUser?.role !== 'cliente' ? (
             teamItems.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">Nenhum membro ou grupo encontrado.</div>
@@ -5067,10 +5325,26 @@ export const Chat: React.FC = () => {
                 >
                   <Tooltip content="Arrastar para ordenar" position="top">
                     <span
-                      className="p-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-slate-500 transition-all shrink-0 -ml-1"
-                      onMouseDown={() => setDraggableChannelId(item.id)}
+                      role="button"
+                      aria-label="Arrastar para ordenar"
+                      className="p-2 sm:p-1 cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-500 opacity-70 sm:opacity-0 sm:group-hover/item:opacity-100 hover:text-indigo-600 transition-all shrink-0 -ml-1 touch-none select-none"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setDraggableChannelId(item.id);
+                      }}
+                      onMouseUp={(e) => {
+                        e.stopPropagation();
+                        setDraggableChannelId(null);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                      }}
+                      onTouchStart={(e) => handleChannelTouchStart(item.id, e)}
+                      onTouchMove={handleChannelTouchMove}
+                      onTouchEnd={(e) => handleChannelTouchEnd(teamItems, e)}
                     >
-                      <GripVertical size={13} />
+                      <GripVertical size={14} />
                     </span>
                   </Tooltip>
 
@@ -5154,10 +5428,26 @@ export const Chat: React.FC = () => {
                 >
                   <Tooltip content="Arrastar para ordenar" position="top">
                     <span
-                      className="p-1 cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 opacity-0 group-hover/item:opacity-100 hover:text-slate-500 transition-all shrink-0 -ml-1"
-                      onMouseDown={() => setDraggableChannelId(channel.id)}
+                      role="button"
+                      aria-label="Arrastar para ordenar"
+                      className="p-2 sm:p-1 cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-500 opacity-70 sm:opacity-0 sm:group-hover/item:opacity-100 hover:text-indigo-600 transition-all shrink-0 -ml-1 touch-none select-none"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setDraggableChannelId(channel.id);
+                      }}
+                      onMouseUp={(e) => {
+                        e.stopPropagation();
+                        setDraggableChannelId(null);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                      }}
+                      onTouchStart={(e) => handleChannelTouchStart(channel.id, e)}
+                      onTouchMove={handleChannelTouchMove}
+                      onTouchEnd={(e) => handleChannelTouchEnd(sortedFilteredChannels, e)}
                     >
-                      <GripVertical size={13} />
+                      <GripVertical size={14} />
                     </span>
                   </Tooltip>
 
@@ -5990,11 +6280,39 @@ export const Chat: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Render de Anexos de Arquivos / Documentos não imagem */}
-                          {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.some((att: any) => att.url && !att.type?.startsWith('image') && !att.url.match(/\.(jpeg|jpg|gif|png|webp)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho')) && (
+                          {/* Render de Mensagem de Áudio */}
+                          {(() => {
+                            const isAudio = (
+                              msg.file_type?.startsWith('audio/') ||
+                              msg.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) ||
+                              (msg.attachments && Array.isArray(msg.attachments) && msg.attachments.some((att: any) => att.type === 'audio' || att.url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i)))
+                            );
+
+                            if (!isAudio) return null;
+
+                            const audioAttachment = msg.attachments?.find((att: any) => att.type === 'audio' || att.url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i));
+                            const audioUrl = audioAttachment?.url || msg.attachment_url;
+                            const audioDuration = audioAttachment?.duration;
+
+                            if (!audioUrl) return null;
+
+                            return (
+                              <div className="mb-2">
+                                <AudioMessagePlayer
+                                  src={audioUrl}
+                                  duration={audioDuration}
+                                  isMe={msg.isMe}
+                                  fileName={msg.file_name || undefined}
+                                />
+                              </div>
+                            );
+                          })()}
+
+                          {/* Render de Anexos de Arquivos / Documentos não imagem e não áudio */}
+                          {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.some((att: any) => att.url && !att.type?.startsWith('image') && !att.type?.startsWith('audio') && !att.url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac|mp4)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho')) && (
                             <div className="mb-2.5 space-y-1.5">
                               {msg.attachments.map((att: any, idx: number) => (
-                                att.url && !att.type?.startsWith('image') && !att.url.match(/\.(jpeg|jpg|gif|png|webp)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho') ? (
+                                att.url && !att.type?.startsWith('image') && !att.type?.startsWith('audio') && !att.url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac|mp4)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho') ? (
                                   <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
                                     <Paperclip size={16} />
                                     <span className="truncate max-w-[180px] text-xs underline">{att.name || 'Anexo'}</span>
@@ -6004,7 +6322,7 @@ export const Chat: React.FC = () => {
                             </div>
                           )}
 
-                          {msg.attachment_url && !msg.attachments && !msg.file_type?.startsWith('image/') && !msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)/i) && (
+                          {msg.attachment_url && !msg.attachments && !msg.file_type?.startsWith('image/') && !msg.file_type?.startsWith('audio/') && !msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac|mp4)/i) && (
                             <div className="mb-2">
                               <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
                                 <Paperclip size={16} />
@@ -6326,6 +6644,18 @@ export const Chat: React.FC = () => {
                 );
               }
 
+              if (isRecordingAudio) {
+                return (
+                  <div className="flex flex-col">
+                    <AudioRecorder
+                      onSendAudio={handleSendAudio}
+                      onCancel={() => setIsRecordingAudio(false)}
+                      disabled={isSendingAudio}
+                    />
+                  </div>
+                );
+              }
+
               return (
                 <form onSubmit={handleSendMessage} className="flex flex-col">
                   <input
@@ -6336,12 +6666,19 @@ export const Chat: React.FC = () => {
                     multiple
                     accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip"
                   />
-                  <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950/50 p-2 rounded-xl border border-transparent transition-all">
+                  <div 
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).tagName !== 'BUTTON' && (e.target as HTMLElement).tagName !== 'SVG' && (e.target as HTMLElement).tagName !== 'path') {
+                        textareaRef.current?.focus();
+                      }
+                    }}
+                    className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200/80 dark:border-slate-800/80 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20 dark:focus-within:ring-indigo-400/20 focus-within:bg-white dark:focus-within:bg-slate-900 shadow-xs focus-within:shadow-md transition-all duration-200 cursor-text"
+                  >
                     <Tooltip content="Anexar arquivo" position="top">
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                        className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                       >
                         <Paperclip size={20} />
                       </button>
@@ -6358,7 +6695,7 @@ export const Chat: React.FC = () => {
                             }, 100);
                           }
                         }}
-                        className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors hidden sm:block"
+                        className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors hidden sm:block cursor-pointer"
                       >
                         <ImageIcon size={20} />
                       </button>
@@ -6376,8 +6713,8 @@ export const Chat: React.FC = () => {
                       }}
                       spellCheck={true}
                       lang="pt-BR"
-                      placeholder="Digite sua mensagem ou cole (Ctrl + V)..."
-                      className="flex-1 bg-transparent border-0 focus:ring-0 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 resize-none py-2.5 max-h-32 min-h-[44px]"
+                      placeholder="Digite aqui"
+                      className="flex-1 bg-transparent border-0 focus:ring-0 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 placeholder:text-left sm:placeholder:text-center text-left resize-none py-2 leading-relaxed max-h-32 min-h-[38px] self-center caret-indigo-600 dark:caret-indigo-400 cursor-text"
                       rows={1}
                     />
 
@@ -6420,11 +6757,28 @@ export const Chat: React.FC = () => {
                         <Smile size={20} />
                       </button>
                     </Tooltip>
+
+                    {/* Botão de Gravar Áudio (sempre visível ao lado do Enviar) */}
+                    <Tooltip content="Gravar mensagem de áudio" position="top">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEmojiPicker(false);
+                          setIsRecordingAudio(true);
+                        }}
+                        className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors shrink-0"
+                        aria-label="Gravar áudio"
+                      >
+                        <Mic size={20} />
+                      </button>
+                    </Tooltip>
+
+                    {/* Botão de Enviar Mensagem (sempre visível) */}
                     <Tooltip content="Enviar mensagem" position="top">
                       <button
                         type="submit"
                         disabled={(!messageInput.trim() && selectedFiles.length === 0)}
-                        className="relative p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm overflow-hidden shrink-0"
+                        className="relative p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:hover:bg-indigo-600 transition-colors shadow-sm overflow-hidden shrink-0"
                       >
                         {uploadProgress > 0 && uploadProgress < 100 && (
                           <div

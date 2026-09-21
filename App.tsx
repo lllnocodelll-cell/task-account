@@ -727,6 +727,7 @@ function App() {
             onNavigateToClient={handleNavigateToClient}
             onNavigateToTab={(tab) => setActiveTab(tab)}
             onOpenTutorials={() => setIsTutorialsOpen(true)}
+            onBack={() => setActiveTab(previousTabRef.current || (userRole === 'cliente' ? 'client-portal' : 'dashboard'))}
           />
         );
       case 'client-portal':

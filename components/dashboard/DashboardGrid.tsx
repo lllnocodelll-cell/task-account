@@ -640,6 +640,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 rowHeight={30}
                 onLayoutChange={onLayoutChange}
                 draggableHandle=".drag-handle"
+                draggableCancel=".no-drag, button, input, textarea, select, [role='button']"
                 resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
                 margin={[16, 16]}
             >
@@ -803,8 +804,88 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
         if (!isVisible) setShouldRender(false);
     };
 
+    const widgetTouchStartRef = useRef<{ id: string; startY: number } | null>(null);
+    const widgetTouchOverIdRef = useRef<string | null>(null);
+    const widgetScrollRef = useRef<HTMLDivElement>(null);
+
+    const handleTouchStart = (widgetId: string, e: React.TouchEvent) => {
+        e.stopPropagation();
+        const touch = e.touches[0];
+        widgetTouchStartRef.current = { id: widgetId, startY: touch.clientY };
+        widgetTouchOverIdRef.current = null;
+        setDraggedWidgetId(widgetId);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(30);
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!widgetTouchStartRef.current) return;
+        const touch = e.touches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const targetCard = el?.closest('[data-drag-id]');
+        const targetId = targetCard?.getAttribute('data-drag-id');
+
+        if (targetId && targetId !== widgetTouchStartRef.current.id) {
+            if (widgetTouchOverIdRef.current !== targetId) {
+                widgetTouchOverIdRef.current = targetId;
+                setDragOverWidgetId(targetId);
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    navigator.vibrate(15);
+                }
+            }
+        } else if (!targetId) {
+            widgetTouchOverIdRef.current = null;
+            setDragOverWidgetId(null);
+        }
+
+        if (widgetScrollRef.current) {
+            const rect = widgetScrollRef.current.getBoundingClientRect();
+            const edgeThreshold = 60;
+            if (touch.clientY < rect.top + edgeThreshold) {
+                widgetScrollRef.current.scrollTop -= 7;
+            } else if (touch.clientY > rect.bottom - edgeThreshold) {
+                widgetScrollRef.current.scrollTop += 7;
+            }
+        }
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        e.stopPropagation();
+        const draggedId = widgetTouchStartRef.current?.id;
+        const targetId = widgetTouchOverIdRef.current;
+
+        if (draggedId && targetId && draggedId !== targetId) {
+            const currentOrder = [...widgetsOrder];
+            allWidgets.forEach(w => {
+                if (!currentOrder.includes(w)) {
+                    currentOrder.push(w);
+                }
+            });
+            const fromIndex = currentOrder.indexOf(draggedId);
+            const toIndex = currentOrder.indexOf(targetId);
+            if (fromIndex !== -1 && toIndex !== -1) {
+                const newOrder = [...currentOrder];
+                newOrder.splice(fromIndex, 1);
+                newOrder.splice(toIndex, 0, draggedId);
+                setWidgetsOrder(newOrder);
+                localStorage.setItem('widget_manager_drawer_order', JSON.stringify(newOrder));
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    navigator.vibrate(40);
+                }
+            }
+        }
+
+        widgetTouchStartRef.current = null;
+        widgetTouchOverIdRef.current = null;
+        setDraggedWidgetId(null);
+        setDragOverWidgetId(null);
+        setDraggableWidgetId(null);
+    };
+
     const getDragProps = (widgetId: string) => {
         return {
+            'data-drag-id': widgetId,
             draggable: draggableWidgetId === widgetId,
             onDragStart: (e: React.DragEvent) => {
                 setDraggedWidgetId(widgetId);
@@ -830,7 +911,6 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
             onDrop: () => {
                 if (draggedWidgetId && draggedWidgetId !== widgetId) {
                     const currentOrder = [...widgetsOrder];
-                    // Garantir que todos de allWidgets estão incluídos antes de calcular indexes
                     allWidgets.forEach(w => {
                         if (!currentOrder.includes(w)) {
                             currentOrder.push(w);
@@ -864,13 +944,18 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
     };
 
     const renderDragHandle = (widgetId: string) => (
-        <div
-            className="cursor-grab active:cursor-grabbing p-1.5 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-2 shrink-0 self-center"
-            onMouseDown={() => setDraggableWidgetId(widgetId)}
-            onMouseUp={() => setDraggableWidgetId(null)}
-        >
-            <GripVertical size={14} />
-        </div>
+        <Tooltip content="Arrastar para ordenar" position="top">
+            <div
+                className="cursor-grab active:cursor-grabbing p-2 sm:p-1.5 text-slate-400 hover:text-indigo-500 rounded transition-colors mr-2 shrink-0 self-center touch-none select-none"
+                onMouseDown={() => setDraggableWidgetId(widgetId)}
+                onMouseUp={() => setDraggableWidgetId(null)}
+                onTouchStart={(e) => handleTouchStart(widgetId, e)}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+            >
+                <GripVertical size={16} />
+            </div>
+        </Tooltip>
     );
 
     if (!shouldRender) return null;
@@ -947,7 +1032,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
+                <div ref={widgetScrollRef} className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed px-1">
                         Ative os widgets que deseja exibir no painel do dashboard.
                     </p>

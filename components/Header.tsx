@@ -228,6 +228,7 @@ export const Header: React.FC<HeaderProps> = ({
         <NotificationsDrawer
           userId={userProfile.id}
           orgId={userProfile.org_id}
+          userRole={userProfile?.role || userRole}
           isOpen={isNotificationsOpen}
           onClose={() => setIsNotificationsOpen(false)}
           onNavigate={handleDrawerNavigate}

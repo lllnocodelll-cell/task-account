@@ -24,7 +24,9 @@ import {
   Sparkles,
   ChevronDown,
   Check,
-  Search
+  Search,
+  Scale,
+  Paperclip
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -942,13 +944,49 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
     }
   };
 
-  const tabs = [
-    { id: 'recorrencia', label: 'Recorrência' },
-    { id: 'simples', label: 'Simples Nacional' },
-    { id: 'workflow', label: 'Workflow' },
-    { id: 'observacao', label: 'Observação' },
-    { id: 'arquivos', label: 'Arquivos' },
-  ];
+  const activeConfig = activeClientId ? clientConfigs[activeClientId] : null;
+
+  const tabs = useMemo(() => {
+    const simplesCount = (activeConfig?.selectedAnnexes?.filter((a: string) => a && a !== 'Nulo')?.length || 0) +
+      (activeConfig?.notifiedExclusion ? 1 : 0) +
+      (activeConfig?.excedeuSublimite ? 1 : 0) +
+      (activeConfig?.fatorR ? 1 : 0);
+
+    const workflowCount = activeConfig?.workflows?.length || 0;
+    const obsCount = activeConfig?.observation?.trim() ? 1 : 0;
+    const filesCount = (activeConfig?.uploadedFiles?.length || 0) + (activeConfig?.existingAttachments?.length || 0);
+
+    return [
+      {
+        id: 'simples',
+        label: 'Simples',
+        fullLabel: 'Simples Nacional',
+        icon: Scale,
+        count: simplesCount
+      },
+      {
+        id: 'workflow',
+        label: 'Workflow',
+        fullLabel: 'Workflow & Checklist',
+        icon: ListChecks,
+        count: workflowCount
+      },
+      {
+        id: 'observacao',
+        label: 'Observação',
+        fullLabel: 'Observações da Empresa',
+        icon: FileText,
+        count: obsCount
+      },
+      {
+        id: 'arquivos',
+        label: 'Arquivos',
+        fullLabel: 'Arquivos e Anexos',
+        icon: Paperclip,
+        count: filesCount
+      },
+    ];
+  }, [activeConfig]);
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pb-12">
@@ -1186,23 +1224,55 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
           </Card>
 
           {/* TABBARS REDUZIDAS PARA CONTEXTO GERAL */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-            <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto bg-slate-50 dark:bg-slate-900/50">
-              {tabs
-                .filter(t => t.id !== 'recorrencia')
-                .map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 px-4 py-3 text-[10px] font-black uppercase tracking-[0.1em] border-b-2 transition-colors whitespace-nowrap ${
-                      activeTab === tab.id
-                        ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800'
-                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 p-1.5 sm:p-2 overflow-x-auto custom-scrollbar">
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-full">
+                {tabs.map((tab) => {
+                  const IconComponent = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      title={tab.fullLabel}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`group relative flex-1 flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none cursor-pointer ${
+                        isActive
+                          ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
+                      }`}
+                    >
+                      <span className={`p-1 rounded-lg transition-colors shrink-0 ${
+                        isActive
+                          ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                          : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                      }`}>
+                        <IconComponent size={13} strokeWidth={isActive ? 2.3 : 1.8} />
+                      </span>
+
+                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider truncate">
+                        {tab.id === 'simples' ? (
+                          <span>Simples<span className="hidden xl:inline"> Nac.</span></span>
+                        ) : (
+                          tab.label
+                        )}
+                      </span>
+
+                      {tab.count > 0 ? (
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black transition-colors shrink-0 ${
+                          isActive
+                            ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
+                            : 'bg-slate-200/70 dark:bg-slate-700/70 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 opacity-40 group-hover:opacity-80 shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="p-4 max-h-[420px] overflow-auto custom-scrollbar">
               {/* ESTADO VAZIO: NENHUMA EMPRESA SELECIONADA */}

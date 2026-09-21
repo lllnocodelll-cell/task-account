@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../utils/supabaseClient';
 import { Notification as NotificationType } from '../../types';
@@ -26,7 +26,10 @@ import {
   Filter,
   ShieldCheck,
   KeyRound,
-  GraduationCap
+  GraduationCap,
+  ChevronDown,
+  User,
+  Building
 } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { DrawerBackButton } from '../ui/DrawerBackButton';
@@ -37,9 +40,12 @@ import {
   isBrowserNotificationSupported 
 } from '../../utils/browserNotification';
 
+const PAGE_SIZE = 30;
+
 interface NotificationsDrawerProps {
   userId: string;
   orgId?: string | null;
+  userRole?: string;
   isOpen: boolean;
   onClose: () => void;
   onNavigate?: (tabName: string, id?: string) => void;
@@ -49,13 +55,29 @@ interface NotificationsDrawerProps {
 export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
   userId,
   orgId,
+  userRole,
   isOpen,
   onClose,
   onNavigate,
   onUnreadCountChange
 }) => {
+  const isGestor = userRole === 'gestor';
+  const [scope, setScope] = useState<'mine' | 'org'>('mine');
+
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Contagens por escopo
+  const [mineTotalCount, setMineTotalCount] = useState(0);
+  const [orgTotalCount, setOrgTotalCount] = useState(0);
+
+  // Mapa de nomes de destinatários para quando scope === 'org'
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
+
   const [browserPermission, setBrowserPermission] = useState<NotificationPermission>(() => {
     return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'denied';
   });
@@ -64,6 +86,17 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'unread' | 'tasks' | 'clients' | 'tax' | 'certificates' | 'licenses'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  // Contagens reais por categoria
+  const [categoryCounts, setCategoryCounts] = useState({
+    all: 0,
+    unread: 0,
+    tasks: 0,
+    clients: 0,
+    tax: 0,
+    certificates: 0,
+    licenses: 0
+  });
 
   // Drawer animation states
   const [isVisible, setIsVisible] = useState(false);
@@ -88,60 +121,188 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
     return false;
   };
 
-  // Contagens dinâmicas por categoria
-  const counts = useMemo(() => {
-    const unread = notifications.filter(n => !n.read).length;
-    const tasks = notifications.filter(n => ['task_assigned', 'task_reassigned', 'task_concluded', 'task_due_soon', 'task_overdue', 'task_alert', 'task_alert_critical'].includes(n.type)).length;
-    const clients = notifications.filter(n => ['client_created', 'client_contact_updated', 'client_address_changed'].includes(n.type)).length;
-    const tax = notifications.filter(n => ['client_tax_regime_changed', 'client_legislation_added', 'task_alert', 'task_alert_critical'].includes(n.type)).length;
-    const certificates = notifications.filter(n => isCertType(n.type, n.title, n.message)).length;
-    const licenses = notifications.filter(n => isLicenseType(n.type, n.title, n.message)).length;
-    return { all: notifications.length, unread, tasks, clients, tax, certificates, licenses };
-  }, [notifications]);
+  // Carrega mapeamento de nomes dos membros do escritório
+  useEffect(() => {
+    if (!orgId || orgId === 'demo-org') return;
+    const loadProfiles = async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('org_id', orgId);
+        if (data) {
+          const map: Record<string, string> = {};
+          data.forEach(p => {
+            if (p.id && p.full_name) map[p.id] = p.full_name;
+          });
+          setProfilesMap(map);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar perfis para o drawer:', err);
+      }
+    };
+    loadProfiles();
+  }, [orgId]);
 
-  // Lista filtrada por busca de texto, categoria e tipo específico
-  const filteredNotifications = useMemo(() => {
-    return notifications.filter((notif) => {
-      // 1. Busca por nome da notificação / título ou mensagem
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchTitle = notif.title ? notif.title.toLowerCase().includes(q) : false;
-        const matchMessage = notif.message ? notif.message.toLowerCase().includes(q) : false;
-        if (!matchTitle && !matchMessage) return false;
+  // Busca contagens reais de categorias diretamente do banco
+  const fetchCategoryCounts = useCallback(async (targetScope = scope) => {
+    try {
+      let query: any = supabase
+        .from('notifications')
+        .select('type, read, title, message');
+
+      if (targetScope === 'mine') {
+        query = query.eq('user_id', userId);
+      } else if (orgId && orgId !== 'demo-org') {
+        query = query.eq('org_id', orgId);
       }
 
-      // 2. Filtro por Tipo específico
-      if (typeFilter !== 'all') {
-        if (typeFilter === 'task_alert') {
-          if (notif.type !== 'task_alert' && notif.type !== 'task_alert_critical') return false;
-        } else if (notif.type !== typeFilter) {
-          return false;
+      const { data, error } = await query;
+      if (error || !data) return;
+
+      const unread = data.filter(n => !n.read).length;
+      const tasks = data.filter(n => ['task_assigned', 'task_reassigned', 'task_concluded', 'task_due_soon', 'task_overdue', 'task_alert', 'task_alert_critical'].includes(n.type)).length;
+      const clients = data.filter(n => ['client_created', 'client_contact_updated', 'client_address_changed'].includes(n.type)).length;
+      const tax = data.filter(n => ['client_tax_regime_changed', 'client_legislation_added', 'task_alert', 'task_alert_critical'].includes(n.type)).length;
+      const certificates = data.filter(n => isCertType(n.type, n.title, n.message)).length;
+      const licenses = data.filter(n => isLicenseType(n.type, n.title, n.message)).length;
+
+      setCategoryCounts({
+        all: data.length,
+        unread,
+        tasks,
+        clients,
+        tax,
+        certificates,
+        licenses
+      });
+
+      if (targetScope === 'mine') {
+        setMineTotalCount(data.length);
+      } else {
+        setOrgTotalCount(data.length);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar contagens de categoria:', err);
+    }
+  }, [scope, userId, orgId]);
+
+  // Atualiza também contagens dos dois escopos se gestor
+  const refreshScopeTotals = useCallback(async () => {
+    if (!isGestor) return;
+    try {
+      const { count: mineCount } = await (supabase
+        .from('notifications') as any)
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+      if (mineCount !== null && mineCount !== undefined) setMineTotalCount(mineCount);
+
+      if (orgId && orgId !== 'demo-org') {
+        const { count: orgCount } = await (supabase
+          .from('notifications') as any)
+          .select('*', { count: 'exact', head: true })
+          .eq('org_id', orgId);
+        if (orgCount !== null && orgCount !== undefined) setOrgTotalCount(orgCount);
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar totais de escopo:', e);
+    }
+  }, [isGestor, userId, orgId]);
+
+  // Consulta paginada das notificações
+  const fetchNotifications = useCallback(async (
+    pageIndex = 0,
+    isLoadMore = false,
+    targetScope = scope,
+    targetCategory = categoryFilter,
+    targetType = typeFilter,
+    targetSearch = searchQuery
+  ) => {
+    try {
+      if (isLoadMore) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      let query: any = supabase
+        .from('notifications')
+        .select('*', { count: 'exact' });
+
+      if (targetScope === 'mine') {
+        query = query.eq('user_id', userId);
+      } else if (orgId && orgId !== 'demo-org') {
+        query = query.eq('org_id', orgId);
+      }
+
+      // Filtro por Categoria no banco
+      if (targetCategory === 'unread') {
+        query = query.eq('read', false);
+      } else if (targetCategory === 'tasks') {
+        query = query.in('type', ['task_assigned', 'task_reassigned', 'task_concluded', 'task_due_soon', 'task_overdue', 'task_alert', 'task_alert_critical']);
+      } else if (targetCategory === 'clients') {
+        query = query.in('type', ['client_created', 'client_contact_updated', 'client_address_changed']);
+      } else if (targetCategory === 'tax') {
+        query = query.in('type', ['client_tax_regime_changed', 'client_legislation_added', 'task_alert', 'task_alert_critical']);
+      } else if (targetCategory === 'certificates') {
+        query = query.in('type', ['certificate_expired', 'certificate_renewed', 'certificate_updated', 'license_expiring']);
+      } else if (targetCategory === 'licenses') {
+        query = query.in('type', ['license_expired', 'license_renewed', 'license_updated', 'license_expiring']);
+      }
+
+      // Filtro por Tipo específico
+      if (targetType !== 'all') {
+        if (targetType === 'task_alert') {
+          query = query.in('type', ['task_alert', 'task_alert_critical']);
+        } else {
+          query = query.eq('type', targetType);
         }
       }
 
-      // 3. Filtro por Categoria
-      if (categoryFilter === 'unread') {
-        if (notif.read) return false;
-      } else if (categoryFilter === 'tasks') {
-        const taskTypes = ['task_assigned', 'task_reassigned', 'task_concluded', 'task_due_soon', 'task_overdue', 'task_alert', 'task_alert_critical'];
-        if (!taskTypes.includes(notif.type)) return false;
-      } else if (categoryFilter === 'clients') {
-        const clientTypes = ['client_created', 'client_contact_updated', 'client_address_changed'];
-        if (!clientTypes.includes(notif.type)) return false;
-      } else if (categoryFilter === 'tax') {
-        const taxTypes = ['client_tax_regime_changed', 'client_legislation_added', 'task_alert', 'task_alert_critical'];
-        if (!taxTypes.includes(notif.type)) return false;
-      } else if (categoryFilter === 'certificates') {
-        if (!isCertType(notif.type, notif.title, notif.message)) return false;
-      } else if (categoryFilter === 'licenses') {
-        if (!isLicenseType(notif.type, notif.title, notif.message)) return false;
+      // Busca por texto
+      if (targetSearch.trim()) {
+        const q = targetSearch.trim();
+        query = query.or(`title.ilike.%${q}%,message.ilike.%${q}%`);
       }
 
-      return true;
-    });
-  }, [notifications, searchQuery, typeFilter, categoryFilter]);
+      const from = pageIndex * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-  const fetchUnreadCount = async () => {
+      const { data, count, error } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      let items = data || [];
+
+      // Refinamento de certificados / licenças para license_expiring
+      if (targetCategory === 'certificates') {
+        items = items.filter((n: NotificationType) => isCertType(n.type, n.title, n.message));
+      } else if (targetCategory === 'licenses') {
+        items = items.filter((n: NotificationType) => isLicenseType(n.type, n.title, n.message));
+      }
+
+      if (isLoadMore) {
+        setNotifications(prev => [...prev, ...items]);
+      } else {
+        setNotifications(items);
+      }
+
+      setPage(pageIndex);
+      const total = count ?? 0;
+      setTotalCount(total);
+      setHasMore(to + 1 < total);
+
+    } catch (e) {
+      console.error('Erro ao buscar notificações no drawer:', e);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [scope, categoryFilter, typeFilter, searchQuery, userId, orgId]);
+
+  const fetchUnreadCount = useCallback(async () => {
     try {
       let query: any = supabase
         .from('notifications')
@@ -159,77 +320,18 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         onUnreadCountChange(count);
       }
     } catch (e) {
-      console.error('Error fetching unread count:', e);
+      console.error('Erro ao buscar total não lidas:', e);
     }
-  };
+  }, [userId, orgId, onUnreadCountChange]);
 
-  useEffect(() => {
-    fetchNotifications();
-    fetchUnreadCount();
-
-    // Setup realtime subscription
-    const channel = supabase
-      .channel(`public:notifications:${userId}${orgId ? `:${orgId}` : ''}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`
-      }, (payload) => {
-        const newNotif = payload.new as NotificationType;
-        // Isolamento adicional: ignorar notificações de outra organização
-        if (orgId && newNotif.org_id && newNotif.org_id !== orgId) {
-          return;
-        }
-
-        setNotifications((prev) => [newNotif, ...prev]);
-        
-        // Disparo de efeitos sonoros suaves e notificação nativa do navegador
-        soundEffects.playNotificationSound();
-        sendBrowserNotification(newNotif.title, {
-          body: newNotif.message || undefined,
-          onClick: () => handleNotificationClick(newNotif)
-        });
-
-        fetchUnreadCount();
-      })
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`
-      }, (payload) => {
-        const updatedNotif = payload.new as NotificationType;
-        if (orgId && updatedNotif.org_id && updatedNotif.org_id !== orgId) {
-          return;
-        }
-
-        setNotifications((prev) => 
-          prev.map(n => n.id === updatedNotif.id ? updatedNotif : n)
-        );
-        fetchUnreadCount();
-      })
-      .on('postgres_changes', { 
-        event: 'DELETE', 
-        schema: 'public', 
-        table: 'notifications',
-        filter: `user_id=eq.${userId}`
-      }, (payload) => {
-        setNotifications((prev) => prev.filter(n => n.id !== payload.old.id));
-        fetchUnreadCount();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, orgId]);
-
+  // Atualização ao abrir o drawer
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
-      fetchNotifications();
+      fetchNotifications(0, false, scope, categoryFilter, typeFilter, searchQuery);
+      fetchCategoryCounts(scope);
       fetchUnreadCount();
+      refreshScopeTotals();
       const timer = setTimeout(() => setIsVisible(true), 10);
       return () => clearTimeout(timer);
     } else {
@@ -241,28 +343,111 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
     if (!isVisible) setShouldRender(false);
   };
 
-  const fetchNotifications = async () => {
-    try {
-      let query: any = supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId);
+  // Realtime subscription
+  useEffect(() => {
+    if (!userId) return;
 
-      if (orgId && orgId !== 'demo-org') {
-        query = query.eq('org_id', orgId);
-      }
+    fetchUnreadCount();
+    refreshScopeTotals();
 
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(30);
+    const channel = supabase
+      .channel(`public:notifications_drawer:${userId}${orgId ? `:${orgId}` : ''}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'notifications'
+      }, (payload) => {
+        const newNotif = payload.new as NotificationType;
+        
+        // Verifica se a notificação pertence ao escopo
+        const belongsToUser = newNotif.user_id === userId;
+        const belongsToOrg = orgId && newNotif.org_id === orgId;
 
-      if (error) throw error;
-      if (data) setNotifications(data);
-    } catch (e) {
-      console.error('Error fetching notifications:', e);
-    } finally {
-      setLoading(false);
-    }
+        if (scope === 'mine' && !belongsToUser) return;
+        if (scope === 'org' && !belongsToOrg) return;
+
+        setNotifications((prev) => [newNotif, ...prev]);
+        setTotalCount(c => c + 1);
+        
+        if (belongsToUser) {
+          soundEffects.playNotificationSound();
+          sendBrowserNotification(newNotif.title, {
+            body: newNotif.message || undefined,
+            onClick: () => handleNotificationClick(newNotif)
+          });
+        }
+
+        fetchUnreadCount();
+        fetchCategoryCounts(scope);
+        refreshScopeTotals();
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'notifications'
+      }, (payload) => {
+        const updatedNotif = payload.new as NotificationType;
+        setNotifications((prev) => 
+          prev.map(n => n.id === updatedNotif.id ? updatedNotif : n)
+        );
+        fetchUnreadCount();
+        fetchCategoryCounts(scope);
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'notifications'
+      }, (payload) => {
+        setNotifications((prev) => prev.filter(n => n.id !== payload.old.id));
+        setTotalCount(c => Math.max(0, c - 1));
+        fetchUnreadCount();
+        fetchCategoryCounts(scope);
+        refreshScopeTotals();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, orgId, scope, fetchUnreadCount, fetchCategoryCounts, refreshScopeTotals]);
+
+  // Troca de escopo
+  const handleScopeChange = (newScope: 'mine' | 'org') => {
+    if (newScope === scope) return;
+    setScope(newScope);
+    setPage(0);
+    fetchNotifications(0, false, newScope, categoryFilter, typeFilter, searchQuery);
+    fetchCategoryCounts(newScope);
+  };
+
+  // Troca de categoria
+  const handleCategoryChange = (newCategory: typeof categoryFilter) => {
+    setCategoryFilter(newCategory);
+    setTypeFilter('all');
+    setPage(0);
+    fetchNotifications(0, false, scope, newCategory, 'all', searchQuery);
+  };
+
+  // Troca de tipo
+  const handleTypeChange = (newType: string) => {
+    setTypeFilter(newType);
+    setCategoryFilter('all');
+    setPage(0);
+    fetchNotifications(0, false, scope, 'all', newType, searchQuery);
+  };
+
+  // Busca
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setPage(0);
+    fetchNotifications(0, false, scope, categoryFilter, typeFilter, query);
+  };
+
+  // Carregar mais notificações
+  const handleLoadMore = () => {
+    if (loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    fetchNotifications(nextPage, true, scope, categoryFilter, typeFilter, searchQuery);
   };
 
   const handleMarkAsRead = async (id: string) => {
@@ -277,8 +462,9 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       );
       fetchUnreadCount();
+      fetchCategoryCounts(scope);
     } catch (e) {
-      console.error('Error marking as read:', e);
+      console.error('Erro ao marcar como lida:', e);
     }
   };
 
@@ -295,35 +481,41 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         prev.map(n => n.id === id ? { ...n, read: false } : n)
       );
       fetchUnreadCount();
+      fetchCategoryCounts(scope);
     } catch (e2) {
-      console.error('Error marking as unread:', e2);
+      console.error('Erro ao marcar como não lida:', e2);
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
-      const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
-      if (unreadIds.length === 0) return;
-
-      const { error } = await supabase
+      let query: any = supabase
         .from('notifications')
         .update({ read: true })
-        .in('id', unreadIds);
-      
+        .eq('read', false);
+
+      if (scope === 'mine') {
+        query = query.eq('user_id', userId);
+      } else if (orgId && orgId !== 'demo-org') {
+        query = query.eq('org_id', orgId);
+      }
+
+      const { error } = await query;
       if (error) throw error;
       
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       fetchUnreadCount();
+      fetchCategoryCounts(scope);
     } catch (e) {
-      console.error('Error marking all as read:', e);
+      console.error('Erro ao marcar todas como lidas:', e);
     }
   };
 
   const handleDeleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      // Optimistic update
       setNotifications(prev => prev.filter(n => n.id !== id));
+      setTotalCount(c => Math.max(0, c - 1));
       
       const { error } = await supabase
         .from('notifications')
@@ -332,9 +524,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       
       if (error) throw error;
       fetchUnreadCount();
+      fetchCategoryCounts(scope);
+      refreshScopeTotals();
     } catch (e2) {
-      console.error('Error deleting notification:', e2);
-      fetchNotifications(); // Rollback/Refresh on error
+      console.error('Erro ao excluir notificação:', e2);
+      fetchNotifications(0, false);
     }
   };
 
@@ -343,7 +537,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       handleMarkAsRead(notification.id);
     }
     
-    // Licenças e Alvarás: DEVEM ABRIR O DRAWER DE DADOS DO CLIENTE
+    // Licenças e Alvarás
     if (isLicenseType(notification.type, notification.title, notification.message) && onNavigate) {
       const match = notification.link?.match(/[?&]id=([^&]+)/);
       let targetClientId = match ? match[1] : notification.related_entity_id;
@@ -373,9 +567,8 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       return;
     }
 
-    // Regime tributário e Legislação: DEVEM SEMPRE abrir o drawer "Dados da Tarefa"
+    // Regime tributário e Legislação
     if (['client_tax_regime_changed', 'client_legislation_added'].includes(notification.type) && onNavigate) {
-      // 1. Se o link já aponta diretamente para uma tarefa
       if (notification.link?.includes('/tasks')) {
         const match = notification.link.match(/[?&]id=([^&]+)/);
         const taskId = match ? match[1] : notification.related_entity_id;
@@ -386,7 +579,6 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         }
       }
 
-      // 2. Se aponta para um cliente (link /clients ou related_entity_id com ID do cliente)
       const matchClient = notification.link?.match(/[?&]id=([^&]+)/);
       const targetClientId = notification.related_entity_id || matchClient?.[1];
 
@@ -410,13 +602,12 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         }
       }
 
-      // Fallback estrito: se nenhuma tarefa for encontrada, navega para a aba de tarefas (NUNCA para dados do cliente)
       onNavigate('tasks');
       onClose();
       return;
     }
 
-    // Parse the link if it exists and pass targeted entity ID
+    // Links gerais
     if (notification.link && onNavigate) {
       if (notification.link.includes('/tasks')) {
         const match = notification.link.match(/[?&]id=([^&]+)/);
@@ -484,11 +675,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       {/* Panel */}
       <div 
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 shrink-0">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg flex-shrink-0 shadow-sm">
               <Bell size={18} className="text-indigo-600 dark:text-indigo-400" />
@@ -505,8 +696,8 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             <Tooltip content="Marcar todas como lidas" position="bottom">
               <button 
                 onClick={handleMarkAllAsRead}
-                disabled={notifications.filter(n => !n.read).length === 0}
-                className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50/80 dark:hover:bg-slate-800 border border-transparent hover:border-indigo-100 dark:hover:border-slate-700/60 px-2.5 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
+                disabled={categoryCounts.unread === 0}
+                className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:bg-indigo-50/80 dark:hover:bg-slate-800 border border-transparent hover:border-indigo-100 dark:hover:border-slate-700/60 px-2.5 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
               >
                 <Check size={12} strokeWidth={3} />
                 <span>Lidas</span>
@@ -515,6 +706,42 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             <DrawerBackButton onClick={onClose} />
           </div>
         </div>
+
+        {/* Scope Selector para Gestor: Minhas Notificações vs Escritório */}
+        {isGestor && (
+          <div className="px-4 pt-3 shrink-0">
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold shadow-2xs">
+              <button
+                onClick={() => handleScopeChange('mine')}
+                className={`flex-1 py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  scope === 'mine'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <User size={13} />
+                <span>Minhas</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold">
+                  {mineTotalCount}
+                </span>
+              </button>
+              <button
+                onClick={() => handleScopeChange('org')}
+                className={`flex-1 py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  scope === 'org'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Building size={13} />
+                <span>Escritório</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold">
+                  {orgTotalCount > 999 ? `${(orgTotalCount / 1000).toFixed(1)}k` : orgTotalCount}
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Banner para Ativação de Notificações no Navegador */}
         {isBrowserNotificationSupported() && browserPermission === 'default' && (
@@ -528,7 +755,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             </div>
             <button
               onClick={handleEnableDesktopAlerts}
-              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold shrink-0 transition-colors"
+              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold shrink-0 transition-colors cursor-pointer"
             >
               Ativar
             </button>
@@ -542,14 +769,14 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             <input 
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Buscar por título ou mensagem..."
               className="w-full px-3 pr-8 py-1.5 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/70 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
             />
             {searchQuery && (
               <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full"
+                onClick={() => handleSearchChange('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full cursor-pointer"
                 title="Limpar busca"
               >
                 <X size={13} />
@@ -557,11 +784,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             )}
           </div>
 
-          {/* Category Filter Chips */}
+          {/* Category Filter Chips com contagens reais */}
           <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
             <button
-              onClick={() => { setCategoryFilter('all'); setTypeFilter('all'); }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] ${
+              onClick={() => handleCategoryChange('all')}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'all' && typeFilter === 'all'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
@@ -569,11 +796,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             >
               <Bell size={11} className={categoryFilter === 'all' && typeFilter === 'all' ? 'text-white' : 'text-slate-400'} />
               <span>Todas</span>
-              <span className="text-[10px] opacity-75">({counts.all})</span>
+              <span className="text-[10px] opacity-75">({categoryCounts.all})</span>
             </button>
             <button
-              onClick={() => { setCategoryFilter('unread'); setTypeFilter('all'); }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-[11px] ${
+              onClick={() => handleCategoryChange('unread')}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-[11px] cursor-pointer ${
                 categoryFilter === 'unread'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
@@ -581,15 +808,15 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             >
               <Mail size={11} className={categoryFilter === 'unread' ? 'text-white' : 'text-slate-400'} />
               <span>Não lidas</span>
-              {counts.unread > 0 && (
+              {categoryCounts.unread > 0 && (
                 <span className="px-1.5 py-0.2 bg-red-500 text-white text-[9px] font-bold rounded-full">
-                  {counts.unread}
+                  {categoryCounts.unread}
                 </span>
               )}
             </button>
             <button
-              onClick={() => { setCategoryFilter('tasks'); setTypeFilter('all'); }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] ${
+              onClick={() => handleCategoryChange('tasks')}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'tasks'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
@@ -597,11 +824,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             >
               <Clock size={11} className={categoryFilter === 'tasks' ? 'text-white' : 'text-slate-400'} />
               <span>Tarefas</span>
-              <span className="text-[10px] opacity-75">({counts.tasks})</span>
+              <span className="text-[10px] opacity-75">({categoryCounts.tasks})</span>
             </button>
             <button
-              onClick={() => { setCategoryFilter('clients'); setTypeFilter('all'); }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] ${
+              onClick={() => handleCategoryChange('clients')}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'clients'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
@@ -609,11 +836,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             >
               <Building2 size={11} className={categoryFilter === 'clients' ? 'text-white' : 'text-slate-400'} />
               <span>Clientes</span>
-              <span className="text-[10px] opacity-75">({counts.clients})</span>
+              <span className="text-[10px] opacity-75">({categoryCounts.clients})</span>
             </button>
             <button
-              onClick={() => { setCategoryFilter('tax'); setTypeFilter('all'); }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] ${
+              onClick={() => handleCategoryChange('tax')}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'tax'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
@@ -621,11 +848,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             >
               <Scale size={11} className={categoryFilter === 'tax' ? 'text-white' : 'text-slate-400'} />
               <span>Fiscal</span>
-              <span className="text-[10px] opacity-75">({counts.tax})</span>
+              <span className="text-[10px] opacity-75">({categoryCounts.tax})</span>
             </button>
             <button
-              onClick={() => { setCategoryFilter('certificates'); setTypeFilter('all'); }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] ${
+              onClick={() => handleCategoryChange('certificates')}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'certificates'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
@@ -633,11 +860,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             >
               <KeyRound size={11} className={categoryFilter === 'certificates' ? 'text-white' : 'text-slate-400'} />
               <span>Certificados</span>
-              <span className="text-[10px] opacity-75">({counts.certificates})</span>
+              <span className="text-[10px] opacity-75">({categoryCounts.certificates})</span>
             </button>
             <button
-              onClick={() => { setCategoryFilter('licenses'); setTypeFilter('all'); }}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] ${
+              onClick={() => handleCategoryChange('licenses')}
+              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'licenses'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
@@ -645,7 +872,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             >
               <ShieldCheck size={11} className={categoryFilter === 'licenses' ? 'text-white' : 'text-slate-400'} />
               <span>Licenças</span>
-              <span className="text-[10px] opacity-75">({counts.licenses})</span>
+              <span className="text-[10px] opacity-75">({categoryCounts.licenses})</span>
             </button>
           </div>
 
@@ -657,7 +884,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             </div>
             <select
               value={typeFilter}
-              onChange={(e) => { setTypeFilter(e.target.value); setCategoryFilter('all'); }}
+              onChange={(e) => handleTypeChange(e.target.value)}
               className="flex-1 px-2.5 py-1 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/70 rounded-lg text-[11px] font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-sm truncate"
             >
               <option value="all">Todos os tipos</option>
@@ -683,8 +910,14 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             </select>
             {(typeFilter !== 'all' || searchQuery || categoryFilter !== 'all') && (
               <button
-                onClick={() => { setTypeFilter('all'); setCategoryFilter('all'); setSearchQuery(''); }}
-                className="px-2 py-1 text-[10px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors shrink-0"
+                onClick={() => {
+                  setTypeFilter('all');
+                  setCategoryFilter('all');
+                  setSearchQuery('');
+                  setPage(0);
+                  fetchNotifications(0, false, scope, 'all', 'all', '');
+                }}
+                className="px-2 py-1 text-[10px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors shrink-0 cursor-pointer"
                 title="Limpar todos os filtros"
               >
                 Limpar
@@ -703,23 +936,13 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
             <div className="flex flex-col items-center justify-center py-16 text-slate-500 dark:text-slate-400 text-center">
               <Bell className="mb-3 opacity-20 text-slate-400" size={40} />
               <p className="text-sm font-medium">Nenhuma notificação encontrada</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Tudo limpo por aqui.</p>
-            </div>
-          ) : filteredNotifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-500 dark:text-slate-400 text-center">
-              <Search className="mb-3 opacity-20 text-slate-400" size={40} />
-              <p className="text-sm font-medium">Nenhum resultado encontrado</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">Tente ajustar a busca ou os filtros selecionados.</p>
-              <button
-                onClick={() => { setTypeFilter('all'); setCategoryFilter('all'); setSearchQuery(''); }}
-                className="px-3 py-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-lg transition-all"
-              >
-                Limpar filtros
-              </button>
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                {scope === 'org' ? 'Nenhuma notificação registrada no escritório.' : 'Tudo limpo por aqui.'}
+              </p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {filteredNotifications.map((notif) => (
+              {notifications.map((notif) => (
                 <div 
                   key={notif.id}
                   onClick={() => handleNotificationClick(notif)}
@@ -743,7 +966,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                         {notif.read ? (
                           <button
                             onClick={(e) => handleMarkAsUnread(notif.id, e)}
-                            className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
+                            className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0 cursor-pointer"
                             title="Marcar como não lida"
                           >
                             <Mail size={12} />
@@ -753,7 +976,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                         )}
                         <button
                           onClick={(e) => handleDeleteNotification(notif.id, e)}
-                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
+                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0 cursor-pointer"
                           title="Excluir notificação"
                         >
                           <Trash2 size={12} />
@@ -764,12 +987,45 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                     <p className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-line line-clamp-4 mb-2 leading-relaxed">
                       {notif.message}
                     </p>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                      {formatTime(notif.created_at)}
-                    </p>
+
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                        {formatTime(notif.created_at)}
+                      </p>
+                      {scope === 'org' && notif.user_id !== userId && profilesMap[notif.user_id] && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200/60 dark:border-slate-700/50">
+                          Para: {profilesMap[notif.user_id]}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
+
+              {/* Botão Carregar Mais Notificações */}
+              {hasMore && (
+                <div className="pt-2 pb-1 text-center">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="w-full py-2.5 px-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50/80 hover:bg-indigo-100/80 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 border border-indigo-200/70 dark:border-indigo-500/30 rounded-xl transition-all flex items-center justify-center gap-2 shadow-2xs disabled:opacity-50 cursor-pointer"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                        <span>Carregando notificações...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Carregar mais notificações</span>
+                        <span className="text-[10px] font-normal opacity-75">
+                          ({notifications.length} de {totalCount})
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -778,7 +1034,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
           <button 
             onClick={() => { onClose(); if (onNavigate) onNavigate('notifications'); }}
-            className="w-full py-2.5 text-xs text-center text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold rounded-lg border border-slate-200/60 dark:border-slate-800/60 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm"
+            className="w-full py-2.5 text-xs text-center text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold rounded-lg border border-slate-200/60 dark:border-slate-800/60 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
           >
             Ver histórico completo
           </button>
