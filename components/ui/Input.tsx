@@ -270,8 +270,8 @@ export const Select: React.FC<SelectProps> = ({
           {!options.some(opt => opt.value === '') && (
             <option value="" disabled>Selecione...</option>
           )}
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+          {options.map((opt, index) => (
+            <option key={`${opt.value}-${index}`} value={opt.value}>
               {opt.label}
             </option>
           ))}
@@ -429,9 +429,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           </button>
         )}
         {filteredOptions.length > 0 ? (
-          filteredOptions.map((opt) => (
+          filteredOptions.map((opt, index) => (
             <button
-              key={opt.value}
+              key={`${opt.value}-${index}`}
               type="button"
               onClick={() => {
                 onChange(opt.value.toString());

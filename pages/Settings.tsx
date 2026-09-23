@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
 import { TAX_REGIME_GROUPS, TAX_REGIME_LABELS } from '../types';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare, ArrowLeft, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { Toggle } from '../components/ui/Toggle';
@@ -2647,6 +2647,141 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
     });
   };
 
+  // Sector Mapping & Quick Creation States for Suggested Tasks Drawer
+  const [quickCreatingSector, setQuickCreatingSector] = useState<string | null>(null);
+  const [sectorOverrides, setSectorOverrides] = useState<Record<string, string>>({});
+  const [missingSectorsModalState, setMissingSectorsModalState] = useState<{
+    isOpen: boolean;
+    missingSectors: string[];
+    tasksToImport: any[];
+    loading?: boolean;
+  }>({
+    isOpen: false,
+    missingSectors: [],
+    tasksToImport: [],
+    loading: false
+  });
+
+  const handleQuickCreateSector = async (secName: string) => {
+    try {
+      setQuickCreatingSector(secName);
+      const { data, error } = await supabase
+        .from('sectors')
+        .insert({
+          org_id: userProfile.org_id,
+          name: secName,
+          status: 'Ativo',
+          chat_available: true
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setSectors(prev => [...prev, data]);
+        // Remove override se existia para usar o setor nativo agora criado
+        setSectorOverrides(prev => {
+          const next = { ...prev };
+          delete next[secName];
+          return next;
+        });
+        addToast('success', 'Setor Criado', `O setor "${secName}" foi criado e ativado com sucesso!`);
+      }
+    } catch (err: any) {
+      console.error('Erro ao criar setor rápido:', err);
+      addToast('error', 'Erro', 'Não foi possível criar o setor: ' + (err.message || 'Erro desconhecido'));
+    } finally {
+      setQuickCreatingSector(null);
+    }
+  };
+
+  const handleConfirmAutoCreateSectorsAndImport = async () => {
+    const { missingSectors, tasksToImport } = missingSectorsModalState;
+    if (tasksToImport.length === 0) return;
+    setMissingSectorsModalState(prev => ({ ...prev, loading: true }));
+
+    try {
+      let currentSectorsList = [...sectors];
+
+      // 1. Criar setores faltantes se houver
+      if (missingSectors.length > 0) {
+        const newSectorsPayload = missingSectors.map(name => ({
+          org_id: userProfile.org_id,
+          name,
+          status: 'Ativo',
+          chat_available: true
+        }));
+
+        const { data: createdSectors, error: createError } = await supabase
+          .from('sectors')
+          .insert(newSectorsPayload)
+          .select();
+
+        if (createError) throw createError;
+
+        if (createdSectors) {
+          currentSectorsList = [...currentSectorsList, ...createdSectors];
+          setSectors(currentSectorsList);
+        }
+      }
+
+      // 2. Mapeamento de nome para ID atualizado
+      const updatedSectorMap = new Map<string, string>();
+      currentSectorsList.forEach((s: any) => {
+        if (s.name) updatedSectorMap.set(s.name.toLowerCase().trim(), s.id);
+      });
+
+      // 3. Montar payload das tarefas com sector_id garantido
+      const payload = tasksToImport.map(t => {
+        const overrideId = sectorOverrides[t.sectorName];
+        const resolvedSectorId = overrideId || updatedSectorMap.get(t.sectorName.toLowerCase().trim()) || null;
+
+        return {
+          org_id: userProfile.org_id,
+          name: t.name,
+          sector_id: resolvedSectorId,
+          federative_entity: t.entity,
+          due_day: t.dueDay,
+          non_working_day_action: t.nonWorkingAction
+        };
+      });
+
+      const { data: insertedData, error: insertError } = await supabase
+        .from('task_types')
+        .insert(payload)
+        .select('*, sectors(name)');
+
+      if (insertError) throw insertError;
+
+      if (insertedData) {
+        const enriched = insertedData.map((item: any) => {
+          if (!item.sectors && item.sector_id) {
+            const sec = currentSectorsList.find(s => s.id === item.sector_id);
+            if (sec) item.sectors = { name: sec.name };
+          }
+          return item;
+        });
+
+        setTaskTypes(prev => [...prev, ...enriched]);
+        addToast(
+          'success',
+          'Sucesso',
+          missingSectors.length > 0
+            ? `${missingSectors.length} setor(es) criado(s) e ${insertedData.length} tipo(s) de tarefa importado(s)!`
+            : `${insertedData.length} tipo(s) de tarefa importado(s) com sucesso!`
+        );
+        setMissingSectorsModalState({ isOpen: false, missingSectors: [], tasksToImport: [], loading: false });
+        setIsDrawerOpen(false);
+      }
+    } catch (err: any) {
+      console.error('Erro na criação automática e importação:', err);
+      addToast('error', 'Erro', 'Erro ao processar: ' + (err.message || 'Erro desconhecido'));
+    } finally {
+      setMissingSectorsModalState(prev => ({ ...prev, loading: false }));
+    }
+  };
+
   // Main List Filters
   const [taskTypeSearchTerm, setTaskTypeSearchTerm] = useState('');
   const [taskTypeSectorFilter, setTaskTypeSectorFilter] = useState('');
@@ -2988,10 +3123,32 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         if (s.name) sectorNameToIdMap.set(s.name.toLowerCase().trim(), s.id);
       });
 
+      // Verificar se há tarefas cujo setor não existe na tabela sectors e não possui override
+      const missingSectorsSet = new Set<string>();
+      newTasksToImport.forEach(t => {
+        const overrideId = sectorOverrides[t.sectorName];
+        const resolvedId = overrideId || sectorNameToIdMap.get(t.sectorName.toLowerCase().trim());
+        if (!resolvedId) {
+          missingSectorsSet.add(t.sectorName);
+        }
+      });
+
+      const missingSectorsList = Array.from(missingSectorsSet);
+      if (missingSectorsList.length > 0) {
+        setImportingSuggested(false);
+        setMissingSectorsModalState({
+          isOpen: true,
+          missingSectors: missingSectorsList,
+          tasksToImport: newTasksToImport,
+          loading: false
+        });
+        return;
+      }
+
       const payload = newTasksToImport.map(t => ({
         org_id: userProfile.org_id,
         name: t.name,
-        sector_id: sectorNameToIdMap.get(t.sectorName.toLowerCase().trim()) || null,
+        sector_id: sectorOverrides[t.sectorName] || sectorNameToIdMap.get(t.sectorName.toLowerCase().trim()) || null,
         federative_entity: t.entity,
         due_day: t.dueDay,
         non_working_day_action: t.nonWorkingAction
@@ -3523,16 +3680,21 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 const isExpanded = expandedSuggestedSectors[secName] ?? true;
                 const selectedInSectorCount = matchingTasks.filter(t => selectedSuggestedNames.includes(t.name)).length;
 
+                const existingSector = sectors.find(s => s.name?.toLowerCase().trim() === secName.toLowerCase().trim());
+                const overrideSectorId = sectorOverrides[secName];
+                const targetSector = overrideSectorId ? sectors.find(s => s.id === overrideSectorId) : existingSector;
+                const isSectorActive = !!targetSector;
+
                 return (
                   <div key={secName} className="bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-200/70 dark:border-slate-800 overflow-hidden transition-all duration-200 shadow-sm">
                     {/* Setor Header Accordion Toggle */}
                     <div 
                       onClick={() => toggleSuggestedSectorAccordion(secName)}
-                      className={`flex items-center justify-between p-3.5 sm:p-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-900/60 transition-colors select-none ${
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 sm:p-4 gap-2 sm:gap-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-900/60 transition-colors select-none ${
                         isExpanded ? 'border-b border-slate-200/60 dark:border-slate-800' : ''
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
                         <div className={`p-1 text-slate-400 dark:text-slate-500 transition-transform duration-300 shrink-0 ${isExpanded ? 'rotate-180' : ''}`}>
                           <ChevronDown size={16} />
                         </div>
@@ -3543,6 +3705,19 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                         <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 shrink-0">
                           ({matchingTasks.length} obrigações)
                         </span>
+
+                        {isSectorActive ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 shrink-0">
+                            <CheckCircle2 size={11} className="text-emerald-500" />
+                            <span>{targetSector?.name === secName ? 'Setor Ativo' : `Vinculado a: ${targetSector?.name}`}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 shrink-0">
+                            <AlertTriangle size={11} className="text-amber-500" />
+                            <span>Setor não cadastrado</span>
+                          </span>
+                        )}
+
                         {selectedInSectorCount > 0 && (
                           <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40 shrink-0">
                             {selectedInSectorCount} selecionada{selectedInSectorCount > 1 ? 's' : ''}
@@ -3550,7 +3725,50 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap" onClick={e => e.stopPropagation()}>
+                        {!isSectorActive && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => handleQuickCreateSector(secName)}
+                              disabled={quickCreatingSector === secName}
+                              className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                              title={`Cadastrar setor "${secName}" agora com 1 clique`}
+                            >
+                              {quickCreatingSector === secName ? (
+                                <Loader2 size={11} className="animate-spin" />
+                              ) : (
+                                <Plus size={11} />
+                              )}
+                              <span>Criar Setor '{secName}'</span>
+                            </button>
+
+                            {sectors.filter(s => s.status !== 'Inativo').length > 0 && (
+                              <div className="relative inline-flex items-center">
+                                <select
+                                  value={overrideSectorId || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSectorOverrides(prev => ({
+                                      ...prev,
+                                      [secName]: val
+                                    }));
+                                  }}
+                                  className="text-[10px] font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 pr-5 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                >
+                                  <option value="">Ou vincular a...</option>
+                                  {sectors.filter(s => s.status !== 'Inativo').map(s => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDown size={10} className="absolute right-1.5 text-slate-400 pointer-events-none" />
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {matchingTasks.filter(t => !existingTaskNamesSet.has(t.name.toLowerCase().trim())).length === 0 ? (
                           <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 px-2.5 py-1 rounded-lg">
                             Todas já cadastradas
@@ -3673,6 +3891,74 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         </>,
         document.body
       )}
+
+      {/* Modal de confirmação para criação automática de setores faltantes */}
+      <Modal
+        isOpen={missingSectorsModalState.isOpen}
+        onClose={() => {
+          if (!missingSectorsModalState.loading) {
+            setMissingSectorsModalState({ isOpen: false, missingSectors: [], tasksToImport: [], loading: false });
+          }
+        }}
+        title={
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <AlertTriangle size={20} />
+            <span className="font-bold text-slate-900 dark:text-white">Setores Pendentes de Cadastro</span>
+          </div>
+        }
+        size="md"
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
+            <Button
+              variant="secondary"
+              onClick={() => setMissingSectorsModalState({ isOpen: false, missingSectors: [], tasksToImport: [], loading: false })}
+              disabled={missingSectorsModalState.loading}
+            >
+              Cancelar e Revisar
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleConfirmAutoCreateSectorsAndImport}
+              disabled={missingSectorsModalState.loading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+            >
+              {missingSectorsModalState.loading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Criando Setores e Importando...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Plus size={16} />
+                  <span>Criar Setor(es) e Importar</span>
+                </div>
+              )}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            As tarefas selecionadas pertencem a setores que ainda não existem cadastrados no seu escritório:
+          </p>
+
+          <div className="flex flex-wrap gap-2 p-3 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded-xl">
+            {missingSectorsModalState.missingSectors.map((secName) => (
+              <span
+                key={secName}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800/80 shadow-xs"
+              >
+                <Briefcase size={12} className="text-amber-600 dark:text-amber-400" />
+                <span>Setor {secName}</span>
+              </span>
+            ))}
+          </div>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Ao confirmar, o sistema criará e ativará automaticamente os setores acima no seu escritório e vinculará as <strong>{missingSectorsModalState.tasksToImport.length}</strong> tarefas selecionadas, garantindo que nenhuma rotina ou documento fique sem setor.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

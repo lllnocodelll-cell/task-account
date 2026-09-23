@@ -326,6 +326,19 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
     repetitions: 1,
   });
 
+  const taskTypeOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return taskTypes
+      .filter(t => !t.status || t.status === 'Ativo' || t.name === tempTask.taskName)
+      .filter(t => {
+        const key = (t.name || '').trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map(t => ({ value: t.name, label: t.name }));
+  }, [taskTypes, tempTask.taskName]);
+
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1631,7 +1644,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                       label="Tarefa"
                       className="text-[11px]"
                       disabled={isEditing}
-                      options={taskTypes.map(t => ({ value: t.name, label: t.name }))}
+                      options={taskTypeOptions}
                       value={tempTask.taskName}
                       onChange={(e) => {
                         const val = e.target.value;

@@ -77,7 +77,7 @@ const getSectorStyle = (sectorName: string | undefined | null) => {
   if (name.includes('contábil') || name.includes('contabil')) {
     return { bar: 'bg-blue-500' };
   }
-  if (name.includes('dp') || name.includes('pessoal') || name.includes('rh')) {
+  if (name.includes('dp') || name.includes('pessoal') || name.includes('rh') || name.includes('folha') || name.includes('trabalhist')) {
     return { bar: 'bg-orange-500' };
   }
   if (name.includes('societário') || name.includes('societario') || name.includes('legalização') || name.includes('legalizacao')) {

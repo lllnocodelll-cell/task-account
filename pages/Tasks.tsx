@@ -1878,6 +1878,7 @@ export const Tasks: React.FC<{
             taxRegime: t.tax_regime,
             priority: t.priority as Priority,
             sector: currentSector,
+            taskSector: t.sector,
             responsibleSectors: respSectors,
             responsible: t.responsible || (t.responsibles && t.responsibles.length > 0 ? t.responsibles[0] : ''),
             responsibles: (t.responsibles && t.responsibles.length > 0) ? t.responsibles : (t.responsible ? [t.responsible] : []),
@@ -2032,6 +2033,7 @@ export const Tasks: React.FC<{
             competence: data.competence,
             priority: data.priority as Priority,
             sector: data.sector,
+            taskSector: data.sector,
             responsibleSectors: (data as any).responsible_sectors || [],
             responsible: data.responsible,
             responsibles: data.responsibles || (data.responsible ? [data.responsible] : []),
@@ -2581,13 +2583,48 @@ export const Tasks: React.FC<{
 
         // 2. Insert Conclusion Attachments & Mirror to Client Portal
         if (concludeFiles.length > 0) {
-          // Get sector_id for mirroring
-          const { data: sectorData } = await supabase
-            .from('sectors')
-            .select('id')
-            .eq('org_id', userProfile.org_id)
-            .eq('name', taskToConclude.sector)
-            .single();
+          // Get sector_id for mirroring (garantir busca pelo setor nativo da tarefa de forma case-insensitive)
+          let targetSectorId: string | null = null;
+          try {
+            // 1. Tentar ler o setor diretamente da tabela tasks para máxima fidelidade
+            const { data: dbTask } = await (supabase
+              .from('tasks')
+              .select('sector')
+              .eq('id', selectedTaskForConclude) as any)
+              .maybeSingle();
+
+            const rawSectorName = (dbTask?.sector || taskToConclude.taskSector || taskToConclude.sector || '').trim();
+
+            if (rawSectorName) {
+              // Buscar no sectors por correspondência case-insensitive
+              const { data: matchedSector } = await (supabase
+                .from('sectors')
+                .select('id')
+                .eq('org_id', userProfile.org_id)
+                .ilike('name', rawSectorName) as any)
+                .maybeSingle();
+
+              if (matchedSector?.id) {
+                targetSectorId = matchedSector.id;
+              } else {
+                // Se o nome contiver múltiplos setores separados por vírgula, busca o primeiro correspondente
+                const candidateNames = rawSectorName.split(',').map((s: string) => s.trim()).filter(Boolean);
+                if (candidateNames.length > 0) {
+                  const { data: matchedCandidates } = await (supabase
+                    .from('sectors')
+                    .select('id, name')
+                    .eq('org_id', userProfile.org_id)
+                    .in('name', candidateNames) as any);
+
+                  if (matchedCandidates && matchedCandidates.length > 0) {
+                    targetSectorId = matchedCandidates[0].id;
+                  }
+                }
+              }
+            }
+          } catch (sectorErr) {
+            console.warn('Erro ao resolver sector_id para o documento:', sectorErr);
+          }
 
           for (const rawFile of concludeFiles) {
             const file = await compressFileIfNeeded(rawFile);
@@ -2624,7 +2661,7 @@ export const Tasks: React.FC<{
               task_id: taskToConclude.id,
               name: file.name,
               storage_path: storagePath,
-              sector_id: sectorData?.id,
+              sector_id: targetSectorId,
               competence_month: competenceMonth,
               due_date: taskToConclude.dueDate,
               type: taskToConclude.taskName,

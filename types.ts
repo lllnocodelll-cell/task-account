@@ -93,6 +93,7 @@ export interface Task {
   competence: string; // MM/YYYY
   priority: Priority;
   sector: string;
+  taskSector?: string;
   responsibleSectors?: string[];
   responsible: string;
   responsibles?: string[];

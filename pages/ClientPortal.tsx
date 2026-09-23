@@ -72,7 +72,7 @@ const getSectorStyle = (sectorName: string | undefined | null) => {
   if (name.includes('contábil') || name.includes('contabil')) {
     return { bar: 'bg-blue-500', nameBg: 'bg-blue-50 dark:bg-blue-950/30', badge: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800', icon: <Calculator size={11} /> };
   }
-  if (name.includes('dp') || name.includes('pessoal') || name.includes('rh')) {
+  if (name.includes('dp') || name.includes('pessoal') || name.includes('rh') || name.includes('folha') || name.includes('trabalhist')) {
     return { bar: 'bg-orange-500', nameBg: 'bg-orange-50 dark:bg-orange-950/30', badge: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800', icon: <Users size={11} /> };
   }
   if (name.includes('societário') || name.includes('societario') || name.includes('legalização') || name.includes('legalizacao')) {
