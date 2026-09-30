@@ -57,6 +57,7 @@ import {
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Task, TaskStatus, Priority, Client, TAX_REGIME_GROUPS, TAX_REGIME_LABELS } from '../types';
+import { TableSkeleton, KanbanSkeleton } from '../components/ui/Skeleton';
 import { Modal } from '../components/ui/Modal';
 import { Input, Select, SearchableSelect, Toggle, GroupedSelect } from '../components/ui/Input';
 import { supabase } from '../utils/supabaseClient';
@@ -1384,17 +1385,21 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       <div className="w-px h-3 bg-slate-300 dark:bg-slate-600/60" />
                     </>
                   )}
-                  <div className="flex items-center gap-1 text-[9.5px] font-bold text-slate-600 dark:text-slate-400" title="Competência">
-                    <Calendar size={10} className="text-slate-400 dark:text-slate-500 shrink-0" />
-                    <span className="uppercase tracking-[0.05em]">{task.competence}</span>
-                  </div>
+                  <Tooltip content="Competência" position="top" className="w-fit">
+                    <div className="flex items-center gap-1 text-[9.5px] font-bold text-slate-600 dark:text-slate-400 cursor-help">
+                      <Calendar size={10} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                      <span className="uppercase tracking-[0.05em]">{task.competence}</span>
+                    </div>
+                  </Tooltip>
                   {task.dueDate && (
                     <>
                       <div className="w-px h-3 bg-slate-300 dark:bg-slate-600/60" />
-                      <div className="flex items-center gap-1 text-[9.5px] font-bold text-indigo-600 dark:text-indigo-400" title="Vencimento">
-                        <Clock size={10} className="shrink-0" />
-                        <span>{task.dueDate.split('-').reverse().join('/')}</span>
-                      </div>
+                      <Tooltip content="Vencimento" position="top" className="w-fit">
+                        <div className="flex items-center gap-1 text-[9.5px] font-bold text-indigo-600 dark:text-indigo-400 cursor-help">
+                          <Clock size={10} className="shrink-0" />
+                          <span>{task.dueDate.split('-').reverse().join('/')}</span>
+                        </div>
+                      </Tooltip>
                     </>
                   )}
                   {task.createdAt && (
@@ -1825,15 +1830,33 @@ export const Tasks: React.FC<{
       if (membersRes.error) console.error('Error fetching members for sectors:', membersRes.error);
       if (sectorsRes.error) console.error('Error fetching sectors:', sectorsRes.error);
       
-      const { data, error } = await supabase
+      let tasksQuery = supabase
         .from('tasks')
         .select(`
           *,
           clients(city, state, document, establishment_type, admin_partner_name, admin_partner_cpf, client_dfe_series(id, dfe_type, login_url, issuer, series, username, password), client_accesses(id, access_name, username, password, access_url, sector), client_legislations(id, description, status, access_url)),
           attachments:task_attachments(*),
           workflows:task_workflows(*)
-        `)
-        .order('created_at', { ascending: false });
+        `);
+
+      if (userProfile?.org_id && userProfile.org_id !== 'demo-org') {
+        tasksQuery = tasksQuery.eq('org_id', userProfile.org_id);
+      }
+
+      // Otimização de Escala: se houver competência ativa, busca a competência + mês anterior (para trend) + não concluídas
+      if (rangeMode && filters.competenceFrom && filters.competenceTo) {
+        tasksQuery = tasksQuery
+          .gte('competence', filters.competenceFrom)
+          .lte('competence', filters.competenceTo);
+      } else if (filters.competence) {
+        const prevComp = getPrevMonthCompetence(filters.competence);
+        tasksQuery = tasksQuery.or(`competence.eq.${filters.competence},competence.eq.${prevComp},status.neq.Concluída`);
+      } else {
+        // Fallback de segurança: limita a 1000 registros para evitar sobrecarga de memória
+        tasksQuery = tasksQuery.limit(1000);
+      }
+
+      const { data, error } = await tasksQuery.order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -1991,9 +2014,12 @@ export const Tasks: React.FC<{
   };
 
   useEffect(() => {
-    fetchTasks();
     fetchClients();
   }, [userProfile?.org_id]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [userProfile?.org_id, filters.competence, filters.competenceFrom, filters.competenceTo, rangeMode]);
 
   // Deep-linking: abrir tarefa específica vinda de notificação ou link direto
   useEffect(() => {
@@ -2913,12 +2939,11 @@ export const Tasks: React.FC<{
 
       {
         loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-              <RotateCcw className="animate-spin text-indigo-500" size={32} />
-              <p className="text-sm text-slate-500">Carregando tarefas...</p>
-            </div>
-          </div>
+          layoutMode === 'list' ? (
+            <TableSkeleton rows={8} cols={7} />
+          ) : (
+            <KanbanSkeleton />
+          )
         ) : (
           <>
             {/* Banner de Aviso de Limite de Exibição */}
@@ -3504,13 +3529,12 @@ export const Tasks: React.FC<{
                           <div className="flex flex-col">
                             <span className="font-medium text-slate-900 dark:text-white uppercase">{task.competence}</span>
                             {task.dueDate && (
-                              <div
-                                className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium cursor-help"
-                                title="Vencimento"
-                              >
-                                <Calendar size={10} className="text-slate-300" />
-                                <span>{task.dueDate.split('-').reverse().join('/')}</span>
-                              </div>
+                              <Tooltip content="Vencimento" position="top" className="w-fit">
+                                <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400 font-medium cursor-help">
+                                  <Calendar size={10} className="text-slate-300" />
+                                  <span>{task.dueDate.split('-').reverse().join('/')}</span>
+                                </div>
+                              </Tooltip>
                             )}
                             {task.recurrence && !['unico', 'nao_recorre', 'none'].includes(task.recurrence) && (
                               <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-500 dark:text-indigo-400 font-bold">

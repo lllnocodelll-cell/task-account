@@ -70,14 +70,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     fetchChatsCountAndSetupRealtime();
 
-    // Polling unificado para badges (chats)
+    // Polling de fallback suave (60s) apenas com aba ativa (o Realtime já notifica instantaneamente)
     pollIntervalRef.current = setInterval(() => {
-      fetchChatsCount();
-    }, 5000);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchChatsCount();
+      }
+    }, 60000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchChatsCount();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       chatSubsRef.current.forEach(sub => supabase.removeChannel(sub));
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 

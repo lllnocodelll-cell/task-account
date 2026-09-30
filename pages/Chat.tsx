@@ -62,6 +62,7 @@ import { MessageTemplatesDrawer } from '../components/chat/MessageTemplatesDrawe
 import { triggerPushNotification } from '../utils/webPush';
 import { AudioRecorder } from '../components/chat/AudioRecorder';
 import { AudioMessagePlayer } from '../components/chat/AudioMessagePlayer';
+import { ChatSidebarSkeleton, ChatMessagesSkeleton, ChatMessageBubblesSkeleton } from '../components/ui/Skeleton';
 
 interface Channel {
   id: string;
@@ -527,6 +528,8 @@ const parseGoogleMeetInvite = (text: string) => {
 export const Chat: React.FC = () => {
   const { addToast } = useToast();
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(true);
+  const [loadingMessagesId, setLoadingMessagesId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
@@ -1906,6 +1909,7 @@ export const Chat: React.FC = () => {
   }, [selectedChannelId, userId]);
 
   const fetchMessages = async (channelId: string) => {
+    setLoadingMessagesId(channelId);
     try {
       const { data, error } = await supabase
         .from('chat_messages')
@@ -1946,6 +1950,8 @@ export const Chat: React.FC = () => {
 
     } catch (error) {
       console.error('Error fetching messages:', error);
+    } finally {
+      setLoadingMessagesId(prev => prev === channelId ? null : prev);
     }
   };
 
@@ -2037,27 +2043,35 @@ export const Chat: React.FC = () => {
 
 
   const fetchSession = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      if (profile) {
-        setCurrentUser(profile);
-        const org = profile.org_id || user.id;
-        fetchChannels(user.id, org);
-        fetchProfiles(user.id, org);
-        fetchClients(org);
-        fetchSectors(org);
-        if (profile.org_id) {
-          fetchTemplates(profile.org_id);
-          fetchTaskTypes(profile.org_id);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        if (profile) {
+          setCurrentUser(profile);
+          const org = profile.org_id || user.id;
+          fetchChannels(user.id, org);
+          fetchProfiles(user.id, org);
+          fetchClients(org);
+          fetchSectors(org);
+          if (profile.org_id) {
+            fetchTemplates(profile.org_id);
+            fetchTaskTypes(profile.org_id);
+          }
+        } else {
+          setLoadingChannels(false);
         }
+      } else {
+        setLoadingChannels(false);
       }
+    } catch {
+      setLoadingChannels(false);
     }
   };
 
@@ -2359,6 +2373,8 @@ export const Chat: React.FC = () => {
       setChannels(channelsWithUnread);
     } catch (error) {
       console.error('Error fetching channels:', error);
+    } finally {
+      setLoadingChannels(false);
     }
   };
 
@@ -5294,7 +5310,9 @@ export const Chat: React.FC = () => {
         )}
 
         <div ref={sidebarScrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          {activeTab === 'chats' && currentUser?.role !== 'cliente' ? (
+          {loadingChannels ? (
+            <ChatSidebarSkeleton count={7} />
+          ) : activeTab === 'chats' && currentUser?.role !== 'cliente' ? (
             teamItems.length === 0 ? (
               <div className="p-4 text-center text-sm text-slate-500">Nenhum membro ou grupo encontrado.</div>
             ) : teamItems.map(item => {
@@ -6036,7 +6054,9 @@ export const Chat: React.FC = () => {
                 <Loader2 className="h-5 w-5 animate-spin text-indigo-600 dark:text-indigo-400" />
               </div>
             )}
-            {displayedMessages.length === 0 ? (
+            {loadingMessagesId === selectedChannelId && (!messages[selectedChannelId] || messages[selectedChannelId].length === 0) ? (
+              <ChatMessageBubblesSkeleton />
+            ) : displayedMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-400">
                 <p className="text-sm">{currentMessages.length === 0 ? `Inicie a conversa em ${selectedChannel.name}` : 'Nenhuma mensagem encontrada.'}</p>
               </div>
@@ -6046,6 +6066,7 @@ export const Chat: React.FC = () => {
                 const senderProfile = !msg.isMe ? profiles.find(p => p.id === msg.sender_id) : null;
                 const senderName = msg.isMe ? (currentUser?.full_name || 'Eu') : (senderProfile?.full_name || (selectedChannel.type === 'group' ? 'Membro' : selectedChannel.name));
                 const senderInitials = senderName.substring(0, 2).toUpperCase();
+                const isMeet = msg.text ? isGoogleMeetInvite(msg.text) : false;
 
                 const msgDate = msg.rawCreatedAt ? new Date(msg.rawCreatedAt) : new Date();
                 const msgDateStr = msgDate.toDateString();
@@ -6129,7 +6150,7 @@ export const Chat: React.FC = () => {
                           {senderInitials}
                         </div>
 
-                        <div className={`group relative p-3 rounded-2xl shadow-sm text-sm flex flex-col ${msg.isMe
+                        <div className={`group relative p-3 rounded-2xl shadow-sm text-sm flex flex-col ${msg.isMe || isMeet
                           ? 'bg-indigo-600 text-white'
                           : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
                           }`}>
@@ -6248,7 +6269,7 @@ export const Chat: React.FC = () => {
                           )}
 
                           {(selectedChannel.type === 'group' || selectedChannel.type === 'support') && (
-                            <span className={`text-[10px] font-bold mb-1 ${msg.isMe ? 'text-indigo-100/90' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                            <span className={`text-[10px] font-bold mb-1 ${msg.isMe || isMeet ? 'text-indigo-100/90' : 'text-indigo-600 dark:text-indigo-400'}`}>
                               {senderName}
                             </span>
                           )}
@@ -6336,43 +6357,27 @@ export const Chat: React.FC = () => {
                               (() => {
                                 const meet = parseGoogleMeetInvite(msg.text);
                                 return (
-                                  <div className={`p-3.5 rounded-xl border min-w-[260px] max-w-full transition-all ${
-                                    msg.isMe
-                                      ? 'bg-indigo-700/60 border-indigo-400/40 text-white'
-                                      : 'bg-white dark:bg-slate-850 border-slate-200 dark:border-slate-700/70 shadow-xs'
-                                  }`}>
+                                  <div className="p-3.5 rounded-xl border border-indigo-400/40 bg-indigo-700/60 text-white min-w-[260px] max-w-full transition-all">
                                     <div className="flex items-start justify-between gap-3 mb-2.5">
                                       <div className="flex items-center gap-2.5">
-                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-xs ${
-                                          msg.isMe 
-                                            ? 'bg-indigo-800/80 border-indigo-400/50 text-emerald-300' 
-                                            : 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400'
-                                        }`}>
+                                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border shadow-xs bg-indigo-800/80 border-indigo-400/50 text-white">
                                           <Video size={18} />
                                         </div>
                                         <div>
                                           <div className="flex items-center gap-1.5">
-                                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                                              msg.isMe ? 'text-indigo-200' : 'text-emerald-600 dark:text-emerald-400'
-                                            }`}>
+                                            <span className="w-2 h-2 rounded-full bg-indigo-300 animate-pulse inline-block" />
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">
                                               Google Meet
                                             </span>
                                           </div>
-                                          <h4 className={`text-sm font-bold leading-snug line-clamp-1 ${
-                                            msg.isMe ? 'text-white' : 'text-slate-900 dark:text-slate-100'
-                                          }`}>
+                                          <h4 className="text-sm font-bold leading-snug line-clamp-1 text-white">
                                             {meet.title}
                                           </h4>
                                         </div>
                                       </div>
                                     </div>
 
-                                    <div className={`text-xs px-2.5 py-1.5 rounded-lg font-mono mb-3 truncate select-all border ${
-                                      msg.isMe 
-                                        ? 'bg-indigo-900/50 border-indigo-500/30 text-indigo-100' 
-                                        : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                                    }`}>
+                                    <div className="text-xs px-2.5 py-1.5 rounded-lg font-mono mb-3 truncate select-all border bg-indigo-900/50 border-indigo-500/30 text-indigo-100">
                                       {meet.url || 'meet.google.com'}
                                     </div>
 
@@ -6381,11 +6386,7 @@ export const Chat: React.FC = () => {
                                         href={meet.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-semibold text-xs shadow-xs transition-all ${
-                                          msg.isMe
-                                            ? 'bg-white text-indigo-700 hover:bg-indigo-50 active:scale-[0.98]'
-                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-[0.98]'
-                                        }`}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-semibold text-xs shadow-xs transition-all bg-white text-indigo-700 hover:bg-indigo-50 active:scale-[0.98]"
                                       >
                                         <Video size={14} />
                                         <span>Entrar na Reunião</span>
@@ -6401,11 +6402,7 @@ export const Chat: React.FC = () => {
                                           }
                                         }}
                                         title="Copiar link da reunião"
-                                        className={`p-2 rounded-lg text-xs transition-colors border ${
-                                          msg.isMe
-                                            ? 'border-indigo-400/40 hover:bg-indigo-600 text-indigo-100'
-                                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300'
-                                        }`}
+                                        className="p-2 rounded-lg text-xs transition-colors border border-indigo-400/40 hover:bg-indigo-600 text-indigo-100"
                                       >
                                         <Copy size={14} />
                                       </button>
@@ -6433,14 +6430,14 @@ export const Chat: React.FC = () => {
                               </button>
                             </div>
                           )}
-                          <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.isMe ? 'text-indigo-200' : 'text-slate-400'}`}>
+                          <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.isMe || isMeet ? 'text-indigo-200' : 'text-slate-400'}`}>
                             {msg.is_private && (
                               <Tooltip content="Mensagem trocada em modo privado" position="top">
-                                <Lock size={11} className={msg.isMe ? "text-indigo-200 shrink-0" : "text-amber-500 shrink-0"} />
+                                <Lock size={11} className={msg.isMe || isMeet ? "text-indigo-200 shrink-0" : "text-amber-500 shrink-0"} />
                               </Tooltip>
                             )}
                             {favoritedMessages.includes(msg.id) && (
-                              <Star size={11} className={msg.isMe ? "text-amber-300 fill-amber-300 shrink-0" : "text-amber-500 fill-amber-500 shrink-0"} />
+                              <Star size={11} className={msg.isMe || isMeet ? "text-amber-300 fill-amber-300 shrink-0" : "text-amber-500 fill-amber-500 shrink-0"} />
                             )}
                             <span>{msg.created_at}</span>
                             {msg.isMe && (
@@ -6799,6 +6796,10 @@ export const Chat: React.FC = () => {
               );
             })()}
           </div>
+        </div>
+      ) : loadingChannels ? (
+        <div className={`flex-1 flex-col min-w-0 h-full overflow-hidden ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'}`}>
+          <ChatMessagesSkeleton />
         </div>
       ) : (
         <div className={`flex-1 flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 text-slate-400 ${!showSidebarOnMobile ? 'flex' : 'hidden'} md:flex relative overflow-hidden h-full`}>

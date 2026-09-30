@@ -281,20 +281,9 @@ function App() {
       }
     };
 
-    // Initial update forced to check session state
+    // Initial update forced to check session state (rotinas pesadas de recorrência são executadas automaticamente via pg_cron no servidor)
     const initSessionAsync = async () => {
       await updateActivity(true);
-      // Trigger daily expiration check & recurring tasks self-healing cycle
-      try {
-        await supabase.rpc('check_daily_expirations');
-      } catch (err) {
-        console.error('Error checking daily expirations:', err);
-      }
-      try {
-        await supabase.rpc('process_recurring_tasks_cycle');
-      } catch (err) {
-        console.error('Error in recurring tasks self-healing:', err);
-      }
     };
     initSessionAsync();
 
@@ -312,11 +301,16 @@ function App() {
     };
   }, [session]);
 
-  // Heartbeat de presença global (a cada 30 segundos)
+  // Heartbeat de presença global otimizado (a cada 60 segundos com suspensão quando aba minimizada)
   useEffect(() => {
     if (!session?.user?.id) return;
 
     const touchPresence = async () => {
+      // Se a aba estiver em segundo plano ou minimizada, não gera carga no banco
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return;
+      }
+
       try {
         const now = new Date();
         const nowStr = now.toISOString();
@@ -418,9 +412,20 @@ function App() {
     };
 
     touchPresence();
-    const interval = setInterval(touchPresence, 30 * 1000);
+    const interval = setInterval(touchPresence, 60 * 1000);
 
-    return () => clearInterval(interval);
+    // Quando o usuário volta para a aba, atualiza imediatamente a presença
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        touchPresence();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [session?.user?.id, session?.user?.email]);
 
   // Realtime Watcher para detectar alterações de credenciais e inativação/exclusão instantaneamente

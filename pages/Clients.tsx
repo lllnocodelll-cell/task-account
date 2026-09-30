@@ -47,6 +47,7 @@ import { Tooltip } from '../components/ui/Tooltip';
 import { Notification, NotificationType } from '../components/ui/Notification';
 import { ClientDetailsDrawer } from '../components/ClientDetailsDrawer';
 import { ClientImportModal } from '../components/clients/ClientImportModal';
+import { TableSkeleton, ClientCardsSkeleton } from '../components/ui/Skeleton';
 
 
 
@@ -783,7 +784,11 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
             <div className="flex-1 min-h-0 flex flex-col">
                 {loading ? (
-                    <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-600" /></div>
+                    displayMode === 'table' ? (
+                        <TableSkeleton rows={8} cols={7} />
+                    ) : (
+                        <ClientCardsSkeleton count={8} />
+                    )
                 ) : displayMode === 'table' ? (
                     <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
                         <div className="overflow-auto w-full pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
