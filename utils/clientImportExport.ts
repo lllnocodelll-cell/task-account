@@ -671,6 +671,8 @@ export const parseAndValidateClientWorkbook = async (
         const cleanDoc = sanitizeDocument(rawDoc);
         const razao = String(row['razao_social'] || row['Razão Social'] || row['razao'] || row['nome'] || '').trim();
         const rawCode = String(row['codigo'] || row['Código'] || row['code'] || '').trim();
+        const cleanCodeDigits = rawCode.replace(/\D/g, '');
+        const normalizedCode = cleanCodeDigits ? cleanCodeDigits.slice(0, 6).padStart(6, '0') : (rawCode || undefined);
         const rawType = String(row['tipo_pessoa'] || row['Tipo'] || '').toLowerCase();
         const rawEstablishment = String(row['estabelecimento'] || row['Estabelecimento'] || '').toLowerCase();
         const rawStatus = String(row['status'] || row['Status'] || '').trim();
@@ -688,7 +690,7 @@ export const parseAndValidateClientWorkbook = async (
 
         const clientItem: ImportedClientRow = {
             tempId: `client_temp_${index + 1}`,
-            code: rawCode || undefined,
+            code: normalizedCode || undefined,
             person_type: personType,
             document: formatDisplayDocument(rawDoc),
             cleanDocument: cleanDoc,

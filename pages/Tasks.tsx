@@ -2019,7 +2019,7 @@ export const Tasks: React.FC<{
 
   useEffect(() => {
     fetchTasks();
-  }, [userProfile?.org_id, filters.competence, filters.competenceFrom, filters.competenceTo, rangeMode]);
+  }, [userProfile?.org_id, filters.competence, filters.competenceFrom, filters.competenceTo]);
 
   // Deep-linking: abrir tarefa específica vinda de notificação ou link direto
   useEffect(() => {
@@ -2938,7 +2938,7 @@ export const Tasks: React.FC<{
       )}
 
       {
-        loading ? (
+        (loading && tasks.length === 0) ? (
           layoutMode === 'list' ? (
             <TableSkeleton rows={8} cols={7} />
           ) : (
@@ -3080,8 +3080,20 @@ export const Tasks: React.FC<{
                               {/* Toggle mês único / intervalo */}
                               <div>
                                 <div className="flex items-center gap-1 mb-2 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                                  <button onClick={() => setRangeMode(false)} className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}>Mês único</button>
-                                  <button onClick={() => setRangeMode(true)} className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}>Intervalo</button>
+                                  <button 
+                                    type="button" 
+                                    onClick={(e) => { e.stopPropagation(); setRangeMode(false); }} 
+                                    className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
+                                  >
+                                    Mês único
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    onClick={(e) => { e.stopPropagation(); setRangeMode(true); }} 
+                                    className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
+                                  >
+                                    Intervalo
+                                  </button>
                                 </div>
                                 {!rangeMode ? (
                                   <div className="relative group">

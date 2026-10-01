@@ -613,12 +613,18 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Usuário não autenticado');
 
+            // Normalizar código com 6 dígitos antes da validação e gravação
+            const normalizedCode = formData.code ? formData.code.padStart(6, '0') : '';
+            if (normalizedCode && normalizedCode !== formData.code) {
+                setFormData(prev => ({ ...prev, code: normalizedCode }));
+            }
+
             // Validação de duplicidade do código
-            if (formData.code) {
+            if (normalizedCode) {
                 let query = supabase
                     .from('clients')
                     .select('id')
-                    .eq('code', formData.code);
+                    .eq('code', normalizedCode);
                 
                 if (initialData?.id) {
                     query = query.neq('id', initialData.id);
@@ -629,7 +635,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                 if (duplicateError) throw duplicateError;
                 
                 if (duplicateClients && duplicateClients.length > 0) {
-                    showNotify(`O código "${formData.code}" já está em uso por outro cliente.`, 'error');
+                    showNotify(`O código "${normalizedCode}" já está em uso por outro cliente.`, 'error');
                     setLoading(false);
                     return;
                 }
@@ -683,7 +689,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
 
             const clientData = {
                 org_id: userProfile.org_id,
-                code: formData.code,
+                code: normalizedCode || null,
                 company_name: formData.companyName,
                 trade_name: formData.tradeName,
                 document: formData.document,
@@ -968,6 +974,12 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                             onChange={e => {
                                 const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                                 setFormData({ ...formData, code: val });
+                            }}
+                            onBlur={() => {
+                                if (formData.code) {
+                                    const formatted = formData.code.padStart(6, '0');
+                                    setFormData(prev => ({ ...prev, code: formatted }));
+                                }
                             }}
                             disabled={readOnly}
                         />

@@ -45,7 +45,11 @@ import {
   RefreshCw,
   Video,
   ExternalLink,
-  Mic
+  Mic,
+  FileText,
+  FileSpreadsheet,
+  Download,
+  Maximize2
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -54,6 +58,7 @@ import { compressFileIfNeeded } from '../utils/fileCompression';
 import { CreateGroupModal } from '../components/chat/CreateGroupModal';
 import { GroupSettingsModal } from '../components/chat/GroupSettingsModal';
 import { GoogleMeetModal } from '../components/chat/GoogleMeetModal';
+import { FilePreviewModal } from '../components/chat/FilePreviewModal';
 import EmojiPicker, { EmojiClickData, Theme, SkinTones } from 'emoji-picker-react';
 import { formatMessageText, stripFormatting } from '../utils/stringUtils';
 import { Tooltip } from '../components/ui/Tooltip';
@@ -840,6 +845,19 @@ export const Chat: React.FC = () => {
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean;
+    url: string;
+    name: string;
+    type?: string;
+    size?: number;
+  }>({
+    isOpen: false,
+    url: '',
+    name: '',
+    type: '',
+    size: 0,
+  });
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [isSendingAudio, setIsSendingAudio] = useState(false);
 
@@ -1413,10 +1431,17 @@ export const Chat: React.FC = () => {
                 return;
               }
 
-              const isAudioMsg = newMsg.file_type?.startsWith('audio/') || 
-                newMsg.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) || 
-                (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.some((a: any) => a.type === 'audio'));
-              const lastMsgText = newMsg.text || (isAudioMsg ? '🎤 Mensagem de áudio' : '📎 Anexo');
+              const isAudioMsg = (newMsg.file_type?.startsWith('audio/') || 
+                newMsg.attachment_url?.includes('/audios/') ||
+                newMsg.attachment_url?.match(/\.(ogg|mp3|wav|m4a|aac)($|\?)/i) || 
+                (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.some((a: any) => a.type === 'audio'))) && !newMsg.file_type?.startsWith('video/');
+              const isVideoMsg = (newMsg.file_type?.startsWith('video/') || newMsg.attachment_url?.match(/\.(mp4|webm|mov|mkv)($|\?)/i)) && !newMsg.attachment_url?.includes('/audios/');
+              const isImageMsg = newMsg.file_type?.startsWith('image/') || newMsg.attachment_url?.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+              const isPdfMsg = newMsg.file_type === 'application/pdf' || newMsg.attachment_url?.match(/\.pdf($|\?)/i);
+              const isSpreadsheetMsg = newMsg.file_type?.includes('sheet') || newMsg.file_type?.includes('excel') || newMsg.file_type?.includes('csv') || newMsg.attachment_url?.match(/\.(xlsx|xls|csv)($|\?)/i);
+              const isWordMsg = newMsg.file_type?.includes('word') || newMsg.file_type?.includes('officedocument.wordprocessingml') || newMsg.attachment_url?.match(/\.(docx|doc)($|\?)/i);
+
+              const lastMsgText = newMsg.text || (isAudioMsg ? '🎤 Mensagem de áudio' : isVideoMsg ? '🎥 Vídeo' : isImageMsg ? '🖼️ Foto' : isPdfMsg ? '📄 Documento PDF' : isSpreadsheetMsg ? '📊 Planilha' : isWordMsg ? '📝 Documento Word' : '📎 Anexo');
 
               // Incrementar contagem
               setChannels(prev =>
@@ -1429,10 +1454,17 @@ export const Chat: React.FC = () => {
             } else {
               // Canais normais (direct, group): só incrementa se não for minha mensagem
               if (newMsg.sender_id !== currentUserId) {
-                const isAudioMsg = newMsg.file_type?.startsWith('audio/') || 
-                  newMsg.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) || 
-                  (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.some((a: any) => a.type === 'audio'));
-                const lastMsgText = newMsg.text || (isAudioMsg ? '🎤 Mensagem de áudio' : '📎 Anexo');
+                const isAudioMsg = (newMsg.file_type?.startsWith('audio/') || 
+                  newMsg.attachment_url?.includes('/audios/') ||
+                  newMsg.attachment_url?.match(/\.(ogg|mp3|wav|m4a|aac)($|\?)/i) || 
+                  (newMsg.attachments && Array.isArray(newMsg.attachments) && newMsg.attachments.some((a: any) => a.type === 'audio'))) && !newMsg.file_type?.startsWith('video/');
+                const isVideoMsg = (newMsg.file_type?.startsWith('video/') || newMsg.attachment_url?.match(/\.(mp4|webm|mov|mkv)($|\?)/i)) && !newMsg.attachment_url?.includes('/audios/');
+                const isImageMsg = newMsg.file_type?.startsWith('image/') || newMsg.attachment_url?.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+                const isPdfMsg = newMsg.file_type === 'application/pdf' || newMsg.attachment_url?.match(/\.pdf($|\?)/i);
+                const isSpreadsheetMsg = newMsg.file_type?.includes('sheet') || newMsg.file_type?.includes('excel') || newMsg.file_type?.includes('csv') || newMsg.attachment_url?.match(/\.(xlsx|xls|csv)($|\?)/i);
+                const isWordMsg = newMsg.file_type?.includes('word') || newMsg.file_type?.includes('officedocument.wordprocessingml') || newMsg.attachment_url?.match(/\.(docx|doc)($|\?)/i);
+
+                const lastMsgText = newMsg.text || (isAudioMsg ? '🎤 Mensagem de áudio' : isVideoMsg ? '🎥 Vídeo' : isImageMsg ? '🖼️ Foto' : isPdfMsg ? '📄 Documento PDF' : isSpreadsheetMsg ? '📊 Planilha' : isWordMsg ? '📝 Documento Word' : '📎 Anexo');
 
                 setChannels(prev =>
                   prev.map(ch =>
@@ -2333,11 +2365,41 @@ export const Chat: React.FC = () => {
             if (lastMsgData.text) {
               lastMessage = lastMsgData.text;
             } else if (
-              (lastMsgData as any).file_type?.startsWith('audio/') || 
-              lastMsgData.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) ||
-              ((lastMsgData as any).attachments && Array.isArray((lastMsgData as any).attachments) && (lastMsgData as any).attachments.some((a: any) => a.type === 'audio'))
+              (((lastMsgData as any).file_type?.startsWith('audio/') || 
+              lastMsgData.attachment_url?.includes('/audios/') ||
+              lastMsgData.attachment_url?.match(/\.(ogg|mp3|wav|m4a|aac)($|\?)/i) ||
+              ((lastMsgData as any).attachments && Array.isArray((lastMsgData as any).attachments) && (lastMsgData as any).attachments.some((a: any) => a.type === 'audio')))) &&
+              !(lastMsgData as any).file_type?.startsWith('video/')
             ) {
               lastMessage = '🎤 Mensagem de áudio';
+            } else if (
+              (lastMsgData as any).file_type?.startsWith('video/') ||
+              (lastMsgData.attachment_url?.match(/\.(mp4|webm|mov|mkv)($|\?)/i) && !lastMsgData.attachment_url?.includes('/audios/'))
+            ) {
+              lastMessage = '🎥 Vídeo';
+            } else if (
+              (lastMsgData as any).file_type?.startsWith('image/') ||
+              lastMsgData.attachment_url?.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)
+            ) {
+              lastMessage = '🖼️ Foto';
+            } else if (
+              (lastMsgData as any).file_type === 'application/pdf' ||
+              lastMsgData.attachment_url?.match(/\.pdf($|\?)/i)
+            ) {
+              lastMessage = '📄 Documento PDF';
+            } else if (
+              (lastMsgData as any).file_type?.includes('sheet') ||
+              (lastMsgData as any).file_type?.includes('excel') ||
+              (lastMsgData as any).file_type?.includes('csv') ||
+              lastMsgData.attachment_url?.match(/\.(xlsx|xls|csv)($|\?)/i)
+            ) {
+              lastMessage = '📊 Planilha';
+            } else if (
+              (lastMsgData as any).file_type?.includes('word') ||
+              (lastMsgData as any).file_type?.includes('officedocument.wordprocessingml') ||
+              lastMsgData.attachment_url?.match(/\.(docx|doc)($|\?)/i)
+            ) {
+              lastMessage = '📝 Documento Word';
             } else if (lastMsgData.attachment_url) {
               lastMessage = '📎 Anexo';
             }
@@ -3993,15 +4055,47 @@ export const Chat: React.FC = () => {
     setMessageInput(prev => prev + emojiData.emoji);
   };
 
+  const isVideoFile = (file: File): boolean => {
+    if (file.type && file.type.startsWith('video/')) return true;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    return ['mp4', 'webm', 'mov', 'mkv', 'm4v', 'avi'].includes(ext || '');
+  };
+
+  const validateChatFile = (file: File): boolean => {
+    const isVideo = isVideoFile(file);
+    const maxVideoBytes = 10 * 1024 * 1024; // 10MB
+    const maxFileBytes = 50 * 1024 * 1024; // 50MB
+
+    if (isVideo && file.size > maxVideoBytes) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      addToast(
+        'warning',
+        'Vídeo muito grande',
+        `O vídeo "${file.name}" tem ${sizeMB} MB e excede o limite máximo permitido de 10 MB.`
+      );
+      return false;
+    }
+
+    if (file.size > maxFileBytes) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      addToast(
+        'warning',
+        'Arquivo muito grande',
+        `O arquivo "${file.name}" possui ${sizeMB} MB e excede o limite máximo de 50 MB.`
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
     const validFiles: File[] = [];
     for (const file of files) {
-      if (file.size > 50 * 1024 * 1024) { // 50MB
-        alert(`O arquivo "${file.name}" excede o tamanho máximo de 50MB.`);
-      } else {
+      if (validateChatFile(file)) {
         validFiles.push(file);
       }
     }
@@ -4036,9 +4130,7 @@ export const Chat: React.FC = () => {
       if (item.kind === 'file') {
         const file = item.getAsFile();
         if (file) {
-          if (file.size > 50 * 1024 * 1024) {
-            alert(`O arquivo "${file.name}" excede o tamanho máximo de 50MB.`);
-          } else {
+          if (validateChatFile(file)) {
             pastedFiles.push(file);
           }
         }
@@ -4486,6 +4578,9 @@ export const Chat: React.FC = () => {
         setUploadProgress(10);
         for (let i = 0; i < filesToSend.length; i++) {
           const rawFile = filesToSend[i];
+          if (!validateChatFile(rawFile)) {
+            continue;
+          }
           const fileToSend = await compressFileIfNeeded(rawFile);
           const fileExt = fileToSend.name.split('.').pop();
           const filePath = `${selectedChannelId}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -5858,7 +5953,7 @@ export const Chat: React.FC = () => {
               {/* Menu de Ações de Atendimento (Assumir, Transferir, Concluir) */}
               {selectedChannel.type === 'support' && currentUser?.role !== 'cliente' && !selectedChannel.is_notification && (
                 <div className="relative animate-in fade-in duration-200" ref={supportActionsMenuRef}>
-                  <Tooltip content="Ações de Atendimento" position="bottom">
+                  <Tooltip content="Mais opções" position="bottom">
                     <button
                       onClick={() => setShowSupportActionsMenu(!showSupportActionsMenu)}
                       className={`p-2 rounded-lg transition-colors ${showSupportActionsMenu ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'}`}
@@ -6252,9 +6347,19 @@ export const Chat: React.FC = () => {
                             <div className="-mx-3 -mt-3 w-[calc(100%+1.5rem)] overflow-hidden rounded-t-2xl border-b border-black/10 dark:border-white/10 mb-2.5 shrink-0">
                               {msg.attachments.map((att: any, idx: number) => (
                                 att.url && (att.type === 'image' || att.url.match(/\.(jpeg|jpg|gif|png|webp)/i) || att.name?.includes('Banner') || att.name?.includes('Cabeçalho')) ? (
-                                  <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" className="block w-full group/attachment">
-                                    <img src={att.url} alt={att.name || "Cabeçalho"} className="w-full h-40 sm:h-48 object-cover group-hover/attachment:scale-[1.02] transition-transform duration-300" />
-                                  </a>
+                                  <Tooltip key={idx} content="Clique para ampliar imagem" position="top" className="block w-full">
+                                    <div
+                                      onClick={() => setPreviewModal({ isOpen: true, url: att.url, name: att.name || 'Imagem', type: 'image/jpeg', size: att.size })}
+                                      className="block w-full group/attachment cursor-pointer relative"
+                                    >
+                                      <img src={att.url} alt={att.name || "Cabeçalho"} className="w-full h-40 sm:h-48 object-cover group-hover/attachment:scale-[1.02] transition-transform duration-300" />
+                                      <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/attachment:opacity-100 transition-opacity flex items-center justify-center">
+                                        <div className="p-2 rounded-full bg-black/60 text-white backdrop-blur-xs shadow-md">
+                                          <Maximize2 size={18} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Tooltip>
                                 ) : null
                               ))}
                             </div>
@@ -6262,9 +6367,19 @@ export const Chat: React.FC = () => {
 
                           {msg.attachment_url && !msg.attachments && (msg.file_type?.startsWith('image/') || msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)/i)) && (
                             <div className="-mx-3 -mt-3 w-[calc(100%+1.5rem)] overflow-hidden rounded-t-2xl border-b border-black/10 dark:border-white/10 mb-2.5 shrink-0">
-                              <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className="block w-full group/attachment">
-                                <img src={msg.attachment_url} alt="Anexo" className="w-full h-40 sm:h-48 object-cover group-hover/attachment:scale-[1.02] transition-transform duration-300" />
-                              </a>
+                              <Tooltip content="Clique para ampliar imagem" position="top" className="block w-full">
+                                <div
+                                  onClick={() => setPreviewModal({ isOpen: true, url: msg.attachment_url!, name: msg.file_name || 'Imagem', type: msg.file_type || 'image/jpeg', size: msg.file_size })}
+                                  className="block w-full group/attachment cursor-pointer relative"
+                                >
+                                  <img src={msg.attachment_url} alt={msg.file_name || "Anexo"} className="w-full h-40 sm:h-48 object-cover group-hover/attachment:scale-[1.02] transition-transform duration-300" />
+                                  <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/attachment:opacity-100 transition-opacity flex items-center justify-center">
+                                    <div className="p-2 rounded-full bg-black/60 text-white backdrop-blur-xs shadow-md">
+                                      <Maximize2 size={18} />
+                                    </div>
+                                  </div>
+                                </div>
+                              </Tooltip>
                             </div>
                           )}
 
@@ -6304,14 +6419,16 @@ export const Chat: React.FC = () => {
                           {/* Render de Mensagem de Áudio */}
                           {(() => {
                             const isAudio = (
-                              msg.file_type?.startsWith('audio/') ||
-                              msg.attachment_url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i) ||
-                              (msg.attachments && Array.isArray(msg.attachments) && msg.attachments.some((att: any) => att.type === 'audio' || att.url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i)))
+                              (msg.file_type?.startsWith('audio/') ||
+                               msg.attachment_url?.includes('/audios/') ||
+                               msg.attachment_url?.match(/\.(ogg|mp3|wav|m4a|aac)($|\?)/i) ||
+                               (msg.attachments && Array.isArray(msg.attachments) && msg.attachments.some((att: any) => att.type === 'audio' || att.url?.includes('/audios/') || att.url?.match(/\.(ogg|mp3|wav|m4a|aac)($|\?)/i)))) &&
+                              !msg.file_type?.startsWith('video/')
                             );
 
                             if (!isAudio) return null;
 
-                            const audioAttachment = msg.attachments?.find((att: any) => att.type === 'audio' || att.url?.match(/\.(webm|ogg|mp3|wav|m4a|aac|mp4)($|\?)/i));
+                            const audioAttachment = msg.attachments?.find((att: any) => att.type === 'audio' || att.url?.includes('/audios/') || att.url?.match(/\.(ogg|mp3|wav|m4a|aac)($|\?)/i));
                             const audioUrl = audioAttachment?.url || msg.attachment_url;
                             const audioDuration = audioAttachment?.duration;
 
@@ -6329,21 +6446,342 @@ export const Chat: React.FC = () => {
                             );
                           })()}
 
-                          {/* Render de Anexos de Arquivos / Documentos não imagem e não áudio */}
-                          {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.some((att: any) => att.url && !att.type?.startsWith('image') && !att.type?.startsWith('audio') && !att.url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac|mp4)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho')) && (
+                          {/* Render de Mensagem de Vídeo */}
+                          {(() => {
+                            const isVideo = (
+                              (msg.file_type?.startsWith('video/') ||
+                               msg.attachment_url?.match(/\.(mp4|webm|mov|mkv|m4v)($|\?)/i) ||
+                               msg.file_name?.match(/\.(mp4|webm|mov|mkv|m4v)$/i)) &&
+                              !msg.attachment_url?.includes('/audios/') &&
+                              !msg.file_type?.startsWith('audio/')
+                            );
+
+                            if (!isVideo || !msg.attachment_url) return null;
+
+                            return (
+                              <div className="mb-2.5 overflow-hidden rounded-xl border border-black/10 dark:border-white/10 bg-slate-950 shadow-md">
+                                <video
+                                  src={msg.attachment_url}
+                                  controls
+                                  preload="metadata"
+                                  playsInline
+                                  className="w-full max-h-56 sm:max-h-64 object-contain bg-black"
+                                />
+                                <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 text-slate-200 text-xs">
+                                  <span className="truncate max-w-[160px] sm:max-w-[200px]" title={msg.file_name || 'Vídeo'}>
+                                    {msg.file_name || 'Vídeo'}
+                                  </span>
+                                  <Tooltip content="Expandir vídeo" position="top">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModal({
+                                        isOpen: true,
+                                        url: msg.attachment_url!,
+                                        name: msg.file_name || 'Vídeo',
+                                        type: msg.file_type || 'video/mp4',
+                                        size: msg.file_size
+                                      })}
+                                      className="text-indigo-400 hover:text-indigo-300 font-semibold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                    >
+                                      <Maximize2 size={13} />
+                                      <span>Expandir</span>
+                                    </button>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Render de Anexo de Documento PDF */}
+                          {(() => {
+                            const isPdf = (
+                              msg.file_type === 'application/pdf' ||
+                              msg.file_name?.toLowerCase().endsWith('.pdf') ||
+                              msg.attachment_url?.match(/\.pdf($|\?)/i)
+                            );
+
+                            if (!isPdf || !msg.attachment_url) return null;
+
+                            return (
+                              <div className={`mb-2.5 p-3 rounded-xl border flex items-center justify-between gap-3 shadow-xs transition-all ${
+                                msg.isMe
+                                  ? 'bg-indigo-700/60 border-indigo-400/30 text-white'
+                                  : 'bg-white dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100'
+                              }`}>
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-9 h-9 rounded-lg bg-rose-500/15 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0">
+                                    <FileText size={20} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold truncate max-w-[140px] sm:max-w-[190px]" title={msg.file_name || 'Documento.pdf'}>
+                                      {msg.file_name || 'Documento.pdf'}
+                                    </div>
+                                    <div className="text-[10px] opacity-70 flex items-center gap-1.5 mt-0.5">
+                                      <span className="font-bold text-rose-500 dark:text-rose-400">PDF</span>
+                                      {msg.file_size ? (
+                                        <>
+                                          <span>•</span>
+                                          <span>{(msg.file_size / 1024 / 1024).toFixed(2)} MB</span>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Tooltip content="Visualizar PDF" position="top">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModal({
+                                        isOpen: true,
+                                        url: msg.attachment_url!,
+                                        name: msg.file_name || 'Documento.pdf',
+                                        type: 'application/pdf',
+                                        size: msg.file_size
+                                      })}
+                                      className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                                        msg.isMe
+                                          ? 'bg-white/20 hover:bg-white/30 text-white'
+                                          : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 dark:text-indigo-400'
+                                      }`}
+                                    >
+                                      Visualizar
+                                    </button>
+                                  </Tooltip>
+                                  <Tooltip content="Baixar PDF" position="top">
+                                    <a
+                                      href={msg.attachment_url}
+                                      download={msg.file_name || 'documento.pdf'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
+                                        msg.isMe
+                                          ? 'text-white/80 hover:text-white hover:bg-white/10'
+                                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                      }`}
+                                    >
+                                      <Download size={15} />
+                                    </a>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Render de Anexo de Planilha (Excel / CSV) */}
+                          {(() => {
+                            const isSpreadsheet = (
+                              msg.file_type?.includes('sheet') ||
+                              msg.file_type?.includes('excel') ||
+                              msg.file_type?.includes('csv') ||
+                              msg.file_name?.match(/\.(xlsx|xls|csv)$/i) ||
+                              msg.attachment_url?.match(/\.(xlsx|xls|csv)($|\?)/i)
+                            );
+
+                            if (!isSpreadsheet || !msg.attachment_url) return null;
+
+                            return (
+                              <div className={`mb-2.5 p-3 rounded-xl border flex items-center justify-between gap-3 shadow-xs transition-all ${
+                                msg.isMe
+                                  ? 'bg-indigo-700/60 border-indigo-400/30 text-white'
+                                  : 'bg-white dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100'
+                              }`}>
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                    <FileSpreadsheet size={20} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold truncate max-w-[140px] sm:max-w-[190px]" title={msg.file_name || 'Planilha.xlsx'}>
+                                      {msg.file_name || 'Planilha.xlsx'}
+                                    </div>
+                                    <div className="text-[10px] opacity-70 flex items-center gap-1.5 mt-0.5">
+                                      <span className="font-bold text-emerald-500 dark:text-emerald-400">PLANILHA</span>
+                                      {msg.file_size ? (
+                                        <>
+                                          <span>•</span>
+                                          <span>{(msg.file_size / 1024 / 1024).toFixed(2)} MB</span>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Tooltip content="Visualizar Planilha" position="top">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModal({
+                                        isOpen: true,
+                                        url: msg.attachment_url!,
+                                        name: msg.file_name || 'Planilha.xlsx',
+                                        type: msg.file_type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                        size: msg.file_size
+                                      })}
+                                      className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                                        msg.isMe
+                                          ? 'bg-white/20 hover:bg-white/30 text-white'
+                                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 dark:text-emerald-300'
+                                      }`}
+                                    >
+                                      Visualizar
+                                    </button>
+                                  </Tooltip>
+                                  <Tooltip content="Baixar Planilha" position="top">
+                                    <a
+                                      href={msg.attachment_url}
+                                      download={msg.file_name || 'planilha.xlsx'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
+                                        msg.isMe
+                                          ? 'text-white/80 hover:text-white hover:bg-white/10'
+                                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                      }`}
+                                    >
+                                      <Download size={15} />
+                                    </a>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Render de Anexo de Documento Word (.docx, .doc) */}
+                          {(() => {
+                            const isWord = (
+                              msg.file_type?.includes('word') ||
+                              msg.file_type?.includes('officedocument.wordprocessingml') ||
+                              msg.file_name?.match(/\.(docx|doc)$/i) ||
+                              msg.attachment_url?.match(/\.(docx|doc)($|\?)/i)
+                            );
+
+                            if (!isWord || !msg.attachment_url) return null;
+
+                            return (
+                              <div className={`mb-2.5 p-3 rounded-xl border flex items-center justify-between gap-3 shadow-xs transition-all ${
+                                msg.isMe
+                                  ? 'bg-indigo-700/60 border-indigo-400/30 text-white'
+                                  : 'bg-white dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100'
+                              }`}>
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-9 h-9 rounded-lg bg-blue-500/15 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+                                    <FileText size={20} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold truncate max-w-[140px] sm:max-w-[190px]" title={msg.file_name || 'Documento.docx'}>
+                                      {msg.file_name || 'Documento.docx'}
+                                    </div>
+                                    <div className="text-[10px] opacity-70 flex items-center gap-1.5 mt-0.5">
+                                      <span className="font-bold text-blue-500 dark:text-blue-400">WORD</span>
+                                      {msg.file_size ? (
+                                        <>
+                                          <span>•</span>
+                                          <span>{(msg.file_size / 1024 / 1024).toFixed(2)} MB</span>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Tooltip content="Visualizar Documento Word" position="top">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewModal({
+                                        isOpen: true,
+                                        url: msg.attachment_url!,
+                                        name: msg.file_name || 'Documento.docx',
+                                        type: msg.file_type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                        size: msg.file_size
+                                      })}
+                                      className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                                        msg.isMe
+                                          ? 'bg-white/20 hover:bg-white/30 text-white'
+                                          : 'bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 dark:text-blue-300'
+                                      }`}
+                                    >
+                                      Visualizar
+                                    </button>
+                                  </Tooltip>
+                                  <Tooltip content="Baixar Documento Word" position="top">
+                                    <a
+                                      href={msg.attachment_url}
+                                      download={msg.file_name || 'documento.docx'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
+                                        msg.isMe
+                                          ? 'text-white/80 hover:text-white hover:bg-white/10'
+                                          : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                      }`}
+                                    >
+                                      <Download size={15} />
+                                    </a>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Render de Anexos de Múltiplos Arquivos não imagem e não áudio */}
+                          {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.some((att: any) => att.url && !att.type?.startsWith('image') && !att.type?.startsWith('audio') && !att.url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho')) && (
                             <div className="mb-2.5 space-y-1.5">
-                              {msg.attachments.map((att: any, idx: number) => (
-                                att.url && !att.type?.startsWith('image') && !att.type?.startsWith('audio') && !att.url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac|mp4)/i) && !att.name?.includes('Banner') && !att.name?.includes('Cabeçalho') ? (
+                              {msg.attachments.map((att: any, idx: number) => {
+                                if (!att.url || att.type?.startsWith('image') || att.type?.startsWith('audio') || att.url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac)/i) || att.name?.includes('Banner') || att.name?.includes('Cabeçalho')) {
+                                  return null;
+                                }
+
+                                const isAttPdf = att.type === 'application/pdf' || att.name?.toLowerCase().endsWith('.pdf') || att.url.match(/\.pdf($|\?)/i);
+                                const isAttVid = att.type?.startsWith('video/') || att.url.match(/\.(mp4|webm|mov|mkv)($|\?)/i);
+                                const isAttSpreadsheet = att.type?.includes('sheet') || att.type?.includes('excel') || att.type?.includes('csv') || att.name?.match(/\.(xlsx|xls|csv)$/i) || att.url.match(/\.(xlsx|xls|csv)($|\?)/i);
+                                const isAttWord = att.type?.includes('word') || att.type?.includes('officedocument.wordprocessingml') || att.name?.match(/\.(docx|doc)$/i) || att.url.match(/\.(docx|doc)($|\?)/i);
+
+                                if (isAttPdf || isAttVid || isAttSpreadsheet || isAttWord) {
+                                  return (
+                                    <div key={idx} className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 text-xs ${
+                                      msg.isMe ? 'bg-indigo-700/50 border-indigo-400/30 text-white' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+                                    }`}>
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        {isAttPdf ? (
+                                          <FileText size={16} className="text-rose-500 shrink-0" />
+                                        ) : isAttVid ? (
+                                          <Video size={16} className="text-indigo-400 shrink-0" />
+                                        ) : isAttSpreadsheet ? (
+                                          <FileSpreadsheet size={16} className="text-emerald-400 shrink-0" />
+                                        ) : (
+                                          <FileText size={16} className="text-blue-400 shrink-0" />
+                                        )}
+                                        <span className="truncate max-w-[150px] font-medium">{att.name || 'Arquivo'}</span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setPreviewModal({
+                                          isOpen: true,
+                                          url: att.url,
+                                          name: att.name || 'Arquivo',
+                                          type: isAttPdf ? 'application/pdf' : isAttVid ? 'video/mp4' : isAttSpreadsheet ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                          size: att.size
+                                        })}
+                                        className="text-xs px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors cursor-pointer"
+                                      >
+                                        Ver
+                                      </button>
+                                    </div>
+                                  );
+                                }
+
+                                return (
                                   <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
                                     <Paperclip size={16} />
                                     <span className="truncate max-w-[180px] text-xs underline">{att.name || 'Anexo'}</span>
                                   </a>
-                                ) : null
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
 
-                          {msg.attachment_url && !msg.attachments && !msg.file_type?.startsWith('image/') && !msg.file_type?.startsWith('audio/') && !msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac|mp4)/i) && (
+                          {/* Render de Anexo Único Genérico (quando não é imagem, nem áudio, nem vídeo, nem PDF, nem planilha, nem Word) */}
+                          {msg.attachment_url && !msg.attachments && !msg.file_type?.startsWith('image/') && !msg.file_type?.startsWith('audio/') && !msg.file_type?.startsWith('video/') && !msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp|webm|ogg|mp3|wav|m4a|aac|mp4|mov|mkv|pdf|xlsx|xls|csv|docx|doc)/i) && !msg.file_name?.match(/\.(pdf|xlsx|xls|csv|docx|doc)$/i) && (
                             <div className="mb-2">
                               <a href={msg.attachment_url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-2 rounded-lg ${msg.isMe ? 'bg-indigo-700/50 hover:bg-indigo-700' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600'} transition-colors`}>
                                 <Paperclip size={16} />
@@ -6393,19 +6831,20 @@ export const Chat: React.FC = () => {
                                         <ExternalLink size={12} className="opacity-70" />
                                       </a>
                                       
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          if (meet.url) {
-                                            navigator.clipboard.writeText(meet.url);
-                                            addToast('info', 'Link copiado', 'Link do Google Meet copiado para a área de transferência.');
-                                          }
-                                        }}
-                                        title="Copiar link da reunião"
-                                        className="p-2 rounded-lg text-xs transition-colors border border-indigo-400/40 hover:bg-indigo-600 text-indigo-100"
-                                      >
-                                        <Copy size={14} />
-                                      </button>
+                                      <Tooltip content="Copiar link da reunião" position="top">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (meet.url) {
+                                              navigator.clipboard.writeText(meet.url);
+                                              addToast('info', 'Link copiado', 'Link do Google Meet copiado para a área de transferência.');
+                                            }
+                                          }}
+                                          className="p-2 rounded-lg text-xs transition-colors border border-indigo-400/40 hover:bg-indigo-600 text-indigo-100 flex items-center justify-center cursor-pointer"
+                                        >
+                                          <Copy size={14} />
+                                        </button>
+                                      </Tooltip>
                                     </div>
                                   </div>
                                 );
@@ -6512,28 +6951,93 @@ export const Chat: React.FC = () => {
 
             {selectedFiles.length > 0 && (
               <div className="mb-3 p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center gap-2 overflow-x-auto custom-scrollbar">
-                {selectedFiles.map((file, idx) => (
-                  <div key={idx} className="relative group shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
-                    {file.type.startsWith('image/') ? (
-                      <img src={URL.createObjectURL(file)} alt="Preview" className="w-8 h-8 object-cover rounded shrink-0" />
-                    ) : (
-                      <div className="w-8 h-8 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded flex items-center justify-center shrink-0">
-                        <Paperclip size={16} />
+                {selectedFiles.map((file, idx) => {
+                  const isImg = file.type.startsWith('image/');
+                  const isVid = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|m4v)($|\?)/i.test(file.name);
+                  const isPdfFile = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                  const isSpreadsheetFile = file.type?.includes('sheet') || file.type?.includes('excel') || file.type?.includes('csv') || /\.(xlsx|xls|csv)$/i.test(file.name);
+                  const isWordFile = file.type?.includes('word') || file.type?.includes('officedocument.wordprocessingml') || /\.(docx|doc)$/i.test(file.name);
+                  const fileBlobUrl = URL.createObjectURL(file);
+
+                  return (
+                    <div key={idx} className="relative group shrink-0 flex items-center gap-2.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
+                      {isImg ? (
+                        <Tooltip content="Clique para pré-visualizar imagem" position="top">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewModal({ isOpen: true, url: fileBlobUrl, name: file.name, type: file.type, size: file.size })}
+                            className="w-8 h-8 rounded overflow-hidden shrink-0 cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all flex items-center justify-center"
+                          >
+                            <img src={fileBlobUrl} alt="Preview" className="w-full h-full object-cover" />
+                          </button>
+                        </Tooltip>
+                      ) : isVid ? (
+                        <Tooltip content="Clique para pré-visualizar vídeo" position="top">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewModal({ isOpen: true, url: fileBlobUrl, name: file.name, type: file.type || 'video/mp4', size: file.size })}
+                            className="w-8 h-8 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded flex items-center justify-center shrink-0 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors"
+                          >
+                            <Video size={16} />
+                          </button>
+                        </Tooltip>
+                      ) : isPdfFile ? (
+                        <Tooltip content="Clique para pré-visualizar PDF" position="top">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewModal({ isOpen: true, url: fileBlobUrl, name: file.name, type: 'application/pdf', size: file.size })}
+                            className="w-8 h-8 bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 rounded flex items-center justify-center shrink-0 cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-900 transition-colors"
+                          >
+                            <FileText size={16} />
+                          </button>
+                        </Tooltip>
+                      ) : isSpreadsheetFile ? (
+                        <Tooltip content="Clique para abrir leitor de planilha" position="top">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewModal({ isOpen: true, url: fileBlobUrl, name: file.name, type: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', size: file.size })}
+                            className="w-8 h-8 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded flex items-center justify-center shrink-0 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
+                          >
+                            <FileSpreadsheet size={16} />
+                          </button>
+                        </Tooltip>
+                      ) : isWordFile ? (
+                        <Tooltip content="Clique para pré-visualizar Word" position="top">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewModal({ isOpen: true, url: fileBlobUrl, name: file.name, type: file.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: file.size })}
+                            className="w-8 h-8 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded flex items-center justify-center shrink-0 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
+                          >
+                            <FileText size={16} />
+                          </button>
+                        </Tooltip>
+                      ) : (
+                        <div className="w-8 h-8 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded flex items-center justify-center shrink-0">
+                          <Paperclip size={16} />
+                        </div>
+                      )}
+                      <div className="max-w-[130px] truncate text-xs font-medium text-slate-700 dark:text-slate-200">
+                        <div className="truncate">{file.name}</div>
+                        <div className="text-[10px] opacity-60 flex items-center gap-1">
+                          {isVid && <span className="text-indigo-500 font-bold">VÍDEO •</span>}
+                          {isPdfFile && <span className="text-rose-500 font-bold">PDF •</span>}
+                          {isSpreadsheetFile && <span className="text-emerald-500 font-bold">XLSX •</span>}
+                          {isWordFile && <span className="text-blue-500 font-bold">DOCX •</span>}
+                          <span>{(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                        </div>
                       </div>
-                    )}
-                    <div className="max-w-[130px] truncate text-xs font-medium text-slate-700 dark:text-slate-200">
-                      <div className="truncate">{file.name}</div>
-                      <div className="text-[10px] opacity-60">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                      <Tooltip content="Remover anexo" position="top">
+                        <button
+                          type="button"
+                          onClick={() => removeSelectedFile(idx)}
+                          className="p-1 text-slate-400 hover:text-rose-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0 cursor-pointer flex items-center justify-center"
+                        >
+                          <X size={14} />
+                        </button>
+                      </Tooltip>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeSelectedFile(idx)}
-                      className="p-1 text-slate-400 hover:text-rose-500 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -6661,7 +7165,7 @@ export const Chat: React.FC = () => {
                     onChange={handleFileSelect}
                     className="hidden"
                     multiple
-                    accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip"
+                    accept="image/*, video/*, .pdf, .doc, .docx, .xls, .xlsx, .zip, .mp4, .webm, .mov, .m4v, .mkv"
                   />
                   <div 
                     onClick={(e) => {
@@ -6671,7 +7175,7 @@ export const Chat: React.FC = () => {
                     }}
                     className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200/80 dark:border-slate-800/80 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20 dark:focus-within:ring-indigo-400/20 focus-within:bg-white dark:focus-within:bg-slate-900 shadow-xs focus-within:shadow-md transition-all duration-200 cursor-text"
                   >
-                    <Tooltip content="Anexar arquivo" position="top">
+                    <Tooltip content="Anexar arquivo ou vídeo (máx 10MB)" position="top">
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -6688,7 +7192,7 @@ export const Chat: React.FC = () => {
                             fileInputRef.current.accept = "image/*";
                             fileInputRef.current.click();
                             setTimeout(() => {
-                              if (fileInputRef.current) fileInputRef.current.accept = "image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip";
+                              if (fileInputRef.current) fileInputRef.current.accept = "image/*, video/*, .pdf, .doc, .docx, .xls, .xlsx, .zip, .mp4, .webm, .mov, .m4v, .mkv";
                             }, 100);
                           }
                         }}
@@ -7492,6 +7996,16 @@ export const Chat: React.FC = () => {
         onSelectTemplate={handleSelectTemplate}
         sectors={sectors}
         audienceScope={isTeamChat ? 'internal' : 'external'}
+      />
+
+      {/* Modal de Pré-visualização de Arquivos (PDF, Vídeos, Imagens) */}
+      <FilePreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={() => setPreviewModal(prev => ({ ...prev, isOpen: false }))}
+        fileUrl={previewModal.url}
+        fileName={previewModal.name}
+        fileType={previewModal.type}
+        fileSize={previewModal.size}
       />
     </div>
   );
