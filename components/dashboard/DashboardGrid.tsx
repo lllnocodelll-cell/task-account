@@ -150,6 +150,138 @@ const DEFAULT_ACTIVE_WIDGETS = [
     'clientCertificates', 'clientLicenses', 'notes'
 ];
 
+export const BREAKPOINT_COLS = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 } as const;
+export type Breakpoint = keyof typeof BREAKPOINT_COLS;
+export const ALL_BREAKPOINTS: Breakpoint[] = ['lg', 'md', 'sm', 'xs', 'xxs'];
+
+export const buildBreakpointLayout = (
+    bp: Breakpoint,
+    widgetIds: string[],
+    existingBpLayout: any[] = []
+): any[] => {
+    const bpCols = BREAKPOINT_COLS[bp];
+    const existingMap = new Map<string, any>();
+    if (Array.isArray(existingBpLayout)) {
+        existingBpLayout.forEach(item => {
+            if (item && item.i) {
+                existingMap.set(item.i, item);
+            }
+        });
+    }
+
+    if (bp === 'xxs' || bp === 'xs') {
+        // No celular (xxs: 2 colunas, xs: 4 colunas):
+        // Todos os widgets recebem largura total (w = bpCols), x = 0, e são empilhados sequencialmente sem colisão
+        let currentY = 0;
+        return widgetIds.map(id => {
+            const def = WIDGET_REGISTRY[id]?.defaultLayout || { w: bpCols, h: 6, minH: 4 };
+            const existing = existingMap.get(id);
+            const h = existing?.h ? Math.max(existing.h, def.minH || 4) : (def.h || 6);
+            const item = {
+                i: id,
+                x: 0,
+                y: currentY,
+                w: bpCols,
+                h: h,
+                minW: bpCols,
+                maxW: bpCols,
+                minH: def.minH || 4
+            };
+            currentY += h;
+            return item;
+        });
+    }
+
+    if (bp === 'sm') {
+        // Em tablet pequeno (sm: 6 colunas):
+        let currentX = 0;
+        let currentY = 0;
+        let rowMaxH = 0;
+        return widgetIds.map(id => {
+            const def = WIDGET_REGISTRY[id]?.defaultLayout || { w: 6, h: 6, minH: 4 };
+            const existing = existingMap.get(id);
+            const targetW = Math.min(existing?.w || def.w || 6, 6);
+            const targetH = Math.max(existing?.h || def.h || 6, def.minH || 4);
+
+            if (currentX + targetW > 6) {
+                currentX = 0;
+                currentY += rowMaxH;
+                rowMaxH = 0;
+            }
+
+            const item = {
+                i: id,
+                x: currentX,
+                y: currentY,
+                w: targetW,
+                h: targetH,
+                minW: Math.min(def.minW || 3, 6),
+                minH: def.minH || 4
+            };
+
+            currentX += targetW;
+            if (targetH > rowMaxH) rowMaxH = targetH;
+            return item;
+        });
+    }
+
+    // Para lg (12 colunas) e md (10 colunas):
+    let maxY = 0;
+    const result: any[] = [];
+
+    // Primeiro, os que já têm layout existente válido
+    widgetIds.forEach(id => {
+        const def = WIDGET_REGISTRY[id]?.defaultLayout;
+        if (!def) return;
+
+        const existing = existingMap.get(id);
+        if (existing) {
+            const w = Math.min(existing.w, bpCols);
+            const x = Math.min(existing.x, bpCols - w);
+            result.push({
+                ...def,
+                ...existing,
+                x,
+                w
+            });
+            if (existing.y + existing.h > maxY) {
+                maxY = existing.y + existing.h;
+            }
+        }
+    });
+
+    // Em seguida, os novos itens ativados
+    widgetIds.forEach(id => {
+        const def = WIDGET_REGISTRY[id]?.defaultLayout;
+        if (!def) return;
+
+        if (!existingMap.has(id)) {
+            const w = Math.min(def.w, bpCols);
+            result.push({
+                ...def,
+                x: 0,
+                y: maxY,
+                w: w,
+                h: def.h
+            });
+            maxY += def.h;
+        }
+    });
+
+    return result;
+};
+
+export const ensureAllBreakpoints = (
+    widgetIds: string[],
+    existingLayouts: { [key: string]: any[] } = {}
+): { [key: string]: any[] } => {
+    const result: { [key: string]: any[] } = {};
+    ALL_BREAKPOINTS.forEach(bp => {
+        result[bp] = buildBreakpointLayout(bp, widgetIds, existingLayouts?.[bp]);
+    });
+    return result;
+};
+
 interface DashboardGridProps {
     userId: string;
     role: string;
@@ -159,7 +291,7 @@ interface DashboardGridProps {
 export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgId }) => {
     // Cenários de widgets
     const [scenarios, setScenarios] = useState<Record<string, { widgets: string[], layout: { [key: string]: any[] } }>>({
-        "Principal": { widgets: [], layout: { lg: [] } }
+        "Principal": { widgets: [], layout: { lg: [], md: [], sm: [], xs: [], xxs: [] } }
     });
     const [activeScenario, setActiveScenario] = useState<string>("Principal");
     
@@ -189,10 +321,28 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         ? DEFAULT_ACTIVE_WIDGETS 
         : DEFAULT_ACTIVE_WIDGETS.filter(id => OPERACIONAL_ALLOWED_WIDGETS.includes(id));
 
-    // Computar activeWidgets e layouts do cenário ativo atual
-    const currentScenario = scenarios[activeScenario] || { widgets: [], layout: { lg: [] } };
+    const [isMobile, setIsMobile] = useState<boolean>(() => {
+        if (typeof window !== 'undefined') {
+            return window.innerWidth < 768;
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Computar activeWidgets e layouts seguros do cenário ativo atual
+    const currentScenario = scenarios[activeScenario] || { widgets: [], layout: { lg: [], md: [], sm: [], xs: [], xxs: [] } };
     const activeWidgets = currentScenario.widgets;
-    const layouts = currentScenario.layout;
+    const safeLayouts = React.useMemo(() => {
+        return ensureAllBreakpoints(activeWidgets, currentScenario.layout);
+    }, [activeWidgets, currentScenario.layout]);
 
     // Fechar dropdown de cenários ao clicar fora
     useEffect(() => {
@@ -249,7 +399,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
 
                                 loadedScenarios[name] = {
                                     widgets: scWidgets,
-                                    layout: scLayout
+                                    layout: ensureAllBreakpoints(scWidgets, scLayout)
                                 };
                             });
                         } else {
@@ -271,29 +421,27 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                             loadedScenarios = {
                                 "Principal": {
                                     widgets: validWidgets,
-                                    layout: loadedLayouts
+                                    layout: ensureAllBreakpoints(validWidgets, loadedLayouts)
                                 }
                             };
                             loadedActiveScenario = "Principal";
                         }
                     } else {
                         // Sem layout salvo no banco
-                        const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
                         loadedScenarios = {
                             "Principal": {
                                 widgets: defaultWidgetsForRole,
-                                layout: { lg: defaultLgLayout }
+                                layout: ensureAllBreakpoints(defaultWidgetsForRole, {})
                             }
                         };
                         loadedActiveScenario = "Principal";
                     }
 
                     if (Object.keys(loadedScenarios).length === 0) {
-                        const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
                         loadedScenarios = {
                             "Principal": {
                                 widgets: defaultWidgetsForRole,
-                                layout: { lg: defaultLgLayout }
+                                layout: ensureAllBreakpoints(defaultWidgetsForRole, {})
                             }
                         };
                         loadedActiveScenario = "Principal";
@@ -303,11 +451,11 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     setActiveScenario(loadedActiveScenario);
                 } else {
                     // Sem dados salvos
-                    const defaultLgLayout = defaultWidgetsForRole.map(id => WIDGET_REGISTRY[id].defaultLayout);
+                    const initialLayouts = ensureAllBreakpoints(defaultWidgetsForRole, {});
                     const initialScenarios = {
                         "Principal": {
                             widgets: defaultWidgetsForRole,
-                            layout: { lg: defaultLgLayout }
+                            layout: initialLayouts
                         }
                     };
                     setScenarios(initialScenarios);
@@ -351,11 +499,17 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
     };
 
     const onLayoutChange = (currentLayout: any[], allLayouts: { [key: string]: any[] }) => {
+        const mergedLayouts = {
+            ...safeLayouts,
+            ...allLayouts
+        };
+        const safeAllLayouts = ensureAllBreakpoints(activeWidgets, mergedLayouts);
+
         const updatedScenarios = {
             ...scenarios,
             [activeScenario]: {
                 ...scenarios[activeScenario],
-                layout: allLayouts
+                layout: safeAllLayouts
             }
         };
         setScenarios(updatedScenarios);
@@ -364,42 +518,16 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
 
     const toggleWidget = (id: string) => {
         const currentScenario = scenarios[activeScenario];
-        let newWidgets;
-        let newLayouts = { ...currentScenario.layout };
+        if (!currentScenario) return;
 
+        let newWidgets: string[];
         if (currentScenario.widgets.includes(id)) {
             newWidgets = currentScenario.widgets.filter(w => w !== id);
-            // Remover o widget de todos os breakpoints
-            Object.keys(newLayouts).forEach(bp => {
-                if (Array.isArray(newLayouts[bp])) {
-                    newLayouts[bp] = newLayouts[bp].filter(l => l.i !== id);
-                }
-            });
         } else {
             newWidgets = [...currentScenario.widgets, id];
-            const defaultLayout = WIDGET_REGISTRY[id].defaultLayout;
-            
-            // Garantir que o breakpoint lg exista
-            if (!newLayouts.lg) {
-                newLayouts.lg = [];
-            }
-            
-            // Adicionar o widget a todos os breakpoints existentes no estado
-            Object.keys(newLayouts).forEach(bp => {
-                if (Array.isArray(newLayouts[bp])) {
-                    let maxY = 0;
-                    newLayouts[bp].forEach(l => {
-                        if (l.y + l.h > maxY) maxY = l.y + l.h;
-                    });
-                    
-                    // Ajustar largura para breakpoints menores se necessário
-                    const bpCols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }[bp as 'lg'|'md'|'sm'|'xs'|'xxs'] || 12;
-                    const w = Math.min(defaultLayout.w, bpCols);
-                    
-                    newLayouts[bp] = [...newLayouts[bp], { ...defaultLayout, w, y: maxY }];
-                }
-            });
         }
+
+        const newLayouts = ensureAllBreakpoints(newWidgets, currentScenario.layout);
 
         const updatedScenarios = {
             ...scenarios,
@@ -423,37 +551,57 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         let newLayouts: { [key: string]: any[] } = {};
 
         if (shouldSelectAll) {
-            newWidgets = [...allWidgets];
-            const existingLg = Array.isArray(currentScenario.layout?.lg) ? [...currentScenario.layout.lg] : [];
-            let maxY = 0;
-            existingLg.forEach(l => {
-                if (l.y + l.h > maxY) maxY = l.y + l.h;
-            });
-
-            const newLg = [...existingLg];
-            allWidgets.forEach(id => {
-                if (!newLg.some(l => l.i === id) && WIDGET_REGISTRY[id]) {
-                    const def = WIDGET_REGISTRY[id].defaultLayout;
-                    newLg.push({ ...def, y: maxY });
-                    maxY += def.h;
+            let orderedWidgets = [...allWidgets];
+            try {
+                const savedOrder = localStorage.getItem('widget_manager_drawer_order');
+                if (savedOrder) {
+                    const parsed = JSON.parse(savedOrder);
+                    if (Array.isArray(parsed)) {
+                        orderedWidgets.sort((a, b) => {
+                            const idxA = parsed.indexOf(a);
+                            const idxB = parsed.indexOf(b);
+                            return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+                        });
+                    }
                 }
-            });
+            } catch (e) {
+                // fallback
+            }
 
-            newLayouts = {
-                ...currentScenario.layout,
-                lg: newLg
-            };
+            newWidgets = orderedWidgets;
+            newLayouts = ensureAllBreakpoints(newWidgets, currentScenario.layout);
         } else {
             newWidgets = [];
-            Object.keys(currentScenario.layout || {}).forEach(bp => {
-                newLayouts[bp] = [];
-            });
+            newLayouts = { lg: [], md: [], sm: [], xs: [], xxs: [] };
         }
 
         const updatedScenarios = {
             ...scenarios,
             [activeScenario]: {
                 widgets: newWidgets,
+                layout: newLayouts
+            }
+        };
+        setScenarios(updatedScenarios);
+        saveScenarios(updatedScenarios, activeScenario);
+    };
+
+    const handleReorderWidgets = (newOrder: string[]) => {
+        const currentScenario = scenarios[activeScenario];
+        if (!currentScenario) return;
+
+        const reorderedActive = [...currentScenario.widgets].sort((a, b) => {
+            const idxA = newOrder.indexOf(a);
+            const idxB = newOrder.indexOf(b);
+            return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+        });
+
+        const newLayouts = ensureAllBreakpoints(reorderedActive, currentScenario.layout);
+
+        const updatedScenarios = {
+            ...scenarios,
+            [activeScenario]: {
+                widgets: reorderedActive,
                 layout: newLayouts
             }
         };
@@ -520,6 +668,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 .react-grid-item .react-resizable-handle {
                     opacity: 0;
                     transition: opacity 0.2s ease-in-out;
+                    touch-action: none !important;
                 }
                 .react-grid-item:hover .react-resizable-handle {
                     opacity: 1;
@@ -543,6 +692,28 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 .dark .react-grid-item .react-resizable-handle-se::after {
                     border-right-color: #64748b;
                     border-bottom-color: #64748b;
+                }
+                /* Em dispositivos móveis e telas touch: alça sempre visível e área de toque ampliada */
+                @media (hover: none), (max-width: 768px) {
+                    .react-grid-item .react-resizable-handle {
+                        opacity: 0.8 !important;
+                    }
+                    .react-grid-item .react-resizable-handle-se {
+                        width: 32px !important;
+                        height: 32px !important;
+                        padding-right: 8px !important;
+                        padding-bottom: 8px !important;
+                    }
+                    .react-grid-item .react-resizable-handle-se::after {
+                        width: 12px;
+                        height: 12px;
+                        border-right-width: 2.5px;
+                        border-bottom-width: 2.5px;
+                    }
+                    .react-grid-item .react-resizable-handle-s {
+                        height: 18px !important;
+                        bottom: 0;
+                    }
                 }
             `}</style>
             <div className="flex items-center justify-end gap-2 mb-4">
@@ -634,15 +805,17 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
 
             <ResponsiveGridLayout
                 className="layout"
-                layouts={layouts}
+                layouts={safeLayouts}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
                 cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                 rowHeight={30}
                 onLayoutChange={onLayoutChange}
+                isDraggable={!isMobile}
+                isResizable={true}
                 draggableHandle=".drag-handle"
                 draggableCancel=".no-drag, button, input, textarea, select, [role='button']"
                 resizeHandles={['s', 'w', 'e', 'n', 'sw', 'nw', 'se', 'ne']}
-                margin={[16, 16]}
+                margin={isMobile ? [8, 12] : [16, 16]}
             >
                 {activeWidgets.map(widgetId => {
                     const widgetConfig = WIDGET_REGISTRY[widgetId];
@@ -712,7 +885,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                         <div className="flex justify-end gap-2 text-xs font-semibold">
                             <button
                                 onClick={() => setShowRenameModal(false)}
-                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-slate-650 dark:text-slate-400 transition-colors"
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-slate-600 dark:text-slate-400 transition-colors"
                             >
                                 Cancelar
                             </button>
@@ -734,6 +907,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 activeWidgets={activeWidgets}
                 toggleWidget={toggleWidget}
                 toggleAllWidgets={toggleAllWidgets}
+                onReorder={handleReorderWidgets}
             />
         </div>
     );
@@ -746,6 +920,7 @@ interface WidgetManagerDrawerProps {
     activeWidgets: string[];
     toggleWidget: (id: string) => void;
     toggleAllWidgets: (selectAll?: boolean) => void;
+    onReorder?: (newOrder: string[]) => void;
 }
 
 const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
@@ -754,7 +929,8 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
     allWidgets,
     activeWidgets,
     toggleWidget,
-    toggleAllWidgets
+    toggleAllWidgets,
+    onReorder
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
@@ -870,6 +1046,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                 newOrder.splice(toIndex, 0, draggedId);
                 setWidgetsOrder(newOrder);
                 localStorage.setItem('widget_manager_drawer_order', JSON.stringify(newOrder));
+                onReorder?.(newOrder);
                 if (typeof navigator !== 'undefined' && navigator.vibrate) {
                     navigator.vibrate(40);
                 }
@@ -923,6 +1100,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                     newOrder.splice(toIndex, 0, draggedWidgetId);
                     setWidgetsOrder(newOrder);
                     localStorage.setItem('widget_manager_drawer_order', JSON.stringify(newOrder));
+                    onReorder?.(newOrder);
                 }
                 setDraggedWidgetId(null);
                 setDragOverWidgetId(null);

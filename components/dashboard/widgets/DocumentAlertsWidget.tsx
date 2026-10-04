@@ -110,20 +110,20 @@ export const DocumentAlertsWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                 ) : (
                     <ul className="space-y-2">
                         {data.map((item) => (
-                            <li key={item.id} className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 flex justify-between items-center group">
-                                <div className="overflow-hidden min-w-0 pr-2">
-                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate" title={item.title}>
+                            <li key={item.id} className="p-2 sm:p-2.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-2 group">
+                                <div className="overflow-hidden min-w-0 w-full sm:w-auto">
+                                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" title={item.title}>
                                         {item.title}
                                     </p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate" title={item.clientName}>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate" title={item.clientName}>
                                         {item.clientName}
                                     </p>
                                 </div>
-                                <div className="flex-shrink-0 text-right">
-                                    <div className="text-sm font-bold text-red-600 dark:text-red-400">
+                                <div className="flex-shrink-0 w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 pt-1 sm:pt-0 border-t border-red-200/50 dark:border-red-900/30 sm:border-0">
+                                    <div className="text-xs font-bold text-red-600 dark:text-red-400">
                                         {item.daysRemaining === 0 ? 'Hoje' : `${item.daysRemaining} dias`}
                                     </div>
-                                    <div className="text-[10px] text-slate-500">
+                                    <div className="text-[10px] text-slate-500 font-mono">
                                         {new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                                     </div>
                                 </div>

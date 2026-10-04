@@ -1272,48 +1272,51 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                     </div>
 
                                     {/* Secao 3: Localizacao e Acoes */}
-                                    <div className="p-3 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row items-center justify-between gap-3 relative">
+                                    <div className="p-2.5 sm:p-3 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between gap-2 relative">
                                         {(client.city || client.state) ? (
-                                            <Tooltip content="Copiar Localização" position="top">
+                                            <Tooltip content="Copiar Localização" position="top" className="min-w-0 flex-1">
                                                 <div 
                                                     onClick={(e) => handleCopyData(`${client.city || ''}${client.city && client.state ? ', ' : ''}${client.state || ''}`, 'Localização', e)}
-                                                    className="group/copy flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase w-full sm:w-auto overflow-hidden bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded shadow-sm cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    className="group/copy flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase min-w-0 max-w-full overflow-hidden bg-white/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50 px-2 py-1 rounded shadow-2xs cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                                 >
-                                                    <MapPin size={12} className="text-indigo-400 shrink-0" />
+                                                    <MapPin size={11} className="text-indigo-500 shrink-0" />
                                                     <span className="truncate">{client.city || 'N/A'}, {client.state || 'N/A'}</span>
                                                     <Copy size={9} className="opacity-0 group-hover/copy:opacity-100 transition-opacity text-indigo-500 shrink-0" />
                                                 </div>
                                             </Tooltip>
                                         ) : (
-                                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-black tracking-wider uppercase w-full sm:w-auto overflow-hidden bg-white/60 dark:bg-slate-800/60 px-2 py-1 rounded shadow-sm">
-                                                <MapPin size={12} className="text-indigo-400 shrink-0" />
+                                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 font-black tracking-wider uppercase min-w-0 overflow-hidden bg-white/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50 px-2 py-1 rounded shadow-2xs">
+                                                <MapPin size={11} className="text-slate-400 shrink-0" />
                                                 <span className="truncate">N/A, N/A</span>
                                             </div>
                                         )}
                                         
-                                        <div className="flex items-center justify-end w-full sm:w-auto gap-1">
+                                        <div className="flex items-center justify-end shrink-0 gap-0.5 sm:gap-1">
                                             <Tooltip content="Visualizar" position="top">
                                                 <button 
                                                     onClick={() => handleViewClientDetails(client)}
-                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm rounded transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xs rounded-lg transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 active:scale-95"
+                                                    aria-label="Visualizar cliente"
                                                 >
-                                                    <ScanEye size={14} />
+                                                    <ScanEye size={15} />
                                                 </button>
                                             </Tooltip>
                                             <Tooltip content="Editar" position="top">
                                                 <button 
                                                     onClick={() => handleEdit(client)}
-                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm rounded transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-2xs rounded-lg transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700 active:scale-95"
+                                                    aria-label="Editar cliente"
                                                 >
-                                                    <Pencil size={14} />
+                                                    <Pencil size={15} />
                                                 </button>
                                             </Tooltip>
                                             <Tooltip content="Excluir" position="top">
                                                 <button 
                                                     onClick={() => initDeleteClient(client)}
-                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 hover:shadow-sm rounded transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                                                    className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:shadow-2xs rounded-lg transition-all border border-transparent hover:border-rose-200 dark:hover:border-rose-900/40 active:scale-95"
+                                                    aria-label="Excluir cliente"
                                                 >
-                                                    <Trash2 size={14} />
+                                                    <Trash2 size={15} />
                                                 </button>
                                             </Tooltip>
                                         </div>

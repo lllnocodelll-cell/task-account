@@ -125,10 +125,10 @@ export const TopSegmentsWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                 <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
 
                     {/* Conteúdo principal: gráfico + lista */}
-                    <div className="flex-1 flex flex-col md:flex-row items-start gap-4 p-3 overflow-hidden min-h-0">
+                    <div className="flex-1 flex flex-col md:flex-row items-start gap-2.5 sm:gap-4 p-2 sm:p-3 overflow-y-auto sm:overflow-hidden min-h-0 custom-scrollbar">
 
                         {/* --- Gráfico de Pizza --- */}
-                        <div className="relative w-full md:w-[200px] h-[160px] md:h-full shrink-0 flex items-center justify-center">
+                        <div className="relative w-full md:w-[200px] h-[140px] sm:h-[160px] md:h-full shrink-0 flex items-center justify-center">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
@@ -164,21 +164,21 @@ export const TopSegmentsWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                 {selectedItem ? (
                                     <>
                                         <span
-                                            className="text-2xl font-black leading-none transition-all duration-300"
+                                            className="text-xl sm:text-2xl font-black leading-none transition-all duration-300"
                                             style={{ color: COLORS[activeIndex! % COLORS.length] }}
                                         >
                                             {selectedItem.percent.toFixed(0)}%
                                         </span>
-                                        <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400 mt-0.5">
+                                        <span className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-widest text-slate-400 mt-0.5">
                                             do total
                                         </span>
                                     </>
                                 ) : (
                                     <>
-                                        <span className="text-2xl font-black text-slate-800 dark:text-white leading-none">
+                                        <span className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white leading-none">
                                             {totalValue}
                                         </span>
-                                        <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-400 mt-0.5">
+                                        <span className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-widest text-slate-400 mt-0.5">
                                             clientes
                                         </span>
                                     </>
@@ -195,7 +195,7 @@ export const TopSegmentsWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                     <button
                                         key={index}
                                         onClick={() => setActiveIndex(prev => prev === index ? null : index)}
-                                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all text-left group ${
+                                        className={`w-full flex items-center gap-2 sm:gap-2.5 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-lg transition-all text-left group ${
                                             isActive
                                                 ? 'bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700'
                                                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 border border-transparent'
@@ -236,13 +236,13 @@ export const TopSegmentsWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     </div>
 
                     {/* --- Rodapé dinâmico --- */}
-                    <div className={`shrink-0 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl transition-all duration-300 ${
+                    <div className={`shrink-0 px-2.5 sm:px-4 py-2 sm:py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl transition-all duration-300 ${
                         selectedItem ? 'opacity-100' : 'opacity-60'
                     }`}>
                         {selectedItem ? (
-                            <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center justify-between gap-2 sm:gap-3">
                                 {/* Indicador colorido + nome */}
-                                <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                                     <div
                                         className="w-2.5 h-2.5 rounded-full shrink-0"
                                         style={{ backgroundColor: COLORS[activeIndex! % COLORS.length] }}
@@ -261,13 +261,13 @@ export const TopSegmentsWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                 {/* Percentual + barra */}
                                 <div className="flex flex-col items-end gap-1 shrink-0">
                                     <span
-                                        className="text-lg font-black leading-none"
+                                        className="text-base sm:text-lg font-black leading-none"
                                         style={{ color: COLORS[activeIndex! % COLORS.length] }}
                                     >
                                         {selectedItem.percent.toFixed(1)}%
                                     </span>
                                     {/* Mini barra de progresso */}
-                                    <div className="w-24 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div className="w-16 sm:w-24 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                         <div
                                             className="h-full rounded-full transition-all duration-500"
                                             style={{

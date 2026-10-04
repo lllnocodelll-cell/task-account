@@ -11,7 +11,9 @@ import {
   User, 
   Building2,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
@@ -90,6 +92,23 @@ export const SupportAttendanceWidget: React.FC<Props> = ({ orgId, onRemove }) =>
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodFilter>('30d');
   const [activeTab, setActiveTab] = useState<ViewTab>('operators');
+  const [showMetrics, setShowMetrics] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('widget_show_metrics_support_attendance');
+      if (saved !== null) return saved === 'true';
+    }
+    return true;
+  });
+
+  const toggleShowMetrics = () => {
+    setShowMetrics(prev => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('widget_show_metrics_support_attendance', String(next));
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -200,6 +219,23 @@ export const SupportAttendanceWidget: React.FC<Props> = ({ orgId, onRemove }) =>
       title="TEMPO DE ATENDIMENTO"
       icon={<Headphones size={14} className="text-cyan-500" />}
       onRemove={onRemove}
+      headerActions={
+        <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
+          <Tooltip content={showMetrics ? "Ocultar resumo de métricas" : "Exibir resumo de métricas"} position="top">
+            <button
+              onClick={toggleShowMetrics}
+              className={`h-6 w-6 flex items-center justify-center rounded transition-colors shrink-0 ${
+                showMetrics 
+                  ? 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/30 dark:text-cyan-400' 
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              aria-label={showMetrics ? "Ocultar métricas" : "Exibir métricas"}
+            >
+              {showMetrics ? <Eye size={12} strokeWidth={2.4} /> : <EyeOff size={12} strokeWidth={2.4} />}
+            </button>
+          </Tooltip>
+        </div>
+      }
     >
       <div className="flex-1 flex flex-col p-2.5 space-y-3 overflow-hidden w-full">
         
@@ -227,61 +263,63 @@ export const SupportAttendanceWidget: React.FC<Props> = ({ orgId, onRemove }) =>
           </div>
         </div>
 
-        {/* 4 Cards de KPIs Rápidos */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
-          {/* TMA */}
-          <div className="p-2 rounded-xl bg-cyan-50/60 dark:bg-cyan-950/20 border border-cyan-200/50 dark:border-cyan-900/40 flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-wider text-cyan-700 dark:text-cyan-400 flex items-center gap-1">
-              <Clock size={10} />
-              TMA Médio
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-sm sm:text-base font-black text-cyan-800 dark:text-cyan-300">
-                {formatSeconds(metrics.avgSeconds)}
+        {/* 4 Cards de KPIs Rápidos (Ocultável) */}
+        {showMetrics && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0 animate-in fade-in duration-200">
+            {/* TMA */}
+            <div className="p-2 rounded-xl bg-cyan-50/60 dark:bg-cyan-950/20 border border-cyan-200/50 dark:border-cyan-900/40 flex flex-col">
+              <span className="text-[9px] font-black uppercase tracking-wider text-cyan-700 dark:text-cyan-400 flex items-center gap-1">
+                <Clock size={10} />
+                TMA Médio
               </span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-sm sm:text-base font-black text-cyan-800 dark:text-cyan-300">
+                  {formatSeconds(metrics.avgSeconds)}
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Total Atendimentos */}
-          <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-900/40 flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-              <CheckCircle2 size={10} />
-              Concluídos
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-sm sm:text-base font-black text-emerald-800 dark:text-emerald-300">
-                {metrics.totalCount}
+            {/* Total Atendimentos */}
+            <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-900/40 flex flex-col">
+              <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 size={10} />
+                Concluídos
               </span>
-              <span className="text-[9px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">sessões</span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-sm sm:text-base font-black text-emerald-800 dark:text-emerald-300">
+                  {metrics.totalCount}
+                </span>
+                <span className="text-[9px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">sessões</span>
+              </div>
             </div>
-          </div>
 
-          {/* Tempo Total */}
-          <div className="p-2 rounded-xl bg-violet-50/60 dark:bg-violet-950/20 border border-violet-200/50 dark:border-violet-900/40 flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-wider text-violet-700 dark:text-violet-400 flex items-center gap-1">
-              <Timer size={10} />
-              Tempo Total
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-sm sm:text-base font-black text-violet-800 dark:text-violet-300">
-                {formatSeconds(metrics.totalSeconds)}
+            {/* Tempo Total */}
+            <div className="p-2 rounded-xl bg-violet-50/60 dark:bg-violet-950/20 border border-violet-200/50 dark:border-violet-900/40 flex flex-col">
+              <span className="text-[9px] font-black uppercase tracking-wider text-violet-700 dark:text-violet-400 flex items-center gap-1">
+                <Timer size={10} />
+                Tempo Total
               </span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-sm sm:text-base font-black text-violet-800 dark:text-violet-300">
+                  {formatSeconds(metrics.totalSeconds)}
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Mais Rápido */}
-          <div className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/40 flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1">
-              <Zap size={10} />
-              Mais Ágil
-            </span>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-sm sm:text-base font-black text-amber-800 dark:text-amber-300">
-                {metrics.totalCount > 0 ? formatSeconds(metrics.fastestSeconds) : '-'}
+            {/* Mais Rápido */}
+            <div className="p-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/40 flex flex-col">
+              <span className="text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                <Zap size={10} />
+                Mais Ágil
               </span>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-sm sm:text-base font-black text-amber-800 dark:text-amber-300">
+                  {metrics.totalCount > 0 ? formatSeconds(metrics.fastestSeconds) : '-'}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Seletor de Abas Internas */}
         <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-900/60 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-800/80 shrink-0">
@@ -365,19 +403,19 @@ export const SupportAttendanceWidget: React.FC<Props> = ({ orgId, onRemove }) =>
                   key={op.name}
                   className="p-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col gap-1.5 transition-colors hover:border-slate-200 dark:hover:border-slate-700/70"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${getAvatarColor(op.name)}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${getAvatarColor(op.name)} shrink-0`}>
                         {op.name.substring(0, 2).toUpperCase()}
                       </div>
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[160px]">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                         {op.name}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
                       <Tooltip content={`Tempo Médio de Atendimento de ${op.name}`} position="top">
-                        <div className="flex items-center gap-1 text-[11px] font-black text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 px-2 py-0.5 rounded-md">
+                        <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-black text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40 px-2 py-0.5 rounded-md">
                           <Clock size={10} />
                           TMA: {formatSeconds(op.avgSeconds)}
                         </div>
@@ -410,19 +448,19 @@ export const SupportAttendanceWidget: React.FC<Props> = ({ orgId, onRemove }) =>
                   key={sec.name}
                   className="p-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col gap-1.5 transition-colors hover:border-slate-200 dark:hover:border-slate-700/70"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                         <Layers size={12} />
                       </div>
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                         {sec.name}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto shrink-0">
                       <Tooltip content={`Tempo Médio de Atendimento do Setor ${sec.name}`} position="top">
-                        <div className="flex items-center gap-1 text-[11px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md">
+                        <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md">
                           <Clock size={10} />
                           TMA: {formatSeconds(sec.avgSeconds)}
                         </div>
@@ -453,7 +491,7 @@ export const SupportAttendanceWidget: React.FC<Props> = ({ orgId, onRemove }) =>
               {filteredSessions.slice(0, 30).map(s => (
                 <div
                   key={s.id}
-                  className="p-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 transition-colors hover:border-slate-200 dark:hover:border-slate-700/70"
+                  className="p-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 transition-colors hover:border-slate-200 dark:hover:border-slate-700/70"
                 >
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
@@ -463,7 +501,7 @@ export const SupportAttendanceWidget: React.FC<Props> = ({ orgId, onRemove }) =>
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
+                    <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 flex-wrap">
                       <span className="flex items-center gap-1 truncate">
                         <User size={10} className="text-slate-400" />
                         {s.resolved_by_name}
@@ -475,8 +513,8 @@ export const SupportAttendanceWidget: React.FC<Props> = ({ orgId, onRemove }) =>
                     </div>
                   </div>
 
-                  <div className="shrink-0 flex items-center">
-                    <span className="px-2 py-1 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200/60 dark:border-cyan-900/40 rounded-lg text-[11px] font-black flex items-center gap-1">
+                  <div className="shrink-0 flex items-center self-end sm:self-auto">
+                    <span className="px-2 py-1 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200/60 dark:border-cyan-900/40 rounded-lg text-[10px] sm:text-[11px] font-black flex items-center gap-1">
                       <Clock size={11} />
                       {s.duration_formatted || formatSeconds(s.duration_seconds)}
                     </span>

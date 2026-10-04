@@ -361,9 +361,9 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
       icon={<Building2 size={14} className="text-indigo-500" />}
       onRemove={onRemove}
       headerActions={
-        <div className="flex items-center gap-1.5 flex-wrap" onMouseDown={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
           {/* Alternador de Modo de Filtro (Por Tarefa vs Por Total do Cliente) */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded p-0.5 border border-slate-200/60 dark:border-slate-700/60">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded p-0.5 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
             <button
               onClick={() => setFilterMode('task')}
               className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold transition-all cursor-pointer ${
@@ -391,7 +391,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             content={filterMode === 'task' ? "Filtra tarefas e clientes pelo tempo de execução" : "Filtra clientes pelo tempo total acumulado"} 
             position="top"
           >
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
               <Filter size={10} className="text-indigo-500 shrink-0" />
               {filterMode === 'task' ? (
                 <select
@@ -421,7 +421,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             </div>
           </Tooltip>
 
-          <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
+          <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5 shrink-0">|</span>
 
           {/* Ordenação */}
           <Tooltip content="Alternar critério de ordenação" position="top">
@@ -433,7 +433,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                   prev === 'critical' ? 'name' : 'time'
                 );
               }}
-              className="h-6 px-1.5 flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+              className="h-6 px-1.5 flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer shrink-0"
             >
               <ArrowUpDown size={10} />
               <span>
@@ -444,48 +444,50 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             </button>
           </Tooltip>
 
-          <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
+          <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5 shrink-0">|</span>
 
           {/* Navegação de Mês */}
-          <Tooltip content="Mês anterior" position="top">
-            <button
-              onClick={() => navigatePeriod('prev')}
-              className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-            >
-              <ChevronLeft size={13} strokeWidth={2.5} />
-            </button>
-          </Tooltip>
-          <div className={`relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer transition-all ${
-            period === defaultPeriod ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
-          }`}>
-            <Calendar size={11} className="shrink-0 pointer-events-none" />
-            <input
-              type="month"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              style={{ colorScheme: 'light dark' }}
-            />
-            <span className="text-[11px] font-bold pointer-events-none whitespace-nowrap">{periodLabel}</span>
-          </div>
-          <Tooltip content="Próximo mês" position="top">
-            <button
-              onClick={() => navigatePeriod('next')}
-              className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-            >
-              <ChevronRight size={13} strokeWidth={2.5} />
-            </button>
-          </Tooltip>
-          {period !== defaultPeriod && (
-            <Tooltip content="Voltar ao mês padrão" position="top">
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip content="Mês anterior" position="top">
               <button
-                onClick={resetToDefaultPeriod}
-                className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                onClick={() => navigatePeriod('prev')}
+                className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
               >
-                Padrão
+                <ChevronLeft size={13} strokeWidth={2.5} />
               </button>
             </Tooltip>
-          )}
+            <div className={`relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer transition-all ${
+              period === defaultPeriod ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
+            }`}>
+              <Calendar size={11} className="shrink-0 pointer-events-none" />
+              <input
+                type="month"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                style={{ colorScheme: 'light dark' }}
+              />
+              <span className="text-[11px] font-bold pointer-events-none whitespace-nowrap">{periodLabel}</span>
+            </div>
+            <Tooltip content="Próximo mês" position="top">
+              <button
+                onClick={() => navigatePeriod('next')}
+                className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+              >
+                <ChevronRight size={13} strokeWidth={2.5} />
+              </button>
+            </Tooltip>
+            {period !== defaultPeriod && (
+              <Tooltip content="Voltar ao mês padrão" position="top">
+                <button
+                  onClick={resetToDefaultPeriod}
+                  className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                >
+                  Padrão
+                </button>
+              </Tooltip>
+            )}
+          </div>
         </div>
       }
     >
@@ -517,31 +519,31 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
         </div>
       ) : (
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-          {/* Top KPI Cards */}
-          <div className="grid grid-cols-4 gap-2 px-3 pt-3 pb-1 shrink-0">
+          {/* Top KPI Cards: 2x2 no Mobile e 4 colunas no Desktop */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-2.5 sm:px-3 pt-2.5 sm:pt-3 pb-1 shrink-0">
             <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                <Building2 size={10} /> Clientes Atendidos
+              <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1 truncate">
+                <Building2 size={10} className="shrink-0" /> Clientes Atendidos
               </span>
-              <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
+              <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
                 {totals.totalClientsWithTime} <span className="text-[10px] font-normal text-slate-400">/ {totals.totalClients}</span>
               </span>
             </div>
 
             <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <Clock size={10} /> Horas Totais
+              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
+                <Clock size={10} className="shrink-0" /> Horas Totais
               </span>
-              <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono">
+              <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono truncate">
                 {formatSecondsToFriendly(totals.sumSeconds)}
               </span>
             </div>
 
             <div className="bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1">
-                <Timer size={10} /> Média Geral / Cliente
+              <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1 truncate">
+                <Timer size={10} className="shrink-0" /> Média Geral
               </span>
-              <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono">
+              <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono truncate">
                 {formatSecondsToFriendly(totals.avgSecondsPerClient)}
               </span>
             </div>
@@ -559,7 +561,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                       ? 'bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/40'
                       : 'bg-slate-50/70 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700')
             }`}>
-              <span className={`text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+              <span className={`text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 truncate ${
                 filterMode === 'task'
                   ? (taskThreshold < 0 
                       ? 'text-emerald-600 dark:text-emerald-400' 
@@ -575,34 +577,34 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                 {filterMode === 'task' ? (
                   taskThreshold < 0 ? (
                     <>
-                      <Zap size={10} /> Alta Performance (&lt;{Math.round(absTaskThreshold/60)}m)
+                      <Zap size={10} className="shrink-0" /> Alta Perf. (&lt;{Math.round(absTaskThreshold/60)}m)
                     </>
                   ) : taskThreshold > 0 ? (
                     <>
-                      <Flame size={10} /> Gargalos (≥{Math.round(taskThreshold/60)}m)
+                      <Flame size={10} className="shrink-0" /> Gargalos (≥{Math.round(taskThreshold/60)}m)
                     </>
                   ) : (
                     <>
-                      <Clock size={10} /> Tarefas Totais
+                      <Clock size={10} className="shrink-0" /> Tarefas Totais
                     </>
                   )
                 ) : (
                   clientThreshold < 0 ? (
                     <>
-                      <Zap size={10} /> Alta Performance (&lt;{formatSecondsToFriendly(absClientThreshold)})
+                      <Zap size={10} className="shrink-0" /> Alta Perf. (&lt;{formatSecondsToFriendly(absClientThreshold)})
                     </>
                   ) : clientThreshold > 0 ? (
                     <>
-                      <Clock size={10} /> Total Cliente (≥{formatSecondsToFriendly(clientThreshold)})
+                      <Clock size={10} className="shrink-0" /> Total Cliente (≥{formatSecondsToFriendly(clientThreshold)})
                     </>
                   ) : (
                     <>
-                      <Building2 size={10} /> Todos os Clientes
+                      <Building2 size={10} className="shrink-0" /> Todos os Clientes
                     </>
                   )
                 )}
               </span>
-              <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
+              <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
                 {filterMode === 'task' ? (
                   <>
                     {totals.sumCriticalTasks} <span className="text-[10px] font-normal text-slate-400">tarefas</span>
@@ -617,7 +619,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
           </div>
 
           {/* Barra de Busca Rápida */}
-          <div className="px-3 pt-2 pb-1 shrink-0">
+          <div className="px-2.5 sm:px-3 pt-2 pb-1 shrink-0">
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
@@ -631,7 +633,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
           </div>
 
           {/* Lista de Clientes e suas Tarefas */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-2.5 min-h-0">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-2.5 sm:px-3 py-2 space-y-2.5 min-h-0">
             {filteredAndSortedMetrics.map((client) => {
               const isExpanded = expandedClientId === client.clientId;
               const relativePercent = Math.min(100, Math.round((client.totalSecondsSpent / maxClientSeconds) * 100));
@@ -653,10 +655,10 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                       : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
-                  {/* Header do Card do Cliente */}
+                  {/* Header do Card do Cliente: Responsivo em Mobile */}
                   <div
                     onClick={() => setExpandedClientId(isExpanded ? null : client.clientId)}
-                    className="p-3 cursor-pointer flex items-center justify-between gap-3 select-none"
+                    className="p-2.5 sm:p-3 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 select-none"
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 text-indigo-600 dark:text-indigo-400">
@@ -668,12 +670,12 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                             {client.clientName}
                           </span>
                           {client.taxRegime && (
-                            <span className="px-1.5 py-0.2 text-[8.5px] font-bold rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            <span className="px-1.5 py-0.2 text-[8.5px] font-bold rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shrink-0">
                               {TAX_REGIME_LABELS[client.taxRegime] || client.taxRegime}
                             </span>
                           )}
                           {filterMode === 'task' && client.criticalTasksCount > 0 && (
-                            <span className={`px-1.5 py-0.2 text-[8.5px] font-black rounded-full border flex items-center gap-0.5 ${
+                            <span className={`px-1.5 py-0.2 text-[8.5px] font-black rounded-full border flex items-center gap-0.5 shrink-0 ${
                               isTaskLessThan 
                                 ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
                                 : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/40'
@@ -699,24 +701,26 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     </div>
 
                     {/* Lado Direito: Média por Tarefa + Tempo Total + Ação */}
-                    <div className="flex items-center gap-3 shrink-0">
-                      {/* Métrica de Média por Tarefa neste Cliente */}
-                      <div className="flex flex-col items-end hidden sm:flex">
-                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Média / Tarefa</span>
-                        <span className="text-xs font-black text-sky-600 dark:text-sky-400 font-mono">
-                          {formatSecondsToFriendly(client.avgSecondsPerTask)}
-                        </span>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-100 dark:border-slate-800/80 sm:border-t-0 shrink-0">
+                      <div className="flex items-center gap-3">
+                        {/* Métrica de Média por Tarefa neste Cliente */}
+                        <div className="flex flex-col items-start sm:items-end">
+                          <span className="text-[8.5px] sm:text-[9px] text-slate-400 uppercase font-semibold">Média / Tarefa</span>
+                          <span className="text-xs font-black text-sky-600 dark:text-sky-400 font-mono">
+                            {formatSecondsToFriendly(client.avgSecondsPerTask)}
+                          </span>
+                        </div>
+
+                        {/* Tempo Total Gasto no Cliente */}
+                        <div className="flex flex-col items-start sm:items-end">
+                          <span className="text-[8.5px] sm:text-[9px] text-slate-400 uppercase font-semibold">Tempo Total</span>
+                          <span className="text-xs sm:text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">
+                            {formatSecondsToFriendly(client.totalSecondsSpent)}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Tempo Total Gasto no Cliente */}
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Tempo Total</span>
-                        <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">
-                          {formatSecondsToFriendly(client.totalSecondsSpent)}
-                        </span>
-                      </div>
-
-                      <div className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                      <div className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0">
                         {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </div>
                     </div>
@@ -738,8 +742,8 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
                   {/* Detalhes / Tarefas (Visível quando expandido) */}
                   {isExpanded && (
-                    <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-3 animate-in fade-in duration-150">
-                      <div className="flex items-center justify-between mb-2">
+                    <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-2.5 sm:p-3 animate-in fade-in duration-150">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1">
                         <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
                           {filterMode === 'client' ? (
                             <>
@@ -756,7 +760,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                           )}
                         </span>
                         <span className="text-[9.5px] text-slate-400 font-medium">
-                          {visibleTasks.length} {filterMode === 'task' ? `de ${client.tasks.length}` : ''} tarefa(s) • Média do cliente: {formatSecondsToFriendly(client.avgSecondsPerTask)}
+                          {visibleTasks.length} {filterMode === 'task' ? `de ${client.tasks.length}` : ''} tarefa(s) • Média: {formatSecondsToFriendly(client.avgSecondsPerTask)}
                         </span>
                       </div>
 
@@ -776,7 +780,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                           {visibleTasks.map((task) => (
                             <div
                               key={task.id}
-                              className="bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-2 text-xs shadow-xs"
+                              className="bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-xs"
                             >
                               <div className="flex items-center gap-2 min-w-0 flex-1">
                                 <div className="p-1 rounded bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 shrink-0">

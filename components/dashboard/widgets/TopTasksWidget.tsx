@@ -97,7 +97,7 @@ export const TopTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => {
       icon={<ListOrdered size={14} className="text-indigo-500" />}
       onRemove={onRemove}
       headerActions={
-        <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
           <Tooltip content="Mês anterior" position="top">
             <button
               onClick={() => navigatePeriod('prev')}
@@ -131,7 +131,7 @@ export const TopTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             <Tooltip content="Voltar ao mês padrão" position="top">
               <button
                 onClick={resetToDefaultPeriod}
-                className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors shrink-0"
               >
                 Padrão
               </button>

@@ -123,11 +123,11 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             icon={<BarChart2 size={14} className="text-indigo-500" />}
             onRemove={onRemove}
             headerActions={
-                <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+                <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
                     <Tooltip content={sortBy === 'atrasadas' ? 'Ordenando por atrasadas primeiro' : 'Alternar ordenação por atrasos'} position="top">
                         <button
                             onClick={() => setSortBy(prev => prev === 'total' ? 'atrasadas' : 'total')}
-                            className={`h-6 px-1.5 flex items-center gap-1 rounded text-[10px] font-bold transition-all ${
+                            className={`h-6 px-1.5 flex items-center gap-1 rounded text-[10px] font-bold transition-all shrink-0 ${
                                 sortBy === 'atrasadas' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900'
                             }`}
                         >
@@ -135,41 +135,43 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                             <span>{sortBy === 'atrasadas' ? 'Atrasos' : 'Volume'}</span>
                         </button>
                     </Tooltip>
-                    <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
-                    <Tooltip content="Mês anterior" position="top">
-                        <button
-                            onClick={() => navigatePeriod('prev')}
-                            className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                        >
-                            <ChevronLeft size={13} strokeWidth={2.5} />
-                        </button>
-                    </Tooltip>
-                    <div className={`relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer transition-all ${
-                        period === defaultPeriod ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
-                    }`}>
-                        <Calendar size={11} className="shrink-0 pointer-events-none" />
-                        <input
-                            type="month"
-                            value={period}
-                            onChange={(e) => setPeriod(e.target.value)}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                            style={{ colorScheme: 'light dark' }}
-                        />
-                        <span className="text-[11px] font-bold pointer-events-none whitespace-nowrap">{periodLabel}</span>
+                    <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5 shrink-0">|</span>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                        <Tooltip content="Mês anterior" position="top">
+                            <button
+                                onClick={() => navigatePeriod('prev')}
+                                className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                            >
+                                <ChevronLeft size={13} strokeWidth={2.5} />
+                            </button>
+                        </Tooltip>
+                        <div className={`relative flex items-center h-6 rounded px-1.5 sm:px-2 gap-1 cursor-pointer transition-all ${
+                            period === defaultPeriod ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
+                        }`}>
+                            <Calendar size={11} className="shrink-0 pointer-events-none" />
+                            <input
+                                type="month"
+                                value={period}
+                                onChange={(e) => setPeriod(e.target.value)}
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                style={{ colorScheme: 'light dark' }}
+                            />
+                            <span className="text-[11px] font-bold pointer-events-none whitespace-nowrap">{periodLabel}</span>
+                        </div>
+                        <Tooltip content="Próximo mês" position="top">
+                            <button
+                                onClick={() => navigatePeriod('next')}
+                                className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                            >
+                                <ChevronRight size={13} strokeWidth={2.5} />
+                            </button>
+                        </Tooltip>
                     </div>
-                    <Tooltip content="Próximo mês" position="top">
-                        <button
-                            onClick={() => navigatePeriod('next')}
-                            className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                        >
-                            <ChevronRight size={13} strokeWidth={2.5} />
-                        </button>
-                    </Tooltip>
                     {period !== defaultPeriod && (
                         <Tooltip content="Voltar ao mês padrão" position="top">
                             <button
                                 onClick={resetToDefaultPeriod}
-                                className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                                className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors shrink-0"
                             >
                                 Padrão
                             </button>
@@ -285,10 +287,10 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                         })}
                     </div>
 
-                    <div className="shrink-0 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 rounded-b-2xl">
+                    <div className="shrink-0 px-2.5 sm:px-4 py-2 sm:py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 rounded-b-2xl">
                         {selected ? (
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center justify-between gap-2 sm:gap-3">
+                                <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                                     <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${avatarColor(selected.name)} flex items-center justify-center shrink-0`}>
                                         <span className="text-[9px] font-black text-white">{getInitials(selected.name)}</span>
                                     </div>
@@ -297,14 +299,14 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                         <span className="text-[10px] text-slate-400">{selected.total} tarefas</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                                     {STATUS_ORDER.map(status => {
                                         const count = selected[status] || 0;
                                         if (!count) return null;
                                         const cfg = STATUS_CONFIG[status];
                                         return (
-                                            <div key={status} className="flex flex-col items-center gap-0.5">
-                                                <span className="text-sm font-black" style={{ color: cfg.color }}>{count}</span>
+                                            <div key={status} className="flex flex-col items-center gap-0.5 min-w-[20px]">
+                                                <span className="text-xs sm:text-sm font-black" style={{ color: cfg.color }}>{count}</span>
                                                 <span style={{ color: cfg.color }}>{cfg.icon}</span>
                                             </div>
                                         );
@@ -312,20 +314,20 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex items-center justify-between">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Total Geral</span>
-                                    <span className="text-sm font-black text-slate-700 dark:text-slate-200">{totals.total} tarefas</span>
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium uppercase tracking-wider truncate">Total Geral</span>
+                                    <span className="text-xs sm:text-sm font-black text-slate-700 dark:text-slate-200 whitespace-nowrap">{totals.total} tarefas</span>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                                     {[
                                         { count: totals.atrasada, color: '#ef4444', icon: <AlertTriangle size={10} /> },
                                         { count: totals.pendente, color: '#f59e0b', icon: <Clock size={10} /> },
                                         { count: totals.iniciada, color: '#3b82f6', icon: <Hourglass size={10} /> },
                                         { count: totals.concluida, color: '#10b981', icon: <CheckCircle2 size={10} /> },
                                     ].map(({ count, color, icon }, i) => (
-                                        <div key={i} className="flex flex-col items-center gap-0.5">
-                                            <span className="text-sm font-black leading-none" style={{ color }}>{count}</span>
+                                        <div key={i} className="flex flex-col items-center gap-0.5 min-w-[18px]">
+                                            <span className="text-xs sm:text-sm font-black leading-none" style={{ color }}>{count}</span>
                                             <span style={{ color }}>{icon}</span>
                                         </div>
                                     ))}

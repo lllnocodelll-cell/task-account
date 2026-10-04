@@ -161,7 +161,7 @@ export const MonthlyEvolutionWidget: React.FC<Props> = ({ orgId, onRemove }) => 
         icon={<Activity size={14} className="text-indigo-500" />} 
         onRemove={onRemove}
         headerActions={
-          <div className="flex items-center gap-1.5 mr-1" onMouseDown={e => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5 justify-end shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
             <div className="relative group">
               <select 
                 value={range}
@@ -177,7 +177,7 @@ export const MonthlyEvolutionWidget: React.FC<Props> = ({ orgId, onRemove }) => 
           </div>
         }
     >
-      <div className="flex-1 flex flex-col p-4 w-full h-full overflow-hidden">
+      <div className="flex-1 flex flex-col p-2.5 sm:p-4 w-full h-full overflow-hidden">
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-4">
             <div className="w-10 h-10 rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-indigo-500 animate-spin" />
@@ -198,9 +198,9 @@ export const MonthlyEvolutionWidget: React.FC<Props> = ({ orgId, onRemove }) => 
         ) : (
           <>
             {/* Header Indicators with Efficiency Rate */}
-            <div className="grid grid-cols-3 gap-2 mb-6 shrink-0">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mb-3 sm:mb-6 shrink-0">
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
                     Tarefas
                     <div className="group relative">
                         <Info size={10} className="text-slate-300" />
@@ -209,23 +209,23 @@ export const MonthlyEvolutionWidget: React.FC<Props> = ({ orgId, onRemove }) => 
                         </div>
                     </div>
                 </span>
-                <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
+                <span className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">
                   {stats.currentSum}
                 </span>
               </div>
 
-              <div className="flex flex-col border-x border-slate-100 dark:border-slate-800/80 px-2">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+              <div className="flex flex-col border-x border-slate-100 dark:border-slate-800/80 px-1 sm:px-2">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
                   Taxa Eficiência
                 </span>
-                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter leading-none">
+                <span className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter leading-none">
                   {stats.efficiencyRate.toFixed(0)}%
                 </span>
               </div>
               
               <div className="flex flex-col items-end">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 text-right">Variação</span>
-                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 text-right">Variação</span>
+                <div className={`flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg border ${
                   stats.isUp 
                     ? 'bg-emerald-50/50 dark:bg-emerald-500/5 border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400' 
                     : 'bg-rose-50/50 dark:bg-rose-500/5 border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400'

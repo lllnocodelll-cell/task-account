@@ -33,16 +33,25 @@ export const EconomicIndicesWidget: React.FC<{ onRemove?: () => void; orgId?: st
     };
 
     const syncWithBCB = async (currentIndices: EconomicIndex[]) => {
-        if (syncing) return;
+        if (syncing || !currentIndices || currentIndices.length === 0) return;
         setSyncing(true);
         try {
             const updated = await Promise.all(currentIndices.map(async (index) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
                 try {
                     // Busca os 2 últimos para garantir que pegamos o mês fechado se o atual for parcial
-                    const response = await fetch(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.${index.code}/dados/ultimos/2?formato=json`);
+                    const response = await fetch(
+                        `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${index.code}/dados/ultimos/2?formato=json`,
+                        { signal: controller.signal }
+                    );
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) return index;
+
                     const data = await response.json();
                     
-                    if (data && data.length > 0) {
+                    if (data && Array.isArray(data) && data.length > 0) {
                         let selectedData = data[data.length - 1];
                         
                         // Para índices mensais, se o último for o mês atual, pegamos o anterior (mês fechado)
@@ -69,33 +78,43 @@ export const EconomicIndicesWidget: React.FC<{ onRemove?: () => void; orgId?: st
                         
                         return { ...index, value: newValue, updated_at: formattedDate, last_sync: new Date().toISOString() };
                     }
-                } catch (e) {
-                    console.error(`Error syncing ${index.name}:`, e);
+                } catch {
+                    clearTimeout(timeoutId);
+                    // Silenciosamente ignora falhas de rede/DNS no cliente; o widget usa os dados do cache local (Supabase)
                 }
                 return index;
             }));
             setIndices(updated);
-        } catch (err) {
-            console.error("Erro geral na sincronização:", err);
+        } catch {
+            // Falha geral tratada silenciosamente para não poluir o console
         } finally {
             setSyncing(false);
         }
     };
 
     useEffect(() => {
+        let isMounted = true;
         const load = async () => {
             setLoading(true);
             const data = await fetchFromSupabase();
             
+            // Libera o loading imediatamente com os dados locais do Supabase
+            if (isMounted) {
+                setLoading(false);
+            }
+            
+            // Sincroniza em background apenas se necessário e se houver dados
             const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
             const needsSync = (data as EconomicIndex[]).some(idx => !idx.last_sync || new Date(idx.last_sync) < twelveHoursAgo);
             
             if (needsSync && (data as EconomicIndex[]).length > 0) {
-                await syncWithBCB(data as EconomicIndex[]);
+                syncWithBCB(data as EconomicIndex[]);
             }
-            setLoading(false);
         };
         load();
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     const categories = [

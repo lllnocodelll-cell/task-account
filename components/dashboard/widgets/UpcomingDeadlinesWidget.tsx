@@ -60,12 +60,12 @@ export const UpcomingDeadlinesWidget: React.FC<Props> = ({ orgId, onRemove }) =>
                             const formattedDate = dueObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
                             return (
-                                <li key={item.id} className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 flex justify-between items-center group">
-                                    <div className="overflow-hidden min-w-0 pr-2">
-                                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate" title={item.task_name}>{item.task_name}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate" title={item.client_name}>{item.client_name}</p>
+                                <li key={item.id} className="p-2 sm:p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-2 group">
+                                    <div className="overflow-hidden min-w-0 w-full sm:w-auto">
+                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" title={item.task_name}>{item.task_name}</p>
+                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate" title={item.client_name}>{item.client_name}</p>
                                     </div>
-                                    <div className={`flex-shrink-0 text-xs font-medium px-2 py-1 rounded-md ${isToday ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
+                                    <div className={`flex-shrink-0 self-end sm:self-auto text-[11px] font-bold px-2 py-0.5 rounded-md ${isToday ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
                                         {isToday ? 'Hoje' : formattedDate}
                                     </div>
                                 </li>

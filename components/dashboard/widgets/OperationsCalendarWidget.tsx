@@ -344,7 +344,7 @@ export const OperationsCalendarWidget: React.FC<Props> = ({ orgId, onRemove }) =
 
                         {/* Sub-Header Controles: Busca + Alternador de Visão + Filtros */}
                         <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 flex flex-col gap-2.5">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                 {/* Input de Busca */}
                                 <div className="relative flex-1">
                                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

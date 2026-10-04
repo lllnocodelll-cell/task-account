@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Users, Calendar, ChevronLeft, ChevronRight, Zap, Clock, CheckCircle2, Award, TrendingUp, AlertTriangle, ArrowUpDown, Timer, Pause } from 'lucide-react';
+import { Users, Calendar, ChevronLeft, ChevronRight, Zap, Clock, CheckCircle2, Award, TrendingUp, AlertTriangle, ArrowUpDown, Timer, Pause, Eye, EyeOff } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
 import { Tooltip } from '../../ui/Tooltip';
@@ -64,6 +64,23 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
   const [period, setPeriod] = useState(defaultPeriod);
   const [sortBy, setSortBy] = useState<'completed' | 'speed' | 'hours' | 'punctuality'>('completed');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [showMetrics, setShowMetrics] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('widget_show_metrics_collaborator');
+      if (saved !== null) return saved === 'true';
+    }
+    return true;
+  });
+
+  const toggleShowMetrics = () => {
+    setShowMetrics(prev => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('widget_show_metrics_collaborator', String(next));
+      }
+      return next;
+    });
+  };
 
   const navigatePeriod = (direction: 'prev' | 'next') => {
     const base = period || defaultPeriod;
@@ -292,7 +309,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
       icon={<TrendingUp size={14} className="text-indigo-500" />}
       onRemove={onRemove}
       headerActions={
-        <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
           <Tooltip content="Alternar critério de ordenação" position="top">
             <button
               onClick={() => {
@@ -302,7 +319,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
                   prev === 'hours' ? 'punctuality' : 'completed'
                 );
               }}
-              className="h-6 px-1.5 flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
+              className="h-6 px-1.5 flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer shrink-0"
             >
               <ArrowUpDown size={10} />
               <span>
@@ -313,45 +330,61 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
             </button>
           </Tooltip>
           <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
-          <Tooltip content="Mês anterior" position="top">
-            <button
-              onClick={() => navigatePeriod('prev')}
-              className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-            >
-              <ChevronLeft size={13} strokeWidth={2.5} />
-            </button>
-          </Tooltip>
-          <div className={`relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer transition-all ${
-            period === defaultPeriod ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
-          }`}>
-            <Calendar size={11} className="shrink-0 pointer-events-none" />
-            <input
-              type="month"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              style={{ colorScheme: 'light dark' }}
-            />
-            <span className="text-[11px] font-bold pointer-events-none whitespace-nowrap">{periodLabel}</span>
-          </div>
-          <Tooltip content="Próximo mês" position="top">
-            <button
-              onClick={() => navigatePeriod('next')}
-              className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-            >
-              <ChevronRight size={13} strokeWidth={2.5} />
-            </button>
-          </Tooltip>
-          {period !== defaultPeriod && (
-            <Tooltip content="Voltar ao mês padrão" position="top">
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip content="Mês anterior" position="top">
               <button
-                onClick={resetToDefaultPeriod}
-                className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                onClick={() => navigatePeriod('prev')}
+                className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
               >
-                Padrão
+                <ChevronLeft size={13} strokeWidth={2.5} />
               </button>
             </Tooltip>
-          )}
+            <div className={`relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer transition-all ${
+              period === defaultPeriod ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
+            }`}>
+              <Calendar size={11} className="shrink-0 pointer-events-none" />
+              <input
+                type="month"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                style={{ colorScheme: 'light dark' }}
+              />
+              <span className="text-[11px] font-bold pointer-events-none whitespace-nowrap">{periodLabel}</span>
+            </div>
+            <Tooltip content="Próximo mês" position="top">
+              <button
+                onClick={() => navigatePeriod('next')}
+                className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+              >
+                <ChevronRight size={13} strokeWidth={2.5} />
+              </button>
+            </Tooltip>
+            {period !== defaultPeriod && (
+              <Tooltip content="Voltar ao mês padrão" position="top">
+                <button
+                  onClick={resetToDefaultPeriod}
+                  className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                >
+                  Padrão
+                </button>
+              </Tooltip>
+            )}
+          </div>
+          <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
+          <Tooltip content={showMetrics ? "Ocultar resumo de métricas" : "Exibir resumo de métricas"} position="top">
+            <button
+              onClick={toggleShowMetrics}
+              className={`h-6 w-6 flex items-center justify-center rounded transition-colors shrink-0 ${
+                showMetrics 
+                  ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400' 
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              aria-label={showMetrics ? "Ocultar resumo" : "Exibir resumo"}
+            >
+              {showMetrics ? <Eye size={12} strokeWidth={2.4} /> : <EyeOff size={12} strokeWidth={2.4} />}
+            </button>
+          </Tooltip>
         </div>
       }
     >
@@ -369,47 +402,49 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
         </div>
       ) : (
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-          {/* Header KPI Cards */}
-          <div className="grid grid-cols-4 gap-2 px-3 pt-3 pb-1 shrink-0">
-            <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                <CheckCircle2 size={10} /> Entregas
-              </span>
-              <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {teamTotals.totalCompleted} <span className="text-[10px] font-normal text-slate-400">/ {teamTotals.totalAssigned}</span>
-              </span>
-            </div>
+          {/* Header KPI Cards: 2x2 no Mobile e 4 colunas no Desktop (Ocultável) */}
+          {showMetrics && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-2.5 sm:px-3 pt-2.5 sm:pt-3 pb-1 shrink-0 animate-in fade-in duration-200">
+              <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-2 flex flex-col">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1 truncate">
+                  <CheckCircle2 size={10} className="shrink-0" /> Entregas
+                </span>
+                <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
+                  {teamTotals.totalCompleted} <span className="text-[10px] font-normal text-slate-400">/ {teamTotals.totalAssigned}</span>
+                </span>
+              </div>
 
-            <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <Zap size={10} /> Média Diária
-              </span>
-              <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {teamTotals.avgDailyTeam % 1 === 0 ? teamTotals.avgDailyTeam.toFixed(0) : teamTotals.avgDailyTeam.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">/dia</span>
-              </span>
-            </div>
+              <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-xl p-2 flex flex-col">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
+                  <Zap size={10} className="shrink-0" /> Média Diária
+                </span>
+                <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
+                  {teamTotals.avgDailyTeam % 1 === 0 ? teamTotals.avgDailyTeam.toFixed(0) : teamTotals.avgDailyTeam.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">/dia</span>
+                </span>
+              </div>
 
-            <div className="bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1">
-                <Timer size={10} /> Tempo Médio
-              </span>
-              <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {formatSecondsToFriendly(teamTotals.avgTeamSec)}
-              </span>
-            </div>
+              <div className="bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 rounded-xl p-2 flex flex-col">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1 truncate">
+                  <Timer size={10} className="shrink-0" /> Tempo Médio
+                </span>
+                <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono truncate">
+                  {formatSecondsToFriendly(teamTotals.avgTeamSec)}
+                </span>
+              </div>
 
-            <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Clock size={10} /> Total Equipe
-              </span>
-              <span className="text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {formatSecondsToFriendly(teamTotals.totalTeamSeconds)}
-              </span>
+              <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 rounded-xl p-2 flex flex-col">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1 truncate">
+                  <Clock size={10} className="shrink-0" /> Total Equipe
+                </span>
+                <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono truncate">
+                  {formatSecondsToFriendly(teamTotals.totalTeamSeconds)}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Lista de Colaboradores */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-2 min-h-0">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-2.5 sm:px-3 py-2 space-y-2 min-h-0">
             {sortedMetrics.map((item, idx) => {
               const isHovered = hoveredIndex === idx;
               const isPunctual = item.punctualityRate >= 90;
@@ -420,66 +455,68 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
                   key={idx}
                   onMouseEnter={() => setHoveredIndex(idx)}
                   onMouseLeave={() => setHoveredIndex(null)}
-                  className={`w-full rounded-xl p-3 border transition-all duration-200 ${
+                  className={`w-full rounded-xl p-2.5 sm:p-3 border transition-all duration-200 ${
                     isHovered
                       ? 'bg-white dark:bg-slate-800 border-indigo-300 dark:border-indigo-700 shadow-md ring-1 ring-indigo-400/30'
                       : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
+                  {/* Container Responsivo: Vertical no Mobile / Horizontal no Desktop */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                    {/* Topo no Mobile / Esquerda no Desktop: Avatar e Dados do Colaborador */}
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarColor(item.name)} flex items-center justify-center shrink-0 shadow-sm`}>
                         <span className="text-xs font-black text-white">{getInitials(item.name)}</span>
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-1.5">
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
                             {item.name}
                           </span>
                           {idx === 0 && sortBy === 'completed' && item.completed > 0 && (
-                            <span className="px-1.5 py-0.2 text-[8px] font-black rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            <span className="px-1.5 py-0.2 text-[8px] font-black rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
                               🏆 1º Lugar
                             </span>
                           )}
                           {isWarning && (
-                            <span className="px-1 py-0.2 text-[8px] font-bold rounded bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                            <span className="px-1 py-0.2 text-[8px] font-bold rounded bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 shrink-0">
                               ⚠️ {item.delayed} atraso(s)
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-slate-400 font-medium">
+                        <span className="text-[10px] text-slate-400 font-medium truncate">
                           {item.completed} de {item.total} concluídas ({item.completionRate.toFixed(0)}%)
                         </span>
                       </div>
                     </div>
 
-                    {/* Métricas do Colaborador */}
-                    <div className="flex items-center gap-3 shrink-0">
+                    {/* Fundo no Mobile / Direita no Desktop: 4 Métricas Perfeitamente Distribuídas */}
+                    <div className="grid grid-cols-4 sm:flex items-center gap-2 sm:gap-3 pt-2 sm:pt-0 border-t border-slate-100 dark:border-slate-800/80 sm:border-t-0 shrink-0 bg-slate-100/60 dark:bg-slate-800/40 sm:bg-transparent p-2 sm:p-0 rounded-lg sm:rounded-none">
                       <Tooltip content={`Média de ${item.completed} tarefa(s) concluída(s) em ${item.activeDaysCount} dia(s) trabalhado(s)`} position="top">
-                        <div className="flex flex-col items-end">
-                          <span className="text-[9px] text-slate-400 uppercase font-semibold">Média Diária</span>
+                        <div className="flex flex-col items-center sm:items-end">
+                          <span className="text-[8.5px] sm:text-[9px] text-slate-400 uppercase font-semibold text-center sm:text-right">Média</span>
                           <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">
-                            {item.avgDailyRate % 1 === 0 ? item.avgDailyRate.toFixed(0) : item.avgDailyRate.toFixed(1)}/dia
+                            {item.avgDailyRate % 1 === 0 ? item.avgDailyRate.toFixed(0) : item.avgDailyRate.toFixed(1)}/d
                           </span>
                         </div>
                       </Tooltip>
 
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Tempo Médio</span>
+                      <div className="flex flex-col items-center sm:items-end">
+                        <span className="text-[8.5px] sm:text-[9px] text-slate-400 uppercase font-semibold text-center sm:text-right">Tempo Médio</span>
                         <span className="text-xs font-black text-slate-700 dark:text-slate-200 font-mono">
                           {formatSecondsToFriendly(item.avgCompletionSeconds)}
                         </span>
                       </div>
 
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Total Dedicado</span>
+                      <div className="flex flex-col items-center sm:items-end">
+                        <span className="text-[8.5px] sm:text-[9px] text-slate-400 uppercase font-semibold text-center sm:text-right">Total Horas</span>
                         <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
                           {formatSecondsToFriendly(item.totalSecondsSpent)}
                         </span>
                       </div>
 
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-400 uppercase font-semibold">Prazo</span>
+                      <div className="flex flex-col items-center sm:items-end">
+                        <span className="text-[8.5px] sm:text-[9px] text-slate-400 uppercase font-semibold text-center sm:text-right">No Prazo</span>
                         <span className={`text-xs font-black ${
                           isPunctual ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                         }`}>
@@ -497,9 +534,9 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
                     />
                   </div>
 
-                  {/* Detalhes Expandidos ao Passar o Mouse */}
+                  {/* Detalhes Expandidos ao Passar o Mouse ou Foco */}
                   {isHovered && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 grid grid-cols-5 gap-2 text-center text-[10px] animate-in fade-in zoom-in-95 duration-150">
+                    <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 sm:grid-cols-5 gap-1.5 sm:gap-2 text-center text-[10px] animate-in fade-in zoom-in-95 duration-150">
                       <div className="bg-slate-100/60 dark:bg-slate-800/60 p-1.5 rounded-lg">
                         <span className="text-slate-400 block font-medium">Pendentes</span>
                         <span className="font-bold text-slate-600 dark:text-slate-300">{item.pending}</span>
@@ -516,7 +553,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
                         <span className="text-slate-400 block font-medium">Atrasadas</span>
                         <span className="font-bold text-red-600 dark:text-red-400">{item.delayed}</span>
                       </div>
-                      <div className="bg-slate-100/60 dark:bg-slate-800/60 p-1.5 rounded-lg">
+                      <div className="bg-slate-100/60 dark:bg-slate-800/60 p-1.5 rounded-lg col-span-2 sm:col-span-1">
                         <span className="text-slate-400 block font-medium">No Prazo</span>
                         <span className="font-bold text-emerald-600 dark:text-emerald-400">{item.onTimeCompleted}</span>
                       </div>

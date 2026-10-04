@@ -255,8 +255,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                   company_name: officeCompanyName || 'Meu Escritório de Contabilidade',
                   plan_name: selectedNewPlan,
                   plan_value: val,
-                  storage_limit_gb: limitGb,
-                  storage_used_bytes: officeStorageUsedBytes
+                  storage_limit_gb: limitGb
                });
 
             if (error) throw error;
@@ -305,7 +304,6 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
          plan_name: officePlanName,
          plan_value: val,
          storage_limit_gb: limitGb,
-         storage_used_bytes: Math.round(officeStorageUsedBytes),
          contract_url: officeContractUrl,
          updated_at: new Date().toISOString()
       };
@@ -716,36 +714,101 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
             </div>
 
             <div className="lg:col-span-2">
-               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm min-h-[500px]">
-                  <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
-                     <button
-                        onClick={() => setActiveTab('personal')}
-                        className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'personal' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                     >
-                        <User size={18} /> Dados Pessoais
-                     </button>
-                     <button
-                        onClick={() => setActiveTab('security')}
-                        className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'security' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                     >
-                        <Shield size={18} /> Segurança
-                     </button>
-                     {profile?.client_ids && profile.client_ids.length > 0 && (
+               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm min-h-[500px]">
+                  {/* Barra de Abas no estilo moderno padrão do formulário de clientes */}
+                  <div className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 p-2 sm:p-2.5 overflow-x-auto custom-scrollbar">
+                     <div className="flex items-center gap-1.5 sm:gap-2 w-max sm:w-auto">
+                        {/* Aba: Dados Pessoais */}
                         <button
-                           onClick={() => setActiveTab('companies')}
-                           className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'companies' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                           type="button"
+                           onClick={() => setActiveTab('personal')}
+                           className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
+                              activeTab === 'personal'
+                                 ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
+                           }`}
                         >
-                           <Building2 size={18} /> Minhas Empresas
+                           <span className={`p-1 rounded-lg transition-colors ${
+                              activeTab === 'personal'
+                                 ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                 : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                           }`}>
+                              <User size={14} strokeWidth={activeTab === 'personal' ? 2.3 : 1.8} />
+                           </span>
+                           <span className="text-[11px] font-black uppercase tracking-wider">Dados Pessoais</span>
                         </button>
-                     )}
-                     {profile?.role !== 'cliente' && (
+
+                        {/* Aba: Segurança */}
                         <button
-                           onClick={() => setActiveTab('office')}
-                           className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${activeTab === 'office' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                           type="button"
+                           onClick={() => setActiveTab('security')}
+                           className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
+                              activeTab === 'security'
+                                 ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
+                           }`}
                         >
-                           <Building2 size={18} /> Escritório
+                           <span className={`p-1 rounded-lg transition-colors ${
+                              activeTab === 'security'
+                                 ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                 : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                           }`}>
+                              <Shield size={14} strokeWidth={activeTab === 'security' ? 2.3 : 1.8} />
+                           </span>
+                           <span className="text-[11px] font-black uppercase tracking-wider">Segurança</span>
                         </button>
-                     )}
+
+                        {/* Aba: Minhas Empresas (condicional) */}
+                        {profile?.client_ids && profile.client_ids.length > 0 && (
+                           <button
+                              type="button"
+                              onClick={() => setActiveTab('companies')}
+                              className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
+                                 activeTab === 'companies'
+                                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
+                              }`}
+                           >
+                              <span className={`p-1 rounded-lg transition-colors ${
+                                 activeTab === 'companies'
+                                    ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                    : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                              }`}>
+                                 <Building2 size={14} strokeWidth={activeTab === 'companies' ? 2.3 : 1.8} />
+                              </span>
+                              <span className="text-[11px] font-black uppercase tracking-wider">Minhas Empresas</span>
+                              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black transition-colors ${
+                                 activeTab === 'companies'
+                                    ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
+                                    : 'bg-slate-200/70 dark:bg-slate-700/70 text-slate-600 dark:text-slate-400'
+                              }`}>
+                                 {profile.client_ids.length}
+                              </span>
+                           </button>
+                        )}
+
+                        {/* Aba: Escritório (condicional) */}
+                        {profile?.role !== 'cliente' && (
+                           <button
+                              type="button"
+                              onClick={() => setActiveTab('office')}
+                              className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
+                                 activeTab === 'office'
+                                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
+                              }`}
+                           >
+                              <span className={`p-1 rounded-lg transition-colors ${
+                                 activeTab === 'office'
+                                    ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                                    : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                              }`}>
+                                 <Building2 size={14} strokeWidth={activeTab === 'office' ? 2.3 : 1.8} />
+                              </span>
+                              <span className="text-[11px] font-black uppercase tracking-wider">Escritório</span>
+                           </button>
+                        )}
+                     </div>
                   </div>
 
                   <div className="p-6">
@@ -1373,7 +1436,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                                                   }}
                                                                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shrink-0 cursor-pointer"
                                                                >
-                                                                  Alterar Plano / Upgrade
+                                                                  Upgrade Plano
                                                                </button>
                                                             )}
                                                          </div>

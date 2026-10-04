@@ -264,17 +264,17 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
   });
 
   const headerActions = (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center justify-end gap-1.5 shrink-0 flex-nowrap">
       {/* Busca Rápida */}
       {showSearch ? (
-        <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-0.5 shadow-sm animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-0.5 shadow-sm animate-in fade-in zoom-in-95 duration-150 flex-1 sm:flex-initial">
           <Search size={12} className="text-slate-400 mr-1 shrink-0" />
           <input
             type="text"
             placeholder="Buscar nota..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-24 sm:w-32 bg-transparent text-[11px] text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400"
+            className="w-full sm:w-32 bg-transparent text-[11px] text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400"
             autoFocus
           />
           <button 
@@ -288,7 +288,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
         <Tooltip content="Buscar anotações" position="top">
           <button
             onClick={() => setShowSearch(true)}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 sm:p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <Search size={13} />
           </button>
@@ -299,7 +299,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
       <Tooltip content={viewMode === 'active' ? 'Ver arquivadas' : 'Ver ativas'} position="top">
         <button
           onClick={() => setViewMode(prev => prev === 'active' ? 'archived' : 'active')}
-          className={`p-1 rounded-md transition-colors ${
+          className={`p-1.5 sm:p-1 rounded-md transition-colors ${
             viewMode === 'archived' 
               ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' 
               : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -313,10 +313,10 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
       <Tooltip content="Criar nova anotação" position="top">
         <button
           onClick={handleOpenNew}
-          className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-lg text-[10px] font-bold shadow-sm transition-all ml-0.5"
+          className="flex items-center gap-1 px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-lg text-[10px] font-bold shadow-sm transition-all ml-0.5 shrink-0"
         >
           <Plus size={12} strokeWidth={2.5} />
-          <span className="hidden sm:inline">Nova</span>
+          <span>Nova</span>
         </button>
       </Tooltip>
     </div>
@@ -362,13 +362,14 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
               placeholder="Escreva sua anotação ou lembrete..."
               value={currentNote.content || ''}
               onChange={(e) => setCurrentNote(prev => ({ ...prev, content: e.target.value }))}
-              className="w-full bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 min-h-[160px] max-h-[320px] resize-y custom-scrollbar leading-relaxed"
-              rows={6}
+              className="w-full bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 min-h-[140px] sm:min-h-[160px] max-h-[320px] resize-y custom-scrollbar leading-relaxed"
+              rows={5}
             />
 
-            <div className="flex items-center justify-between pt-1">
+            {/* Rodapé do Formulário: Flex-col no mobile para não cortar Salvar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-1 gap-2.5 sm:gap-2">
               {/* Paleta de Cores */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {(Object.keys(NOTE_COLORS) as NoteColor[]).map((colorKey) => (
                   <button
                     key={colorKey}
@@ -384,12 +385,12 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
               </div>
 
               {/* Botões de Ação */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
                   disabled={isSaving}
-                  className="px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+                  className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
                 >
                   Cancelar
                 </button>
@@ -397,9 +398,9 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ userId, onRemove }) =>
                   type="button"
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="flex items-center gap-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-lg text-xs font-bold shadow-sm transition-all disabled:opacity-50 shrink-0"
                 >
-                  {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                  {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                   Salvar
                 </button>
               </div>

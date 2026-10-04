@@ -5878,7 +5878,7 @@ export const Chat: React.FC = () => {
 
               {/* Botão de Alternância de Atendimento Privado (Visível apenas para Gestores no Atendimento de Suporte) */}
               {selectedChannel.type === 'support' && currentUser?.role === 'gestor' && (
-                <Tooltip content={selectedChannel.is_private ? "Desativar Modo Privado (Tornar Público)" : "Ativar Modo Privado (Visível Apenas para Gestores e Cliente)"} position="bottom">
+                <Tooltip content={selectedChannel.is_private ? "Desativar Modo Privado (Tornar Público)" : "Tornar Privado (Visível Apenas para Gestores)"} position="bottom">
                   <button
                     onClick={async () => {
                       const nextPrivateState = !selectedChannel.is_private;
@@ -5905,22 +5905,17 @@ export const Chat: React.FC = () => {
                           } as any);
                       }
                     }}
-                    className={`p-2 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold ${
+                    className={`p-2 rounded-lg transition-all flex items-center justify-center ${
                       selectedChannel.is_private 
-                        ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 shadow-sm' 
+                        ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 shadow-xs' 
                         : 'text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
+                    aria-label={selectedChannel.is_private ? "Modo Privado Ativo" : "Tornar Privado"}
                   >
                     {selectedChannel.is_private ? (
-                      <>
-                        <Lock size={16} className="text-amber-500 shrink-0" />
-                        <span className="hidden md:inline">Modo Privado</span>
-                      </>
+                      <Lock size={18} className="text-amber-500 shrink-0" />
                     ) : (
-                      <>
-                        <Unlock size={16} className="shrink-0" />
-                        <span className="hidden md:inline">Tornar Privado</span>
-                      </>
+                      <Unlock size={18} className="shrink-0" />
                     )}
                   </button>
                 </Tooltip>

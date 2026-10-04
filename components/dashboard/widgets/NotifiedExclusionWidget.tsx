@@ -130,7 +130,7 @@ export const NotifiedExclusionWidget: React.FC<Props> = ({ orgId, onRemove }) =>
                                 <Tooltip content="Remover notificação" position="top">
                                     <button
                                         onClick={(e) => handleDisableNotification(e, item.clientId, item.competence)}
-                                        className="absolute top-3 right-3 p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-slate-700"
+                                        className="absolute top-3 right-3 p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-800 rounded-md shadow-sm border border-slate-200 dark:border-slate-700"
                                     >
                                         <X size={14} />
                                     </button>

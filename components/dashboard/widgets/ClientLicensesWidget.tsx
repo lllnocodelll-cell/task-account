@@ -170,29 +170,29 @@ export const ClientLicensesWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     };
 
     const headerActions = (
-        <div className="flex items-center gap-1">
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold" onMouseDown={e => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5 justify-end shrink-0 flex-nowrap">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold overflow-x-auto no-scrollbar shrink min-w-0" onMouseDown={e => e.stopPropagation()}>
                 <button
                     onClick={() => setFilter('criticos')}
-                    className={`px-2 py-1 rounded transition-colors ${filter === 'criticos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-2 py-1 rounded transition-colors whitespace-nowrap shrink-0 ${filter === 'criticos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     Críticos ({counts.vencidos + counts.trintaDias})
                 </button>
                 <button
                     onClick={() => setFilter('vencidos')}
-                    className={`px-2 py-1 rounded transition-colors ${filter === 'vencidos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-2 py-1 rounded transition-colors whitespace-nowrap shrink-0 ${filter === 'vencidos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     Vencidos ({counts.vencidos})
                 </button>
                 <button
                     onClick={() => setFilter('30dd')}
-                    className={`px-2 py-1 rounded transition-colors ${filter === '30dd' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-2 py-1 rounded transition-colors whitespace-nowrap shrink-0 ${filter === '30dd' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     30d ({counts.trintaDias})
                 </button>
                 <button
                     onClick={() => setFilter('todos')}
-                    className={`px-2 py-1 rounded transition-colors ${filter === 'todos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`px-2 py-1 rounded transition-colors whitespace-nowrap shrink-0 ${filter === 'todos' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                     Todos ({counts.total})
                 </button>
@@ -244,17 +244,17 @@ export const ClientLicensesWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     ) : (
                         <ul className="space-y-2 pb-2">
                             {filteredData.map((item) => (
-                                <li key={item.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex justify-between items-center group">
-                                    <div className="overflow-hidden min-w-0 pr-2">
+                                <li key={item.id} className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-2 group">
+                                    <div className="overflow-hidden min-w-0 w-full sm:w-auto">
                                         <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate" title={item.clientName}>
                                             {item.clientName}
                                         </p>
                                         <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                                            <span className="bg-slate-200/70 dark:bg-slate-700 px-1 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={item.licenseName}>{item.licenseName}</span>
+                                            <span className="bg-slate-200/70 dark:bg-slate-700 px-1 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 truncate max-w-[120px] shrink-0" title={item.licenseName}>{item.licenseName}</span>
                                             <span className="truncate">Nº: {item.licenseNumber}</span>
                                         </div>
                                     </div>
-                                    <div className="flex-shrink-0 text-right flex flex-col items-end gap-1">
+                                    <div className="flex-shrink-0 w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 pt-1.5 sm:pt-0 border-t border-slate-200/60 dark:border-slate-700/60 sm:border-0">
                                         <span className={`px-2 py-0.5 rounded-full text-[9px] border uppercase tracking-wider ${getStatusStyle(item.situation)}`}>
                                             {formatBadgeText(item)}
                                         </span>
