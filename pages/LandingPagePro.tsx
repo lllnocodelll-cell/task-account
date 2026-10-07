@@ -1124,16 +1124,41 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
       )}
 
       {/* ─── HERO SECTION: ARQUITETURA TÉCNICA + DISPLAY GIGANTE ─── */}
-      <section className="relative pt-20 sm:pt-28 md:pt-32 pb-8 sm:pb-12 px-3 sm:px-8 overflow-hidden">
+      <section className="relative pt-28 sm:pt-36 md:pt-40 lg:pt-44 pb-8 sm:pb-12 px-3 sm:px-8 overflow-hidden">
         
-        {/* Iluminação Zenital & Grid de Engenharia de Fundo */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {/* Glow sutil central */}
-          <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-amber-400/15 via-yellow-400/5 to-transparent dark:from-yellow-500/10 dark:via-amber-500/5 dark:to-transparent rounded-full blur-[140px]" />
+        {/* ─── VÍDEO DE FUNDO ULTRA-RESPONSIVO & COMPOSIÇÃO DE CAMADAS ─── */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <video
+            key="/hero-video.mp4"
+            ref={(el) => {
+              if (el) el.muted = true;
+            }}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            poster="/hero-bg.png"
+            className="w-full h-full object-cover object-center transform-gpu scale-[1.02] opacity-90 dark:opacity-85 transition-opacity duration-700 pointer-events-none"
+          >
+            <source src="/hero-video.mp4" type="video/mp4" />
+          </video>
+
+          {/* Camada de Gradiente & Vinheta calibrada para brilho e contraste */}
+          <div 
+            className={`absolute inset-0 transition-colors duration-500 ${
+              isDarkMode 
+                ? 'bg-gradient-to-b from-[#0B0E14]/60 via-[#0B0E14]/35 to-[#0B0E14]' 
+                : 'bg-gradient-to-b from-white/55 via-white/20 to-slate-100/90'
+            }`} 
+          />
+
+          {/* Glow sutil central de iluminação zenital */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] sm:w-[1100px] h-[550px] bg-gradient-to-b from-amber-400/20 via-yellow-400/10 to-transparent dark:from-yellow-400/15 dark:via-amber-500/5 dark:to-transparent rounded-full blur-[140px] pointer-events-none" />
           
           {/* Grid de linhas técnicas sutis */}
           <div 
-            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.035]"
+            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.035] pointer-events-none"
             style={{
               backgroundImage: isDarkMode 
                 ? 'linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)'
@@ -1141,34 +1166,52 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               backgroundSize: '48px 48px',
             }}
           />
+
+          {/* Fade suave na base da Hero conectando organicamente com a próxima seção */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-100/90 dark:from-[#0D1017] to-transparent pointer-events-none" />
         </div>
 
         <div className="max-w-7xl mx-auto relative z-10">
-          
-          {/* Tag de Status Técnica Superior */}
-          <div className="flex justify-center mb-4 sm:mb-6">
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-amber-50 dark:bg-[#161D2B] border border-amber-300/70 dark:border-yellow-500/30 text-amber-900 dark:text-yellow-400 text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm dark:shadow-lg dark:shadow-black/50">
-              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-amber-500 dark:bg-yellow-400 animate-pulse" />
-              <span>SISTEMA DE GESTÃO OPERACIONAL CONTÁBIL</span>
+          {/* TÍTULO HERO DISPLAY: [⚡] Gestão de Tarefas Contábeis (Saindo de dentro do Raio) */}
+          <div className="flex justify-center mb-5 sm:mb-7 px-2">
+            <div className="relative inline-flex items-center group max-w-full">
+              
+              {/* O NÚCLEO: Logo do Raio com Efeito Glow Energético */}
+              <motion.div 
+                initial={{ scale: 0.85, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="relative z-20 shrink-0 w-11 h-11 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-22 lg:h-22 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 rounded-xl sm:rounded-3xl flex items-center justify-center shadow-[0_0_35px_rgba(250,204,21,0.6)] border border-yellow-200/90 group-hover:scale-105 group-hover:rotate-2 transition-transform duration-300"
+              >
+                {/* Halo de pulso sutil */}
+                <div className="absolute inset-0 rounded-xl sm:rounded-3xl bg-yellow-400/30 animate-ping pointer-events-none" style={{ animationDuration: '3.5s' }} />
+                <Zap size={22} className="fill-slate-950 stroke-slate-950 sm:hidden" />
+                <Zap size={36} className="fill-slate-950 stroke-slate-950 hidden sm:block md:scale-110" />
+              </motion.div>
+
+              {/* O FLUXO: O texto se projeta / emerge de dentro do raio */}
+              <motion.div 
+                initial={{ opacity: 0, x: -32 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 1.1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="relative z-10 -ml-4 sm:-ml-6 md:-ml-8 pl-6 sm:pl-9 md:pl-11 pr-4 sm:pr-8 md:pr-10 py-2 sm:py-3.5 md:py-4 rounded-2xl sm:rounded-3xl bg-white/75 dark:bg-[#0E131F]/30 backdrop-blur-md border border-amber-300/50 dark:border-white/10 shadow-xl shadow-slate-900/10 dark:shadow-black/50 overflow-hidden"
+              >
+                {/* Linha de energia sutil na borda superior conectando ao raio */}
+                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-yellow-400 via-amber-400/40 to-transparent" />
+                
+                <h1 className="text-xl xs:text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.1] sm:leading-tight dark:drop-shadow-[0_4px_18px_rgba(0,0,0,0.7)] text-left flex flex-wrap items-center gap-x-2 sm:gap-x-3">
+                  <span>Gestão de Tarefas</span>
+                  <span className="text-amber-500 dark:text-yellow-400 underline decoration-amber-400/40 decoration-2 sm:decoration-4 underline-offset-4 sm:underline-offset-8">
+                    Contábeis
+                  </span>
+                </h1>
+              </motion.div>
+
             </div>
           </div>
 
-          {/* TÍTULO HERO DISPLAY: Gestão ⚡ Contábil */}
-          <div className="text-center mb-4 sm:mb-6">
-            <h1 className="text-4xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.05] sm:leading-[0.95] flex items-center justify-center flex-wrap gap-x-2.5 sm:gap-x-8">
-              <span>Gestão</span>
-              <span className="inline-flex items-center justify-center align-middle my-0.5 sm:my-1">
-                <div className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 rounded-xl sm:rounded-3xl flex items-center justify-center shadow-[0_0_25px_rgba(250,204,21,0.5)] transform -rotate-6 hover:rotate-0 transition-transform">
-                  <Zap size={22} className="fill-slate-950 stroke-slate-950 sm:hidden" />
-                  <Zap size={36} className="fill-slate-950 stroke-slate-950 hidden sm:block sm:scale-125" />
-                </div>
-              </span>
-              <span>Contábil</span>
-            </h1>
-          </div>
-
           {/* Subtítulo de Alto Impacto Aprimorado */}
-          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-lg md:text-xl max-w-3xl mx-auto text-center font-normal leading-relaxed mb-6 sm:mb-8 px-4">
+          <p className="text-slate-700 dark:text-slate-200 text-sm sm:text-lg md:text-xl max-w-3xl mx-auto text-center font-medium leading-relaxed mb-6 sm:mb-8 px-4 dark:drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_10px_rgba(255,255,255,0.9)] dark:[text-shadow:none]">
             A plataforma unificada que transforma a gestão de tarefas contábeis em{' '}
             <span className="font-semibold text-slate-900 dark:text-white underline decoration-amber-400/60 decoration-2 underline-offset-4">
               máxima eficiência
