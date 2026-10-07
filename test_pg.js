@@ -1,4 +1,5 @@
 import pg from 'pg';
+import fs from 'fs';
 
 const config = {
     host: 'db.lpskaluntuupvnnpvtop.supabase.co',
@@ -14,21 +15,8 @@ async function inspectFunctions() {
     try {
         await client.connect();
         
-        console.log("\n--- Listando definições das funções SQL customizadas ---");
-        const query = `
-            SELECT 
-                proname, 
-                pg_get_functiondef(p.oid) as def
-            FROM pg_proc p
-            JOIN pg_namespace n ON p.pronamespace = n.oid
-            WHERE n.nspname = 'public' AND proname IN ('is_channel_member', 'is_chat_member');
-        `;
-        
-        const res = await client.query(query);
-        res.rows.forEach(r => {
-            console.log(`\nFunção: ${r.proname}`);
-            console.log(r.def);
-        });
+        const resLog = await client.query("SELECT * FROM public.recurring_task_cron_logs ORDER BY executed_at DESC LIMIT 1;");
+        console.log("Último Log do Motor Recorrente:", resLog.rows[0]);
         
     } catch (err) {
         console.error("Erro:", err);

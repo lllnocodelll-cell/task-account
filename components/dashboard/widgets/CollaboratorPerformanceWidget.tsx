@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Users, Calendar, ChevronLeft, ChevronRight, Zap, Clock, CheckCircle2, Award, TrendingUp, AlertTriangle, ArrowUpDown, Timer, Pause, Eye, EyeOff } from 'lucide-react';
+import { Users, Calendar, ChevronLeft, ChevronRight, Zap, Clock, CheckCircle2, Award, TrendingUp, AlertTriangle, ArrowUpDown, Timer, Pause, Eye, EyeOff, Briefcase, Building2 } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
 import { Tooltip } from '../../ui/Tooltip';
@@ -59,7 +59,16 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
   const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const defaultPeriod = `${prevMonthDate.getFullYear()}-${(prevMonthDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-  const [metrics, setMetrics] = useState<CollaboratorMetric[]>([]);
+  const [viewMode, setViewMode] = useState<'collaborator' | 'sector'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('widget_collab_perf_view_mode');
+      if (saved === 'sector' || saved === 'collaborator') return saved;
+    }
+    return 'collaborator';
+  });
+
+  const [collabMetrics, setCollabMetrics] = useState<CollaboratorMetric[]>([]);
+  const [sectorMetrics, setSectorMetrics] = useState<CollaboratorMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState(defaultPeriod);
   const [sortBy, setSortBy] = useState<'completed' | 'speed' | 'hours' | 'punctuality'>('completed');
@@ -71,6 +80,14 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
     }
     return true;
   });
+
+  const handleViewModeChange = (mode: 'collaborator' | 'sector') => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('widget_collab_perf_view_mode', mode);
+    }
+    setHoveredIndex(null);
+  };
 
   const toggleShowMetrics = () => {
     setShowMetrics(prev => {
@@ -99,7 +116,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
     try {
       let query = (supabase as any)
         .from('tasks')
-        .select('responsible, status, due_date, created_at, started_at, completed_at, total_time_spent_seconds, timer_started_at')
+        .select('responsible, sector, status, due_date, created_at, started_at, completed_at, total_time_spent_seconds, timer_started_at')
         .eq('org_id', orgId);
 
       if (period) query = query.eq('competence', period);
@@ -108,25 +125,14 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
       if (error) throw error;
 
       if (result) {
-        const grouped: Record<string, {
-          total: number;
-          completed: number;
-          pending: number;
-          inProgress: number;
-          paused: number;
-          delayed: number;
-          onTimeCompleted: number;
-          completedDurationsSec: number[];
-          allTotalSecondsSpent: number;
-          activeDates: Set<string>;
-        }> = {};
+        const groupedCollab: Record<string, any> = {};
+        const groupedSector: Record<string, any> = {};
 
         const nowMs = Date.now();
 
-        result.forEach((row: any) => {
-          const resp = row.responsible || 'Sem responsável';
-          if (!grouped[resp]) {
-            grouped[resp] = {
+        const processRow = (grouped: Record<string, any>, key: string, row: any) => {
+          if (!grouped[key]) {
+            grouped[key] = {
               total: 0,
               completed: 0,
               pending: 0,
@@ -140,20 +146,17 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
             };
           }
 
-          const item = grouped[resp];
+          const item = grouped[key];
           item.total += 1;
 
-          // Cálculo dos segundos trabalhados nesta tarefa
           let taskSeconds = row.total_time_spent_seconds || 0;
 
-          // Se estiver em andamento com cronômetro ativo agora
           if (row.status === 'Iniciada' && row.timer_started_at) {
             const startMs = new Date(row.timer_started_at).getTime();
             const currentLiveSec = Math.max(0, Math.floor((nowMs - startMs) / 1000));
             taskSeconds += currentLiveSec;
           }
 
-          // Fallback para tarefas antigas concluídas sem cronômetro (calcula pela diferença de datas)
           if (taskSeconds === 0 && row.status === 'Concluída') {
             const startFallback = row.started_at
               ? new Date(row.started_at).getTime()
@@ -183,7 +186,6 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
               item.completedDurationsSec.push(taskSeconds);
             }
 
-            // Registra a data em que a tarefa foi concluída para cálculo dos dias ativos
             const completedDateRaw = row.completed_at || row.started_at || row.created_at;
             if (completedDateRaw) {
               const dStr = typeof completedDateRaw === 'string' 
@@ -192,7 +194,6 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
               item.activeDates.add(dStr);
             }
 
-            // Verifica se foi concluída no prazo (se due_date existir e completed_at <= due_date + 1 dia)
             const dueDate = row.due_date ? new Date(row.due_date) : null;
             const completedDate = row.completed_at ? new Date(row.completed_at) : null;
 
@@ -200,40 +201,50 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
               item.onTimeCompleted += 1;
             }
           }
+        };
+
+        result.forEach((row: any) => {
+          const resp = row.responsible || 'Sem responsável';
+          const sec = row.sector || 'Sem setor';
+          processRow(groupedCollab, resp, row);
+          processRow(groupedSector, sec, row);
         });
 
-        const calculatedMetrics: CollaboratorMetric[] = Object.entries(grouped).map(([name, data]) => {
-          const avgSec = data.completedDurationsSec.length > 0
-            ? data.completedDurationsSec.reduce((acc, curr) => acc + curr, 0) / data.completedDurationsSec.length
-            : null;
+        const calcMetrics = (grouped: Record<string, any>): CollaboratorMetric[] => {
+          return Object.entries(grouped).map(([name, data]) => {
+            const avgSec = data.completedDurationsSec.length > 0
+              ? data.completedDurationsSec.reduce((acc: number, curr: number) => acc + curr, 0) / data.completedDurationsSec.length
+              : null;
 
-          const activeDays = data.activeDates.size > 0 ? data.activeDates.size : (data.completed > 0 ? 1 : 0);
-          const avgDaily = activeDays > 0 ? data.completed / activeDays : 0;
-          const punctualityRate = data.completed > 0 ? (data.onTimeCompleted / data.completed) * 100 : 100;
-          const completionRate = data.total > 0 ? (data.completed / data.total) * 100 : 0;
+            const activeDays = data.activeDates.size > 0 ? data.activeDates.size : (data.completed > 0 ? 1 : 0);
+            const avgDaily = activeDays > 0 ? data.completed / activeDays : 0;
+            const punctualityRate = data.completed > 0 ? (data.onTimeCompleted / data.completed) * 100 : 100;
+            const completionRate = data.total > 0 ? (data.completed / data.total) * 100 : 0;
 
-          return {
-            name,
-            total: data.total,
-            completed: data.completed,
-            pending: data.pending,
-            inProgress: data.inProgress,
-            paused: data.paused,
-            delayed: data.delayed,
-            onTimeCompleted: data.onTimeCompleted,
-            totalSecondsSpent: data.allTotalSecondsSpent,
-            avgCompletionSeconds: avgSec,
-            avgDailyRate: avgDaily,
-            activeDaysCount: activeDays,
-            punctualityRate,
-            completionRate
-          };
-        });
+            return {
+              name,
+              total: data.total,
+              completed: data.completed,
+              pending: data.pending,
+              inProgress: data.inProgress,
+              paused: data.paused,
+              delayed: data.delayed,
+              onTimeCompleted: data.onTimeCompleted,
+              totalSecondsSpent: data.allTotalSecondsSpent,
+              avgCompletionSeconds: avgSec,
+              avgDailyRate: avgDaily,
+              activeDaysCount: activeDays,
+              punctualityRate,
+              completionRate
+            };
+          });
+        };
 
-        setMetrics(calculatedMetrics);
+        setCollabMetrics(calcMetrics(groupedCollab));
+        setSectorMetrics(calcMetrics(groupedSector));
       }
     } catch (err) {
-      console.error('Erro ao buscar métricas de colaboradores:', err);
+      console.error('Erro ao buscar métricas de colaboradores/setores:', err);
     } finally {
       setLoading(false);
     }
@@ -243,7 +254,11 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
     fetchData();
   }, [fetchData]);
 
-  // Ordenação dos colaboradores
+  const metrics = useMemo(() => {
+    return viewMode === 'sector' ? sectorMetrics : collabMetrics;
+  }, [viewMode, sectorMetrics, collabMetrics]);
+
+  // Ordenação dos colaboradores ou setores
   const sortedMetrics = useMemo(() => {
     return [...metrics].sort((a, b) => {
       if (sortBy === 'speed') {
@@ -305,11 +320,39 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
 
   return (
     <WidgetContainer
-      title="DESEMPENHO POR COLABORADOR"
-      icon={<TrendingUp size={14} className="text-indigo-500" />}
+      title={viewMode === 'sector' ? "DESEMPENHO POR SETOR" : "DESEMPENHO POR COLABORADOR"}
+      icon={viewMode === 'sector' ? <Building2 size={14} className="text-indigo-500" /> : <TrendingUp size={14} className="text-indigo-500" />}
       onRemove={onRemove}
       headerActions={
         <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
+          {/* Toggle Segmentado: Colaboradores vs Setores */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded text-[10px] font-bold shrink-0">
+            <button
+              onClick={() => handleViewModeChange('collaborator')}
+              className={`h-5 px-1.5 flex items-center gap-1 rounded transition-all cursor-pointer ${
+                viewMode === 'collaborator'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Users size={10} />
+              <span className="hidden sm:inline">Pessoas</span>
+            </button>
+            <button
+              onClick={() => handleViewModeChange('sector')}
+              className={`h-5 px-1.5 flex items-center gap-1 rounded transition-all cursor-pointer ${
+                viewMode === 'sector'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Briefcase size={10} />
+              <span className="hidden sm:inline">Setores</span>
+            </button>
+          </div>
+
+          <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5">|</span>
+
           <Tooltip content="Alternar critério de ordenação" position="top">
             <button
               onClick={() => {
@@ -434,7 +477,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
 
               <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 rounded-xl p-2 flex flex-col">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1 truncate">
-                  <Clock size={10} className="shrink-0" /> Total Equipe
+                  <Clock size={10} className="shrink-0" /> {viewMode === 'sector' ? 'Total Setores' : 'Total Equipe'}
                 </span>
                 <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono truncate">
                   {formatSecondsToFriendly(teamTotals.totalTeamSeconds)}
@@ -443,7 +486,7 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
             </div>
           )}
 
-          {/* Lista de Colaboradores */}
+          {/* Lista de Colaboradores ou Setores */}
           <div className="flex-1 overflow-y-auto custom-scrollbar px-2.5 sm:px-3 py-2 space-y-2 min-h-0">
             {sortedMetrics.map((item, idx) => {
               const isHovered = hoveredIndex === idx;
@@ -463,10 +506,14 @@ export const CollaboratorPerformanceWidget: React.FC<Props> = ({ orgId, onRemove
                 >
                   {/* Container Responsivo: Vertical no Mobile / Horizontal no Desktop */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-                    {/* Topo no Mobile / Esquerda no Desktop: Avatar e Dados do Colaborador */}
+                    {/* Topo no Mobile / Esquerda no Desktop: Avatar e Dados do Colaborador ou Setor */}
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatarColor(item.name)} flex items-center justify-center shrink-0 shadow-sm`}>
-                        <span className="text-xs font-black text-white">{getInitials(item.name)}</span>
+                      <div className={`w-8 h-8 ${viewMode === 'sector' ? 'rounded-lg' : 'rounded-full'} bg-gradient-to-br ${avatarColor(item.name)} flex items-center justify-center shrink-0 shadow-sm`}>
+                        {viewMode === 'sector' ? (
+                          <Briefcase size={14} className="text-white" />
+                        ) : (
+                          <span className="text-xs font-black text-white">{getInitials(item.name)}</span>
+                        )}
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">

@@ -27,6 +27,7 @@ import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
 import { ThemeTransitionOverlay } from './components/ui/ThemeTransitionOverlay';
 import { registerPushSubscription } from './utils/webPush';
 import { GlobalChatNotifier } from './components/chat/GlobalChatNotifier';
+import { triggerCronHealthCheck } from './utils/cronHealthCheck';
 
 // Define UserProfile type locally to match Profile.tsx and Header.tsx expectation
 interface UserProfile {
@@ -580,6 +581,9 @@ function App() {
 
       // Registrar/atualizar a inscrição de Notificações Web Push PWA
       registerPushSubscription(session.user.id, finalProfile.org_id).catch(() => {});
+
+      // Auto-cura e verificação de saúde do cron de tarefas recorrentes em background
+      triggerCronHealthCheck(profileData.role);
 
       // Buscar clientes para o TutorialsModal
       const effectiveOrgId = finalProfile.org_id || session.user.id;

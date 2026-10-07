@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { BarChart2, Users, Calendar, ChevronLeft, ChevronRight, CheckCircle2, Clock, AlertTriangle, Hourglass, ArrowUpDown } from 'lucide-react';
+import { BarChart2, Users, Calendar, ChevronLeft, ChevronRight, CheckCircle2, Clock, AlertTriangle, Hourglass, ArrowUpDown, Briefcase, Building2 } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
 import { Tooltip } from '../../ui/Tooltip';
@@ -37,13 +37,31 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const defaultPeriod = `${prevMonthDate.getFullYear()}-${(prevMonthDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-    const [data, setData] = useState<any[]>([]);
+    const [viewMode, setViewMode] = useState<'user' | 'sector'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('widget_status_by_user_view_mode');
+            if (saved === 'sector' || saved === 'user') return saved;
+        }
+        return 'user';
+    });
+
+    const [userData, setUserData] = useState<any[]>([]);
+    const [sectorData, setSectorData] = useState<any[]>([]);
     const [totals, setTotals] = useState({ total: 0, pendente: 0, iniciada: 0, atrasada: 0, concluida: 0 });
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState(defaultPeriod);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [sortBy, setSortBy] = useState<'total' | 'atrasadas'>('total');
+
+    const handleViewModeChange = (mode: 'user' | 'sector') => {
+        setViewMode(mode);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('widget_status_by_user_view_mode', mode);
+        }
+        setSelectedIndex(null);
+        setHoveredIndex(null);
+    };
 
     const navigatePeriod = (direction: 'prev' | 'next') => {
         const base = period || defaultPeriod;
@@ -62,7 +80,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
         try {
             let query = (supabase as any)
                 .from('tasks')
-                .select('responsible, status')
+                .select('responsible, sector, status')
                 .eq('org_id', orgId);
 
             if (period) query = query.eq('competence', period);
@@ -71,16 +89,28 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             if (error) throw error;
 
             if (result) {
-                const transformed: Record<string, any> = {};
+                const userMap: Record<string, any> = {};
+                const sectorMap: Record<string, any> = {};
                 let totalAcc = 0, pendenteAcc = 0, iniciadaAcc = 0, atrasadaAcc = 0, concluidaAcc = 0;
 
                 result.forEach((row: any) => {
                     const resp = row.responsible || 'Sem responsável';
-                    if (!transformed[resp]) {
-                        transformed[resp] = { name: resp, 'Concluída': 0, 'Iniciada': 0, 'Pendente': 0, 'Atrasada': 0, total: 0 };
+                    const sec = row.sector || 'Sem setor';
+
+                    // Agrupamento por Colaborador
+                    if (!userMap[resp]) {
+                        userMap[resp] = { name: resp, type: 'user', 'Concluída': 0, 'Iniciada': 0, 'Pendente': 0, 'Atrasada': 0, total: 0 };
                     }
-                    transformed[resp][row.status] = (transformed[resp][row.status] || 0) + 1;
-                    transformed[resp].total += 1;
+                    userMap[resp][row.status] = (userMap[resp][row.status] || 0) + 1;
+                    userMap[resp].total += 1;
+
+                    // Agrupamento por Setor
+                    if (!sectorMap[sec]) {
+                        sectorMap[sec] = { name: sec, type: 'sector', 'Concluída': 0, 'Iniciada': 0, 'Pendente': 0, 'Atrasada': 0, total: 0 };
+                    }
+                    sectorMap[sec][row.status] = (sectorMap[sec][row.status] || 0) + 1;
+                    sectorMap[sec].total += 1;
+
                     totalAcc += 1;
                     if (row.status === 'Pendente') pendenteAcc += 1;
                     if (row.status === 'Iniciada') iniciadaAcc += 1;
@@ -88,12 +118,12 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                     if (row.status === 'Concluída') concluidaAcc += 1;
                 });
 
-                const arr = Object.values(transformed);
-                setData(arr);
+                setUserData(Object.values(userMap));
+                setSectorData(Object.values(sectorMap));
                 setTotals({ total: totalAcc, pendente: pendenteAcc, iniciada: iniciadaAcc, atrasada: atrasadaAcc, concluida: concluidaAcc });
             }
         } catch (err) {
-            console.error('Error fetching status by user:', err);
+            console.error('Error fetching status by user/sector:', err);
         } finally {
             setLoading(false);
         }
@@ -101,7 +131,9 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const sortedData = [...data].sort((a, b) => {
+    const currentDataSet = viewMode === 'sector' ? sectorData : userData;
+
+    const sortedData = [...currentDataSet].sort((a, b) => {
         if (sortBy === 'atrasadas') {
             const diffAtraso = (b['Atrasada'] || 0) - (a['Atrasada'] || 0);
             if (diffAtraso !== 0) return diffAtraso;
@@ -114,16 +146,40 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
     const periodLabel = period ? `${period.split('-')[1]}/${period.split('-')[0]}` : 'Todos';
 
     return (
-
-
         <WidgetContainer
-
-            title="MONITOR OPERAÇÃO"
-
-            icon={<BarChart2 size={14} className="text-indigo-500" />}
+            title={viewMode === 'sector' ? "MONITOR OPERAÇÃO (POR SETOR)" : "MONITOR OPERAÇÃO"}
+            icon={viewMode === 'sector' ? <Building2 size={14} className="text-indigo-500" /> : <BarChart2 size={14} className="text-indigo-500" />}
             onRemove={onRemove}
             headerActions={
                 <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
+                    {/* Toggle Segmentado: Colaboradores vs Setores */}
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded text-[10px] font-bold shrink-0">
+                        <button
+                            onClick={() => handleViewModeChange('user')}
+                            className={`h-5 px-1.5 flex items-center gap-1 rounded transition-all cursor-pointer ${
+                                viewMode === 'user'
+                                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            <Users size={10} />
+                            <span className="hidden sm:inline">Pessoas</span>
+                        </button>
+                        <button
+                            onClick={() => handleViewModeChange('sector')}
+                            className={`h-5 px-1.5 flex items-center gap-1 rounded transition-all cursor-pointer ${
+                                viewMode === 'sector'
+                                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            <Briefcase size={10} />
+                            <span className="hidden sm:inline">Setores</span>
+                        </button>
+                    </div>
+
+                    <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5 shrink-0">|</span>
+
                     <Tooltip content={sortBy === 'atrasadas' ? 'Ordenando por atrasadas primeiro' : 'Alternar ordenação por atrasos'} position="top">
                         <button
                             onClick={() => setSortBy(prev => prev === 'total' ? 'atrasadas' : 'total')}
@@ -212,8 +268,12 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                     }`}
                                 >
                                     <div className="flex items-center gap-3 mb-2">
-                                        <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${avatarColor(item.name)} flex items-center justify-center shrink-0`}>
-                                            <span className="text-[10px] font-black text-white">{getInitials(item.name)}</span>
+                                        <div className={`w-7 h-7 ${viewMode === 'sector' ? 'rounded-lg' : 'rounded-full'} bg-gradient-to-br ${avatarColor(item.name)} flex items-center justify-center shrink-0 shadow-xs`}>
+                                            {viewMode === 'sector' ? (
+                                                <Briefcase size={12} className="text-white" />
+                                            ) : (
+                                                <span className="text-[10px] font-black text-white">{getInitials(item.name)}</span>
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0 flex items-baseline justify-between gap-2">
                                             <div className="flex items-center gap-1.5 min-w-0">
@@ -224,7 +284,7 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                                                 </span>
                                                 {isBottleneck && (
                                                     <span className="px-1.5 py-0.2 text-[8px] font-bold rounded-md bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 border border-red-200 dark:border-red-800 shrink-0">
-                                                        ⚠️ Gargalo
+                                                        ⚠️ {viewMode === 'sector' ? 'Gargalo no Setor' : 'Gargalo'}
                                                     </span>
                                                 )}
                                             </div>
@@ -291,8 +351,12 @@ export const StatusByUserWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                         {selected ? (
                             <div className="flex items-center justify-between gap-2 sm:gap-3">
                                 <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                                    <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${avatarColor(selected.name)} flex items-center justify-center shrink-0`}>
-                                        <span className="text-[9px] font-black text-white">{getInitials(selected.name)}</span>
+                                    <div className={`w-6 h-6 ${viewMode === 'sector' ? 'rounded-lg' : 'rounded-full'} bg-gradient-to-br ${avatarColor(selected.name)} flex items-center justify-center shrink-0`}>
+                                        {viewMode === 'sector' ? (
+                                            <Briefcase size={11} className="text-white" />
+                                        ) : (
+                                            <span className="text-[9px] font-black text-white">{getInitials(selected.name)}</span>
+                                        )}
                                     </div>
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{selected.name}</span>

@@ -360,6 +360,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
       title="TEMPO POR CLIENTE E TAREFA"
       icon={<Building2 size={14} className="text-indigo-500" />}
       onRemove={onRemove}
+      compactThreshold={960}
       headerActions={
         <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
           {/* Alternador de Modo de Filtro (Por Tarefa vs Por Total do Cliente) */}
@@ -397,7 +398,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                 <select
                   value={taskThreshold}
                   onChange={(e) => setTaskThreshold(Number(e.target.value))}
-                  className="bg-transparent border-none outline-none text-[10px] font-bold cursor-pointer pr-1 text-slate-700 dark:text-slate-200"
+                  className="bg-transparent border-none outline-none text-[10px] font-bold cursor-pointer pr-1 text-slate-700 dark:text-slate-200 max-w-[150px] sm:max-w-[190px] truncate"
                 >
                   {TASK_THRESHOLD_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200">
@@ -409,7 +410,7 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
                 <select
                   value={clientThreshold}
                   onChange={(e) => setClientThreshold(Number(e.target.value))}
-                  className="bg-transparent border-none outline-none text-[10px] font-bold cursor-pointer pr-1 text-slate-700 dark:text-slate-200"
+                  className="bg-transparent border-none outline-none text-[10px] font-bold cursor-pointer pr-1 text-slate-700 dark:text-slate-200 max-w-[150px] sm:max-w-[190px] truncate"
                 >
                   {CLIENT_THRESHOLD_OPTIONS.map(opt => (
                     <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200">

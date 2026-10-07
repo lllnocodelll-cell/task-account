@@ -9,6 +9,7 @@ interface WidgetContainerProps {
     headerActions?: React.ReactNode;
     children: React.ReactNode;
     allowZoom?: boolean;
+    compactThreshold?: number;
 }
 
 const ZOOM_LEVELS = [60, 75, 85, 90, 100, 110, 125, 140, 150];
@@ -19,7 +20,8 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
     onRemove,
     headerActions,
     children,
-    allowZoom = true
+    allowZoom = true,
+    compactThreshold
 }) => {
     const storageKey = `widget_zoom_${title.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
 
@@ -135,9 +137,11 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
     ) : null;
 
     const containerRef = React.useRef<HTMLDivElement>(null);
+    const effectiveThreshold = compactThreshold ?? 640;
+
     const [isCompact, setIsCompact] = useState<boolean>(() => {
         if (typeof window !== 'undefined') {
-            return window.innerWidth < 640;
+            return window.innerWidth < effectiveThreshold;
         }
         return false;
     });
@@ -149,14 +153,14 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const width = entry.contentRect.width;
-                // Quando a largura do widget for menor que 540px (seja no celular ou ao reduzir pelas setas), adota modo compacto
-                setIsCompact(width < 540);
+                // Quando a largura do widget for menor que o threshold (seja no celular ou ao reduzir pelas setas), adota modo compacto
+                setIsCompact(width < effectiveThreshold);
             }
         });
 
         observer.observe(el);
         return () => observer.disconnect();
-    }, []);
+    }, [effectiveThreshold]);
 
     const isTwoRows = isCompact;
 
@@ -165,7 +169,7 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
             {/* Header Responsivo Dinâmico */}
             <div className={`flex ${isTwoRows && headerActions ? 'flex-col gap-2' : 'flex-row items-center justify-between gap-2.5'} px-2.5 py-2 sm:px-3 sm:py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 select-none`}>
                 {/* Linha 1 no modo compacto / Lado Esquerdo no modo desktop amplo */}
-                <div className="flex items-center justify-between w-full sm:w-auto sm:flex-1 min-w-0">
+                <div className={`flex items-center justify-between ${isTwoRows ? 'w-full' : 'w-full sm:w-auto sm:flex-1'} min-w-0`}>
                     {/* Drag Handle: Apenas na área do título e ícone */}
                     <div className="flex items-center gap-2 sm:gap-2.5 drag-handle cursor-move min-w-0 pr-1.5 flex-1">
                         {/* Ícone */}
