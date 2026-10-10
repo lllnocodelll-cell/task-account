@@ -52,7 +52,8 @@ import {
   Pause,
   Loader2,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  ShieldCheck
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -1593,8 +1594,32 @@ export const Tasks: React.FC<{
   const [reopenModalTask, setReopenModalTask] = useState<Task | null>(null);
   const [reopenModalNewStatus, setReopenModalNewStatus] = useState<TaskStatus | null>(null);
   const [reopenModalDocsStatus, setReopenModalDocsStatus] = useState<any[]>([]);
+  type ReopenStage = 'idle' | 'auditing' | 'removing_portal' | 'purging_storage' | 'updating_task' | 'completed' | 'error';
+  const [reopenStage, setReopenStage] = useState<ReopenStage>('idle');
+  const [reopenProgress, setReopenProgress] = useState<number>(0);
+  const [reopenStatusMessage, setReopenStatusMessage] = useState<string>('');
+  const [reopenErrorMessage, setReopenErrorMessage] = useState<string | null>(null);
+  const [reopenSuccessData, setReopenSuccessData] = useState<{
+    fileCount: number;
+    files: string[];
+    newStatus: TaskStatus;
+    keptDocs: boolean;
+  } | null>(null);
+  const [reopenLinkedDocs, setReopenLinkedDocs] = useState<any[]>([]);
+  const [isReopeningTask, setIsReopeningTask] = useState(false);
   const [selectedTaskForConclude, setSelectedTaskForConclude] = useState<string | null>(null);
   const [concludeFiles, setConcludeFiles] = useState<File[]>([]);
+  type ConcludeStage = 'idle' | 'validating' | 'compressing' | 'uploading' | 'registering' | 'verifying' | 'completed' | 'error';
+  const [concludeStage, setConcludeStage] = useState<ConcludeStage>('idle');
+  const [concludeProgress, setConcludeProgress] = useState<number>(0);
+  const [concludeStatusMessage, setConcludeStatusMessage] = useState<string>('');
+  const [concludeErrorMessage, setConcludeErrorMessage] = useState<string | null>(null);
+  const [concludeSuccessData, setConcludeSuccessData] = useState<{
+    clientName: string;
+    fileCount: number;
+    competence: string;
+    files: string[];
+  } | null>(null);
   const [showDeleteRecurrenceModal, setShowDeleteRecurrenceModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -2208,6 +2233,12 @@ export const Tasks: React.FC<{
       // Find current status to check for reopen confirmation
       const currentTask = tasks.find(t => t.id === id);
       
+      // Se a ação for concluir a tarefa, abre o modal de conclusão com anexo de documentos e validação de entrega
+      if (newStatus === TaskStatus.CONCLUIDA && currentTask) {
+        openConcludeModal(id);
+        return;
+      }
+      
       // Validação de workflow obrigatório
       if (newStatus === TaskStatus.CONCLUIDA && currentTask) {
         const hasUncompletedMandatory = currentTask.workflows?.some(wf => wf.is_mandatory && !wf.is_completed);
@@ -2218,17 +2249,39 @@ export const Tasks: React.FC<{
       }
 
       if (currentTask?.status === TaskStatus.CONCLUIDA && newStatus !== TaskStatus.CONCLUIDA) {
-        if (currentTask.attachments && currentTask.attachments.length > 0) {
-          try {
-            const { data } = await supabase.from('client_documents' as any).select('name, status').eq('task_id', currentTask.id);
-            if (data) setReopenModalDocsStatus(data);
-          } catch (e) {
-            console.error('Erro ao buscar status dos documentos para reabertura: ', e);
+        let docsFromDb: any[] = [];
+        try {
+          const { data } = await supabase
+            .from('client_documents' as any)
+            .select('*')
+            .eq('task_id', currentTask.id);
+          if (data && data.length > 0) {
+            docsFromDb = data;
           }
+        } catch (e) {
+          console.error('Erro ao buscar documentos vinculados para reabertura: ', e);
         }
-        setReopenModalTask(currentTask);
-        setReopenModalNewStatus(newStatus);
-        setReopenModalOpen(true);
+
+        const hasLinkedDocs = docsFromDb.length > 0 || (currentTask.attachments && currentTask.attachments.length > 0);
+
+        if (hasLinkedDocs) {
+          setReopenLinkedDocs(docsFromDb);
+          setReopenModalDocsStatus(docsFromDb.map(d => ({ name: d.name, status: d.status, id: d.id })));
+          setReopenModalTask(currentTask);
+          setReopenModalNewStatus(newStatus);
+          setReopenStage('idle');
+          setReopenProgress(0);
+          setReopenStatusMessage('');
+          setReopenErrorMessage(null);
+          setReopenSuccessData(null);
+          setIsReopeningTask(false);
+          setReopenModalOpen(true);
+          return;
+        }
+
+        // Se não possui documentos vinculados no portal nem anexos, reabre diretamente
+        await executeTaskStatusUpdate(id, newStatus);
+        showNotify(`Tarefa reaberta com sucesso para o status "${newStatus}".`, 'success');
         return;
       }
 
@@ -2322,118 +2375,289 @@ export const Tasks: React.FC<{
   const handleReopenTask = async (deleteAttachments: boolean) => {
     if (!reopenModalTask || !reopenModalNewStatus) return;
     
-    setLoading(true);
-    try {
-      if (deleteAttachments && reopenModalTask.attachments && reopenModalTask.attachments.length > 0) {
-        const clientObj = clients.find(c => c.id === reopenModalTask.clientId);
-        const clientName = reopenModalTask.clientName || clientObj?.companyName || clientObj?.tradeName || 'Cliente';
-        const orgId = userProfile?.org_id || (reopenModalTask as any).org_id || (clientObj as any)?.org_id;
+    setIsReopeningTask(true);
+    setReopenErrorMessage(null);
 
-        for (const attachment of reopenModalTask.attachments) {
-          // 1. Buscar metadados completos do documento em client_documents
-          const { data: existingDoc } = await (supabase.from('client_documents' as any) as any)
-            .select('*')
-            .eq('task_id', reopenModalTask.id)
-            .eq('name', attachment.name)
-            .maybeSingle();
+    // CASO 1: Reabrir e Manter os Documentos no Portal
+    if (!deleteAttachments) {
+      try {
+        setReopenStage('updating_task');
+        setReopenProgress(50);
+        setReopenStatusMessage('Reabrindo tarefa e preservando documentos no Portal...');
 
-          // 2. Verificar se o cliente já leu o documento
-          let wasRead = (existingDoc as any)?.status === 'Lido';
-          let firstReadAt: string | null = null;
-          if ((existingDoc as any)?.id) {
-            const { data: readLog } = await (supabase.from('client_document_logs' as any) as any)
-              .select('read_at')
-              .eq('document_id', (existingDoc as any).id)
-              .order('read_at', { ascending: true })
-              .limit(1)
-              .maybeSingle();
+        const updatePayload: any = { 
+          status: reopenModalNewStatus,
+          completed_at: null 
+        };
 
-            if (readLog?.read_at) {
-              wasRead = true;
-              firstReadAt = readLog.read_at;
-            }
-          }
+        if (reopenModalNewStatus === TaskStatus.INICIADA) {
+          updatePayload.timer_started_at = new Date().toISOString();
+        }
 
-          // 3. Registrar na trilha de auditoria imutável com todos os campos obrigatórios
-          if (orgId) {
-            const { error: auditErr } = await (supabase.from('client_document_deletion_logs' as any) as any).insert({
-              org_id: orgId,
-              client_id: reopenModalTask.clientId,
-              client_name: clientName,
-              document_id: (existingDoc as any)?.id || null,
-              document_name: attachment.name,
-              competence_month: (existingDoc as any)?.competence_month || reopenModalTask.competence || null,
-              due_date: (existingDoc as any)?.due_date || reopenModalTask.dueDate || null,
-              document_type: (existingDoc as any)?.type || null,
-              was_read_by_client: wasRead,
-              first_read_at: firstReadAt,
-              deletion_source: 'reopen_task',
-              task_id: reopenModalTask.id,
-              task_title: reopenModalTask.taskName || 'Tarefa',
-              deleted_by_user_id: userProfile?.id || null,
-              deleted_by_name: userProfile?.full_name || 'Operador',
-              deleted_by_role: userProfile?.role || 'operator',
-              reason: `Documento excluído na reabertura da tarefa para status "${reopenModalNewStatus}"`
-            });
-
-            if (auditErr) {
-              console.error('Erro ao registrar auditoria de exclusão na reabertura:', auditErr);
-            }
-          }
-
-          // 4. Remove o documento da área do cliente (client_documents) para que não conste mais como ativo
-          if ((existingDoc as any)?.id) {
-            await (supabase.from('client_documents' as any) as any)
-              .delete()
-              .eq('id', (existingDoc as any).id);
-          }
-          await (supabase.from('client_documents' as any) as any)
-            .delete()
-            .eq('task_id', reopenModalTask.id)
-            .eq('name', attachment.name);
-            
-          // Remove o arquivo fisicamente do bucket client-documents
-          const storagePath = (existingDoc as any)?.storage_path || attachment.storage_path;
-          if (storagePath) {
-            await supabase.storage.from('client-documents').remove([storagePath]);
-          }
+        const { error } = await (supabase.from('tasks') as any)
+          .update(updatePayload)
+          .eq('id', reopenModalTask.id);
           
-          // Remove da tabela task_attachments
-          if (attachment.id) {
-            await supabase.from('task_attachments' as any)
-              .delete()
-              .eq('id', attachment.id);
+        if (error) throw error;
+
+        // Atualiza a listagem local preservando anexos
+        setTasks(prev => prev.map(t => {
+          if (t.id === reopenModalTask.id) {
+            return { 
+              ...t, 
+              status: reopenModalNewStatus,
+              completed_at: null,
+              timerStartedAt: reopenModalNewStatus === TaskStatus.INICIADA ? updatePayload.timer_started_at : t.timerStartedAt
+            };
+          }
+          return t;
+        }));
+
+        setReopenProgress(100);
+        setReopenStage('completed');
+        setReopenSuccessData({
+          fileCount: reopenLinkedDocs.length || reopenModalTask.attachments?.length || 0,
+          files: (reopenLinkedDocs.length > 0 ? reopenLinkedDocs.map(d => d.name) : reopenModalTask.attachments?.map(a => a.name)) || [],
+          newStatus: reopenModalNewStatus,
+          keptDocs: true
+        });
+
+        showNotify('Tarefa reaberta com sucesso. Os documentos foram mantidos no Portal do Cliente.', 'success');
+      } catch (error: any) {
+        console.error('Erro ao reabrir tarefa mantendo documentos:', error);
+        setReopenStage('error');
+        setReopenErrorMessage(error.message || 'Erro ao reabrir a tarefa.');
+      } finally {
+        setIsReopeningTask(false);
+      }
+      return;
+    }
+
+    // CASO 2: Reabrir e Excluir os Documentos do Portal com Auditoria
+    try {
+      setReopenStage('auditing');
+      setReopenProgress(10);
+      setReopenStatusMessage('Iniciando auditoria de exclusão e conformidade...');
+
+      const clientObj = clients.find(c => c.id === reopenModalTask.clientId);
+      const clientName = reopenModalTask.clientName || clientObj?.companyName || clientObj?.tradeName || 'Cliente';
+      const orgId = userProfile?.org_id || (reopenModalTask as any).org_id || (clientObj as any)?.org_id;
+
+      // Consolida lista completa de documentos vinculados (banco + anexos locais)
+      const docsToProcess: Array<{
+        id?: string;
+        name: string;
+        status?: string;
+        storage_path?: string;
+        competence_month?: string;
+        due_date?: string;
+        type?: string;
+        attachment_id?: string;
+      }> = [];
+
+      for (const doc of reopenLinkedDocs) {
+        docsToProcess.push({
+          id: doc.id,
+          name: doc.name,
+          status: doc.status,
+          storage_path: doc.storage_path,
+          competence_month: doc.competence_month,
+          due_date: doc.due_date,
+          type: doc.type,
+        });
+      }
+
+      if (reopenModalTask.attachments && reopenModalTask.attachments.length > 0) {
+        for (const att of reopenModalTask.attachments) {
+          const existing = docsToProcess.find(d => d.name === att.name || (att.id && d.id === att.id));
+          if (!existing) {
+            docsToProcess.push({
+              id: att.id,
+              name: att.name,
+              storage_path: att.storage_path,
+              attachment_id: att.id
+            });
+          } else if (att.id) {
+            existing.attachment_id = att.id;
+            if (!existing.storage_path && att.storage_path) {
+              existing.storage_path = att.storage_path;
+            }
           }
         }
       }
-      
-      // Atualiza o status da tarefa principal
-      const { error } = await (supabase.from('tasks') as any)
-        .update({ status: reopenModalNewStatus })
+
+      // 1. Etapa de Auditoria (15% a 35%)
+      setReopenProgress(20);
+      setReopenStatusMessage('Registrando na trilha imutável de exclusão (LGPD/Auditoria)...');
+
+      for (let i = 0; i < docsToProcess.length; i++) {
+        const item = docsToProcess[i];
+        
+        // Buscar metadados do documento em client_documents se id não estiver presente
+        let existingDoc: any = null;
+        if (item.id) {
+          const { data } = await (supabase.from('client_documents' as any) as any)
+            .select('*')
+            .eq('id', item.id)
+            .maybeSingle();
+          existingDoc = data;
+        }
+        if (!existingDoc) {
+          const { data } = await (supabase.from('client_documents' as any) as any)
+            .select('*')
+            .eq('task_id', reopenModalTask.id)
+            .eq('name', item.name)
+            .maybeSingle();
+          existingDoc = data;
+        }
+
+        const effectiveDocId = item.id || existingDoc?.id;
+        let wasRead = (existingDoc?.status === 'Lido') || (item.status === 'Lido');
+        let firstReadAt: string | null = null;
+
+        if (effectiveDocId) {
+          const { data: readLog } = await (supabase.from('client_document_logs' as any) as any)
+            .select('read_at')
+            .eq('document_id', effectiveDocId)
+            .order('read_at', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (readLog?.read_at) {
+            wasRead = true;
+            firstReadAt = readLog.read_at;
+          }
+        }
+
+        if (orgId) {
+          const { error: auditErr } = await (supabase.from('client_document_deletion_logs' as any) as any).insert({
+            org_id: orgId,
+            client_id: reopenModalTask.clientId,
+            client_name: clientName,
+            document_id: effectiveDocId || null,
+            document_name: item.name,
+            competence_month: existingDoc?.competence_month || item.competence_month || reopenModalTask.competence || null,
+            due_date: existingDoc?.due_date || item.due_date || reopenModalTask.dueDate || null,
+            document_type: existingDoc?.type || item.type || null,
+            was_read_by_client: wasRead,
+            first_read_at: firstReadAt,
+            deletion_source: 'reopen_task',
+            task_id: reopenModalTask.id,
+            task_title: reopenModalTask.taskName || 'Tarefa',
+            deleted_by_user_id: userProfile?.id || null,
+            deleted_by_name: userProfile?.full_name || 'Operador',
+            deleted_by_role: userProfile?.role || 'operator',
+            reason: `Documento excluído na reabertura da tarefa para status "${reopenModalNewStatus}"`
+          });
+
+          if (auditErr) {
+            console.error('Erro ao registrar auditoria de exclusão na reabertura:', auditErr);
+          }
+        }
+      }
+
+      // 2. Etapa de Remoção do Portal do Cliente (40% a 65%)
+      setReopenStage('removing_portal');
+      setReopenProgress(50);
+      setReopenStatusMessage('Removendo registros e logs de leitura do Portal do Cliente...');
+
+      for (const item of docsToProcess) {
+        if (item.id) {
+          // Prevenção de Foreign Key Constraint: deleta logs de visualização primeiro
+          await (supabase.from('client_document_logs' as any) as any)
+            .delete()
+            .eq('document_id', item.id);
+
+          await (supabase.from('client_documents' as any) as any)
+            .delete()
+            .eq('id', item.id);
+        }
+
+        await (supabase.from('client_documents' as any) as any)
+          .delete()
+          .eq('task_id', reopenModalTask.id)
+          .eq('name', item.name);
+      }
+
+      // 3. Etapa de Expurgo do Storage e Anexos da Tarefa (70% a 85%)
+      setReopenStage('purging_storage');
+      setReopenProgress(75);
+      setReopenStatusMessage('Excluindo arquivos físicos do armazenamento...');
+
+      const storagePathsToRemove: string[] = [];
+      for (const item of docsToProcess) {
+        if (item.storage_path) {
+          storagePathsToRemove.push(item.storage_path);
+        }
+      }
+
+      if (storagePathsToRemove.length > 0) {
+        try {
+          await supabase.storage.from('client-documents').remove(storagePathsToRemove);
+        } catch (storageErr) {
+          console.warn('Aviso ao expurgar arquivos do storage:', storageErr);
+        }
+      }
+
+      // Limpar registros de task_attachments vinculados à tarefa
+      try {
+        await supabase.from('task_attachments' as any)
+          .delete()
+          .eq('task_id', reopenModalTask.id);
+      } catch (attErr) {
+        console.warn('Aviso ao limpar task_attachments:', attErr);
+      }
+
+      // 4. Etapa de Atualização da Tarefa (90% a 100%)
+      setReopenStage('updating_task');
+      setReopenProgress(90);
+      setReopenStatusMessage('Redefinindo status e restaurando a tarefa...');
+
+      const updatePayload: any = { 
+        status: reopenModalNewStatus,
+        completed_at: null 
+      };
+
+      if (reopenModalNewStatus === TaskStatus.INICIADA) {
+        updatePayload.timer_started_at = new Date().toISOString();
+      }
+
+      const { error: taskErr } = await (supabase.from('tasks') as any)
+        .update(updatePayload)
         .eq('id', reopenModalTask.id);
         
-      if (error) throw error;
-      
-      // Atualiza a listagem local
+      if (taskErr) throw taskErr;
+
+      // Atualiza a listagem local removendo os anexos e limpando completed_at
       setTasks(prev => prev.map(t => {
         if (t.id === reopenModalTask.id) {
           return { 
             ...t, 
             status: reopenModalNewStatus,
-            attachments: deleteAttachments ? [] : t.attachments
+            completed_at: null,
+            timerStartedAt: reopenModalNewStatus === TaskStatus.INICIADA ? updatePayload.timer_started_at : t.timerStartedAt,
+            attachments: []
           };
         }
         return t;
       }));
-      
+
+      setReopenProgress(100);
+      setReopenStage('completed');
+      setReopenSuccessData({
+        fileCount: docsToProcess.length,
+        files: docsToProcess.map(d => d.name),
+        newStatus: reopenModalNewStatus,
+        keptDocs: false
+      });
+
+      showNotify('Tarefa reaberta com sucesso e documentos excluídos com registro de auditoria.', 'success');
     } catch (error: any) {
-      console.error('Erro ao reabrir tarefa:', error);
-      alert('Erro ao reabrir tarefa: ' + (error.message || 'Erro desconhecido'));
+      console.error('Erro ao reabrir tarefa e excluir documentos:', error);
+      setReopenStage('error');
+      setReopenErrorMessage(error.message || 'Erro inesperado durante a reabertura da tarefa e exclusão dos documentos.');
     } finally {
-      setLoading(false);
-      setReopenModalOpen(false);
-      setReopenModalTask(null);
-      setReopenModalNewStatus(null);
+      setIsReopeningTask(false);
     }
   };
 
@@ -2578,138 +2802,314 @@ export const Tasks: React.FC<{
   const openConcludeModal = (id: string) => {
     setSelectedTaskForConclude(id);
     setConcludeFiles([]);
+    setConcludeStage('idle');
+    setConcludeProgress(0);
+    setConcludeStatusMessage('');
+    setConcludeErrorMessage(null);
+    setConcludeSuccessData(null);
+    setIsConcludingTask(false);
     setConcludeModalOpen(true);
   };
 
   const handleConcludeTask = async () => {
-    if (selectedTaskForConclude) {
-      try {
-        setIsConcludingTask(true);
+    if (!selectedTaskForConclude) return;
 
-        const taskToConclude = tasks.find(t => t.id === selectedTaskForConclude);
-        if (!taskToConclude) throw new Error('Tarefa não encontrada');
+    try {
+      setIsConcludingTask(true);
+      setConcludeErrorMessage(null);
+      setConcludeStage('validating');
+      setConcludeProgress(8);
+      setConcludeStatusMessage('Verificando pré-requisitos da tarefa e do cliente...');
 
-        // Validação de workflow obrigatório
-        const hasUncompletedMandatory = taskToConclude.workflows?.some(wf => wf.is_mandatory && !wf.is_completed);
-        if (hasUncompletedMandatory) {
-          showNotify('Não é possível concluir a tarefa. Existem workflows obrigatórios pendentes.', 'error');
-          setIsConcludingTask(false);
-          return;
+      const taskToConclude = tasks.find(t => t.id === selectedTaskForConclude);
+      if (!taskToConclude) throw new Error('Tarefa não encontrada.');
+
+      // Validação de workflow obrigatório
+      const pendingMandatory = taskToConclude.workflows?.filter(wf => wf.is_mandatory && !wf.is_completed) || [];
+      if (pendingMandatory.length > 0) {
+        showNotify('Não é possível concluir a tarefa. Existem workflows obrigatórios pendentes.', 'error');
+        setIsConcludingTask(false);
+        setConcludeStage('idle');
+        return;
+      }
+
+      // Se não houver arquivos anexados, conclui diretamente de forma limpa e atômica
+      if (concludeFiles.length === 0) {
+        setConcludeProgress(50);
+        setConcludeStatusMessage('Concluindo tarefa...');
+
+        // Parar timer se estava em execução e calcular tempo gasto
+        const oldTimeSpent = taskToConclude.totalTimeSpentSeconds || 0;
+        let updatedTimeSpent = oldTimeSpent;
+        if (taskToConclude.status === TaskStatus.INICIADA && taskToConclude.timerStartedAt) {
+          const delta = Math.max(0, Math.floor((Date.now() - new Date(taskToConclude.timerStartedAt).getTime()) / 1000));
+          updatedTimeSpent = oldTimeSpent + delta;
         }
 
-        setLoading(true);
-
-        // 1. Update Status
+        const nowIso = new Date().toISOString();
         const { error: statusError } = await (supabase
           .from('tasks') as any)
-          .update({ status: TaskStatus.CONCLUIDA })
+          .update({
+            status: TaskStatus.CONCLUIDA,
+            completed_at: nowIso,
+            total_time_spent_seconds: updatedTimeSpent,
+            timer_started_at: null
+          })
           .eq('id', selectedTaskForConclude);
 
         if (statusError) throw statusError;
 
-        // 2. Insert Conclusion Attachments & Mirror to Client Portal
-        if (concludeFiles.length > 0) {
-          // Get sector_id for mirroring (garantir busca pelo setor nativo da tarefa de forma case-insensitive)
-          let targetSectorId: string | null = null;
-          try {
-            // 1. Tentar ler o setor diretamente da tabela tasks para máxima fidelidade
-            const { data: dbTask } = await (supabase
-              .from('tasks')
-              .select('sector')
-              .eq('id', selectedTaskForConclude) as any)
-              .maybeSingle();
+        setConcludeProgress(100);
+        setConcludeStage('completed');
+        setConcludeStatusMessage('Tarefa concluída com sucesso!');
+        setConcludeSuccessData({
+          clientName: taskToConclude.clientName,
+          fileCount: 0,
+          competence: taskToConclude.competence,
+          files: []
+        });
 
-            const rawSectorName = (dbTask?.sector || taskToConclude.taskSector || taskToConclude.sector || '').trim();
+        await fetchTasks();
+        showNotify('Tarefa concluída com sucesso!', 'success');
+        return;
+      }
 
-            if (rawSectorName) {
-              // Buscar no sectors por correspondência case-insensitive
-              const { data: matchedSector } = await (supabase
+      // --- PROCESSAMENTO COM ARQUIVOS ANEXADOS ---
+      // 1. Validação do ID do Cliente (Garante que nunca seja nulo ou órfão)
+      let validClientId = taskToConclude.clientId;
+      if (!validClientId && taskToConclude.clientName) {
+        // Busca na lista local de clientes
+        const matchedLocal = clients.find(c =>
+          c.companyName?.trim().toLowerCase() === taskToConclude.clientName?.trim().toLowerCase() ||
+          c.tradeName?.trim().toLowerCase() === taskToConclude.clientName?.trim().toLowerCase()
+        );
+        if (matchedLocal?.id) {
+          validClientId = matchedLocal.id;
+        } else {
+          // Busca de contingência direta no banco de dados
+          const { data: dbClient } = await (supabase
+            .from('clients')
+            .select('id')
+            .eq('org_id', userProfile?.org_id)
+            .or(`company_name.ilike.%${taskToConclude.clientName}%,trade_name.ilike.%${taskToConclude.clientName}%`)
+            .limit(1) as any)
+            .maybeSingle();
+          if (dbClient?.id) {
+            validClientId = dbClient.id;
+          }
+        }
+      }
+
+      if (!validClientId) {
+        throw new Error(`Esta tarefa está associada a "${taskToConclude.clientName || 'Cliente sem nome'}", mas não possui um cadastro ativo com ID válido. Para garantir que o cliente receba os comprovantes no Portal, vincule a tarefa a um cliente cadastrado.`);
+      }
+
+      // 2. Resolução resiliente de Setor
+      let targetSectorId: string | null = null;
+      try {
+        const { data: dbTask } = await (supabase
+          .from('tasks')
+          .select('sector')
+          .eq('id', selectedTaskForConclude) as any)
+          .maybeSingle();
+
+        const rawSectorName = (dbTask?.sector || taskToConclude.taskSector || taskToConclude.sector || '').trim();
+
+        if (rawSectorName && userProfile?.org_id) {
+          const { data: matchedSector } = await (supabase
+            .from('sectors')
+            .select('id')
+            .eq('org_id', userProfile.org_id)
+            .ilike('name', rawSectorName) as any)
+            .maybeSingle();
+
+          if (matchedSector?.id) {
+            targetSectorId = matchedSector.id;
+          } else {
+            const candidateNames = rawSectorName.split(',').map((s: string) => s.trim()).filter(Boolean);
+            if (candidateNames.length > 0) {
+              const { data: matchedCandidates } = await (supabase
                 .from('sectors')
-                .select('id')
+                .select('id, name')
                 .eq('org_id', userProfile.org_id)
-                .ilike('name', rawSectorName) as any)
-                .maybeSingle();
+                .in('name', candidateNames) as any);
 
-              if (matchedSector?.id) {
-                targetSectorId = matchedSector.id;
-              } else {
-                // Se o nome contiver múltiplos setores separados por vírgula, busca o primeiro correspondente
-                const candidateNames = rawSectorName.split(',').map((s: string) => s.trim()).filter(Boolean);
-                if (candidateNames.length > 0) {
-                  const { data: matchedCandidates } = await (supabase
-                    .from('sectors')
-                    .select('id, name')
-                    .eq('org_id', userProfile.org_id)
-                    .in('name', candidateNames) as any);
-
-                  if (matchedCandidates && matchedCandidates.length > 0) {
-                    targetSectorId = matchedCandidates[0].id;
-                  }
-                }
+              if (matchedCandidates && matchedCandidates.length > 0) {
+                targetSectorId = matchedCandidates[0].id;
               }
             }
-          } catch (sectorErr) {
-            console.warn('Erro ao resolver sector_id para o documento:', sectorErr);
-          }
-
-          for (const rawFile of concludeFiles) {
-            const file = await compressFileIfNeeded(rawFile);
-            // Remove caracteres especiais, espaços e pontos duplos que o Supabase bloqueia como "vulnerabilidade de pasta (..)"
-            const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
-            const storagePath = `tasks/${selectedTaskForConclude}/conclude/${Date.now()}_${safeName}`;
-            
-            // Upload Físico do arquivo para o bucket
-            const { error: uploadError } = await supabase.storage
-              .from('client-documents')
-              .upload(storagePath, file);
-              
-            if (uploadError) {
-              console.error('Falha no upload', uploadError);
-              throw new Error(`Erro ao subir arquivo ${file.name}: ` + uploadError.message);
-            }
-            
-            await supabase.from('task_attachments' as any).insert({
-              task_id: selectedTaskForConclude,
-              file_name: file.name,
-              file_size: file.size,
-              storage_path: storagePath,
-              is_conclude_attachment: true
-            });
-
-            // b. Mirror to client_documents
-            // Convert YYYY-MM to MM/YYYY
-            const compParts = taskToConclude.competence.split('-');
-            const competenceMonth = compParts.length === 2 ? `${compParts[1]}/${compParts[0]}` : taskToConclude.competence;
-
-            await supabase.from('client_documents' as any).insert({
-              org_id: userProfile.org_id,
-              client_id: taskToConclude.clientId,
-              task_id: taskToConclude.id,
-              name: file.name,
-              storage_path: storagePath,
-              sector_id: targetSectorId,
-              competence_month: competenceMonth,
-              due_date: taskToConclude.dueDate,
-              type: taskToConclude.taskName,
-              status: 'Pendente',
-              uploaded_by_role: userProfile.role
-            });
           }
         }
 
-        // 3. Local Refresh or Refetch
-        await fetchTasks();
-
-        setConcludeModalOpen(false);
-        setSelectedTaskForConclude(null);
-        setConcludeFiles([]);
-      } catch (error: any) {
-        console.error('Error concluding task:', error);
-        alert('Erro ao concluir tarefa: ' + (error.message || 'Erro desconhecido'));
-      } finally {
-        setIsConcludingTask(false);
-        setLoading(false);
+        // Fallback: se nenhum setor foi identificado, herda o primeiro setor da organização para não deixar null
+        if (!targetSectorId && userProfile?.org_id) {
+          const { data: fallbackSector } = await (supabase
+            .from('sectors')
+            .select('id')
+            .eq('org_id', userProfile.org_id)
+            .order('name', { ascending: true })
+            .limit(1) as any)
+            .maybeSingle();
+          if (fallbackSector?.id) {
+            targetSectorId = fallbackSector.id;
+          }
+        }
+      } catch (sectorErr) {
+        console.warn('Aviso: falha na resolução do setor:', sectorErr);
       }
+
+      // 3. Formatação da competência para formato MM/YYYY
+      let competenceMonth = (taskToConclude.competence || '').trim();
+      if (competenceMonth.includes('-')) {
+        const compParts = competenceMonth.split('-');
+        if (compParts.length === 2) {
+          competenceMonth = `${compParts[1]}/${compParts[0]}`;
+        }
+      }
+
+      const totalFiles = concludeFiles.length;
+      const uploadedDocIds: string[] = [];
+      const uploadedFileNames: string[] = [];
+
+      // 4. Processamento individual de cada arquivo
+      for (let i = 0; i < totalFiles; i++) {
+        const rawFile = concludeFiles[i];
+        const fileFraction = i / totalFiles;
+
+        // Etapa: Compressão / Otimização
+        setConcludeStage('compressing');
+        setConcludeProgress(Math.round(15 + fileFraction * 70));
+        setConcludeStatusMessage(`Otimizando "${rawFile.name}" (${i + 1}/${totalFiles})...`);
+        const file = await compressFileIfNeeded(rawFile);
+
+        // Etapa: Upload no Storage
+        setConcludeStage('uploading');
+        setConcludeProgress(Math.round(35 + fileFraction * 70));
+        setConcludeStatusMessage(`Enviando "${file.name}" para o servidor seguro (${i + 1}/${totalFiles})...`);
+
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
+        const storagePath = `tasks/${selectedTaskForConclude}/conclude/${Date.now()}_${safeName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('client-documents')
+          .upload(storagePath, file, {
+            contentType: file.type || 'application/octet-stream',
+            upsert: false
+          });
+
+        if (uploadError) {
+          throw new Error(`Falha no upload do arquivo "${file.name}": ${uploadError.message}`);
+        }
+
+        // Registro em task_attachments
+        const { error: attachError } = await (supabase
+          .from('task_attachments' as any) as any)
+          .insert({
+            task_id: selectedTaskForConclude,
+            file_name: file.name,
+            file_size: file.size,
+            storage_path: storagePath,
+            is_conclude_attachment: true
+          });
+        if (attachError) {
+          console.warn('Aviso ao registrar em task_attachments:', attachError);
+        }
+
+        // Etapa: Publicação na Área do Cliente (client_documents)
+        setConcludeStage('registering');
+        setConcludeProgress(Math.round(55 + fileFraction * 70));
+        setConcludeStatusMessage(`Registrando "${file.name}" no Portal do Cliente (${i + 1}/${totalFiles})...`);
+
+        const { data: createdDoc, error: insertDocError } = await (supabase
+          .from('client_documents' as any) as any)
+          .insert({
+            org_id: userProfile?.org_id,
+            client_id: validClientId,
+            task_id: taskToConclude.id,
+            name: file.name,
+            storage_path: storagePath,
+            sector_id: targetSectorId,
+            competence_month: competenceMonth,
+            due_date: taskToConclude.dueDate || null,
+            type: taskToConclude.taskName,
+            status: 'Pendente',
+            uploaded_by_role: userProfile?.role || 'operacional'
+          })
+          .select('id, name, client_id')
+          .single();
+
+        if (insertDocError || !createdDoc?.id) {
+          throw new Error(`Falha ao registrar "${file.name}" na Área do Cliente: ${insertDocError?.message || 'Erro ao persistir no banco de dados'}`);
+        }
+
+        // Etapa: Validação Ativa de Entrega (Check de Confirmação no Banco)
+        setConcludeStage('verifying');
+        setConcludeProgress(Math.round(75 + fileFraction * 70));
+        setConcludeStatusMessage(`Auditando e validando entrega de "${file.name}" no Portal...`);
+
+        const { data: verifyDoc, error: verifyError } = await (supabase
+          .from('client_documents' as any) as any)
+          .select('id, client_id, status')
+          .eq('id', createdDoc.id)
+          .maybeSingle();
+
+        if (verifyError || !verifyDoc || verifyDoc.client_id !== validClientId) {
+          throw new Error(`Validação de entrega falhou: o documento "${file.name}" não foi confirmado na Área do Cliente.`);
+        }
+
+        uploadedDocIds.push(createdDoc.id);
+        uploadedFileNames.push(file.name);
+      }
+
+      // 5. Conclusão Final da Tarefa (apenas após 100% dos documentos auditados e confirmados)
+      setConcludeStage('verifying');
+      setConcludeProgress(95);
+      setConcludeStatusMessage('Finalizando e marcando a tarefa como Concluída...');
+
+      const oldTimeSpent = taskToConclude.totalTimeSpentSeconds || 0;
+      let updatedTimeSpent = oldTimeSpent;
+      if (taskToConclude.status === TaskStatus.INICIADA && taskToConclude.timerStartedAt) {
+        const delta = Math.max(0, Math.floor((Date.now() - new Date(taskToConclude.timerStartedAt).getTime()) / 1000));
+        updatedTimeSpent = oldTimeSpent + delta;
+      }
+
+      const nowIso = new Date().toISOString();
+      const { error: finalStatusError } = await (supabase
+        .from('tasks') as any)
+        .update({
+          status: TaskStatus.CONCLUIDA,
+          completed_at: nowIso,
+          total_time_spent_seconds: updatedTimeSpent,
+          timer_started_at: null
+        })
+        .eq('id', selectedTaskForConclude);
+
+      if (finalStatusError) {
+        throw new Error(`Documentos foram entregues ao cliente, mas ocorreu erro ao atualizar o status da tarefa: ${finalStatusError.message}`);
+      }
+
+      // 6. Sucesso Confirmado
+      setConcludeProgress(100);
+      setConcludeStage('completed');
+      setConcludeStatusMessage('Conclusão e entrega validadas com sucesso!');
+      setConcludeSuccessData({
+        clientName: taskToConclude.clientName,
+        fileCount: totalFiles,
+        competence: competenceMonth || taskToConclude.competence,
+        files: uploadedFileNames
+      });
+
+      await fetchTasks();
+      showNotify(`Tarefa concluída e ${totalFiles} documento(s) validados na Área do Cliente!`, 'success');
+
+    } catch (error: any) {
+      console.error('Erro no fluxo de conclusão de tarefa:', error);
+      setConcludeStage('error');
+      setConcludeErrorMessage(error.message || 'Erro inesperado ao concluir a tarefa.');
+      showNotify(error.message || 'Erro ao concluir tarefa.', 'error');
+    } finally {
+      setIsConcludingTask(false);
+      setLoading(false);
     }
   };
 
@@ -3833,71 +4233,400 @@ export const Tasks: React.FC<{
       <Modal
         isOpen={reopenModalOpen}
         onClose={() => {
-          setReopenModalOpen(false);
-          setReopenModalTask(null);
+          if (!isReopeningTask) {
+            setReopenModalOpen(false);
+            setReopenStage('idle');
+            setReopenProgress(0);
+            setReopenErrorMessage(null);
+            setReopenSuccessData(null);
+            setReopenModalTask(null);
+            setReopenModalNewStatus(null);
+            setReopenLinkedDocs([]);
+          }
         }}
-        title="Reabrir Tarefa"
-        size={reopenModalTask?.attachments && reopenModalTask.attachments.length > 0 ? "lg" : "md"}
+        title={
+          <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            {reopenStage === 'completed' ? (
+              <CheckCircle2 size={20} className="text-emerald-500" />
+            ) : reopenStage === 'error' ? (
+              <AlertCircle size={20} className="text-rose-500" />
+            ) : isReopeningTask ? (
+              <RotateCcw size={20} className="text-indigo-600 dark:text-indigo-400 animate-spin" />
+            ) : (
+              <RotateCcw size={20} className="text-indigo-600 dark:text-indigo-400" />
+            )}
+            <span className="font-bold text-sm sm:text-base">Reabrir Tarefa & Gestão de Documentos</span>
+          </div>
+        }
+        size="lg"
         footer={
-          reopenModalTask?.attachments && reopenModalTask.attachments.length > 0 ? (
-            <div className="flex flex-col-reverse sm:flex-row justify-between w-full gap-2">
-              <Button variant="ghost" onClick={() => setReopenModalOpen(false)}>Cancelar</Button>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button onClick={() => handleReopenTask(false)} className="bg-slate-700 hover:bg-slate-800 text-white whitespace-normal h-auto py-2 text-center">Reabrir e Manter Documento</Button>
-                <Button variant="danger" onClick={() => handleReopenTask(true)} className="whitespace-normal h-auto py-2 text-center">Reabrir e Excluir Documento</Button>
-              </div>
+          reopenStage === 'completed' ? (
+            <div className="flex items-center justify-end w-full">
+              <Button 
+                variant="primary" 
+                onClick={() => {
+                  setReopenModalOpen(false);
+                  setReopenStage('idle');
+                  setReopenProgress(0);
+                  setReopenErrorMessage(null);
+                  setReopenSuccessData(null);
+                  setReopenModalTask(null);
+                  setReopenModalNewStatus(null);
+                  setReopenLinkedDocs([]);
+                }}
+                className="w-full sm:w-auto px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <CheckCircle2 size={16} />
+                <span>Finalizar e Fechar</span>
+              </Button>
+            </div>
+          ) : reopenStage === 'error' ? (
+            <div className="flex items-center justify-between w-full gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  setReopenModalOpen(false);
+                  setReopenStage('idle');
+                  setReopenProgress(0);
+                  setReopenErrorMessage(null);
+                  setReopenModalTask(null);
+                  setReopenModalNewStatus(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={() => handleReopenTask(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-1.5 shadow-sm"
+              >
+                <RotateCcw size={15} />
+                <span>Tentar Novamente</span>
+              </Button>
+            </div>
+          ) : isReopeningTask ? (
+            <div className="flex items-center justify-between w-full text-xs text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin text-indigo-500 shrink-0" />
+                <span>Processando reabertura e gravando trilha de auditoria...</span>
+              </span>
             </div>
           ) : (
-            <div className="flex justify-end w-full gap-2">
-              <Button variant="ghost" onClick={() => setReopenModalOpen(false)}>Cancelar</Button>
-              <Button onClick={() => handleReopenTask(false)} className="bg-indigo-600 hover:bg-indigo-700 text-white">Confirmar Reabertura</Button>
+            <div className="flex flex-col-reverse sm:flex-row justify-between w-full gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  setReopenModalOpen(false);
+                  setReopenStage('idle');
+                  setReopenModalTask(null);
+                  setReopenModalNewStatus(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  onClick={() => handleReopenTask(false)} 
+                  className="bg-slate-700 hover:bg-slate-800 text-white whitespace-normal h-auto py-2 px-3 text-center text-xs font-semibold"
+                >
+                  Reabrir e Manter no Portal
+                </Button>
+                <Button 
+                  variant="danger" 
+                  onClick={() => handleReopenTask(true)} 
+                  className="whitespace-normal h-auto py-2 px-3 text-center text-xs font-semibold flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 size={14} />
+                  <span>Reabrir e Excluir do Portal</span>
+                </Button>
+              </div>
             </div>
           )
         }
       >
         <div className="space-y-4 min-w-0">
-          {reopenModalTask?.attachments && reopenModalTask.attachments.length > 0 ? (
-            <>
-               <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl min-w-0 overflow-hidden">
-                 <div className="flex items-start gap-3 min-w-0">
-                   <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={22} />
-                   <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-amber-800 dark:text-amber-400 mb-1 leading-tight">Atenção: Documentos Vinculados</h4>
-                      <p className="text-sm text-amber-700 dark:text-amber-300 mb-3 break-words leading-relaxed">
-                        Esta tarefa possui documentos enviados ao portal do cliente. O que você deseja fazer com eles ao reabrir a tarefa?
+          {/* ESTADO 1: SUCESSO CONFIRMADO */}
+          {reopenStage === 'completed' && (
+            <div className="py-2 space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-md">
+                <CheckCircle2 size={36} className="stroke-[2.5]" />
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  {reopenSuccessData?.keptDocs 
+                    ? 'Tarefa Reaberta & Documentos Preservados!' 
+                    : 'Tarefa Reaberta & Documentos Excluídos com Sucesso!'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  {reopenSuccessData?.keptDocs
+                    ? 'A tarefa retornou para o status selecionado. Os comprovantes continuam visíveis para o cliente no Portal.'
+                    : 'A tarefa foi reaberta, os arquivos foram removidos do Portal e do armazenamento, e o registro imutável de auditoria foi gravado.'}
+                </p>
+              </div>
+
+              {reopenSuccessData && (
+                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 text-left text-xs space-y-2 max-w-md mx-auto">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Novo Status da Tarefa:</span>
+                    <span className="font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
+                      {reopenSuccessData.newStatus}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Situação no Portal do Cliente:</span>
+                    <span className={`font-semibold ${reopenSuccessData.keptDocs ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {reopenSuccessData.keptDocs ? 'Documentos Mantidos' : 'Documentos Removidos & Auditados'}
+                    </span>
+                  </div>
+                  
+                  {reopenSuccessData.files.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/50">
+                      <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1.5">
+                        <FileText size={13} className="text-indigo-500" />
+                        {reopenSuccessData.files.length} documento(s) processado(s):
+                      </span>
+                      <ul className="space-y-1 pl-1">
+                        {reopenSuccessData.files.map((fname, idx) => (
+                          <li key={idx} className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center justify-between truncate">
+                            <span className="truncate flex-1">{fname}</span>
+                            {!reopenSuccessData.keptDocs && (
+                              <span className="shrink-0 text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded ml-2">
+                                EXCLUÍDO
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {!reopenSuccessData.keptDocs && (
+                    <div className="mt-2 pt-2 border-t border-slate-200/80 dark:border-slate-700/50 flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      <ShieldCheck size={14} className="shrink-0" />
+                      <span>Trilha de auditoria imutável gravada com sucesso (Conformidade LGPD).</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ESTADO 2: ERRO NO PROCESSAMENTO */}
+          {reopenStage === 'error' && (
+            <div className="py-1 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-start gap-3.5 p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl text-rose-700 dark:text-rose-300">
+                <AlertCircle size={22} className="text-rose-600 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-sm text-rose-950 dark:text-rose-200">Falha na Reabertura</p>
+                  <p className="text-rose-800 dark:text-rose-300 leading-relaxed">
+                    {reopenErrorMessage || 'Ocorreu um erro inesperado durante a reabertura e remoção de documentos.'}
+                  </p>
+                  <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium pt-1">
+                    Os dados da tarefa foram protegidos. Você pode tentar a operação novamente ou cancelar.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ESTADO 3: BARRA DE PROGRESSO & PIPELINE (EM PROCESSAMENTO) */}
+          {isReopeningTask && (
+            <div className="space-y-4 py-1 animate-in fade-in duration-200">
+              {/* Header com percentual */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin text-indigo-600 dark:text-indigo-400 shrink-0" />
+                    Processando Reabertura & Auditoria
+                  </span>
+                  <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                    {reopenProgress}%
+                  </span>
+                </div>
+
+                {/* Barra com Gradiente */}
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 via-indigo-500 to-emerald-500 transition-all duration-300 ease-out rounded-full shadow-xs"
+                    style={{ width: `${reopenProgress}%` }}
+                  />
+                </div>
+
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  {reopenStatusMessage || 'Aguarde um momento...'}
+                </p>
+              </div>
+
+              {/* Stepper Pipeline de Validação */}
+              <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+                  Etapas do Processo
+                </span>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    {reopenProgress >= 20 ? (
+                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    ) : reopenStage === 'auditing' ? (
+                      <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
+                    )}
+                    <span className={`text-[11px] ${reopenProgress >= 20 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      1. Auditoria e registro em trilha imutável (LGPD)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {reopenProgress >= 50 ? (
+                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    ) : reopenStage === 'removing_portal' ? (
+                      <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
+                    )}
+                    <span className={`text-[11px] ${reopenProgress >= 50 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      2. Remoção segura e limpeza de logs no Portal do Cliente
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {reopenProgress >= 75 ? (
+                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    ) : reopenStage === 'purging_storage' ? (
+                      <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
+                    )}
+                    <span className={`text-[11px] ${reopenProgress >= 75 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      3. Expurgo dos arquivos do Storage e anexos da tarefa
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {reopenProgress >= 100 ? (
+                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    ) : reopenStage === 'updating_task' ? (
+                      <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
+                    )}
+                    <span className={`text-[11px] ${reopenProgress >= 100 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      4. Redefinição do status e restabelecimento da tarefa
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ESTADO 4: IDLE (CONFIRMAÇÃO E ESCOLHA DE AÇÃO) */}
+          {reopenStage === 'idle' && (() => {
+            // Unificar lista para visualização
+            const displayDocs: Array<{ name: string; status: string; id?: string }> = [];
+            for (const d of reopenLinkedDocs) {
+              displayDocs.push({ name: d.name, status: d.status || 'Pendente', id: d.id });
+            }
+            if (reopenModalTask?.attachments && reopenModalTask.attachments.length > 0) {
+              for (const att of reopenModalTask.attachments) {
+                if (!displayDocs.some(l => l.name === att.name || (att.id && l.id === att.id))) {
+                  const foundStatus = reopenModalDocsStatus.find(s => s.name === att.name)?.status || 'Pendente';
+                  displayDocs.push({ name: att.name, status: foundStatus, id: att.id });
+                }
+              }
+            }
+            const hasAnyReadDoc = displayDocs.some(d => d.status === 'Lido');
+            const clientObj = clients.find(c => c.id === reopenModalTask?.clientId);
+            const clientName = reopenModalTask?.clientName || clientObj?.companyName || clientObj?.tradeName || 'Cliente';
+
+            return (
+              <div className="space-y-4 min-w-0">
+                {/* Resumo da Tarefa */}
+                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Tarefa:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[260px]">
+                      {reopenModalTask?.taskName}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Cliente:</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[260px]">
+                      {clientName}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Novo Status Destino:</span>
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
+                      {reopenModalNewStatus}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Alerta de Documentos */}
+                <div className={`p-4 ${hasAnyReadDoc ? 'bg-amber-500/10 border-amber-300 dark:border-amber-700/80' : 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700'} border rounded-xl min-w-0 overflow-hidden`}>
+                  <div className="flex items-start gap-3 min-w-0">
+                    <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={22} />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-amber-800 dark:text-amber-400 mb-1 leading-tight flex items-center gap-2">
+                        <span>Atenção: Documentos Vinculados no Portal</span>
+                        {hasAnyReadDoc && (
+                          <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-black tracking-normal">
+                            DOCUMENTO JÁ LIDO
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mb-3 break-words leading-relaxed">
+                        Esta tarefa possui comprovantes já entregues ao portal do cliente. O que você deseja fazer com eles ao reabrir a tarefa?
                       </p>
                       
-                      <div className="bg-white/60 dark:bg-black/20 rounded-lg p-2 flex flex-col gap-2 min-w-0">
-                        {reopenModalTask.attachments.map((file, idx) => {
-                          const docStatus = reopenModalDocsStatus.find(d => d.name === file.name)?.status || 'Pendente';
-                          return (
-                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-amber-100 dark:border-amber-800/50 shadow-sm gap-2 min-w-0">
-                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate min-w-0 flex-1" title={file.name}>{file.name}</span>
-                              {docStatus === 'Lido' ? (
-                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white uppercase tracking-tighter">LIDO</span>
-                              ) : (
-                                <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-amber-500 text-white uppercase tracking-tighter">NÃO LIDO</span>
-                              )}
-                            </div>
-                          );
-                        })}
+                      <div className="bg-white/70 dark:bg-black/30 rounded-lg p-2 flex flex-col gap-2 min-w-0 border border-amber-200/50 dark:border-amber-800/40">
+                        {displayDocs.map((file, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-amber-100 dark:border-amber-800/50 shadow-xs gap-2 min-w-0">
+                            <span className="font-medium text-slate-700 dark:text-slate-300 truncate min-w-0 flex-1" title={file.name}>
+                              {file.name}
+                            </span>
+                            {file.status === 'Lido' ? (
+                              <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white uppercase tracking-tighter shadow-2xs">
+                                LIDO PELO CLIENTE
+                              </span>
+                            ) : (
+                              <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-amber-500 text-white uppercase tracking-tighter shadow-2xs">
+                                NÃO LIDO
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                   </div>
-                 </div>
-               </div>
-               
-               <div className="text-sm text-slate-600 dark:text-slate-300 ml-1">
-                 <ul className="list-disc pl-5 space-y-2.5 leading-relaxed">
-                   <li><strong>Reabrir e Manter:</strong> A tarefa volta para Pendente, mas o arquivo continuará acessível para o cliente.</li>
-                   <li><strong>Reabrir e Excluir:</strong> A tarefa volta para Pendente, e o arquivo será bloqueado e marcado como Excluído no portal do cliente e removido do provedor de armazenamento.</li>
-                 </ul>
-               </div>
-            </>
-          ) : (
-            <p className="text-slate-600 dark:text-slate-300 text-sm">
-              Tem certeza que deseja reabrir esta tarefa? Ela voltará para o status Pendente.
-            </p>
-          )}
+
+                      {hasAnyReadDoc && (
+                        <p className="mt-2 text-[11px] text-amber-900 dark:text-amber-200 font-medium bg-amber-100/70 dark:bg-amber-950/60 p-2 rounded-lg border border-amber-200 dark:border-amber-800/60">
+                          ⚠️ <strong>Aviso importante:</strong> Um ou mais documentos já foram visualizados pelo cliente no Portal. Caso opte por excluir, um registro detalhado da data da primeira visualização será mantido no livro imutável de auditoria.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Comparativo de Ações */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1">
+                    <p className="font-bold text-slate-800 dark:text-slate-200">Reabrir e Manter</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      A tarefa volta ao status selecionado, mas os comprovantes permanecem ativos e disponíveis para o cliente no Portal.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl border border-rose-200/60 dark:border-rose-900/40 space-y-1">
+                    <p className="font-bold text-rose-700 dark:text-rose-300">Reabrir e Excluir</p>
+                    <p className="text-[11px] text-rose-600/90 dark:text-rose-400/90 leading-relaxed">
+                      Os arquivos são removidos da Área do Cliente e do servidor físico, gerando protocolo auditado de exclusão.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </Modal>
 
@@ -3977,106 +4706,369 @@ export const Tasks: React.FC<{
       <Modal
         isOpen={concludeModalOpen}
         onClose={() => {
-          if (!isConcludingTask) setConcludeModalOpen(false);
+          if (!isConcludingTask) {
+            setConcludeModalOpen(false);
+            setConcludeStage('idle');
+            setConcludeProgress(0);
+            setConcludeFiles([]);
+            setConcludeErrorMessage(null);
+            setConcludeSuccessData(null);
+            setSelectedTaskForConclude(null);
+          }
         }}
-        title="Concluir Tarefa"
-        footer={
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              onClick={() => setConcludeModalOpen(false)}
-              disabled={isConcludingTask}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              variant="success" 
-              onClick={handleConcludeTask}
-              loading={isConcludingTask}
-              disabled={isConcludingTask}
-            >
-              {isConcludingTask ? 'Concluindo...' : 'Confirmar Conclusão'}
-            </Button>
+        title={
+          <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
+            {concludeStage === 'completed' ? (
+              <CheckCircle2 size={20} className="text-emerald-500" />
+            ) : concludeStage === 'error' ? (
+              <AlertCircle size={20} className="text-rose-500" />
+            ) : (
+              <FileCheck2 size={20} className="text-indigo-600 dark:text-indigo-400" />
+            )}
+            <span className="font-bold text-sm sm:text-base">Concluir Tarefa & Entrega ao Cliente</span>
           </div>
+        }
+        footer={
+          concludeStage === 'completed' ? (
+            <div className="flex items-center justify-end w-full">
+              <Button 
+                variant="primary" 
+                onClick={() => {
+                  setConcludeModalOpen(false);
+                  setConcludeStage('idle');
+                  setConcludeProgress(0);
+                  setConcludeFiles([]);
+                  setConcludeErrorMessage(null);
+                  setConcludeSuccessData(null);
+                  setSelectedTaskForConclude(null);
+                }}
+                className="w-full sm:w-auto px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <CheckCircle2 size={16} />
+                <span>Finalizar e Fechar</span>
+              </Button>
+            </div>
+          ) : concludeStage === 'error' ? (
+            <div className="flex items-center justify-between w-full gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  setConcludeModalOpen(false);
+                  setConcludeStage('idle');
+                  setConcludeProgress(0);
+                  setConcludeFiles([]);
+                  setConcludeErrorMessage(null);
+                  setSelectedTaskForConclude(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleConcludeTask}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-1.5 shadow-sm"
+              >
+                <RotateCcw size={15} />
+                <span>Tentar Novamente</span>
+              </Button>
+            </div>
+          ) : isConcludingTask ? (
+            <div className="flex items-center justify-between w-full text-xs text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin text-indigo-500 shrink-0" />
+                <span>Validando no banco de dados e gravando com segurança...</span>
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => setConcludeModalOpen(false)}
+                disabled={isConcludingTask}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                variant="success" 
+                onClick={handleConcludeTask}
+                loading={isConcludingTask}
+                disabled={isConcludingTask || (tasks.find(t => t.id === selectedTaskForConclude)?.workflows?.some(wf => wf.is_mandatory && !wf.is_completed) ?? false)}
+                className="flex items-center gap-1.5 shadow-sm font-semibold"
+              >
+                <CheckCircle2 size={16} />
+                <span>Confirmar Conclusão</span>
+              </Button>
+            </div>
+          )
         }
       >
         <div className="space-y-4">
-          {isConcludingTask && (
-            <div className="flex items-center gap-3 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-medium animate-pulse">
-              <Loader2 className="animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" size={16} />
-              <span>Concluindo tarefa e enviando {concludeFiles.length > 0 ? `${concludeFiles.length} anexo(s)` : 'dados'} para o sistema... Aguarde um momento.</span>
-            </div>
-          )}
+          {/* ESTADO 1: SUCESSO CONFIRMADO */}
+          {concludeStage === 'completed' && (
+            <div className="py-2 space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-md">
+                <CheckCircle2 size={36} className="stroke-[2.5]" />
+              </div>
 
-          {(() => {
-            const task = tasks.find(t => t.id === selectedTaskForConclude);
-            const pendingMandatory = task?.workflows?.filter(wf => wf.is_mandatory && !wf.is_completed) || [];
-            if (pendingMandatory.length > 0) {
-              return (
-                <div className="flex items-start gap-3 p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl text-rose-700 dark:text-rose-300 animate-in fade-in duration-200">
-                  <AlertCircle size={18} className="text-rose-500 shrink-0 mt-0.5" />
-                  <div className="text-xs space-y-1">
-                    <p className="font-bold">Atenção: Existem {pendingMandatory.length} workflow(s) obrigatório(s) pendente(s):</p>
-                    <ul className="list-disc list-inside space-y-0.5 text-[11px] opacity-90">
-                      {pendingMandatory.map((wf, idx) => (
-                        <li key={idx} className="truncate">{wf.description}</li>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  {concludeSuccessData && concludeSuccessData.fileCount > 0 
+                    ? 'Documentos Entregues com Sucesso!' 
+                    : 'Tarefa Concluída com Sucesso!'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                  {concludeSuccessData && concludeSuccessData.fileCount > 0
+                    ? 'Os comprovantes foram salvos no servidor seguro e já estão ativos e auditados na Área do Cliente.'
+                    : 'A tarefa foi marcada como concluída e os registros foram atualizados no sistema.'}
+                </p>
+              </div>
+
+              {concludeSuccessData && concludeSuccessData.fileCount > 0 && (
+                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 text-left text-xs space-y-2 max-w-md mx-auto">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Cliente Destinatário:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[210px]">
+                      {concludeSuccessData.clientName}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Competência:</span>
+                    <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
+                      {concludeSuccessData.competence}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/50">
+                    <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-1.5">
+                      <CheckCircle2 size={13} />
+                      {concludeSuccessData.fileCount} comprovante(s) confirmado(s) no Portal:
+                    </span>
+                    <ul className="space-y-1 pl-1">
+                      {concludeSuccessData.files.map((fname, idx) => (
+                        <li key={idx} className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1.5 truncate">
+                          <FileText size={12} className="text-indigo-500 shrink-0" />
+                          <span className="truncate">{fname}</span>
+                        </li>
                       ))}
                     </ul>
                   </div>
                 </div>
-              );
-            }
-            return null;
-          })()}
-
-          <p className="text-slate-600 dark:text-slate-300">
-            Tem certeza que deseja marcar esta tarefa como concluída? Você pode anexar arquivos de comprovante abaixo se desejar.
-          </p>
-
-          <div className={`space-y-3 ${isConcludingTask ? 'pointer-events-none opacity-50' : ''}`}>
-            <input
-              type="file"
-              ref={concludeFileInputRef}
-              disabled={isConcludingTask}
-              onChange={(e) => {
-                if (e.target.files) {
-                  setConcludeFiles(prev => [...prev, ...Array.from(e.target.files!)]);
-                }
-              }}
-              className="hidden"
-              multiple
-            />
-
-            <div
-              onClick={() => {
-                if (!isConcludingTask) concludeFileInputRef.current?.click();
-              }}
-              className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg p-6 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
-            >
-              <Upload size={20} className="text-indigo-500 mb-2 group-hover:scale-110 transition-transform" />
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Clique para anexar comprovantes</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">PDF, PNG, JPG (Opcional)</p>
+              )}
             </div>
+          )}
 
-            {concludeFiles.length > 0 && (
-              <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
-                {concludeFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded border border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <File size={12} className="text-indigo-500 shrink-0" />
-                      <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 truncate max-w-[150px]">{file.name}</span>
-                    </div>
-                    <button
-                      onClick={() => setConcludeFiles(files => files.filter((_, i) => i !== idx))}
-                      className="text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
+          {/* ESTADO 2: ERRO NO PROCESSAMENTO */}
+          {concludeStage === 'error' && (
+            <div className="py-1 space-y-3 animate-in fade-in duration-200">
+              <div className="flex items-start gap-3.5 p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl text-rose-700 dark:text-rose-300">
+                <AlertCircle size={22} className="text-rose-600 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1">
+                  <p className="font-bold text-sm text-rose-950 dark:text-rose-200">Falha no Envio do Documento</p>
+                  <p className="text-rose-800 dark:text-rose-300 leading-relaxed">
+                    {concludeErrorMessage || 'Ocorreu um erro inesperado durante o processamento do envio.'}
+                  </p>
+                  <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium pt-1">
+                    A tarefa não foi marcada como concluída para evitar inconsistências. Seus arquivos selecionados foram preservados para você tentar novamente.
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* ESTADO 3: BARRA DE PROGRESSO & PIPELINE (EM PROCESSAMENTO) */}
+          {isConcludingTask && (
+            <div className="space-y-4 py-1 animate-in fade-in duration-200">
+              {/* Header com percentual */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin text-indigo-600 dark:text-indigo-400 shrink-0" />
+                    Processando Envio & Conclusão
+                  </span>
+                  <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                    {concludeProgress}%
+                  </span>
+                </div>
+
+                {/* Barra com Gradiente */}
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 transition-all duration-300 ease-out rounded-full shadow-xs"
+                    style={{ width: `${concludeProgress}%` }}
+                  />
+                </div>
+
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  {concludeStatusMessage || 'Aguarde um momento...'}
+                </p>
+              </div>
+
+              {/* Stepper Pipeline de Validação */}
+              <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+                  Auditoria de Etapas
+                </span>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2.5">
+                    {concludeProgress >= 25 ? (
+                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    ) : concludeStage === 'validating' || concludeStage === 'compressing' ? (
+                      <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
+                    )}
+                    <span className={`text-[11px] ${concludeProgress >= 25 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      1. Validação dos dados cadastrais e otimização
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {concludeProgress >= 65 ? (
+                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    ) : concludeStage === 'uploading' ? (
+                      <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
+                    )}
+                    <span className={`text-[11px] ${concludeProgress >= 65 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      2. Upload seguro para o servidor de documentos
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {concludeProgress >= 85 ? (
+                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    ) : concludeStage === 'registering' ? (
+                      <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
+                    )}
+                    <span className={`text-[11px] ${concludeProgress >= 85 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      3. Publicação e vinculação na Área do Cliente
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {concludeProgress >= 100 ? (
+                      <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                    ) : concludeStage === 'verifying' ? (
+                      <Loader2 size={15} className="animate-spin text-indigo-500 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
+                    )}
+                    <span className={`text-[11px] ${concludeProgress >= 100 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      4. Validação ativa de entrega no Portal & Conclusão
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ESTADO 4: IDLE (FORMULÁRIO INICIAL DE CONFIRMAÇÃO E ANEXOS) */}
+          {concludeStage === 'idle' && (
+            <div className="space-y-4">
+              {(() => {
+                const task = tasks.find(t => t.id === selectedTaskForConclude);
+                const pendingMandatory = task?.workflows?.filter(wf => wf.is_mandatory && !wf.is_completed) || [];
+                if (pendingMandatory.length > 0) {
+                  return (
+                    <div className="flex items-start gap-3 p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl text-rose-700 dark:text-rose-300 animate-in fade-in duration-200">
+                      <AlertCircle size={18} className="text-rose-500 shrink-0 mt-0.5" />
+                      <div className="text-xs space-y-1">
+                        <p className="font-bold">Atenção: Existem {pendingMandatory.length} workflow(s) obrigatório(s) pendente(s):</p>
+                        <ul className="list-disc list-inside space-y-0.5 text-[11px] opacity-90">
+                          {pendingMandatory.map((wf, idx) => (
+                            <li key={idx} className="truncate">{wf.description}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {(() => {
+                const task = tasks.find(t => t.id === selectedTaskForConclude);
+                if (!task) return null;
+                return (
+                  <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Tarefa:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[220px]">{task.taskName}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Cliente:</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[220px]">{task.clientName}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Competência:</span>
+                      <span className="font-mono text-slate-600 dark:text-slate-400">{task.competence}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Você pode anexar guias, comprovantes ou relatórios abaixo. Eles serão enviados diretamente para a <strong>Área do Cliente</strong> no Portal com auditoria de entrega.
+              </p>
+
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  ref={concludeFileInputRef}
+                  disabled={isConcludingTask}
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      setConcludeFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                    }
+                  }}
+                  className="hidden"
+                  multiple
+                />
+
+                <div
+                  onClick={() => {
+                    if (!isConcludingTask) concludeFileInputRef.current?.click();
+                  }}
+                  className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
+                >
+                  <Upload size={22} className="text-indigo-500 mb-1.5 group-hover:scale-110 transition-transform" />
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Clique para anexar comprovantes</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">PDF, PNG, JPG, XML ou Documentos (Opcional)</p>
+                </div>
+
+                {concludeFiles.length > 0 && (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+                    {concludeFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <File size={13} className="text-indigo-500 shrink-0" />
+                          <div className="flex flex-col truncate">
+                            <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 truncate max-w-[200px]">{file.name}</span>
+                            <span className="text-[9px] text-slate-400 font-mono">{(file.size / 1024).toFixed(1)} KB</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setConcludeFiles(files => files.filter((_, i) => i !== idx))}
+                          className="p-1 text-slate-400 hover:text-rose-500 transition-colors rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+                          title="Remover arquivo"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 p-2.5 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl text-[11px] text-indigo-700 dark:text-indigo-300">
+                <Info size={15} className="text-indigo-500 shrink-0" />
+                <span>Os arquivos anexados serão validados no banco e disponibilizados instantaneamente no Portal do Cliente.</span>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
