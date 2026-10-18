@@ -73,7 +73,7 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
     clientStatus: {
         name: 'STATUS DE CLIENTES',
         component: ClientStatusWidget,
-        defaultLayout: { i: 'clientStatus', x: 0, y: 25, w: 3, h: 7, minW: 2, minH: 5 }
+        defaultLayout: { i: 'clientStatus', x: 0, y: 25, w: 6, h: 8, minW: 3, minH: 6 }
     },
     taxRegimes: {
         name: 'MONITOR REGIMES',
@@ -1148,7 +1148,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
             case 'upcomingDeadlines': return 'Listagem ordenada com os prazos de obrigações fiscais prestes a vencer.';
             case 'topTasks': return 'Ranking de tarefas com maior volume no período.';
             case 'documentAlerts': return 'Alerta de licenças e certificados digitais próximos do vencimento.';
-            case 'clientStatus': return 'Painel de clientes ativos e inativos.';
+            case 'clientStatus': return 'Métricas da base de clientes e gráfico de evolução (entradas vs. saídas) com filtro de período.';
             case 'taxRegimes': return 'Consolidado de regimes mais atendidos.';
             case 'loggedUsers': return 'Painel de monitoramento de colaboradores conectados no momento.';
             case 'notifiedExclusion': return 'Monitor de clientes excluídos do simples nacional.';

@@ -53,7 +53,9 @@ import {
   Loader2,
   ZoomIn,
   ZoomOut,
-  ShieldCheck
+  ShieldCheck,
+  Lock,
+  Send
 } from 'lucide-react';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -163,6 +165,8 @@ interface TableColumnFilterProps {
   children: React.ReactNode;
   widthClass?: string;
   widthPx?: number;
+  minHeightClass?: string;
+  bodyClassName?: string;
 }
 
 const PANEL_WIDTH = 288; // w-72 = 18rem
@@ -173,7 +177,9 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
   activeCount, 
   children,
   widthClass = 'w-72',
-  widthPx = 288
+  widthPx = 288,
+  minHeightClass = '',
+  bodyClassName = 'space-y-2.5'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -261,7 +267,7 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
           className={`fixed z-[9999] ${widthClass} animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200`}
           onClick={e => e.stopPropagation()}
         >
-          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
+          <div className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden ${minHeightClass}`}>
             {/* Header do painel */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
               <div className="flex items-center gap-2">
@@ -278,7 +284,7 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
               </button>
             </div>
             {/* Conteúdo dos filtros */}
-            <div className="px-4 py-3 space-y-2.5">
+            <div className={`px-4 py-3 ${bodyClassName}`}>
               {children}
             </div>
           </div>
@@ -1092,16 +1098,24 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       </select>
 
                       <div className="grid grid-cols-2 gap-2">
-                        <div className="relative">
+                        <div className="relative group">
+                          <div className="w-full text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100 pointer-events-none group-focus-within:ring-2">
+                            <span className="text-[9.5px] font-bold uppercase truncate">
+                              {colFilter.competence ? colFilter.competence.split('-').reverse().join('/') : <span className="text-slate-400 dark:text-slate-500 font-normal">Competência</span>}
+                            </span>
+                            <Calendar size={12} className="text-slate-400 dark:text-slate-500 shrink-0 ml-1" />
+                          </div>
                           <input
                             type="month"
-                            className={`${inputBase} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 dark:[color-scheme:dark]"
                             value={colFilter.competence}
                             onChange={e => setColFilter(p => ({ ...p, competence: e.target.value }))}
+                            onClick={(e) => {
+                              try {
+                                (e.target as any).showPicker?.();
+                              } catch {}
+                            }}
                           />
-                          <div className="absolute inset-y-0 left-0 flex items-center px-2.5 pointer-events-none text-[9.5px] font-bold text-slate-700 dark:text-slate-200 uppercase">
-                            {colFilter.competence ? colFilter.competence.split('-').reverse().join('/') : 'Competência'}
-                          </div>
                         </div>
                         <input
                           type="date"
@@ -1609,6 +1623,7 @@ export const Tasks: React.FC<{
   const [isReopeningTask, setIsReopeningTask] = useState(false);
   const [selectedTaskForConclude, setSelectedTaskForConclude] = useState<string | null>(null);
   const [concludeFiles, setConcludeFiles] = useState<File[]>([]);
+  const [concludeSendToClient, setConcludeSendToClient] = useState<boolean>(true);
   type ConcludeStage = 'idle' | 'validating' | 'compressing' | 'uploading' | 'registering' | 'verifying' | 'completed' | 'error';
   const [concludeStage, setConcludeStage] = useState<ConcludeStage>('idle');
   const [concludeProgress, setConcludeProgress] = useState<number>(0);
@@ -1619,6 +1634,7 @@ export const Tasks: React.FC<{
     fileCount: number;
     competence: string;
     files: string[];
+    sentToPortal?: boolean;
   } | null>(null);
   const [showDeleteRecurrenceModal, setShowDeleteRecurrenceModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
@@ -2262,9 +2278,10 @@ export const Tasks: React.FC<{
           console.error('Erro ao buscar documentos vinculados para reabertura: ', e);
         }
 
-        const hasLinkedDocs = docsFromDb.length > 0 || (currentTask.attachments && currentTask.attachments.length > 0);
+        // Apenas abre o modal de gestão de documentos se houver documentos publicados no Portal do Cliente (client_documents)
+        const hasPortalDocs = docsFromDb.length > 0;
 
-        if (hasLinkedDocs) {
+        if (hasPortalDocs) {
           setReopenLinkedDocs(docsFromDb);
           setReopenModalDocsStatus(docsFromDb.map(d => ({ name: d.name, status: d.status, id: d.id })));
           setReopenModalTask(currentTask);
@@ -2279,9 +2296,13 @@ export const Tasks: React.FC<{
           return;
         }
 
-        // Se não possui documentos vinculados no portal nem anexos, reabre diretamente
+        // Se possui apenas anexos de uso interno (ou nenhum documento), reabre diretamente preservando os anexos na tarefa
         await executeTaskStatusUpdate(id, newStatus);
-        showNotify(`Tarefa reaberta com sucesso para o status "${newStatus}".`, 'success');
+        if (currentTask.attachments && currentTask.attachments.length > 0) {
+          showNotify(`Tarefa reaberta com sucesso. Os recibos internos foram preservados na tarefa.`, 'success');
+        } else {
+          showNotify(`Tarefa reaberta com sucesso para o status "${newStatus}".`, 'success');
+        }
         return;
       }
 
@@ -2297,6 +2318,7 @@ export const Tasks: React.FC<{
     const oldStatus = currentTask ? currentTask.status : null;
     const oldTimeSpent = currentTask?.totalTimeSpentSeconds || 0;
     const oldTimerStartedAt = currentTask?.timerStartedAt;
+    const isReopening = currentTask?.status === TaskStatus.CONCLUIDA && newStatus !== TaskStatus.CONCLUIDA;
 
     let updatedTimeSpent = oldTimeSpent;
     let updatedTimerStartedAt = oldTimerStartedAt;
@@ -2315,6 +2337,8 @@ export const Tasks: React.FC<{
     setTasks(prev => prev.map(t => t.id === id ? { 
       ...t, 
       status: newStatus,
+      completed_at: isReopening ? null : t.completedAt,
+      completedAt: isReopening ? undefined : t.completedAt,
       totalTimeSpentSeconds: updatedTimeSpent,
       timerStartedAt: updatedTimerStartedAt
     } : t));
@@ -2323,6 +2347,8 @@ export const Tasks: React.FC<{
       setSelectedTaskForDetails(prev => prev ? { 
         ...prev, 
         status: newStatus,
+        completed_at: isReopening ? null : prev.completedAt,
+        completedAt: isReopening ? undefined : prev.completedAt,
         totalTimeSpentSeconds: updatedTimeSpent,
         timerStartedAt: updatedTimerStartedAt
       } : null);
@@ -2334,6 +2360,10 @@ export const Tasks: React.FC<{
         total_time_spent_seconds: updatedTimeSpent,
         timer_started_at: updatedTimerStartedAt
       };
+
+      if (isReopening) {
+        updatePayload.completed_at = null;
+      }
 
       const { data, error } = await (supabase
         .from('tasks') as any)
@@ -2347,6 +2377,8 @@ export const Tasks: React.FC<{
       if (data) {
         setTasks(prev => prev.map(t => t.id === id ? {
           ...t,
+          completed_at: isReopening ? null : (data.completed_at ?? t.completedAt),
+          completedAt: isReopening ? undefined : (data.completed_at ?? t.completedAt),
           totalTimeSpentSeconds: data.total_time_spent_seconds ?? updatedTimeSpent,
           timerStartedAt: data.timer_started_at ?? updatedTimerStartedAt
         } : t));
@@ -2354,6 +2386,8 @@ export const Tasks: React.FC<{
         if (selectedTaskForDetails?.id === id) {
           setSelectedTaskForDetails(prev => prev ? {
             ...prev,
+            completed_at: isReopening ? null : (data.completed_at ?? prev.completedAt),
+            completedAt: isReopening ? undefined : (data.completed_at ?? prev.completedAt),
             totalTimeSpentSeconds: data.total_time_spent_seconds ?? updatedTimeSpent,
             timerStartedAt: data.timer_started_at ?? updatedTimerStartedAt
           } : null);
@@ -2802,6 +2836,7 @@ export const Tasks: React.FC<{
   const openConcludeModal = (id: string) => {
     setSelectedTaskForConclude(id);
     setConcludeFiles([]);
+    setConcludeSendToClient(true);
     setConcludeStage('idle');
     setConcludeProgress(0);
     setConcludeStatusMessage('');
@@ -2875,7 +2910,7 @@ export const Tasks: React.FC<{
       }
 
       // --- PROCESSAMENTO COM ARQUIVOS ANEXADOS ---
-      // 1. Validação do ID do Cliente (Garante que nunca seja nulo ou órfão)
+      // 1. Validação do ID do Cliente (Obrigatório apenas quando for enviar para a Área do Cliente)
       let validClientId = taskToConclude.clientId;
       if (!validClientId && taskToConclude.clientName) {
         // Busca na lista local de clientes
@@ -2900,8 +2935,8 @@ export const Tasks: React.FC<{
         }
       }
 
-      if (!validClientId) {
-        throw new Error(`Esta tarefa está associada a "${taskToConclude.clientName || 'Cliente sem nome'}", mas não possui um cadastro ativo com ID válido. Para garantir que o cliente receba os comprovantes no Portal, vincule a tarefa a um cliente cadastrado.`);
+      if (concludeSendToClient && !validClientId) {
+        throw new Error(`Esta tarefa está associada a "${taskToConclude.clientName || 'Cliente sem nome'}", mas não possui um cadastro ativo com ID válido. Para enviar ao Portal, vincule a tarefa a um cliente cadastrado ou desmarque a opção de envio ao cliente.`);
       }
 
       // 2. Resolução resiliente de Setor
@@ -3015,49 +3050,57 @@ export const Tasks: React.FC<{
           console.warn('Aviso ao registrar em task_attachments:', attachError);
         }
 
-        // Etapa: Publicação na Área do Cliente (client_documents)
-        setConcludeStage('registering');
-        setConcludeProgress(Math.round(55 + fileFraction * 70));
-        setConcludeStatusMessage(`Registrando "${file.name}" no Portal do Cliente (${i + 1}/${totalFiles})...`);
+        // Etapa: Publicação na Área do Cliente (client_documents) ou Arquivamento Interno
+        if (concludeSendToClient) {
+          setConcludeStage('registering');
+          setConcludeProgress(Math.round(55 + fileFraction * 70));
+          setConcludeStatusMessage(`Registrando "${file.name}" no Portal do Cliente (${i + 1}/${totalFiles})...`);
 
-        const { data: createdDoc, error: insertDocError } = await (supabase
-          .from('client_documents' as any) as any)
-          .insert({
-            org_id: userProfile?.org_id,
-            client_id: validClientId,
-            task_id: taskToConclude.id,
-            name: file.name,
-            storage_path: storagePath,
-            sector_id: targetSectorId,
-            competence_month: competenceMonth,
-            due_date: taskToConclude.dueDate || null,
-            type: taskToConclude.taskName,
-            status: 'Pendente',
-            uploaded_by_role: userProfile?.role || 'operacional'
-          })
-          .select('id, name, client_id')
-          .single();
+          const { data: createdDoc, error: insertDocError } = await (supabase
+            .from('client_documents' as any) as any)
+            .insert({
+              org_id: userProfile?.org_id,
+              client_id: validClientId,
+              task_id: taskToConclude.id,
+              name: file.name,
+              storage_path: storagePath,
+              sector_id: targetSectorId,
+              competence_month: competenceMonth,
+              due_date: taskToConclude.dueDate || null,
+              type: taskToConclude.taskName,
+              status: 'Pendente',
+              uploaded_by_role: userProfile?.role || 'operacional'
+            })
+            .select('id, name, client_id')
+            .single();
 
-        if (insertDocError || !createdDoc?.id) {
-          throw new Error(`Falha ao registrar "${file.name}" na Área do Cliente: ${insertDocError?.message || 'Erro ao persistir no banco de dados'}`);
+          if (insertDocError || !createdDoc?.id) {
+            throw new Error(`Falha ao registrar "${file.name}" na Área do Cliente: ${insertDocError?.message || 'Erro ao persistir no banco de dados'}`);
+          }
+
+          // Etapa: Validação Ativa de Entrega (Check de Confirmação no Banco)
+          setConcludeStage('verifying');
+          setConcludeProgress(Math.round(75 + fileFraction * 70));
+          setConcludeStatusMessage(`Auditando e validando entrega de "${file.name}" no Portal...`);
+
+          const { data: verifyDoc, error: verifyError } = await (supabase
+            .from('client_documents' as any) as any)
+            .select('id, client_id, status')
+            .eq('id', createdDoc.id)
+            .maybeSingle();
+
+          if (verifyError || !verifyDoc || verifyDoc.client_id !== validClientId) {
+            throw new Error(`Validação de entrega falhou: o documento "${file.name}" não foi confirmado na Área do Cliente.`);
+          }
+
+          uploadedDocIds.push(createdDoc.id);
+        } else {
+          // Apenas uso interno: avança o pipeline sem registrar no Portal do Cliente
+          setConcludeStage('registering');
+          setConcludeProgress(Math.round(65 + fileFraction * 70));
+          setConcludeStatusMessage(`Arquivando "${file.name}" internamente na tarefa (${i + 1}/${totalFiles})...`);
         }
 
-        // Etapa: Validação Ativa de Entrega (Check de Confirmação no Banco)
-        setConcludeStage('verifying');
-        setConcludeProgress(Math.round(75 + fileFraction * 70));
-        setConcludeStatusMessage(`Auditando e validando entrega de "${file.name}" no Portal...`);
-
-        const { data: verifyDoc, error: verifyError } = await (supabase
-          .from('client_documents' as any) as any)
-          .select('id, client_id, status')
-          .eq('id', createdDoc.id)
-          .maybeSingle();
-
-        if (verifyError || !verifyDoc || verifyDoc.client_id !== validClientId) {
-          throw new Error(`Validação de entrega falhou: o documento "${file.name}" não foi confirmado na Área do Cliente.`);
-        }
-
-        uploadedDocIds.push(createdDoc.id);
         uploadedFileNames.push(file.name);
       }
 
@@ -3085,22 +3128,31 @@ export const Tasks: React.FC<{
         .eq('id', selectedTaskForConclude);
 
       if (finalStatusError) {
-        throw new Error(`Documentos foram entregues ao cliente, mas ocorreu erro ao atualizar o status da tarefa: ${finalStatusError.message}`);
+        throw new Error(`Arquivos salvos com sucesso, mas ocorreu erro ao atualizar o status da tarefa: ${finalStatusError.message}`);
       }
 
       // 6. Sucesso Confirmado
       setConcludeProgress(100);
       setConcludeStage('completed');
-      setConcludeStatusMessage('Conclusão e entrega validadas com sucesso!');
+      setConcludeStatusMessage(
+        concludeSendToClient 
+          ? 'Conclusão e entrega validadas com sucesso!' 
+          : 'Conclusão e arquivamento interno validados com sucesso!'
+      );
       setConcludeSuccessData({
         clientName: taskToConclude.clientName,
         fileCount: totalFiles,
         competence: competenceMonth || taskToConclude.competence,
-        files: uploadedFileNames
+        files: uploadedFileNames,
+        sentToPortal: concludeSendToClient
       });
 
       await fetchTasks();
-      showNotify(`Tarefa concluída e ${totalFiles} documento(s) validados na Área do Cliente!`, 'success');
+      if (concludeSendToClient) {
+        showNotify(`Tarefa concluída e ${totalFiles} documento(s) validados na Área do Cliente!`, 'success');
+      } else {
+        showNotify(`Tarefa concluída e ${totalFiles} recibo(s) arquivado(s) internamente na tarefa!`, 'success');
+      }
 
     } catch (error: any) {
       console.error('Erro no fluxo de conclusão de tarefa:', error);
@@ -3476,21 +3528,29 @@ export const Tasks: React.FC<{
                         <th className={`px-6 py-4 align-top min-w-[130px] border-t-[3px] border-slate-300/90 dark:border-slate-800 border-t-slate-400 dark:border-t-slate-600 ${periodActive ? 'relative z-50' : 'relative z-10'}`}>
                           <div className="flex items-center justify-between gap-2 h-6">
                             <span className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em]">Período</span>
-                            <TableColumnFilter label="Período" isActive={periodActive} activeCount={periodCount}>
+                            <TableColumnFilter 
+                              label="Período" 
+                              isActive={periodActive} 
+                              activeCount={periodCount}
+                              widthClass="w-80"
+                              widthPx={320}
+                              minHeightClass="min-h-[385px]"
+                              bodyClassName="space-y-4 py-4"
+                            >
                               {/* Toggle mês único / intervalo */}
                               <div>
-                                <div className="flex items-center gap-1 mb-2 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                                <div className="flex items-center gap-1 mb-2.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
                                   <button 
                                     type="button" 
                                     onClick={(e) => { e.stopPropagation(); setRangeMode(false); }} 
-                                    className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
+                                    className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
                                   >
                                     Mês único
                                   </button>
                                   <button 
                                     type="button" 
                                     onClick={(e) => { e.stopPropagation(); setRangeMode(true); }} 
-                                    className={`flex-1 text-[10px] font-bold py-1 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
+                                    className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
                                   >
                                     Intervalo
                                   </button>
@@ -3499,15 +3559,23 @@ export const Tasks: React.FC<{
                                   <div className="relative group">
                                     <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Competência</label>
                                     <div className="relative">
+                                      <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
+                                        <span className="text-[11px] font-bold uppercase tracking-wide">
+                                          {formatMonthDisplay(filters.competence) || <span className="text-slate-400 dark:text-slate-500 font-normal">MM/AAAA</span>}
+                                        </span>
+                                        <Calendar size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                                      </div>
                                       <input 
                                         type="month" 
-                                        className={`${headerInputClass} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`} 
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 dark:[color-scheme:dark]" 
                                         value={filters.competence} 
                                         onChange={e => handleFilterChange('competence', e.target.value)} 
+                                        onClick={(e) => {
+                                          try {
+                                            (e.target as any).showPicker?.();
+                                          } catch {}
+                                        }}
                                       />
-                                      <div className="absolute inset-y-0 left-0 flex items-center px-2 pointer-events-none text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase">
-                                        {formatMonthDisplay(filters.competence)}
-                                      </div>
                                     </div>
                                   </div>
                                 ) : (
@@ -3515,29 +3583,45 @@ export const Tasks: React.FC<{
                                     <div className="relative group">
                                       <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">De</label>
                                       <div className="relative">
+                                        <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
+                                          <span className="text-[11px] font-bold uppercase tracking-wide">
+                                            {formatMonthDisplay(filters.competenceFrom) || <span className="text-slate-400 dark:text-slate-500 font-normal">MM/AAAA</span>}
+                                          </span>
+                                          <Calendar size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                                        </div>
                                         <input 
                                           type="month" 
-                                          className={`${headerInputClass} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`} 
+                                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 dark:[color-scheme:dark]" 
                                           value={filters.competenceFrom} 
                                           onChange={e => handleFilterChange('competenceFrom', e.target.value)} 
+                                          onClick={(e) => {
+                                            try {
+                                              (e.target as any).showPicker?.();
+                                            } catch {}
+                                          }}
                                         />
-                                        <div className="absolute inset-y-0 left-0 flex items-center px-2 pointer-events-none text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase">
-                                          {formatMonthDisplay(filters.competenceFrom)}
-                                        </div>
                                       </div>
                                     </div>
                                     <div className="relative group">
                                       <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Até</label>
                                       <div className="relative">
+                                        <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
+                                          <span className="text-[11px] font-bold uppercase tracking-wide">
+                                            {formatMonthDisplay(filters.competenceTo) || <span className="text-slate-400 dark:text-slate-500 font-normal">MM/AAAA</span>}
+                                          </span>
+                                          <Calendar size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                                        </div>
                                         <input 
                                           type="month" 
-                                          className={`${headerInputClass} dark:[color-scheme:dark] text-transparent focus:text-transparent selection:bg-transparent month-input-mask`} 
+                                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 dark:[color-scheme:dark]" 
                                           value={filters.competenceTo} 
                                           onChange={e => handleFilterChange('competenceTo', e.target.value)} 
+                                          onClick={(e) => {
+                                            try {
+                                              (e.target as any).showPicker?.();
+                                            } catch {}
+                                          }}
                                         />
-                                        <div className="absolute inset-y-0 left-0 flex items-center px-2 pointer-events-none text-[11px] font-bold text-slate-700 dark:text-slate-200 uppercase">
-                                          {formatMonthDisplay(filters.competenceTo)}
-                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -3545,7 +3629,7 @@ export const Tasks: React.FC<{
                               </div>
                               {/* Vencimento */}
                               <div>
-                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Data de Vencimento</label>
+                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Data de Vencimento</label>
                                 {!rangeMode ? (
                                   <input type="date" className={`${headerInputClass} dark:[color-scheme:dark]`} value={filters.dueDate} onChange={e => handleFilterChange('dueDate', e.target.value)} />
                                 ) : (
@@ -3557,7 +3641,7 @@ export const Tasks: React.FC<{
                               </div>
                               {/* Recorrência */}
                               <div>
-                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Tipo de Recorrência</label>
+                                <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Tipo de Recorrência</label>
                                 <select 
                                   className={headerInputClass} 
                                   value={filters.recurrence} 
@@ -3584,7 +3668,7 @@ export const Tasks: React.FC<{
                                   handleFilterChange('dueDateTo', ''); 
                                   handleFilterChange('recurrence', ''); 
                                   setRangeMode(false); 
-                                }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-1">
+                                }} className="w-full text-center text-[10px] font-semibold text-rose-500 dark:text-rose-400 hover:text-rose-700 pt-2 transition-colors">
                                   Limpar filtros
                                 </button>
                               )}
@@ -4523,18 +4607,10 @@ export const Tasks: React.FC<{
 
           {/* ESTADO 4: IDLE (CONFIRMAÇÃO E ESCOLHA DE AÇÃO) */}
           {reopenStage === 'idle' && (() => {
-            // Unificar lista para visualização
+            // Unificar apenas os documentos vinculados ao Portal do Cliente
             const displayDocs: Array<{ name: string; status: string; id?: string }> = [];
             for (const d of reopenLinkedDocs) {
               displayDocs.push({ name: d.name, status: d.status || 'Pendente', id: d.id });
-            }
-            if (reopenModalTask?.attachments && reopenModalTask.attachments.length > 0) {
-              for (const att of reopenModalTask.attachments) {
-                if (!displayDocs.some(l => l.name === att.name || (att.id && l.id === att.id))) {
-                  const foundStatus = reopenModalDocsStatus.find(s => s.name === att.name)?.status || 'Pendente';
-                  displayDocs.push({ name: att.name, status: foundStatus, id: att.id });
-                }
-              }
             }
             const hasAnyReadDoc = displayDocs.some(d => d.status === 'Lido');
             const clientObj = clients.find(c => c.id === reopenModalTask?.clientId);
@@ -4725,7 +4801,9 @@ export const Tasks: React.FC<{
             ) : (
               <FileCheck2 size={20} className="text-indigo-600 dark:text-indigo-400" />
             )}
-            <span className="font-bold text-sm sm:text-base">Concluir Tarefa & Entrega ao Cliente</span>
+            <span className="font-bold text-sm sm:text-base">
+              {concludeFiles.length > 0 && !concludeSendToClient ? 'Concluir Tarefa & Anexo Interno' : 'Concluir Tarefa & Entrega ao Cliente'}
+            </span>
           </div>
         }
         footer={
@@ -4796,7 +4874,7 @@ export const Tasks: React.FC<{
                 className="flex items-center gap-1.5 shadow-sm font-semibold"
               >
                 <CheckCircle2 size={16} />
-                <span>Confirmar Conclusão</span>
+                <span>{concludeFiles.length > 0 && !concludeSendToClient ? 'Concluir com Anexo Interno' : 'Confirmar Conclusão'}</span>
               </Button>
             </div>
           )
@@ -4813,12 +4891,16 @@ export const Tasks: React.FC<{
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   {concludeSuccessData && concludeSuccessData.fileCount > 0 
-                    ? 'Documentos Entregues com Sucesso!' 
+                    ? (concludeSuccessData.sentToPortal !== false
+                        ? 'Documentos Entregues com Sucesso!' 
+                        : 'Tarefa Concluída & Recibos Arquivados!')
                     : 'Tarefa Concluída com Sucesso!'}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
                   {concludeSuccessData && concludeSuccessData.fileCount > 0
-                    ? 'Os comprovantes foram salvos no servidor seguro e já estão ativos e auditados na Área do Cliente.'
+                    ? (concludeSuccessData.sentToPortal !== false
+                        ? 'Os comprovantes foram salvos no servidor seguro e já estão ativos e auditados na Área do Cliente.'
+                        : 'Os arquivos foram salvos como anexos internos da tarefa com sucesso e NÃO estão visíveis para o cliente.')
                     : 'A tarefa foi marcada como concluída e os registros foram atualizados no sistema.'}
                 </p>
               </div>
@@ -4840,7 +4922,9 @@ export const Tasks: React.FC<{
                   <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/50">
                     <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 mb-1.5">
                       <CheckCircle2 size={13} />
-                      {concludeSuccessData.fileCount} comprovante(s) confirmado(s) no Portal:
+                      {concludeSuccessData.sentToPortal !== false
+                        ? `${concludeSuccessData.fileCount} comprovante(s) confirmado(s) no Portal:`
+                        : `${concludeSuccessData.fileCount} comprovante(s) arquivado(s) internamente na tarefa:`}
                     </span>
                     <ul className="space-y-1 pl-1">
                       {concludeSuccessData.files.map((fname, idx) => (
@@ -4944,7 +5028,9 @@ export const Tasks: React.FC<{
                       <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
                     )}
                     <span className={`text-[11px] ${concludeProgress >= 85 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
-                      3. Publicação e vinculação na Área do Cliente
+                      {concludeSendToClient 
+                        ? '3. Publicação e vinculação na Área do Cliente' 
+                        : '3. Arquivamento seguro no registro da tarefa'}
                     </span>
                   </div>
 
@@ -4957,7 +5043,9 @@ export const Tasks: React.FC<{
                       <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
                     )}
                     <span className={`text-[11px] ${concludeProgress >= 100 ? 'font-medium text-slate-700 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500'}`}>
-                      4. Validação ativa de entrega no Portal & Conclusão
+                      {concludeSendToClient 
+                        ? '4. Validação ativa de entrega no Portal & Conclusão' 
+                        : '4. Validação do arquivamento & Conclusão da Tarefa'}
                     </span>
                   </div>
                 </div>
@@ -5011,7 +5099,7 @@ export const Tasks: React.FC<{
               })()}
 
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Você pode anexar guias, comprovantes ou relatórios abaixo. Eles serão enviados diretamente para a <strong>Área do Cliente</strong> no Portal com auditoria de entrega.
+                Você pode anexar guias para o cliente ou comprovantes e recibos de transmissão internos. Ao anexar, escolha se o documento vai para a <strong>Área do Cliente</strong> ou fica como <strong>Anexo Interno</strong> da tarefa.
               </p>
 
               <div className="space-y-3">
@@ -5061,12 +5149,73 @@ export const Tasks: React.FC<{
                     ))}
                   </div>
                 )}
+
+                {/* Card de Configuração de Destino: Área do Cliente vs Anexo Interno */}
+                {concludeFiles.length > 0 && (
+                  <div className="p-3.5 rounded-xl border transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-white dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 shadow-2xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg shrink-0 transition-colors ${
+                          concludeSendToClient 
+                            ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40' 
+                            : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/40'
+                        }`}>
+                          {concludeSendToClient ? <Send size={18} /> : <Lock size={18} />}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                              {concludeSendToClient ? 'Enviar para a Área do Cliente' : 'Apenas Anexo Interno da Tarefa'}
+                            </span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                              concludeSendToClient 
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' 
+                                : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                            }`}>
+                              {concludeSendToClient ? 'Portal Ativo' : 'Uso Interno'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                            {concludeSendToClient 
+                              ? 'Os arquivos ficarão visíveis para o cliente acessar e baixar no Portal.' 
+                              : 'Ideal para recibos de transmissão (SPED, EFD, DCTF). Ficam salvos na tarefa sem expor ao cliente.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Switch Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setConcludeSendToClient(!concludeSendToClient)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 ${
+                          concludeSendToClient ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
+                        role="switch"
+                        aria-checked={concludeSendToClient}
+                        title={concludeSendToClient ? 'Desativar envio para o portal (manter apenas interno)' : 'Ativar envio para a Área do Cliente'}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            concludeSendToClient ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 p-2.5 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl text-[11px] text-indigo-700 dark:text-indigo-300">
-                <Info size={15} className="text-indigo-500 shrink-0" />
-                <span>Os arquivos anexados serão validados no banco e disponibilizados instantaneamente no Portal do Cliente.</span>
-              </div>
+              {concludeFiles.length > 0 && !concludeSendToClient ? (
+                <div className="flex items-center gap-2 p-2.5 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/40 rounded-xl text-[11px] text-amber-800 dark:text-amber-300 animate-in fade-in duration-200">
+                  <Lock size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Modo Interno Ativo: Os {concludeFiles.length} arquivo(s) serão arquivados exclusivamente na tarefa e NÃO aparecerão no Portal do Cliente.</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-2.5 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl text-[11px] text-indigo-700 dark:text-indigo-300 animate-in fade-in duration-200">
+                  <Info size={15} className="text-indigo-500 shrink-0" />
+                  <span>{concludeFiles.length > 0 ? 'Os arquivos anexados serão validados no banco e disponibilizados instantaneamente no Portal do Cliente.' : 'Se anexar arquivos, eles serão auditados e disponibilizados na Área do Cliente.'}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

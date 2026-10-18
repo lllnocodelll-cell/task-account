@@ -687,12 +687,12 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                             )}
                         </div>
                     
-                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                    <div className="flex items-center bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm h-9">
                         <Tooltip content={showMetrics ? "Ocultar Métricas" : "Mostrar Métricas"}>
                             <button
                                 onClick={() => setShowMetrics(!showMetrics)}
-                                className={`p-1.5 rounded-md transition-all ${showMetrics 
-                                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                className={`p-2 rounded transition-all ${showMetrics 
+                                    ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' 
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                             >
                                 <BarChart2 size={18} />
@@ -704,8 +704,8 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         <Tooltip content="Tabela" position="top">
                             <button
                                 onClick={() => setDisplayMode('table')}
-                                className={`p-1.5 rounded-md transition-all ${displayMode === 'table' 
-                                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                className={`p-2 rounded transition-colors ${displayMode === 'table' 
+                                    ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' 
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                             >
                                 <TableIcon size={18} />
@@ -714,8 +714,8 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         <Tooltip content="Card" position="top">
                             <button
                                 onClick={() => setDisplayMode('cards')}
-                                className={`p-1.5 rounded-md transition-all ${displayMode === 'cards' 
-                                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                                className={`p-2 rounded transition-colors ${displayMode === 'cards' 
+                                    ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' 
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                             >
                                 <LayoutGrid size={18} />
@@ -793,7 +793,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                     <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
                         <div className="overflow-auto w-full pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
                             <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
-                                <thead className="bg-slate-200 dark:bg-slate-900 text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm">
+                                <thead className="bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm">
                                     <tr>
                                         {(() => {
                                             const codeActive = !!filters.code;

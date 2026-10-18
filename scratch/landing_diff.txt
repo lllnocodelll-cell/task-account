@@ -1,0 +1,471 @@
+﻿diff --git a/pages/LandingPagePro.tsx b/pages/LandingPagePro.tsx
+index 4369454..2cc7c08 100644
+--- a/pages/LandingPagePro.tsx
++++ b/pages/LandingPagePro.tsx
+@@ -31,6 +31,8 @@ import {
+   ArrowDown,
+   ChevronLeft,
+   Pause,
++  Play,
++  RotateCcw,
+   Maximize2,
+   X,
+   Star,
+@@ -382,6 +384,26 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
+   const [legalInitialTab, setLegalInitialTab] = useState<LegalTabType>('privacy');
+   const [isScrolled, setIsScrolled] = useState<boolean>(false);
+   const [activeSection, setActiveSection] = useState<string>('');
++  const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(true);
++  const heroVideoRef = React.useRef<HTMLVideoElement>(null);
++
++  const toggleVideoPlayback = () => {
++    if (!heroVideoRef.current) return;
++    if (heroVideoRef.current.paused) {
++      heroVideoRef.current.play().catch(() => {});
++      setIsVideoPlaying(true);
++    } else {
++      heroVideoRef.current.pause();
++      setIsVideoPlaying(false);
++    }
++  };
++
++  const restartVideoPlayback = () => {
++    if (!heroVideoRef.current) return;
++    heroVideoRef.current.currentTime = 0;
++    heroVideoRef.current.play().catch(() => {});
++    setIsVideoPlaying(true);
++  };
+ 
+   const handleOpenLegalModal = (tab: LegalTabType) => {
+     setLegalInitialTab(tab);
+@@ -393,7 +415,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
+     const handleScroll = () => {
+       setIsScrolled(window.scrollY > 25);
+ 
+-      const sections = ['cockpit', 'modulos', 'sobre-nos', 'depoimentos', 'planos'];
++      const sections = ['modulos', 'sobre-nos', 'depoimentos', 'planos'];
+       const scrollPosition = window.scrollY + 200;
+ 
+       for (const sectionId of sections) {
+@@ -1126,35 +1148,19 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
+       {/* ÔöÇÔöÇÔöÇ HERO SECTION: ARQUITETURA T├ëCNICA + DISPLAY GIGANTE ÔöÇÔöÇÔöÇ */}
+       <section className="relative pt-28 sm:pt-36 md:pt-40 lg:pt-44 pb-8 sm:pb-12 px-3 sm:px-8 overflow-hidden">
+         
+-        {/* ÔöÇÔöÇÔöÇ V├ìDEO DE FUNDO ULTRA-RESPONSIVO & COMPOSI├ç├âO DE CAMADAS ÔöÇÔöÇÔöÇ */}
+-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+-          <video
+-            key="/hero-video.mp4"
+-            ref={(el) => {
+-              if (el) el.muted = true;
+-            }}
+-            autoPlay
+-            loop
+-            muted
+-            playsInline
+-            preload="auto"
+-            poster="/hero-bg.png"
+-            className="w-full h-full object-cover object-center transform-gpu scale-[1.02] opacity-90 dark:opacity-85 transition-opacity duration-700 pointer-events-none"
+-          >
+-            <source src="/hero-video.mp4" type="video/mp4" />
+-          </video>
+-
+-          {/* Camada de Gradiente & Vinheta calibrada para brilho e contraste */}
++        {/* ÔöÇÔöÇÔöÇ ILUMINA├ç├âO ZENITAL & ATMOSFERA DE FUNDO (SEM V├ìDEO EXPANDIDO EM TELA CHEIA) ÔöÇÔöÇÔöÇ */}
++        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none">
++          {/* Camada de Gradiente Suave de Fundo */}
+           <div 
+             className={`absolute inset-0 transition-colors duration-500 ${
+               isDarkMode 
+-                ? 'bg-gradient-to-b from-[#0B0E14]/60 via-[#0B0E14]/35 to-[#0B0E14]' 
+-                : 'bg-gradient-to-b from-white/55 via-white/20 to-slate-100/90'
++                ? 'bg-gradient-to-b from-[#0B0E14] via-[#0B0E14]/90 to-[#0B0E14]' 
++                : 'bg-gradient-to-b from-white via-slate-50/80 to-slate-100/90'
+             }`} 
+           />
+ 
+-          {/* Glow sutil central de ilumina├º├úo zenital */}
+-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] sm:w-[1100px] h-[550px] bg-gradient-to-b from-amber-400/20 via-yellow-400/10 to-transparent dark:from-yellow-400/15 dark:via-amber-500/5 dark:to-transparent rounded-full blur-[140px] pointer-events-none" />
++          {/* Glow central de ilumina├º├úo zenital */}
++          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] sm:w-[950px] lg:w-[1100px] h-[450px] sm:h-[550px] bg-gradient-to-b from-amber-400/20 via-yellow-400/10 to-transparent dark:from-yellow-400/15 dark:via-amber-500/5 dark:to-transparent rounded-full blur-[140px] pointer-events-none" />
+           
+           {/* Grid de linhas t├®cnicas sutis */}
+           <div 
+@@ -1167,204 +1173,207 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
+             }}
+           />
+ 
+-          {/* Fade suave na base da Hero conectando organicamente com a pr├│xima se├º├úo */}
++          {/* Fade suave na base conectando com a pr├│xima se├º├úo */}
+           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-100/90 dark:from-[#0D1017] to-transparent pointer-events-none" />
+         </div>
+ 
+         <div className="max-w-7xl mx-auto relative z-10">
+-          {/* T├ìTULO HERO DISPLAY: [ÔÜí] Gest├úo de Tarefas Cont├íbeis (Saindo de dentro do Raio) */}
+-          <div className="flex justify-center mb-5 sm:mb-7 px-2">
+-            <div className="relative inline-flex items-center group max-w-full">
+-              
+-              {/* O N├ÜCLEO: Logo do Raio com Efeito Glow Energ├®tico */}
+-              <motion.div 
+-                initial={{ scale: 0.85, opacity: 0 }}
+-                animate={{ scale: 1, opacity: 1 }}
+-                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+-                className="relative z-20 shrink-0 w-11 h-11 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-22 lg:h-22 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 rounded-xl sm:rounded-3xl flex items-center justify-center shadow-[0_0_35px_rgba(250,204,21,0.6)] border border-yellow-200/90 group-hover:scale-105 group-hover:rotate-2 transition-transform duration-300"
+-              >
+-                {/* Halo de pulso sutil */}
+-                <div className="absolute inset-0 rounded-xl sm:rounded-3xl bg-yellow-400/30 animate-ping pointer-events-none" style={{ animationDuration: '3.5s' }} />
+-                <Zap size={22} className="fill-slate-950 stroke-slate-950 sm:hidden" />
+-                <Zap size={36} className="fill-slate-950 stroke-slate-950 hidden sm:block md:scale-110" />
+-              </motion.div>
+-
+-              {/* O FLUXO: O texto se projeta / emerge de dentro do raio */}
+-              <motion.div 
+-                initial={{ opacity: 0, x: -32 }}
+-                animate={{ opacity: 1, x: 0 }}
+-                transition={{ duration: 1.1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+-                className="relative z-10 -ml-4 sm:-ml-6 md:-ml-8 pl-6 sm:pl-9 md:pl-11 pr-4 sm:pr-8 md:pr-10 py-2 sm:py-3.5 md:py-4 rounded-2xl sm:rounded-3xl bg-white/75 dark:bg-[#0E131F]/30 backdrop-blur-md border border-amber-300/50 dark:border-white/10 shadow-xl shadow-slate-900/10 dark:shadow-black/50 overflow-hidden"
+-              >
+-                {/* Linha de energia sutil na borda superior conectando ao raio */}
+-                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-yellow-400 via-amber-400/40 to-transparent" />
+-                
+-                <h1 className="text-xl xs:text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.1] sm:leading-tight dark:drop-shadow-[0_4px_18px_rgba(0,0,0,0.7)] text-left flex flex-wrap items-center gap-x-2 sm:gap-x-3">
+-                  <span>Gest├úo de Tarefas</span>
+-                  <span className="text-amber-500 dark:text-yellow-400 underline decoration-amber-400/40 decoration-2 sm:decoration-4 underline-offset-4 sm:underline-offset-8">
+-                    Cont├íbeis
+-                  </span>
+-                </h1>
+-              </motion.div>
+-
+-            </div>
++          
++          {/* Tag Pr├®-t├¡tulo de Contexto */}
++          <div className="flex justify-center mb-6 sm:mb-8 px-2">
++            <motion.div
++              initial={{ opacity: 0, y: -8 }}
++              animate={{ opacity: 1, y: 0 }}
++              transition={{ duration: 0.45 }}
++              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-full bg-amber-400/10 dark:bg-yellow-400/10 border border-amber-400/30 dark:border-yellow-400/20 text-amber-600 dark:text-yellow-400 text-[11px] sm:text-xs font-mono font-bold uppercase tracking-widest shadow-sm"
++            >
++              <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-yellow-400 animate-pulse" />
++              <span>TaskAccount ÔÇó Ecossistema Cont├íbil</span>
++            </motion.div>
+           </div>
+ 
+-          {/* Subt├¡tulo de Alto Impacto Aprimorado */}
+-          <p className="text-slate-700 dark:text-slate-200 text-sm sm:text-lg md:text-xl max-w-3xl mx-auto text-center font-medium leading-relaxed mb-6 sm:mb-8 px-4 dark:drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_10px_rgba(255,255,255,0.9)] dark:[text-shadow:none]">
+-            A plataforma unificada que transforma a gest├úo de tarefas cont├íbeis em{' '}
+-            <span className="font-semibold text-slate-900 dark:text-white underline decoration-amber-400/60 decoration-2 underline-offset-4">
+-              m├íxima efici├¬ncia
+-            </span>
+-            . Controle de ponta a ponta prazos, equipe, compliance fiscal e relacionamento com clientes em um ├║nico ambiente.
+-          </p>
+-
+-          {/* Badges de Destaque da Proposta de Valor */}
+-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-4xl mx-auto mb-6 sm:mb-10 px-2">
++          {/* ÔöÇÔöÇÔöÇ GRID HERO LADO A LADO: V├ìDEO NA ESQUERDA (7 COLS) + BANNER NA DIREITA (5 COLS) ÔöÇÔöÇÔöÇ */}
++          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 items-center">
+             
+-            {/* Badge 1: ├ë o fim das Planilhas */}
+-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/90 dark:border-white/10 hover:border-amber-400/60 dark:hover:border-yellow-400/40 shadow-sm hover:shadow-md transition-all group">
+-              <div className="w-5 h-5 rounded-full bg-amber-100 dark:bg-yellow-400/10 flex items-center justify-center text-amber-600 dark:text-yellow-400 shrink-0 group-hover:scale-110 transition-transform">
+-                <Sparkles size={12} />
+-              </div>
+-              <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 tracking-tight">
+-                ├ë o fim das Planilhas
+-              </span>
+-            </div>
++            {/* ÔöÇÔöÇÔöÇ COLUNA ESQUERDA: V├ìDEO SHOWCASE COM MOLDURA VIDRIFICADA (7 COLS) ÔöÇÔöÇÔöÇ */}
++            <motion.div
++              initial={{ opacity: 0, x: -20 }}
++              animate={{ opacity: 1, x: 0 }}
++              transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
++              className="lg:col-span-7 relative w-full group"
++            >
++              {/* Glow suave e refinado atr├ís da moldura do v├¡deo */}
++              <div className="absolute -inset-1.5 sm:-inset-2 bg-gradient-to-r from-amber-400/25 via-yellow-400/30 to-amber-500/25 dark:from-yellow-400/15 dark:via-amber-400/10 dark:to-yellow-500/15 rounded-[26px] sm:rounded-[34px] blur-xl opacity-80 group-hover:opacity-100 transition-opacity pointer-events-none" />
+ 
+-            {/* Badge 2: Atendimento Centralizado */}
+-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/90 dark:border-white/10 hover:border-indigo-400/60 dark:hover:border-indigo-400/40 shadow-sm hover:shadow-md transition-all group">
+-              <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-400/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-110 transition-transform">
+-                <MessageSquare size={12} />
+-              </div>
+-              <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 tracking-tight">
+-                Atendimento Centralizado
+-              </span>
+-            </div>
++              {/* Moldura de Vidro Transl├║cida / Vidrificada (Glassmorphism Puro) */}
++              <div className="relative rounded-2xl sm:rounded-3xl p-1.5 sm:p-2 bg-white/25 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/50 dark:border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.12),0_0_0_1px_rgba(255,255,255,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] overflow-hidden transition-all">
++                
++                {/* Stage do V├¡deo (16:9 contido, 100% limpo, sem barra de t├¡tulo s├│lida) */}
++                <div 
++                  onClick={toggleVideoPlayback}
++                  className="relative aspect-video w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#ECECEC] dark:bg-[#12161F] cursor-pointer group/video"
++                >
++                  <video
++                    key="/hero-video-5.mp4"
++                    ref={heroVideoRef}
++                    autoPlay
++                    muted
++                    playsInline
++                    preload="auto"
++                    onEnded={(e) => {
++                      const vid = e.currentTarget;
++                      // Pausa por 3.5 segundos exibindo a marca "Gest├úo de Tarefas Cont├íbeis" antes de reiniciar o loop
++                      setTimeout(() => {
++                        if (vid && isVideoPlaying) {
++                          vid.currentTime = 0;
++                          vid.play().catch(() => {});
++                        }
++                      }, 3500);
++                    }}
++                    className="w-full h-full object-cover select-none"
++                  >
++                    <source src="/hero-video-5.mp4" type="video/mp4" />
++                  </video>
+ 
+-            {/* Badge 3: Cadastro Robusto */}
+-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/90 dark:border-white/10 hover:border-emerald-400/60 dark:hover:border-emerald-400/40 shadow-sm hover:shadow-md transition-all group">
+-              <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-400/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-110 transition-transform">
+-                <Building2 size={12} />
+-              </div>
+-              <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 tracking-tight">
+-                Cadastro Robusto
+-              </span>
+-            </div>
++                  {/* Controles Flutuantes Transparentes / Vidrificados no Canto Superior */}
++                  <div 
++                    onClick={(e) => e.stopPropagation()} 
++                    className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-20 flex items-center gap-1 p-1 rounded-full bg-slate-950/35 hover:bg-slate-950/65 backdrop-blur-md border border-white/20 text-white/90 shadow-lg opacity-60 hover:opacity-100 transition-all"
++                  >
++                    <button
++                      type="button"
++                      onClick={toggleVideoPlayback}
++                      title={isVideoPlaying ? "Pausar v├¡deo" : "Reproduzir v├¡deo"}
++                      className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
++                    >
++                      {isVideoPlaying ? <Pause size={12} /> : <Play size={12} className="fill-current" />}
++                    </button>
++                    <button
++                      type="button"
++                      onClick={restartVideoPlayback}
++                      title="Reiniciar v├¡deo"
++                      className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
++                    >
++                      <RotateCcw size={12} />
++                    </button>
++                  </div>
+ 
+-            {/* Badge 4: TaskAccount */}
+-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-yellow-400/15 via-amber-400/10 to-yellow-400/15 dark:from-yellow-400/10 dark:via-yellow-400/5 dark:to-yellow-400/10 backdrop-blur-md border border-amber-300 dark:border-yellow-400/30 hover:border-amber-400 dark:hover:border-yellow-400/60 shadow-sm hover:shadow-md transition-all group">
+-              <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center text-slate-950 shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+-                <Zap size={11} className="fill-slate-950 stroke-slate-950" />
+-              </div>
+-              <span className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+-                Task<span className="text-amber-500 dark:text-yellow-400">Account</span>
+-              </span>
+-            </div>
++                  {/* Overlay sutil de pausa quando pausado */}
++                  {!isVideoPlaying && (
++                    <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px] flex items-center justify-center transition-all">
++                      <div className="w-12 h-12 rounded-full bg-yellow-400 text-slate-950 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
++                        <Play size={20} className="fill-slate-950 ml-0.5" />
++                      </div>
++                    </div>
++                  )}
++                </div>
+ 
+-          </div>
++              </div>
++            </motion.div>
+ 
++            {/* ÔöÇÔöÇÔöÇ COLUNA DIREITA: BANNER EDITORIAL DE BENEF├ìCIOS (5 COLS) ÔöÇÔöÇÔöÇ */}
++            <motion.div
++              initial={{ opacity: 0, x: 20 }}
++              animate={{ opacity: 1, x: 0 }}
++              transition={{ duration: 0.65, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
++              className="lg:col-span-5 relative w-full h-full flex flex-col justify-center"
++            >
++              {/* Glow suave atr├ís do banner */}
++              <div className="absolute -inset-1.5 sm:-inset-2 bg-gradient-to-br from-yellow-400/20 via-amber-400/10 to-transparent dark:from-yellow-400/10 dark:via-amber-500/5 dark:to-transparent rounded-[26px] sm:rounded-[34px] blur-xl opacity-75 pointer-events-none" />
+ 
++              {/* Card de Vidro com Efeito Vidrificado */}
++              <div className="relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-6 xl:p-7 bg-white/35 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden">
++                
++                {/* Linha de brilho superior */}
++                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-yellow-400 via-amber-400/50 to-transparent" />
++
++                {/* Cabe├ºalho do Banner */}
++                <div className="mb-4">
++                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/10 dark:bg-yellow-400/10 border border-amber-400/30 dark:border-yellow-400/20 text-amber-600 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-wider mb-2.5">
++                    <Zap size={10} className="fill-current" />
++                    <span>Plataforma Unificada</span>
++                  </div>
+ 
+-          {/* Bot├úo de Navega├º├úo Direta no Celular (quando o cockpit estiver oculto) */}
+-          <div className="sm:hidden flex items-center justify-center pt-1 pb-2">
+-            <a
+-              href="#modulos"
+-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-[0_0_20px_rgba(250,204,21,0.5)] active:scale-95 transition-all cursor-pointer"
+-            >
+-              <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-ping" />
+-              <span>Conhecer M├│dulos</span>
+-              <ArrowDown size={12} className="stroke-[3]" />
+-            </a>
+-          </div>
++                  <h3 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-snug mb-1.5">
++                    M├íxima efici├¬ncia para a sua{' '}
++                    <span className="text-amber-500 dark:text-yellow-400 underline decoration-amber-400/50 decoration-2 underline-offset-4">
++                      rotina cont├íbil
++                    </span>
++                    .
++                  </h3>
+ 
+-          {/* ÔöÇÔöÇÔöÇ HUD PRINCIPAL DO PRODUTO COM COMPOSI├ç├âO EM CAMADAS (TABELA + KANBAN - OCULTO NO CELULAR) ÔöÇÔöÇÔöÇ */}
+-          <div id="cockpit" className="hidden sm:block relative mt-4 sm:mt-8 max-w-6xl mx-auto">
+-            
+-            {/* Moldura Central com Imagem Real da Aplica├º├úo em Camadas */}
+-            <div className="relative rounded-2xl sm:rounded-3xl p-1.5 sm:p-3 bg-gradient-to-b from-slate-200/60 via-slate-100/30 to-transparent dark:from-white/15 dark:via-white/5 dark:to-white/0 border border-slate-200/90 dark:border-white/10 shadow-xl sm:shadow-2xl shadow-slate-300/50 dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden group transition-colors">
+-              
+-              {/* Barra de T├¡tulo T├®cnica estilo Janela/Terminal */}
+-              <div className="bg-slate-100 dark:bg-[#121722] border border-slate-200 dark:border-slate-800/80 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl sm:rounded-t-2xl flex items-center justify-between">
+-                <div className="flex items-center gap-1.5 sm:gap-2">
+-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500/80" />
+-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500/80" />
+-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500/80" />
+-                  <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1 sm:ml-2 tracking-wider truncate max-w-[140px] sm:max-w-none">
+-                    APP://TASK-ACCOUNT/TAREFAS_FISCAIS_LIVE
+-                  </span>
+-                </div>
+-                <div className="flex items-center gap-1.5 sm:gap-2">
+-                  <span className="hidden sm:inline-block text-[9px] font-mono text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded font-bold">
+-                    REGIME: SIMPLES NACIONAL (ANEXO III)
+-                  </span>
+-                  <span className="text-[8px] sm:text-[9px] font-mono text-slate-600 dark:text-slate-400 uppercase bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-transparent px-1.5 sm:px-2 py-0.5 rounded font-bold">
+-                    TLS ATIVO
+-                  </span>
++                  <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
++                    Controle prazos, equipe, compliance fiscal e relacionamento com clientes em um ├║nico ambiente integrado.
++                  </p>
+                 </div>
+-              </div>
+ 
+-              {/* Palco Visual em Camadas (Tabela com Card Kanban Sobreposto) */}
+-              <div className="relative overflow-hidden rounded-b-xl sm:rounded-b-2xl bg-slate-100 dark:bg-[#080B11] p-2 sm:p-5 sm:min-h-[520px] lg:min-h-[580px] flex flex-col justify-start transition-colors">
+-                
+-                {/* Camada 1: Tabela de Tarefas e Obriga├º├Áes */}
+-                <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/90 shadow-lg dark:shadow-2xl transition-colors">
+-                  <img 
+-                    src={isDarkMode ? "/showcase-tasks-table.png" : "/showcase-tasks-table-light.png"} 
+-                    alt="Tabela de Tarefas e Obriga├º├Áes Fiscais" 
+-                    className="w-full h-auto block"
+-                  />
+-
+-                  {/* Pin Flutuante na Tabela */}
+-                  <div className="absolute top-2.5 left-2.5 hidden md:flex items-center gap-2 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border border-amber-400/60 px-3 py-1.5 rounded-xl shadow-md dark:shadow-xl">
+-                    <div className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse" />
+-                    <span className="text-[10px] font-mono font-bold text-slate-900 dark:text-white uppercase">
+-                      FILTROS FISCAIS ÔÇó COMPET├èNCIAS CONSECUTIVAS
+-                    </span>
++                {/* Lista de 4 Benef├¡cios com ├ìcones Luminosos */}
++                <div className="space-y-2">
++                  
++                  {/* Benef├¡cio 1: ├ë o fim das Planilhas */}
++                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-amber-400/40 transition-colors group">
++                    <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-yellow-400/10 text-amber-600 dark:text-yellow-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
++                      <Sparkles size={13} />
++                    </div>
++                    <div className="min-w-0">
++                      <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
++                        ├ë o fim das Planilhas
++                      </h4>
++                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
++                        Automa├º├úo de rotinas fiscais e controle de prazos sem erros manuais.
++                      </p>
++                    </div>
+                   </div>
+-                </div>
+ 
+-                {/* Camada 2: Card Flutuante do Modo Kanban com Efeito 3D e Eleva├º├úo */}
+-                <div className="mt-3 md:mt-0 md:absolute md:bottom-4 md:right-6 lg:right-8 z-20 w-full max-w-[280px] sm:max-w-[340px] md:w-[290px] lg:w-[330px] rounded-2xl p-1 bg-gradient-to-b from-amber-400/40 via-yellow-400/20 to-slate-200 dark:from-amber-400/50 dark:via-yellow-400/20 dark:to-slate-900 border border-amber-400/60 dark:border-yellow-400/70 shadow-lg md:shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:md:shadow-[0_25px_60px_rgba(0,0,0,0.95)] transform md:hover:-translate-y-1.5 transition-all duration-300 mx-auto md:mx-0">
+-                  <div className="relative rounded-xl overflow-hidden bg-white dark:bg-[#0F1420] transition-colors">
+-                    {/* Header do Card Kanban Flutuante */}
+-                    <div className="px-2.5 sm:px-3 py-1.5 bg-slate-50 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+-                      <div className="flex items-center gap-1.5">
+-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
+-                        <span className="text-[8px] sm:text-[9px] font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+-                          MODO KANBAN ÔÇó TIMER ATIVO
+-                        </span>
+-                      </div>
+-                      <span className="text-[8px] sm:text-[9px] font-mono text-amber-700 dark:text-yellow-400 bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 px-1.5 py-0.5 rounded font-bold">
+-                        AO VIVO
+-                      </span>
++                  {/* Benef├¡cio 2: Atendimento Centralizado */}
++                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-indigo-400/40 transition-colors group">
++                    <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
++                      <MessageSquare size={13} />
+                     </div>
++                    <div className="min-w-0">
++                      <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
++                        Atendimento Centralizado
++                      </h4>
++                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
++                        Hist├│rico unificado por compet├¬ncia e comunica├º├úo direta.
++                      </p>
++                    </div>
++                  </div>
+ 
+-                    {/* Imagem do Card Kanban Completa sem Cortes */}
+-                    <img 
+-                      src={isDarkMode ? "/showcase-tasks-kanban.png" : "/showcase-tasks-kanban-light.png"} 
+-                      alt="Card de Tarefa no Modo Kanban com Temporizador" 
+-                      className="w-full h-auto block"
+-                    />
++                  {/* Benef├¡cio 3: Cadastro Robusto */}
++                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-emerald-400/40 transition-colors group">
++                    <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
++                      <Building2 size={13} />
++                    </div>
++                    <div className="min-w-0">
++                      <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
++                        Cadastro Robusto
++                      </h4>
++                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
++                        Suporte completo ao Simples Nacional, Presumido e Real.
++                      </p>
++                    </div>
+                   </div>
+-                </div>
+ 
+-                {/* Bot├úo Chamativo "Saiba mais" sobre a Imagem do Hero */}
+-                <div className="mt-3 md:mt-0 md:absolute md:bottom-5 md:left-6 lg:left-8 z-30 flex items-center justify-center md:justify-start">
+-                  <a
+-                    href="#modulos"
+-                    className="group inline-flex items-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[10px] sm:text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(250,204,21,0.5)] hover:shadow-[0_0_35px_rgba(250,204,21,0.9)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-yellow-200/60"
+-                  >
+-                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-950 animate-ping" />
+-                    <span>Saiba mais</span>
+-                    <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-950/20 flex items-center justify-center group-hover:translate-y-0.5 transition-transform">
+-                      <ArrowDown size={11} className="stroke-[3]" />
++                  {/* Benef├¡cio 4: TaskAccount */}
++                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-gradient-to-r from-yellow-400/10 via-amber-400/5 to-transparent border border-amber-300/60 dark:border-yellow-400/20 group">
++                    <div className="w-7 h-7 rounded-lg bg-yellow-400 text-slate-950 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
++                      <Zap size={12} className="fill-slate-950 stroke-slate-950" />
+                     </div>
+-                  </a>
++                    <div className="min-w-0">
++                      <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider leading-tight">
++                        Task<span className="text-amber-500 dark:text-yellow-400">Account</span>
++                      </h4>
++                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
++                        Conformidade com a LGPD e criptografia TLS ativa.
++                      </p>
++                    </div>
++                  </div>
++
+                 </div>
+ 
+               </div>
+-            </div>
++            </motion.div>
+ 
+           </div>
+ 

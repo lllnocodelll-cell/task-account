@@ -31,18 +31,63 @@ import {
   ArrowDown,
   ChevronLeft,
   Pause,
+  Play,
+  RotateCcw,
   Maximize2,
   X,
   Star,
   Quote,
-  Menu
+  Menu,
+  ChevronDown,
+  HelpCircle,
+  ArrowUp
 } from 'lucide-react';
 import { TenantOnboardingModal, PlanDetails } from '../components/TenantOnboardingModal';
+import { ConsultantContactModal } from '../components/ConsultantContactModal';
 import { Tooltip } from '../components/ui/Tooltip';
 import { LegalModal, LegalTabType } from '../components/lgpd/LegalModal';
 import { CookieBanner } from '../components/lgpd/CookieBanner';
 
 /* ──────────────────────────── DATA ──────────────────────────── */
+
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+const faqs: FaqItem[] = [
+  {
+    id: 'f1',
+    question: 'Posso migrar meus clientes já existentes por planilha?',
+    answer: 'Sim! O Task Account disponibiliza um modelo oficial pronto em Excel (.xlsx) para importação em lote da sua carteira de clientes, incluindo CNPJs, regimes tributários (Simples Nacional, Lucro Presumido e Real), inscrições estaduais e municipais com total agilidade.'
+  },
+  {
+    id: 'f2',
+    question: 'Existe limite de usuários ou cobrança extra por colaborador?',
+    answer: 'Não! Em todos os planos do Task Account você conta com usuários e operadores ilimitados sem qualquer custo adicional. Toda a sua equipe (departamento fiscal, contábil, DP e estagiários) pode operar simultaneamente.'
+  },
+  {
+    id: 'f3',
+    question: 'Como funciona o cancelamento ou alteração de plano?',
+    answer: 'Sem multas ou fidelidade contratual forçada. Você tem total autonomia para fazer upgrade, downgrade ou cancelamento a qualquer momento de forma transparente.'
+  },
+  {
+    id: 'f4',
+    question: 'Os dados do meu escritório e dos meus clientes estão protegidos?',
+    answer: 'Totalmente. Nossa infraestrutura opera com criptografia em trânsito (TLS 1.3) e em repouso (AES-256), servidores de alta disponibilidade e isolamento estrito de dados por Row Level Security (RLS), em total conformidade com a LGPD.'
+  },
+  {
+    id: 'f5',
+    question: 'O Portal do Cliente tem custo adicional para os meus clientes acessarem?',
+    answer: 'Nenhum custo extra. Seus clientes acessam um ambiente web exclusivo para consultar guias, tributos e relatórios, com confirmação e auditoria de leitura em tempo real já inclusa no seu plano.'
+  },
+  {
+    id: 'f6',
+    question: 'O sistema emite alertas de prazos, alvarás e vencimento de certificados digitais?',
+    answer: 'Sim. O sistema monitora ativamente as datas de validade de certificados digitais (e-CNPJ e e-CPF), alvarás e licenças, enviando avisos prévios para evitar surpresas ou atrasos operacionais.'
+  }
+];
 
 interface ShowcaseModule {
   id: string;
@@ -376,12 +421,35 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
   const [chatSlideIndex, setChatSlideIndex] = useState<number>(0);
   const [isChatHovered, setIsChatHovered] = useState<boolean>(false);
   const [selectedPlanForOnboarding, setSelectedPlanForOnboarding] = useState<PlanDetails | null>(null);
+  const [isConsultantModalOpen, setIsConsultantModalOpen] = useState<boolean>(false);
+  const [consultantModalPlan, setConsultantModalPlan] = useState<string>('Geral');
+  const [openFaqId, setOpenFaqId] = useState<string | null>('f1');
   const [zoomImage, setZoomImage] = useState<{ src: string; title: string; subtitle?: string } | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [legalModalOpen, setLegalModalOpen] = useState<boolean>(false);
   const [legalInitialTab, setLegalInitialTab] = useState<LegalTabType>('privacy');
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
   const [activeSection, setActiveSection] = useState<string>('');
+  const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(true);
+  const heroVideoRef = React.useRef<HTMLVideoElement>(null);
+
+  const toggleVideoPlayback = () => {
+    if (!heroVideoRef.current) return;
+    if (heroVideoRef.current.paused) {
+      heroVideoRef.current.play().catch(() => {});
+      setIsVideoPlaying(true);
+    } else {
+      heroVideoRef.current.pause();
+      setIsVideoPlaying(false);
+    }
+  };
+
+  const restartVideoPlayback = () => {
+    if (!heroVideoRef.current) return;
+    heroVideoRef.current.currentTime = 0;
+    heroVideoRef.current.play().catch(() => {});
+    setIsVideoPlaying(true);
+  };
 
   const handleOpenLegalModal = (tab: LegalTabType) => {
     setLegalInitialTab(tab);
@@ -393,7 +461,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 25);
 
-      const sections = ['cockpit', 'modulos', 'sobre-nos', 'depoimentos', 'planos'];
+      const sections = ['modulos', 'sobre-nos', 'depoimentos', 'planos', 'faq'];
       const scrollPosition = window.scrollY + 200;
 
       for (const sectionId of sections) {
@@ -736,6 +804,11 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
   };
 
   const handleSelectPlan = (plan: typeof plans[0]) => {
+    if (plan.name === 'Elite' || plan.price === 'Sob Consulta') {
+      setConsultantModalPlan('Elite');
+      setIsConsultantModalOpen(true);
+      return;
+    }
     if (plan.stripePaymentLink) {
       window.open(plan.stripePaymentLink, '_blank');
       return;
@@ -789,73 +862,72 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             </div>
           </button>
 
-          {/* Links de Navegação Desktop com Ícones Sutis e Indicador de Seção Ativa */}
-          <nav className={`hidden md:flex items-center gap-1 backdrop-blur-2xl border px-3 py-1.5 rounded-2xl transition-all ${
+          {/* Links de Navegação Desktop Minimalista & Refinado (Sem ícones poluindo a visualização) */}
+          <nav className={`hidden md:flex items-center gap-1 backdrop-blur-2xl border px-2 py-1.5 rounded-full transition-all duration-300 ${
             isScrolled
-              ? 'bg-white/95 dark:bg-[#0E131F]/90 border-slate-200/90 dark:border-white/15 shadow-xl shadow-slate-900/10 dark:shadow-black/60'
-              : 'bg-white/90 dark:bg-[#121722]/80 border-slate-200/80 dark:border-white/10 shadow-lg shadow-slate-200/50 dark:shadow-black/40'
+              ? 'bg-white/90 dark:bg-[#0E131F]/85 border-slate-200/90 dark:border-white/15 shadow-xl shadow-slate-900/10 dark:shadow-black/60'
+              : 'bg-white/75 dark:bg-[#121722]/70 border-slate-200/70 dark:border-white/10 shadow-sm'
           }`}>
             <a
-              href="#cockpit"
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                activeSection === 'cockpit'
-                  ? 'bg-slate-900 text-white dark:bg-white/10 dark:text-yellow-400 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
-              }`}
-            >
-              <Activity size={13} className="text-amber-500 dark:text-yellow-400 shrink-0" />
-              <span>HubTask</span>
-            </a>
-
-            <a
               href="#modulos"
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${
                 activeSection === 'modulos'
-                  ? 'bg-slate-900 text-white dark:bg-white/10 dark:text-yellow-400 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                  ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
               }`}
             >
-              <Layers size={13} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
               <span>Módulos</span>
             </a>
 
             <a
               href="#depoimentos"
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${
                 activeSection === 'depoimentos'
-                  ? 'bg-slate-900 text-white dark:bg-white/10 dark:text-yellow-400 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                  ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
               }`}
             >
-              <Star size={13} className="text-amber-500 dark:text-yellow-400 shrink-0" />
               <span>Depoimentos</span>
             </a>
 
             <a
               href="#sobre-nos"
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${
                 activeSection === 'sobre-nos'
-                  ? 'bg-slate-900 text-white dark:bg-white/10 dark:text-yellow-400 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                  ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
               }`}
             >
-              <Building2 size={13} className="text-emerald-500 dark:text-emerald-400 shrink-0" />
               <span>Sobre Nós</span>
             </a>
 
             <a
               href="#planos"
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all flex items-center gap-1.5 relative ${
                 activeSection === 'planos'
-                  ? 'bg-slate-900 text-white dark:bg-white/10 dark:text-yellow-400 font-bold shadow-sm'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                  ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
               }`}
             >
-              <Award size={13} className="text-yellow-500 dark:text-yellow-400 shrink-0" />
               <span>Planos</span>
-              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-yellow-400 font-black uppercase">
-                Pro
+              <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full uppercase leading-none ${
+                activeSection === 'planos'
+                  ? 'bg-yellow-400 text-slate-950'
+                  : 'bg-amber-400/15 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 border border-amber-400/20'
+              }`}>
+                PRO
               </span>
+            </a>
+
+            <a
+              href="#faq"
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${
+                activeSection === 'faq'
+                  ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
+              }`}
+            >
+              <span>Dúvidas</span>
             </a>
           </nav>
 
@@ -986,11 +1058,11 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 <a
                   href="#modulos"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
+                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/20 group-hover:scale-105 transition-transform">
-                      <Layers size={17} />
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-white/5 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
+                      <Layers size={15} />
                     </div>
                     <div className="flex flex-col text-left">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
@@ -999,17 +1071,17 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       <span className="text-[10px] text-slate-500 dark:text-slate-400">Tarefas fiscais, CRM e Cockpit</span>
                     </div>
                   </div>
-                  <ChevronRight size={15} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
+                  <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
                 </a>
 
                 <a
                   href="#depoimentos"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
+                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/10 to-yellow-400/20 text-amber-600 dark:text-yellow-400 flex items-center justify-center shrink-0 border border-amber-500/20 group-hover:scale-105 transition-transform">
-                      <Star size={17} />
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-white/5 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
+                      <Star size={15} />
                     </div>
                     <div className="flex flex-col text-left">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
@@ -1018,17 +1090,17 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       <span className="text-[10px] text-slate-500 dark:text-slate-400">Resultados reais de escritórios</span>
                     </div>
                   </div>
-                  <ChevronRight size={15} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
+                  <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
                 </a>
 
                 <a
                   href="#sobre-nos"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
+                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 group-hover:scale-105 transition-transform">
-                      <Building2 size={17} />
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-white/5 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
+                      <Building2 size={15} />
                     </div>
                     <div className="flex flex-col text-left">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
@@ -1037,17 +1109,17 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       <span className="text-[10px] text-slate-500 dark:text-slate-400">Quem somos e missão tecnológica</span>
                     </div>
                   </div>
-                  <ChevronRight size={15} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
+                  <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
                 </a>
 
                 <a
                   href="#planos"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
+                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-yellow-500/10 to-amber-500/20 text-yellow-600 dark:text-yellow-400 flex items-center justify-center shrink-0 border border-yellow-500/20 group-hover:scale-105 transition-transform">
-                      <Award size={17} />
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-white/5 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
+                      <Award size={15} />
                     </div>
                     <div className="flex flex-col text-left">
                       <div className="flex items-center gap-2">
@@ -1061,7 +1133,26 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       <span className="text-[10px] text-slate-500 dark:text-slate-400">Valores, capacidade e recursos</span>
                     </div>
                   </div>
-                  <ChevronRight size={15} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
+                  <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
+                </a>
+
+                <a
+                  href="#faq"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-white/5 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
+                      <HelpCircle size={15} />
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
+                        Perguntas Frequentes
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">Migração, usuários e segurança</span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-all" />
                 </a>
 
                 {/* Atalho para Central de Privacidade (LGPD) */}
@@ -1071,11 +1162,11 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                     setIsMobileMenuOpen(false);
                     handleOpenLegalModal('privacy');
                   }}
-                  className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group text-left cursor-pointer active:scale-[0.98]"
+                  className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-800 dark:text-slate-200 transition-all group text-left cursor-pointer active:scale-[0.98]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/20 group-hover:scale-105 transition-transform">
-                      <ShieldCheck size={17} />
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-white/5 group-hover:text-amber-500 dark:group-hover:text-yellow-400 transition-colors">
+                      <ShieldCheck size={15} />
                     </div>
                     <div className="flex flex-col text-left">
                       <div className="flex items-center gap-1.5">
@@ -1126,35 +1217,19 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
       {/* ─── HERO SECTION: ARQUITETURA TÉCNICA + DISPLAY GIGANTE ─── */}
       <section className="relative pt-28 sm:pt-36 md:pt-40 lg:pt-44 pb-8 sm:pb-12 px-3 sm:px-8 overflow-hidden">
         
-        {/* ─── VÍDEO DE FUNDO ULTRA-RESPONSIVO & COMPOSIÇÃO DE CAMADAS ─── */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-          <video
-            key="/hero-video.mp4"
-            ref={(el) => {
-              if (el) el.muted = true;
-            }}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            poster="/hero-bg.png"
-            className="w-full h-full object-cover object-center transform-gpu scale-[1.02] opacity-90 dark:opacity-85 transition-opacity duration-700 pointer-events-none"
-          >
-            <source src="/hero-video.mp4" type="video/mp4" />
-          </video>
-
-          {/* Camada de Gradiente & Vinheta calibrada para brilho e contraste */}
+        {/* ─── ILUMINAÇÃO ZENITAL & ATMOSFERA DE FUNDO (SEM VÍDEO EXPANDIDO EM TELA CHEIA) ─── */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none">
+          {/* Camada de Gradiente Suave de Fundo */}
           <div 
             className={`absolute inset-0 transition-colors duration-500 ${
               isDarkMode 
-                ? 'bg-gradient-to-b from-[#0B0E14]/60 via-[#0B0E14]/35 to-[#0B0E14]' 
-                : 'bg-gradient-to-b from-white/55 via-white/20 to-slate-100/90'
+                ? 'bg-gradient-to-b from-[#0B0E14] via-[#0B0E14]/90 to-[#0B0E14]' 
+                : 'bg-gradient-to-b from-white via-slate-50/80 to-slate-100/90'
             }`} 
           />
 
-          {/* Glow sutil central de iluminação zenital */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] sm:w-[1100px] h-[550px] bg-gradient-to-b from-amber-400/20 via-yellow-400/10 to-transparent dark:from-yellow-400/15 dark:via-amber-500/5 dark:to-transparent rounded-full blur-[140px] pointer-events-none" />
+          {/* Glow central de iluminação zenital */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] sm:w-[950px] lg:w-[1100px] h-[450px] sm:h-[550px] bg-gradient-to-b from-amber-400/20 via-yellow-400/10 to-transparent dark:from-yellow-400/15 dark:via-amber-500/5 dark:to-transparent rounded-full blur-[140px] pointer-events-none" />
           
           {/* Grid de linhas técnicas sutis */}
           <div 
@@ -1167,204 +1242,207 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             }}
           />
 
-          {/* Fade suave na base da Hero conectando organicamente com a próxima seção */}
+          {/* Fade suave na base conectando com a próxima seção */}
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-100/90 dark:from-[#0D1017] to-transparent pointer-events-none" />
         </div>
 
         <div className="max-w-7xl mx-auto relative z-10">
-          {/* TÍTULO HERO DISPLAY: [⚡] Gestão de Tarefas Contábeis (Saindo de dentro do Raio) */}
-          <div className="flex justify-center mb-5 sm:mb-7 px-2">
-            <div className="relative inline-flex items-center group max-w-full">
-              
-              {/* O NÚCLEO: Logo do Raio com Efeito Glow Energético */}
-              <motion.div 
-                initial={{ scale: 0.85, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="relative z-20 shrink-0 w-11 h-11 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-22 lg:h-22 bg-gradient-to-br from-yellow-300 via-yellow-400 to-amber-500 rounded-xl sm:rounded-3xl flex items-center justify-center shadow-[0_0_35px_rgba(250,204,21,0.6)] border border-yellow-200/90 group-hover:scale-105 group-hover:rotate-2 transition-transform duration-300"
-              >
-                {/* Halo de pulso sutil */}
-                <div className="absolute inset-0 rounded-xl sm:rounded-3xl bg-yellow-400/30 animate-ping pointer-events-none" style={{ animationDuration: '3.5s' }} />
-                <Zap size={22} className="fill-slate-950 stroke-slate-950 sm:hidden" />
-                <Zap size={36} className="fill-slate-950 stroke-slate-950 hidden sm:block md:scale-110" />
-              </motion.div>
-
-              {/* O FLUXO: O texto se projeta / emerge de dentro do raio */}
-              <motion.div 
-                initial={{ opacity: 0, x: -32 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1.1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="relative z-10 -ml-4 sm:-ml-6 md:-ml-8 pl-6 sm:pl-9 md:pl-11 pr-4 sm:pr-8 md:pr-10 py-2 sm:py-3.5 md:py-4 rounded-2xl sm:rounded-3xl bg-white/75 dark:bg-[#0E131F]/30 backdrop-blur-md border border-amber-300/50 dark:border-white/10 shadow-xl shadow-slate-900/10 dark:shadow-black/50 overflow-hidden"
-              >
-                {/* Linha de energia sutil na borda superior conectando ao raio */}
-                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-yellow-400 via-amber-400/40 to-transparent" />
-                
-                <h1 className="text-xl xs:text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.1] sm:leading-tight dark:drop-shadow-[0_4px_18px_rgba(0,0,0,0.7)] text-left flex flex-wrap items-center gap-x-2 sm:gap-x-3">
-                  <span>Gestão de Tarefas</span>
-                  <span className="text-amber-500 dark:text-yellow-400 underline decoration-amber-400/40 decoration-2 sm:decoration-4 underline-offset-4 sm:underline-offset-8">
-                    Contábeis
-                  </span>
-                </h1>
-              </motion.div>
-
-            </div>
-          </div>
-
-          {/* Subtítulo de Alto Impacto Aprimorado */}
-          <p className="text-slate-700 dark:text-slate-200 text-sm sm:text-lg md:text-xl max-w-3xl mx-auto text-center font-medium leading-relaxed mb-6 sm:mb-8 px-4 dark:drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_10px_rgba(255,255,255,0.9)] dark:[text-shadow:none]">
-            A plataforma unificada que transforma a gestão de tarefas contábeis em{' '}
-            <span className="font-semibold text-slate-900 dark:text-white underline decoration-amber-400/60 decoration-2 underline-offset-4">
-              máxima eficiência
-            </span>
-            . Controle de ponta a ponta prazos, equipe, compliance fiscal e relacionamento com clientes em um único ambiente.
-          </p>
-
-          {/* Badges de Destaque da Proposta de Valor */}
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-4xl mx-auto mb-6 sm:mb-10 px-2">
-            
-            {/* Badge 1: É o fim das Planilhas */}
-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/90 dark:border-white/10 hover:border-amber-400/60 dark:hover:border-yellow-400/40 shadow-sm hover:shadow-md transition-all group">
-              <div className="w-5 h-5 rounded-full bg-amber-100 dark:bg-yellow-400/10 flex items-center justify-center text-amber-600 dark:text-yellow-400 shrink-0 group-hover:scale-110 transition-transform">
-                <Sparkles size={12} />
-              </div>
-              <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 tracking-tight">
-                É o fim das Planilhas
-              </span>
-            </div>
-
-            {/* Badge 2: Atendimento Centralizado */}
-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/90 dark:border-white/10 hover:border-indigo-400/60 dark:hover:border-indigo-400/40 shadow-sm hover:shadow-md transition-all group">
-              <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-400/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 group-hover:scale-110 transition-transform">
-                <MessageSquare size={12} />
-              </div>
-              <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 tracking-tight">
-                Atendimento Centralizado
-              </span>
-            </div>
-
-            {/* Badge 3: Cadastro Robusto */}
-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/90 dark:bg-[#121722]/80 backdrop-blur-md border border-slate-200/90 dark:border-white/10 hover:border-emerald-400/60 dark:hover:border-emerald-400/40 shadow-sm hover:shadow-md transition-all group">
-              <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-400/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-110 transition-transform">
-                <Building2 size={12} />
-              </div>
-              <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 tracking-tight">
-                Cadastro Robusto
-              </span>
-            </div>
-
-            {/* Badge 4: TaskAccount */}
-            <div className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-yellow-400/15 via-amber-400/10 to-yellow-400/15 dark:from-yellow-400/10 dark:via-yellow-400/5 dark:to-yellow-400/10 backdrop-blur-md border border-amber-300 dark:border-yellow-400/30 hover:border-amber-400 dark:hover:border-yellow-400/60 shadow-sm hover:shadow-md transition-all group">
-              <div className="w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center text-slate-950 shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-                <Zap size={11} className="fill-slate-950 stroke-slate-950" />
-              </div>
-              <span className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                Task<span className="text-amber-500 dark:text-yellow-400">Account</span>
-              </span>
-            </div>
-
-          </div>
-
-
-
-          {/* Botão de Navegação Direta no Celular (quando o cockpit estiver oculto) */}
-          <div className="sm:hidden flex items-center justify-center pt-1 pb-2">
-            <a
-              href="#modulos"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-[0_0_20px_rgba(250,204,21,0.5)] active:scale-95 transition-all cursor-pointer"
+          
+          {/* Tag Pré-título de Contexto */}
+          <div className="flex justify-center mb-6 sm:mb-8 px-2">
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-full bg-amber-400/10 dark:bg-yellow-400/10 border border-amber-400/30 dark:border-yellow-400/20 text-amber-600 dark:text-yellow-400 text-[11px] sm:text-xs font-mono font-bold uppercase tracking-widest shadow-sm"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-ping" />
-              <span>Conhecer Módulos</span>
-              <ArrowDown size={12} className="stroke-[3]" />
-            </a>
+              <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-yellow-400 animate-pulse" />
+              <span>TaskAccount • Ecossistema Contábil</span>
+            </motion.div>
           </div>
 
-          {/* ─── HUD PRINCIPAL DO PRODUTO COM COMPOSIÇÃO EM CAMADAS (TABELA + KANBAN - OCULTO NO CELULAR) ─── */}
-          <div id="cockpit" className="hidden sm:block relative mt-4 sm:mt-8 max-w-6xl mx-auto">
+          {/* ─── GRID HERO LADO A LADO: VÍDEO NA ESQUERDA (7 COLS) + BANNER NA DIREITA (5 COLS) ─── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 items-center">
             
-            {/* Moldura Central com Imagem Real da Aplicação em Camadas */}
-            <div className="relative rounded-2xl sm:rounded-3xl p-1.5 sm:p-3 bg-gradient-to-b from-slate-200/60 via-slate-100/30 to-transparent dark:from-white/15 dark:via-white/5 dark:to-white/0 border border-slate-200/90 dark:border-white/10 shadow-xl sm:shadow-2xl shadow-slate-300/50 dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden group transition-colors">
-              
-              {/* Barra de Título Técnica estilo Janela/Terminal */}
-              <div className="bg-slate-100 dark:bg-[#121722] border border-slate-200 dark:border-slate-800/80 px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-xl sm:rounded-t-2xl flex items-center justify-between">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500/80" />
-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500/80" />
-                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500/80" />
-                  <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1 sm:ml-2 tracking-wider truncate max-w-[140px] sm:max-w-none">
-                    APP://TASK-ACCOUNT/TAREFAS_FISCAIS_LIVE
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <span className="hidden sm:inline-block text-[9px] font-mono text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded font-bold">
-                    REGIME: SIMPLES NACIONAL (ANEXO III)
-                  </span>
-                  <span className="text-[8px] sm:text-[9px] font-mono text-slate-600 dark:text-slate-400 uppercase bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-transparent px-1.5 sm:px-2 py-0.5 rounded font-bold">
-                    TLS ATIVO
-                  </span>
-                </div>
-              </div>
+            {/* ─── COLUNA ESQUERDA: VÍDEO SHOWCASE COM MOLDURA VIDRIFICADA (7 COLS) ─── */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+              className="lg:col-span-7 relative w-full group"
+            >
+              {/* Glow suave e refinado atrás da moldura do vídeo */}
+              <div className="absolute -inset-1.5 sm:-inset-2 bg-gradient-to-r from-amber-400/25 via-yellow-400/30 to-amber-500/25 dark:from-yellow-400/15 dark:via-amber-400/10 dark:to-yellow-500/15 rounded-[26px] sm:rounded-[34px] blur-xl opacity-80 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-              {/* Palco Visual em Camadas (Tabela com Card Kanban Sobreposto) */}
-              <div className="relative overflow-hidden rounded-b-xl sm:rounded-b-2xl bg-slate-100 dark:bg-[#080B11] p-2 sm:p-5 sm:min-h-[520px] lg:min-h-[580px] flex flex-col justify-start transition-colors">
+              {/* Moldura de Vidro Translúcida / Vidrificada (Glassmorphism Puro) */}
+              <div className="relative rounded-2xl sm:rounded-3xl p-1.5 sm:p-2 bg-white/25 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/50 dark:border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.12),0_0_0_1px_rgba(255,255,255,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] overflow-hidden transition-all">
                 
-                {/* Camada 1: Tabela de Tarefas e Obrigações */}
-                <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/90 shadow-lg dark:shadow-2xl transition-colors">
-                  <img 
-                    src={isDarkMode ? "/showcase-tasks-table.png" : "/showcase-tasks-table-light.png"} 
-                    alt="Tabela de Tarefas e Obrigações Fiscais" 
-                    className="w-full h-auto block"
-                  />
-
-                  {/* Pin Flutuante na Tabela */}
-                  <div className="absolute top-2.5 left-2.5 hidden md:flex items-center gap-2 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border border-amber-400/60 px-3 py-1.5 rounded-xl shadow-md dark:shadow-xl">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] font-mono font-bold text-slate-900 dark:text-white uppercase">
-                      FILTROS FISCAIS • COMPETÊNCIAS CONSECUTIVAS
-                    </span>
-                  </div>
-                </div>
-
-                {/* Camada 2: Card Flutuante do Modo Kanban com Efeito 3D e Elevação */}
-                <div className="mt-3 md:mt-0 md:absolute md:bottom-4 md:right-6 lg:right-8 z-20 w-full max-w-[280px] sm:max-w-[340px] md:w-[290px] lg:w-[330px] rounded-2xl p-1 bg-gradient-to-b from-amber-400/40 via-yellow-400/20 to-slate-200 dark:from-amber-400/50 dark:via-yellow-400/20 dark:to-slate-900 border border-amber-400/60 dark:border-yellow-400/70 shadow-lg md:shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:md:shadow-[0_25px_60px_rgba(0,0,0,0.95)] transform md:hover:-translate-y-1.5 transition-all duration-300 mx-auto md:mx-0">
-                  <div className="relative rounded-xl overflow-hidden bg-white dark:bg-[#0F1420] transition-colors">
-                    {/* Header do Card Kanban Flutuante */}
-                    <div className="px-2.5 sm:px-3 py-1.5 bg-slate-50 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                        <span className="text-[8px] sm:text-[9px] font-mono font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                          MODO KANBAN • TIMER ATIVO
-                        </span>
-                      </div>
-                      <span className="text-[8px] sm:text-[9px] font-mono text-amber-700 dark:text-yellow-400 bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 px-1.5 py-0.5 rounded font-bold">
-                        AO VIVO
-                      </span>
-                    </div>
-
-                    {/* Imagem do Card Kanban Completa sem Cortes */}
-                    <img 
-                      src={isDarkMode ? "/showcase-tasks-kanban.png" : "/showcase-tasks-kanban-light.png"} 
-                      alt="Card de Tarefa no Modo Kanban com Temporizador" 
-                      className="w-full h-auto block"
-                    />
-                  </div>
-                </div>
-
-                {/* Botão Chamativo "Saiba mais" sobre a Imagem do Hero */}
-                <div className="mt-3 md:mt-0 md:absolute md:bottom-5 md:left-6 lg:left-8 z-30 flex items-center justify-center md:justify-start">
-                  <a
-                    href="#modulos"
-                    className="group inline-flex items-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2 sm:py-3 rounded-full bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[10px] sm:text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(250,204,21,0.5)] hover:shadow-[0_0_35px_rgba(250,204,21,0.9)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-yellow-200/60"
+                {/* Stage do Vídeo (16:9 contido, 100% limpo, sem barra de título sólida) */}
+                <div 
+                  onClick={toggleVideoPlayback}
+                  className="relative aspect-video w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#ECECEC] dark:bg-[#12161F] cursor-pointer group/video"
+                >
+                  <video
+                    key="/hero-video-6.mp4"
+                    ref={heroVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    preload="auto"
+                    onEnded={(e) => {
+                      const vid = e.currentTarget;
+                      // Pausa por 3.5 segundos exibindo a marca "Gestão de Tarefas Contábeis" antes de reiniciar o loop
+                      setTimeout(() => {
+                        if (vid && isVideoPlaying) {
+                          vid.currentTime = 0;
+                          vid.play().catch(() => {});
+                        }
+                      }, 3500);
+                    }}
+                    className="w-full h-full object-cover select-none"
                   >
-                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-950 animate-ping" />
-                    <span>Saiba mais</span>
-                    <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-950/20 flex items-center justify-center group-hover:translate-y-0.5 transition-transform">
-                      <ArrowDown size={11} className="stroke-[3]" />
+                    <source src="/hero-video-6.mp4" type="video/mp4" />
+                  </video>
+
+                  {/* Controles Flutuantes Transparentes / Vidrificados no Canto Superior */}
+                  <div 
+                    onClick={(e) => e.stopPropagation()} 
+                    className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-20 flex items-center gap-1 p-1 rounded-full bg-slate-950/35 hover:bg-slate-950/65 backdrop-blur-md border border-white/20 text-white/90 shadow-lg opacity-60 hover:opacity-100 transition-all"
+                  >
+                    <button
+                      type="button"
+                      onClick={toggleVideoPlayback}
+                      title={isVideoPlaying ? "Pausar vídeo" : "Reproduzir vídeo"}
+                      className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+                    >
+                      {isVideoPlaying ? <Pause size={12} /> : <Play size={12} className="fill-current" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={restartVideoPlayback}
+                      title="Reiniciar vídeo"
+                      className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+                    >
+                      <RotateCcw size={12} />
+                    </button>
+                  </div>
+
+                  {/* Overlay sutil de pausa quando pausado */}
+                  {!isVideoPlaying && (
+                    <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px] flex items-center justify-center transition-all">
+                      <div className="w-12 h-12 rounded-full bg-yellow-400 text-slate-950 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
+                        <Play size={20} className="fill-slate-950 ml-0.5" />
+                      </div>
                     </div>
-                  </a>
+                  )}
                 </div>
 
               </div>
-            </div>
+            </motion.div>
+
+            {/* ─── COLUNA DIREITA: BANNER EDITORIAL DE BENEFÍCIOS (5 COLS) ─── */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.65, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="lg:col-span-5 relative w-full h-full flex flex-col justify-center"
+            >
+              {/* Glow suave atrás do banner */}
+              <div className="absolute -inset-1.5 sm:-inset-2 bg-gradient-to-br from-yellow-400/20 via-amber-400/10 to-transparent dark:from-yellow-400/10 dark:via-amber-500/5 dark:to-transparent rounded-[26px] sm:rounded-[34px] blur-xl opacity-75 pointer-events-none" />
+
+              {/* Card de Vidro com Efeito Vidrificado */}
+              <div className="relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-6 xl:p-7 bg-white/35 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden">
+                
+                {/* Linha de brilho superior */}
+                <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-yellow-400 via-amber-400/50 to-transparent" />
+
+                {/* Cabeçalho do Banner */}
+                <div className="mb-4">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/10 dark:bg-yellow-400/10 border border-amber-400/30 dark:border-yellow-400/20 text-amber-600 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-wider mb-2.5">
+                    <Zap size={10} className="fill-current" />
+                    <span>Plataforma Unificada</span>
+                  </div>
+
+                  <h3 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-snug mb-1.5">
+                    Máxima eficiência para a sua{' '}
+                    <span className="text-amber-500 dark:text-yellow-400 underline decoration-amber-400/50 decoration-2 underline-offset-4">
+                      rotina contábil
+                    </span>
+                    .
+                  </h3>
+
+                  <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                    Controle prazos, equipe, compliance fiscal e relacionamento com clientes em um único ambiente integrado.
+                  </p>
+                </div>
+
+                {/* Lista de 4 Benefícios com Ícones Luminosos */}
+                <div className="space-y-2">
+                  
+                  {/* Benefício 1: É o fim das Planilhas */}
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-amber-400/40 transition-colors group">
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-yellow-400/10 text-amber-600 dark:text-yellow-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                      <Sparkles size={13} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                        É o fim das Planilhas
+                      </h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        Automação de rotinas fiscais e controle de prazos sem erros manuais.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Benefício 2: Atendimento Centralizado */}
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-indigo-400/40 transition-colors group">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                      <MessageSquare size={13} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                        Atendimento Centralizado
+                      </h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        Histórico unificado por competência e comunicação direta.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Benefício 3: Cadastro Robusto */}
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-emerald-400/40 transition-colors group">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                      <Building2 size={13} />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                        Cadastro Robusto
+                      </h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        Suporte completo ao Simples Nacional, Presumido e Real.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Benefício 4: TaskAccount */}
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-gradient-to-r from-yellow-400/10 via-amber-400/5 to-transparent border border-amber-300/60 dark:border-yellow-400/20 group">
+                    <div className="w-7 h-7 rounded-lg bg-yellow-400 text-slate-950 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                      <Zap size={12} className="fill-slate-950 stroke-slate-950" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider leading-tight">
+                        Task<span className="text-amber-500 dark:text-yellow-400">Account</span>
+                      </h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        Conformidade com a LGPD e criptografia TLS ativa.
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </motion.div>
 
           </div>
 
@@ -1477,13 +1555,20 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       </ul>
 
                       <div className="pt-0.5 sm:pt-1">
-                        <button
-                          onClick={onLoginClick}
-                          className="inline-flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-600 dark:text-yellow-400 hover:text-amber-500 dark:hover:text-yellow-300 transition-colors cursor-pointer"
+                        <a
+                          href="#planos"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const el = document.getElementById('planos');
+                            if (el) {
+                              el.scrollIntoView({ behavior: 'smooth' });
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-600 dark:text-yellow-400 hover:text-amber-500 dark:hover:text-yellow-300 transition-colors cursor-pointer group/link"
                         >
-                          <span>Experimentar este módulo</span>
-                          <ArrowRight size={13} className="sm:scale-110" />
-                        </button>
+                          <span>Experimente este módulo</span>
+                          <ArrowRight size={13} className="sm:scale-110 group-hover/link:translate-x-0.5 transition-transform" />
+                        </a>
                       </div>
                     </div>
 
@@ -1916,6 +2001,98 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         </div>
       </section>
 
+      {/* ─── SEÇÃO DE PERGUNTAS FREQUENTES (FAQ / QUEBRA DE OBJEÇÕES) ─── */}
+      <section id="faq" className="py-12 sm:py-16 md:py-20 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0A0D14] transition-colors relative overflow-hidden">
+        <div className="max-w-4xl mx-auto">
+          {/* Cabeçalho da Seção */}
+          <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-12">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3">
+              <HelpCircle size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
+              <span>DÚVIDAS FREQUENTES</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+              Tudo o que você precisa saber.
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mt-2 max-w-xl mx-auto">
+              Respostas claras e diretas sobre implantação, migração de dados e segurança do seu escritório contábil.
+            </p>
+          </div>
+
+          {/* Acordeão Interativo de FAQs */}
+          <div className="space-y-3">
+            {faqs.map((faq) => {
+              const isOpen = openFaqId === faq.id;
+              return (
+                <div
+                  key={faq.id}
+                  className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                    isOpen
+                      ? 'bg-slate-50/80 dark:bg-[#111622] border-amber-400/50 dark:border-yellow-400/30 shadow-md'
+                      : 'bg-white dark:bg-white/[0.02] border-slate-200/80 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/15'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaqId(isOpen ? null : faq.id)}
+                    className="w-full px-5 py-4 sm:py-5 flex items-center justify-between gap-4 text-left cursor-pointer transition-colors"
+                  >
+                    <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                      {faq.question}
+                    </span>
+                    <div
+                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 ${
+                        isOpen
+                          ? 'rotate-180 bg-amber-400 text-slate-950 font-bold'
+                          : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      <ChevronDown size={14} />
+                    </div>
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                      >
+                        <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-100 dark:border-white/5">
+                          {faq.answer}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Chamada para Contato Direto */}
+          <div className="mt-8 sm:mt-10 p-5 rounded-2xl bg-gradient-to-r from-amber-400/10 via-yellow-400/5 to-transparent border border-amber-300/40 dark:border-yellow-400/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                Tem alguma dúvida específica sobre a sua operação?
+              </h4>
+              <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Nossos especialistas contábeis estão prontos para apoiar o seu escritório.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setConsultantModalPlan('Geral');
+                setIsConsultantModalOpen(true);
+              }}
+              className="shrink-0 px-4 py-2 rounded-full bg-slate-900 text-white dark:bg-yellow-400 dark:text-slate-950 text-xs font-bold uppercase tracking-wider hover:scale-105 active:scale-95 transition-all shadow-sm cursor-pointer"
+            >
+              Falar com Consultor
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* ─── FOOTER MINIMALISTA E SÓBRIO ─── */}
       <footer className="py-12 px-4 sm:px-8 bg-slate-900 dark:bg-[#080B10] border-t border-slate-800 dark:border-white/5 text-xs text-slate-400 dark:text-slate-500 transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
@@ -2045,6 +2222,52 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         isOpen={legalModalOpen}
         onClose={() => setLegalModalOpen(false)}
         initialTab={legalInitialTab}
+      />
+
+      {/* ─── BOTÕES FLUTUANTES (VOLTAR AO TOPO + CONSULTOR) ─── */}
+      <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end gap-2.5 pointer-events-none">
+        {/* Botão Voltar ao Topo */}
+        <AnimatePresence>
+          {isScrolled && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 10 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="pointer-events-auto w-10 h-10 rounded-full bg-white/90 dark:bg-[#121722]/90 backdrop-blur-xl border border-slate-200/90 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:text-amber-500 dark:hover:text-yellow-400 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+              title="Voltar ao topo"
+              aria-label="Voltar ao topo"
+            >
+              <ArrowUp size={16} />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* Botão Flutuante de Consultor Comercial */}
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+          onClick={() => {
+            setConsultantModalPlan('Geral');
+            setIsConsultantModalOpen(true);
+          }}
+          className="pointer-events-auto group flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-full bg-slate-900/95 dark:bg-yellow-400 hover:bg-slate-900 dark:hover:bg-yellow-300 text-white dark:text-slate-950 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/10 dark:border-yellow-300/40 cursor-pointer"
+          title="Falar com Especialista"
+        >
+          <div className="w-2 h-2 rounded-full bg-emerald-400 dark:bg-slate-950 animate-pulse" />
+          <span className="text-[11px] sm:text-xs font-bold tracking-wide">Falar com Consultor</span>
+          <MessageSquare size={13} className="stroke-[2.5]" />
+        </motion.button>
+      </div>
+
+      {/* ─── MODAL DE CONTATO COM CONSULTOR (LEADS / WHATSAPP) ─── */}
+      <ConsultantContactModal
+        isOpen={isConsultantModalOpen}
+        onClose={() => setIsConsultantModalOpen(false)}
+        isDarkMode={isDarkMode}
+        initialPlan={consultantModalPlan}
       />
 
     </div>
