@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Select, MultiSelect, GroupedSelect, SearchableSelect } from '../components/ui/Input';
 import { TAX_REGIME_GROUPS, TAX_REGIME_LABELS } from '../types';
-import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare, ArrowLeft, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Users, Briefcase, List, Mail, Send, Calendar, Trash2, ChevronLeft, ChevronRight, Loader2, Save, Copy, Clock, Settings as SettingsIcon, ListFilter, CloudDownload, UserCircle, UserPlus, UserMinus, Edit2, Check, X, Link2, Blocks, LayoutList, CalendarClock, ChevronDown, ChevronUp, User, Hash, Target, ShieldCheck, ShieldAlert, AlertCircle, Edit3, MapPin, Map as MapIcon, Globe, FileText, HelpCircle, Activity, SquarePlus, Smile, Upload, Image as ImageIcon, Search, Plus, Sparkles, MessageSquare, ArrowLeft, CheckCircle2, AlertTriangle, Lock } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { Toggle } from '../components/ui/Toggle';
@@ -37,7 +37,42 @@ const SETTINGS_TABS: SettingsTabItem[] = [
 ];
 
 export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<SettingsTabId>('credenciais');
+  const [sectorsCount, setSectorsCount] = useState<number>(0);
+  const [sectorsLoading, setSectorsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkSectorsCount = async () => {
+      if (!userProfile?.org_id) {
+        setSectorsLoading(false);
+        return;
+      }
+      try {
+        const { count, error } = await supabase
+          .from('sectors')
+          .select('id', { count: 'exact', head: true })
+          .eq('org_id', userProfile.org_id);
+
+        if (!error && count !== null) {
+          setSectorsCount(count);
+        }
+      } catch (e) {
+        console.error('Erro ao verificar setores cadastrados:', e);
+      } finally {
+        setSectorsLoading(false);
+      }
+    };
+
+    checkSectorsCount();
+  }, [userProfile?.org_id]);
+
+  // Se todos os setores forem excluídos enquanto o usuário estiver em 'tipos', redireciona para 'setores'
+  useEffect(() => {
+    if (!sectorsLoading && sectorsCount === 0 && activeTab === 'tipos') {
+      setActiveTab('setores');
+    }
+  }, [sectorsLoading, sectorsCount, activeTab]);
 
   const handleBack = () => {
     if (onBack) {
@@ -97,30 +132,61 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
           {SETTINGS_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+            const isLocked = tab.id === 'tipos' && !sectorsLoading && sectorsCount === 0;
 
-            return (
+            const tabButton = (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700/70 ring-1 ring-indigo-500/10'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
+                onClick={() => {
+                  if (isLocked) {
+                    addToast(
+                      'warning',
+                      'Setor Necessário',
+                      'Cadastre pelo menos um setor na aba "Setores" antes de configurar os Tipos de Tarefa.'
+                    );
+                    setActiveTab('setores');
+                    return;
+                  }
+                  setActiveTab(tab.id);
+                }}
+                className={`group flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 select-none shrink-0 ${
+                  isLocked
+                    ? 'opacity-60 cursor-not-allowed text-slate-400 dark:text-slate-500 border border-transparent hover:bg-slate-100/40 dark:hover:bg-slate-800/30'
+                    : isActive
+                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700/70 ring-1 ring-indigo-500/10 cursor-pointer'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent cursor-pointer'
                 }`}
               >
                 <div
                   className={`p-1.5 rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 scale-105'
-                      : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 group-hover:scale-105'
+                    isLocked
+                      ? 'bg-slate-100 dark:bg-slate-800/60 text-amber-500 dark:text-amber-400'
+                      : isActive
+                        ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 scale-105'
+                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 group-hover:scale-105'
                   }`}
                 >
-                  <Icon size={15} />
+                  {isLocked ? <Lock size={15} /> : <Icon size={15} />}
                 </div>
                 <span className="tracking-tight">{tab.label}</span>
               </button>
             );
+
+            if (isLocked) {
+              return (
+                <Tooltip
+                  key={tab.id}
+                  content="Cadastre pelo menos um setor na aba 'Setores' para liberar os Tipos de Tarefa"
+                  position="top"
+                  className="shrink-0 flex"
+                >
+                  {tabButton}
+                </Tooltip>
+              );
+            }
+
+            return tabButton;
           })}
         </div>
       </div>
@@ -130,8 +196,8 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
         <div className="p-6">
           <div key={activeTab} className="animate-in fade-in duration-200">
             {activeTab === 'credenciais' && <TeamSettings {...contentProps} />}
-            {activeTab === 'setores' && <SectorSettings {...contentProps} />}
-            {activeTab === 'tipos' && <TaskTypeSettings {...contentProps} />}
+            {activeTab === 'setores' && <SectorSettings {...contentProps} onSectorsCountChange={setSectorsCount} />}
+            {activeTab === 'tipos' && <TaskTypeSettings {...contentProps} onSectorsCountChange={setSectorsCount} />}
             {activeTab === 'feriados' && <CalendarSettings {...contentProps} />}
             {activeTab === 'templates' && <MessageTemplateSettings {...contentProps} />}
           </div>
@@ -1320,12 +1386,19 @@ const SUGGESTED_SECTORS = [
   { name: 'Administrativo', costCenter: '3.04 - Administrativo', description: 'Gestão interna do escritório, recepção, suprimentos e patrimônio.' }
 ];
 
-const SectorSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
+const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count: number) => void }> = ({ userProfile, onSectorsCountChange }) => {
   const { addToast } = useToast();
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
+
+  // Sincroniza a contagem de setores com o componente pai (Settings) para liberar/bloquear a aba Tipos de Tarefa
+  useEffect(() => {
+    if (!loading) {
+      onSectorsCountChange?.(sectors.length);
+    }
+  }, [sectors.length, loading, onSectorsCountChange]);
 
   // Set of existing sector names for duplicate checking and badge display
   const existingSectorNamesSet = useMemo(() => {
@@ -2579,13 +2652,19 @@ const SUGGESTED_TASK_TYPES = [
   { name: 'ISS DIGITAL', sectorName: 'Fiscal', entity: 'Municipal', dueDay: 10, nonWorkingAction: 'manter' }
 ];
 
-const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
+const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count: number) => void }> = ({ userProfile, onSectorsCountChange }) => {
   const { addToast } = useToast();
   const [taskTypes, setTaskTypes] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [isFormExpanded, setIsFormExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      onSectorsCountChange?.(sectors.length);
+    }
+  }, [sectors.length, loading, onSectorsCountChange]);
 
   // Existing task names set for duplicate detection across form and drawer
   const existingTaskNamesSet = useMemo(() => {
@@ -2826,6 +2905,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
   const handleAddToken = async () => {
     if (!name.trim()) return addToast('error', 'Erro', 'Nome obrigatório');
+    if (!sectorId) return addToast('error', 'Setor Obrigatório', 'Selecione um setor responsável para o tipo de tarefa.');
     if (existingTaskNamesSet.has(name.toLowerCase().trim())) {
       return addToast('warning', 'Obrigação Já Cadastrada', `Já existe um tipo de tarefa cadastrado com o nome "${name.trim()}".`);
     }
@@ -2903,6 +2983,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
   const handleUpdateTaskType = async (id: string) => {
     if (!editName.trim()) return addToast('error', 'Erro', 'Nome é obrigatório');
+    if (!editSectorId) return addToast('error', 'Setor Obrigatório', 'Selecione um setor responsável para o tipo de tarefa.');
 
     const isDuplicate = taskTypes.some(t => t.id !== id && (t.name || '').toLowerCase().trim() === editName.toLowerCase().trim());
     if (isDuplicate) {
@@ -3368,7 +3449,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                       label="Setor Responsável"
                       value={editSectorId}
                       onChange={e => setEditSectorId(e.target.value)}
-                      options={[{ value: '', label: 'Sem restrição' }, ...sectors.map(s => ({ value: s.id, label: s.name }))]}
+                      options={[{ value: '', label: 'Selecione...' }, ...sectors.map(s => ({ value: s.id, label: s.name }))]}
                     />
                     <Select
                       label="Ente Federativo"
