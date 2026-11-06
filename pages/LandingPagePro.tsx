@@ -372,7 +372,7 @@ const plans = [
       { text: 'Tarefas com Timer Ativo', detail: 'Métricas de produtividade por analista', highlight: true },
       { text: 'Workflows Obrigatórios', detail: 'Conformidade e zero risco de prazos', highlight: true },
       { text: 'Dossiê Cadastral Avançado', detail: 'Alertas de vencimento de certificados e alvarás', highlight: true },
-      { text: 'Chat & Vídeochamada', detail: 'Atendimento multicanal integrado', highlight: true },
+      { text: 'Chat Setorial, Áudio & Anexos', detail: 'Atendimento multicanal integrado em tempo real', highlight: true },
       { text: 'Portal com Auditoria', detail: 'Confirmação de leitura e download de guias', highlight: true },
       { text: 'Templates Automatizados', detail: 'Envios programados de comunicados fiscais', highlight: true },
       { text: 'Sem Limite de Operadores', detail: 'Sem custo adicional por colaborador', badge: 'DESTAQUE' },
@@ -413,7 +413,7 @@ interface LandingPageProProps {
   toggleTheme?: () => void;
 }
 
-export const LandingPagePro: React.FC<LandingPageProProps> = ({ 
+export const LandingPagePro: React.FC<LandingPageProProps> = ({
   onLoginClick,
   isDarkMode = true,
   toggleTheme
@@ -430,13 +430,14 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
   const [legalInitialTab, setLegalInitialTab] = useState<LegalTabType>('privacy');
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
   const [activeSection, setActiveSection] = useState<string>('');
+  const [activeModuleId, setActiveModuleId] = useState<string>('tasks');
   const [isVideoPlaying, setIsVideoPlaying] = useState<boolean>(true);
   const heroVideoRef = React.useRef<HTMLVideoElement>(null);
 
   const toggleVideoPlayback = () => {
     if (!heroVideoRef.current) return;
     if (heroVideoRef.current.paused) {
-      heroVideoRef.current.play().catch(() => {});
+      heroVideoRef.current.play().catch(() => { });
       setIsVideoPlaying(true);
     } else {
       heroVideoRef.current.pause();
@@ -447,7 +448,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
   const restartVideoPlayback = () => {
     if (!heroVideoRef.current) return;
     heroVideoRef.current.currentTime = 0;
-    heroVideoRef.current.play().catch(() => {});
+    heroVideoRef.current.play().catch(() => { });
     setIsVideoPlaying(true);
   };
 
@@ -456,12 +457,12 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
     setLegalModalOpen(true);
   };
 
-  // Monitorar rolagem da janela e detectar seção ativa
+  // Monitorar rolagem da janela e detectar seção e módulo ativo
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 25);
 
-      const sections = ['modulos', 'sobre-nos', 'depoimentos', 'planos', 'faq'];
+      const sections = ['modulos', 'depoimentos', 'sobre-nos', 'planos', 'faq'];
       const scrollPosition = window.scrollY + 200;
 
       for (const sectionId of sections) {
@@ -471,6 +472,17 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           const height = el.offsetHeight;
           if (scrollPosition >= top && scrollPosition < top + height) {
             setActiveSection(sectionId);
+            break;
+          }
+        }
+      }
+
+      for (let i = modules.length - 1; i >= 0; i--) {
+        const modEl = document.getElementById(`modulo-${modules[i].id}`);
+        if (modEl) {
+          const rect = modEl.getBoundingClientRect();
+          if (rect.top <= 260) {
+            setActiveModuleId(modules[i].id);
             break;
           }
         }
@@ -597,7 +609,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
     if (m.id === 'chat') {
       const activeChatImg = isDarkMode ? currentChatSlide.darkImage : currentChatSlide.lightImage;
       return (
-        <div 
+        <div
           onMouseEnter={() => setIsChatHovered(true)}
           onMouseLeave={() => setIsChatHovered(false)}
           className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-1.5 sm:p-2.5 shadow-xl overflow-hidden group/chat transition-colors"
@@ -626,11 +638,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       e.stopPropagation();
                       setChatSlideIndex(idx);
                     }}
-                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 ${
-                      isSlideActive
+                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 ${isSlideActive
                         ? 'bg-yellow-400 text-slate-950 shadow-sm'
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }`}
+                      }`}
                   >
                     <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSlideActive ? 'bg-slate-950' : 'bg-slate-400'}`} />
                     <span>{slide.tabLabel}</span>
@@ -644,26 +655,27 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               <span className="hidden sm:inline-block text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded">
                 {currentChatSlide.badge}
               </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setZoomImage({
-                    src: activeChatImg,
-                    title: `Módulo 02 // ${currentChatSlide.title}`,
-                    subtitle: currentChatSlide.caption
-                  });
-                }}
-                className="p-1 sm:p-1.5 rounded-md text-slate-400 hover:text-amber-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
-                title="Ampliar visualização (tela cheia)"
-                aria-label="Ampliar visualização"
-              >
-                <Maximize2 size={13} />
-              </button>
+              <Tooltip content="Ampliar visualização (tela cheia)" position="top">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setZoomImage({
+                      src: activeChatImg,
+                      title: `Módulo 02 // ${currentChatSlide.title}`,
+                      subtitle: currentChatSlide.caption
+                    });
+                  }}
+                  className="p-1 sm:p-1.5 rounded-md text-slate-400 hover:text-amber-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+                  aria-label="Ampliar visualização"
+                >
+                  <Maximize2 size={13} />
+                </button>
+              </Tooltip>
             </div>
           </div>
 
           {/* Palco da Imagem do Carrossel (Sem Cortes + Click para Zoom) */}
-          <div 
+          <div
             onClick={() => setZoomImage({
               src: activeChatImg,
               title: `Módulo 02 // ${currentChatSlide.title}`,
@@ -687,30 +699,36 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             </div>
 
             {/* Botão Anterior */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setChatSlideIndex((prev) => (prev === 0 ? 1 : 0));
-              }}
-              className="absolute left-1.5 sm:left-2.5 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg z-10"
-              title="Ver tela anterior"
-              aria-label="Anterior"
-            >
-              <ChevronLeft size={14} className="sm:scale-110" />
-            </button>
+            <div className="absolute left-1.5 sm:left-2.5 top-1/2 -translate-y-1/2 z-10">
+              <Tooltip content="Ver tela anterior" position="right">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setChatSlideIndex((prev) => (prev === 0 ? 1 : 0));
+                  }}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg"
+                  aria-label="Anterior"
+                >
+                  <ChevronLeft size={14} className="sm:scale-110" />
+                </button>
+              </Tooltip>
+            </div>
 
             {/* Botão Próximo */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setChatSlideIndex((prev) => (prev === 1 ? 0 : 1));
-              }}
-              className="absolute right-1.5 sm:right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg z-10"
-              title="Ver próxima tela"
-              aria-label="Próximo"
-            >
-              <ChevronRight size={14} className="sm:scale-110" />
-            </button>
+            <div className="absolute right-1.5 sm:right-2.5 top-1/2 -translate-y-1/2 z-10">
+              <Tooltip content="Ver próxima tela" position="left">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setChatSlideIndex((prev) => (prev === 1 ? 0 : 1));
+                  }}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg"
+                  aria-label="Próximo"
+                >
+                  <ChevronRight size={14} className="sm:scale-110" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
 
           {/* Rodapé Informativo e Dots do Carrossel */}
@@ -726,11 +744,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                     e.stopPropagation();
                     setChatSlideIndex(dotIdx);
                   }}
-                  className={`h-1 sm:h-1.5 rounded-full transition-all cursor-pointer ${
-                    chatSlideIndex === dotIdx
+                  className={`h-1 sm:h-1.5 rounded-full transition-all cursor-pointer ${chatSlideIndex === dotIdx
                       ? 'w-4 sm:w-5 bg-amber-500 dark:bg-yellow-400'
                       : 'w-1 sm:w-1.5 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400'
-                  }`}
+                    }`}
                   aria-label={`Ir para slide ${dotIdx + 1}`}
                 />
               ))}
@@ -760,24 +777,25 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 {m.badge}
               </span>
             )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setZoomImage({
-                  src: moduleImg,
-                  title: m.title,
-                  subtitle: m.tag
-                });
-              }}
-              className="p-1 sm:p-1.5 rounded-md text-slate-400 hover:text-amber-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
-              title="Ampliar visualização (tela cheia)"
-              aria-label="Ampliar visualização"
-            >
-              <Maximize2 size={13} />
-            </button>
+            <Tooltip content="Ampliar visualização (tela cheia)" position="top">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomImage({
+                    src: moduleImg,
+                    title: m.title,
+                    subtitle: m.tag
+                  });
+                }}
+                className="p-1 sm:p-1.5 rounded-md text-slate-400 hover:text-amber-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+                aria-label="Ampliar visualização"
+              >
+                <Maximize2 size={13} />
+              </button>
+            </Tooltip>
           </div>
         </div>
-        <div 
+        <div
           onClick={() => setZoomImage({
             src: moduleImg,
             title: m.title,
@@ -826,106 +844,98 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0E14] text-slate-900 dark:text-slate-100 selection:bg-yellow-400 selection:text-black font-sans antialiased [overflow-x:clip] transition-colors duration-300">
-      
+
       {/* ─── HEADER / NAVBAR FLUTUANTE DINÂMICA COM BLUR AVANÇADO ─── */}
-      <header className={`fixed top-0 left-0 right-0 z-50 px-3 sm:px-8 transition-all duration-300 pointer-events-none ${
-        isScrolled ? 'py-2.5 sm:py-3.5' : 'py-3.5 sm:py-6'
-      }`}>
+      <header className={`fixed top-0 left-0 right-0 z-50 px-3 sm:px-8 transition-all duration-300 pointer-events-none ${isScrolled ? 'py-2.5 sm:py-3.5' : 'py-3.5 sm:py-6'
+        }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto">
-          
+
           {/* Brand Logo - Clique para rolar ao topo com feedback tátil e badge Live */}
-          <button
-            type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className={`flex items-center gap-2 sm:gap-3 backdrop-blur-2xl border px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer text-left group active:scale-95 ${
-              isScrolled
-                ? 'bg-white/95 dark:bg-[#0E131F]/90 border-slate-200/90 dark:border-white/15 shadow-xl shadow-slate-900/10 dark:shadow-black/60'
-                : 'bg-white/90 dark:bg-[#121722]/80 border-slate-200/80 dark:border-white/10 shadow-lg shadow-slate-200/50 dark:shadow-black/40'
-            } hover:border-amber-400/60 dark:hover:border-yellow-400/50 hover:shadow-yellow-400/15`}
-            title="Voltar ao início"
-            aria-label="Voltar ao topo da página"
-          >
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)] group-hover:scale-105 transition-transform shrink-0">
-              <Zap size={14} className="fill-slate-950 stroke-slate-950 sm:hidden" />
-              <Zap size={16} className="fill-slate-950 stroke-slate-950 hidden sm:block" />
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-xs sm:text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase group-hover:text-amber-600 dark:group-hover:text-yellow-300 transition-colors">
-                Task<span className="text-amber-500 dark:text-yellow-400">Account</span>
-              </span>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                <span className="text-[7px] sm:text-[8px] font-mono tracking-widest text-slate-500 dark:text-slate-400 uppercase">
-                  Core v2.6
-                </span>
+          <Tooltip content="Voltar ao início" position="bottom">
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className={`flex items-center gap-2 sm:gap-3 backdrop-blur-2xl border px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer text-left group active:scale-95 ${isScrolled
+                  ? 'bg-white/95 dark:bg-[#0E131F]/90 border-slate-200/90 dark:border-white/15 shadow-xl shadow-slate-900/10 dark:shadow-black/60'
+                  : 'bg-white/90 dark:bg-[#121722]/80 border-slate-200/80 dark:border-white/10 shadow-lg shadow-slate-200/50 dark:shadow-black/40'
+                } hover:border-amber-400/60 dark:hover:border-yellow-400/50 hover:shadow-yellow-400/15`}
+              aria-label="Voltar ao topo da página"
+            >
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md sm:rounded-lg bg-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)] group-hover:scale-105 transition-transform shrink-0">
+                <Zap size={14} className="fill-slate-950 stroke-slate-950 sm:hidden" />
+                <Zap size={16} className="fill-slate-950 stroke-slate-950 hidden sm:block" />
               </div>
-            </div>
-          </button>
+              <div className="flex flex-col leading-none">
+                <span className="text-xs sm:text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase group-hover:text-amber-600 dark:group-hover:text-yellow-300 transition-colors">
+                  Task<span className="text-amber-500 dark:text-yellow-400">Account</span>
+                </span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  <span className="text-[7px] sm:text-[8px] font-mono tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+                    Core v2.6
+                  </span>
+                </div>
+              </div>
+            </button>
+          </Tooltip>
 
           {/* Links de Navegação Desktop Minimalista & Refinado (Sem ícones poluindo a visualização) */}
-          <nav className={`hidden md:flex items-center gap-1 backdrop-blur-2xl border px-2 py-1.5 rounded-full transition-all duration-300 ${
-            isScrolled
+          <nav className={`hidden md:flex items-center gap-1 backdrop-blur-2xl border px-2 py-1.5 rounded-full transition-all duration-300 ${isScrolled
               ? 'bg-white/90 dark:bg-[#0E131F]/85 border-slate-200/90 dark:border-white/15 shadow-xl shadow-slate-900/10 dark:shadow-black/60'
               : 'bg-white/75 dark:bg-[#121722]/70 border-slate-200/70 dark:border-white/10 shadow-sm'
-          }`}>
+            }`}>
             <a
               href="#modulos"
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${
-                activeSection === 'modulos'
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${activeSection === 'modulos'
                   ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
-              }`}
+                }`}
             >
               <span>Módulos</span>
             </a>
 
             <a
               href="#depoimentos"
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${
-                activeSection === 'depoimentos'
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${activeSection === 'depoimentos'
                   ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
-              }`}
+                }`}
             >
               <span>Depoimentos</span>
             </a>
 
             <a
               href="#sobre-nos"
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${
-                activeSection === 'sobre-nos'
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${activeSection === 'sobre-nos'
                   ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
-              }`}
+                }`}
             >
               <span>Sobre Nós</span>
             </a>
 
             <a
               href="#planos"
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all flex items-center gap-1.5 relative ${
-                activeSection === 'planos'
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all flex items-center gap-1.5 relative ${activeSection === 'planos'
                   ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
-              }`}
+                }`}
             >
               <span>Planos</span>
-              <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full uppercase leading-none ${
-                activeSection === 'planos'
+              <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full uppercase leading-none ${activeSection === 'planos'
                   ? 'bg-yellow-400 text-slate-950'
                   : 'bg-amber-400/15 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 border border-amber-400/20'
-              }`}>
+                }`}>
                 PRO
               </span>
             </a>
 
             <a
               href="#faq"
-              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${
-                activeSection === 'faq'
+              className={`px-3.5 py-1.5 rounded-full text-xs transition-all relative ${activeSection === 'faq'
                   ? 'bg-slate-900 text-white dark:bg-white/15 dark:text-white font-bold shadow-xs'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-medium hover:bg-slate-100/70 dark:hover:bg-white/5'
-              }`}
+                }`}
             >
               <span>Dúvidas</span>
             </a>
@@ -949,11 +959,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               >
                 <button
                   onClick={toggleTheme}
-                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl backdrop-blur-2xl border flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-yellow-400 transition-all cursor-pointer shrink-0 active:scale-95 ${
-                    isScrolled
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl backdrop-blur-2xl border flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-yellow-400 transition-all cursor-pointer shrink-0 active:scale-95 ${isScrolled
                       ? 'bg-white/95 dark:bg-[#0E131F]/90 border-slate-200/90 dark:border-white/15 shadow-xl shadow-slate-900/10 dark:shadow-black/60'
                       : 'bg-white/90 dark:bg-[#121722]/80 border-slate-200/80 dark:border-white/10 shadow-lg shadow-slate-200/50 dark:shadow-black/40'
-                  }`}
+                    }`}
                   aria-label={isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}
                 >
                   {isDarkMode ? <Sun size={15} className="rotate-0 hover:rotate-45 transition-transform duration-300" /> : <Moon size={15} className="-rotate-12 hover:rotate-0 transition-transform duration-300" />}
@@ -967,7 +976,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               className="relative overflow-hidden group/btn flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-400 hover:from-yellow-300 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-[11px] sm:text-xs tracking-wider uppercase px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl shadow-[0_0_25px_-5px_rgba(250,204,21,0.6)] hover:shadow-[0_0_35px_-5px_rgba(250,204,21,0.85)] border border-yellow-300/60 transition-all cursor-pointer shrink-0"
             >
               <div className="absolute inset-0 -translate-x-full group-hover/btn:translate-x-full duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform pointer-events-none" />
-              
+
               <span>Acessar</span>
               <span className="hidden sm:inline">Sistema</span>
               <div className="w-4 h-4 rounded-full bg-slate-950 text-yellow-400 flex items-center justify-center shrink-0 shadow-sm group-hover/btn:scale-110 transition-transform">
@@ -978,12 +987,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             {/* Botão Menu Hambúrguer (Mobile only) */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={`md:hidden w-9 h-9 rounded-xl backdrop-blur-2xl border flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-amber-500 dark:hover:text-yellow-400 transition-all cursor-pointer shrink-0 active:scale-95 ${
-                isScrolled
+              className={`md:hidden w-9 h-9 rounded-xl backdrop-blur-2xl border flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-amber-500 dark:hover:text-yellow-400 transition-all cursor-pointer shrink-0 active:scale-95 ${isScrolled
                   ? 'bg-white/95 dark:bg-[#0E131F]/90 border-slate-200/90 dark:border-white/15 shadow-xl'
                   : 'bg-white/90 dark:bg-[#121722]/80 border-slate-200/80 dark:border-white/10 shadow-lg'
-              } ${isMobileMenuOpen ? 'border-amber-400 text-amber-500 dark:border-yellow-400 dark:text-yellow-400' : ''}`}
-              title={isMobileMenuOpen ? "Fechar Menu" : "Abrir Menu"}
+                } ${isMobileMenuOpen ? 'border-amber-400 text-amber-500 dark:border-yellow-400 dark:text-yellow-400' : ''}`}
               aria-label={isMobileMenuOpen ? "Fechar Menu" : "Abrir Menu"}
             >
               {isMobileMenuOpen ? <X size={17} /> : <Menu size={17} />}
@@ -1025,7 +1032,6 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       type="button"
                       onClick={toggleTheme}
                       className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title={isDarkMode ? "Alternar para Modo Claro" : "Alternar para Modo Escuro"}
                     >
                       {isDarkMode ? (
                         <>
@@ -1216,26 +1222,25 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
       {/* ─── HERO SECTION: ARQUITETURA TÉCNICA + DISPLAY GIGANTE ─── */}
       <section className="relative pt-28 sm:pt-36 md:pt-40 lg:pt-44 pb-8 sm:pb-12 px-3 sm:px-8 overflow-hidden">
-        
+
         {/* ─── ILUMINAÇÃO ZENITAL & ATMOSFERA DE FUNDO (SEM VÍDEO EXPANDIDO EM TELA CHEIA) ─── */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none">
           {/* Camada de Gradiente Suave de Fundo */}
-          <div 
-            className={`absolute inset-0 transition-colors duration-500 ${
-              isDarkMode 
-                ? 'bg-gradient-to-b from-[#0B0E14] via-[#0B0E14]/90 to-[#0B0E14]' 
+          <div
+            className={`absolute inset-0 transition-colors duration-500 ${isDarkMode
+                ? 'bg-gradient-to-b from-[#0B0E14] via-[#0B0E14]/90 to-[#0B0E14]'
                 : 'bg-gradient-to-b from-white via-slate-50/80 to-slate-100/90'
-            }`} 
+              }`}
           />
 
           {/* Glow central de iluminação zenital */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] sm:w-[950px] lg:w-[1100px] h-[450px] sm:h-[550px] bg-gradient-to-b from-amber-400/20 via-yellow-400/10 to-transparent dark:from-yellow-400/15 dark:via-amber-500/5 dark:to-transparent rounded-full blur-[140px] pointer-events-none" />
-          
+
           {/* Grid de linhas técnicas sutis */}
-          <div 
+          <div
             className="absolute inset-0 opacity-[0.03] dark:opacity-[0.035] pointer-events-none"
             style={{
-              backgroundImage: isDarkMode 
+              backgroundImage: isDarkMode
                 ? 'linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)'
                 : 'linear-gradient(#000000 1px, transparent 1px), linear-gradient(90deg, #000000 1px, transparent 1px)',
               backgroundSize: '48px 48px',
@@ -1247,7 +1252,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         </div>
 
         <div className="max-w-7xl mx-auto relative z-10">
-          
+
           {/* Tag Pré-título de Contexto */}
           <div className="flex justify-center mb-6 sm:mb-8 px-2">
             <motion.div
@@ -1263,7 +1268,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
           {/* ─── GRID HERO LADO A LADO: VÍDEO NA ESQUERDA (7 COLS) + BANNER NA DIREITA (5 COLS) ─── */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 items-center">
-            
+
             {/* ─── COLUNA ESQUERDA: VÍDEO SHOWCASE COM MOLDURA VIDRIFICADA (7 COLS) ─── */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -1276,9 +1281,9 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
               {/* Moldura de Vidro Translúcida / Vidrificada (Glassmorphism Puro) */}
               <div className="relative rounded-2xl sm:rounded-3xl p-1.5 sm:p-2 bg-white/25 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/50 dark:border-white/15 shadow-[0_8px_32px_0_rgba(0,0,0,0.12),0_0_0_1px_rgba(255,255,255,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] overflow-hidden transition-all">
-                
+
                 {/* Stage do Vídeo (16:9 contido, 100% limpo, sem barra de título sólida) */}
-                <div 
+                <div
                   onClick={toggleVideoPlayback}
                   className="relative aspect-video w-full overflow-hidden rounded-xl sm:rounded-2xl bg-[#ECECEC] dark:bg-[#12161F] cursor-pointer group/video"
                 >
@@ -1295,7 +1300,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       setTimeout(() => {
                         if (vid && isVideoPlaying) {
                           vid.currentTime = 0;
-                          vid.play().catch(() => {});
+                          vid.play().catch(() => { });
                         }
                       }, 3500);
                     }}
@@ -1305,26 +1310,28 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   </video>
 
                   {/* Controles Flutuantes Transparentes / Vidrificados no Canto Superior */}
-                  <div 
-                    onClick={(e) => e.stopPropagation()} 
+                  <div
+                    onClick={(e) => e.stopPropagation()}
                     className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-20 flex items-center gap-1 p-1 rounded-full bg-slate-950/35 hover:bg-slate-950/65 backdrop-blur-md border border-white/20 text-white/90 shadow-lg opacity-60 hover:opacity-100 transition-all"
                   >
-                    <button
-                      type="button"
-                      onClick={toggleVideoPlayback}
-                      title={isVideoPlaying ? "Pausar vídeo" : "Reproduzir vídeo"}
-                      className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
-                    >
-                      {isVideoPlaying ? <Pause size={12} /> : <Play size={12} className="fill-current" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={restartVideoPlayback}
-                      title="Reiniciar vídeo"
-                      className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
-                    >
-                      <RotateCcw size={12} />
-                    </button>
+                    <Tooltip content={isVideoPlaying ? "Pausar vídeo" : "Reproduzir vídeo"} position="bottom">
+                      <button
+                        type="button"
+                        onClick={toggleVideoPlayback}
+                        className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+                      >
+                        {isVideoPlaying ? <Pause size={12} /> : <Play size={12} className="fill-current" />}
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Reiniciar vídeo" position="bottom">
+                      <button
+                        type="button"
+                        onClick={restartVideoPlayback}
+                        className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors cursor-pointer"
+                      >
+                        <RotateCcw size={12} />
+                      </button>
+                    </Tooltip>
                   </div>
 
                   {/* Overlay sutil de pausa quando pausado */}
@@ -1340,7 +1347,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               </div>
             </motion.div>
 
-            {/* ─── COLUNA DIREITA: BANNER EDITORIAL DE BENEFÍCIOS (5 COLS) ─── */}
+            {/* ─── COLUNA DIREITA: BANNER EDITORIAL DE BENEFÍCIOS + CTAs (5 COLS) ─── */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1351,94 +1358,123 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               <div className="absolute -inset-1.5 sm:-inset-2 bg-gradient-to-br from-yellow-400/20 via-amber-400/10 to-transparent dark:from-yellow-400/10 dark:via-amber-500/5 dark:to-transparent rounded-[26px] sm:rounded-[34px] blur-xl opacity-75 pointer-events-none" />
 
               {/* Card de Vidro com Efeito Vidrificado */}
-              <div className="relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-6 xl:p-7 bg-white/35 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden">
-                
+              <div className="relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-6 xl:p-7 bg-white/45 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden">
+
                 {/* Linha de brilho superior */}
                 <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-yellow-400 via-amber-400/50 to-transparent" />
 
-                {/* Cabeçalho do Banner */}
-                <div className="mb-4">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/10 dark:bg-yellow-400/10 border border-amber-400/30 dark:border-yellow-400/20 text-amber-600 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-wider mb-2.5">
+                {/* Cabeçalho do Banner com H1 Semântico */}
+                <div className="mb-3.5">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/10 dark:bg-yellow-400/10 border border-amber-400/30 dark:border-yellow-400/20 text-amber-600 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-wider mb-2">
                     <Zap size={10} className="fill-current" />
-                    <span>Plataforma Unificada</span>
+                    <span>Plataforma SaaS Multi-Tenant</span>
                   </div>
 
-                  <h3 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-snug mb-1.5">
-                    Máxima eficiência para a sua{' '}
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-snug mb-1.5">
+                    Máxima eficiência e controle para a sua{' '}
                     <span className="text-amber-500 dark:text-yellow-400 underline decoration-amber-400/50 decoration-2 underline-offset-4">
-                      rotina contábil
+                      operação contábil
                     </span>
                     .
-                  </h3>
+                  </h1>
 
                   <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                    Controle prazos, equipe, compliance fiscal e relacionamento com clientes em um único ambiente integrado.
+                    Controle obrigações recorrentes, equipe, compliance fiscal e atendimento ao cliente em um único ecossistema integrado.
                   </p>
                 </div>
 
                 {/* Lista de 4 Benefícios com Ícones Luminosos */}
-                <div className="space-y-2">
-                  
+                <div className="space-y-1.5">
+
                   {/* Benefício 1: É o fim das Planilhas */}
-                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-amber-400/40 transition-colors group">
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/60 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-amber-400/40 transition-colors group">
                     <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-yellow-400/10 text-amber-600 dark:text-yellow-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                       <Sparkles size={13} />
                     </div>
                     <div className="min-w-0">
                       <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                        É o fim das Planilhas
+                        É o fim das Planilhas Paralelas
                       </h4>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                        Automação de rotinas fiscais e controle de prazos sem erros manuais.
+                        Automação de recorrências fiscais e vencimentos sem erros manuais.
                       </p>
                     </div>
                   </div>
 
                   {/* Benefício 2: Atendimento Centralizado */}
-                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-indigo-400/40 transition-colors group">
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/60 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-indigo-400/40 transition-colors group">
                     <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                       <MessageSquare size={13} />
                     </div>
                     <div className="min-w-0">
                       <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                        Atendimento Centralizado
+                        Chat & Portal do Cliente Integrados
                       </h4>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                        Histórico unificado por competência e comunicação direta.
+                        Envio de guias com confirmação de leitura e histórico auditável.
                       </p>
                     </div>
                   </div>
 
                   {/* Benefício 3: Cadastro Robusto */}
-                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/50 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-emerald-400/40 transition-colors group">
+                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/60 dark:bg-white/[0.03] border border-slate-200/60 dark:border-white/5 hover:border-emerald-400/40 transition-colors group">
                     <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                       <Building2 size={13} />
                     </div>
                     <div className="min-w-0">
                       <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                        Cadastro Robusto
+                        Dossiê Completo de Empresas
                       </h4>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                        Suporte completo ao Simples Nacional, Presumido e Real.
+                        Simples, Presumido e Real, com alertas de certificados e alvarás.
                       </p>
                     </div>
                   </div>
 
-                  {/* Benefício 4: TaskAccount */}
-                  <div className="flex items-center gap-2.5 p-2 rounded-xl bg-gradient-to-r from-yellow-400/10 via-amber-400/5 to-transparent border border-amber-300/60 dark:border-yellow-400/20 group">
-                    <div className="w-7 h-7 rounded-lg bg-yellow-400 text-slate-950 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                      <Zap size={12} className="fill-slate-950 stroke-slate-950" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider leading-tight">
-                        Task<span className="text-amber-500 dark:text-yellow-400">Account</span>
-                      </h4>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                        Conformidade com a LGPD e criptografia TLS ativa.
-                      </p>
-                    </div>
+                </div>
+
+                {/* Dupla de CTAs de Conversão + Micro-Selo de Confiança */}
+                <div className="mt-4 pt-3.5 border-t border-slate-200/60 dark:border-white/10 space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <a
+                      href="#planos"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-400 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-yellow-400/25 hover:scale-[1.01] active:scale-[0.98] transition-all cursor-pointer border border-yellow-300/60"
+                    >
+                      <span>Ver Planos</span>
+                      <ArrowRight size={13} className="stroke-[2.5]" />
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConsultantModalPlan('Geral');
+                        setIsConsultantModalOpen(true);
+                      }}
+                      className="py-2.5 px-4 rounded-xl bg-slate-900/90 hover:bg-slate-800 dark:bg-white/[0.06] dark:hover:bg-white/[0.12] text-white border border-slate-800 dark:border-white/10 font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+                    >
+                      <MessageSquare size={12} className="text-yellow-400 shrink-0" />
+                      <span>Falar com Consultor</span>
+                    </button>
                   </div>
 
+                  <div className="flex items-center justify-center sm:justify-between gap-2 flex-wrap text-[10px] font-medium text-slate-500 dark:text-slate-400 px-0.5">
+                    <span className="inline-flex items-center gap-1">
+                      <Check size={11} className="text-emerald-500 stroke-[3]" />
+                      Usuários ilimitados
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Check size={11} className="text-emerald-500 stroke-[3]" />
+                      Sem fidelidade
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Check size={11} className="text-emerald-500 stroke-[3]" />
+                      LGPD & TLS 1.3
+                    </span>
+                  </div>
                 </div>
 
               </div>
@@ -1446,15 +1482,63 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
           </div>
 
+          {/* ─── FAIXA DE INDICADORES DE IMPACTO E CONFIANÇA (TRUST BAR) ─── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.25 }}
+            className="mt-6 sm:mt-8 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4"
+          >
+            <div className="p-3 sm:p-4 rounded-2xl bg-white/70 dark:bg-[#111622]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-600 dark:text-yellow-400 flex items-center justify-center shrink-0">
+                <BarChart3 size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono">18 Widgets</div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Cockpit em tempo real</div>
+              </div>
+            </div>
+
+            <div className="p-3 sm:p-4 rounded-2xl bg-white/70 dark:bg-[#111622]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <Users size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono">∞ Usuários</div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Ilimitados em qualquer plano</div>
+              </div>
+            </div>
+
+            <div className="p-3 sm:p-4 rounded-2xl bg-white/70 dark:bg-[#111622]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <FileCheck size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono">100% Auditável</div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Checklists e leitura no Portal</div>
+              </div>
+            </div>
+
+            <div className="p-3 sm:p-4 rounded-2xl bg-white/70 dark:bg-[#111622]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-100 dark:bg-cyan-400/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+                <ShieldCheck size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono">LGPD & RLS</div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Isolamento por organização</div>
+              </div>
+            </div>
+          </motion.div>
+
         </div>
       </section>
 
       {/* ─── SEÇÃO DE MÓDULOS (STACKING CARDS - COBERTURA TOTAL RESPONSIVA) ─── */}
       <section id="modulos" className="py-10 sm:py-14 md:py-16 px-3 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-slate-100/60 dark:bg-[#0D1017] transition-colors">
         <div className="max-w-7xl mx-auto">
-          
+
           {/* Cabeçalho da Seção */}
-          <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10">
+          <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-8">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
               <Layers size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
               <span>ARQUITETURA DE MÓDULOS</span>
@@ -1465,6 +1549,45 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm md:text-base mt-2 sm:mt-3 max-w-2xl mx-auto">
               Cada módulo foi projetado de raiz para resolver os gargalos reais da rotina contábil, eliminando redundâncias e garantindo máxima conformidade.
             </p>
+
+            {/* Barra de Atalhos Interativa dos Módulos (Quick-Jump Pills) */}
+            <div className="mt-5 sm:mt-6 flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap">
+              {modules.map((m, idx) => {
+                const isModActive = activeModuleId === m.id;
+                const shortLabel =
+                  m.id === 'tasks'
+                    ? 'Tarefas & Kanban'
+                    : m.id === 'chat'
+                      ? 'Chat & CRM'
+                      : m.id === 'dashboard'
+                        ? 'Cockpit (18 Widgets)'
+                        : m.id === 'clients'
+                          ? 'Dossiê de Clientes'
+                          : 'Portal do Cliente';
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveModuleId(m.id);
+                      const el = document.getElementById(`modulo-${m.id}`);
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    className={`px-3 sm:px-3.5 py-1.5 rounded-full text-[10px] sm:text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${isModActive
+                        ? 'bg-slate-900 text-white dark:bg-yellow-400 dark:text-slate-950 border-slate-900 dark:border-yellow-400 shadow-md scale-[1.02]'
+                        : 'bg-white dark:bg-[#111622] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-amber-400/60 dark:hover:border-yellow-400/40 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    <span className={`font-mono text-[9px] sm:text-[10px] ${isModActive ? 'text-yellow-400 dark:text-slate-950 font-black' : 'text-amber-600 dark:text-yellow-400'}`}>
+                      0{idx + 1}.
+                    </span>
+                    <span>{shortLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Trilha de Cards Empilhados (Stacking Track - Ampliado para max-w-7xl) */}
@@ -1472,7 +1595,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             {modules.map((m, i) => {
               const stepNumber = String(i + 1).padStart(2, '0');
               const totalSteps = String(modules.length).padStart(2, '0');
-              
+
               return (
                 <div
                   key={m.id}
@@ -1501,7 +1624,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
                   {/* Grid Otimizado: 4 Colunas para Textos vs 8 Colunas para a Imagem (67% de largura no Desktop) */}
                   <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-7 lg:gap-8 items-stretch lg:items-start">
-                    
+
                     {/* Informações do Módulo (4 colunas no Desktop) */}
                     <div className="lg:col-span-4 flex flex-col space-y-3 sm:space-y-4">
                       <div>
@@ -1588,7 +1711,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
       {/* ─── SEÇÃO DE DEPOIMENTOS (ESTEIRA ANIMADA / PROVA SOCIAL) ─── */}
       <section id="depoimentos" className="py-10 sm:py-14 md:py-16 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0A0D14] transition-colors relative overflow-hidden">
-        
+
         {/* CSS Keyframes para Esteira Contínua com Pause on Hover */}
         <style>{`
           @keyframes marquee-left {
@@ -1615,7 +1738,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[450px] bg-amber-500/5 dark:bg-yellow-500/5 rounded-full blur-[140px] pointer-events-none" />
 
         <div className="relative z-10">
-          
+
           {/* Cabeçalho da Seção */}
           <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-8 px-4">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
@@ -1632,7 +1755,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
           {/* Esteira de Depoimentos (Marquee Tracks com Fade Lateral) */}
           <div className="relative w-full overflow-hidden">
-            
+
             {/* Sombreamento / Fades Laterais em Gradiente */}
             <div className="absolute left-0 top-0 bottom-0 w-12 sm:w-36 bg-gradient-to-r from-slate-50 via-slate-50/80 dark:from-[#0A0D14] dark:via-[#0A0D14]/80 to-transparent z-20 pointer-events-none" />
             <div className="absolute right-0 top-0 bottom-0 w-12 sm:w-36 bg-gradient-to-l from-slate-50 via-slate-50/80 dark:from-[#0A0D14] dark:via-[#0A0D14]/80 to-transparent z-20 pointer-events-none" />
@@ -1645,7 +1768,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   className="w-[320px] sm:w-[380px] p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 shadow-sm dark:shadow-xl hover:border-amber-400/60 dark:hover:border-yellow-400/40 transition-all duration-300 flex flex-col justify-between shrink-0 group relative overflow-hidden"
                 >
                   <Quote size={48} className="absolute -top-2 -right-2 text-slate-100 dark:text-white/[0.03] stroke-[1] pointer-events-none" />
-                  
+
                   <div>
                     {/* Header do Card (Tag + Stars) */}
                     <div className="flex items-center justify-between gap-2 mb-3.5">
@@ -1700,12 +1823,12 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
       {/* ─── SEÇÃO SOBRE NÓS: CELSOFTWARE LTDA, PROPÓSITO & VISÃO DE FUTURO ─── */}
       <section id="sobre-nos" className="py-10 sm:py-14 md:py-16 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0A0D14] transition-colors relative overflow-hidden">
-        
+
         {/* Glow de Fundo Sutil */}
         <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-amber-500/5 dark:bg-yellow-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-7xl mx-auto relative z-10">
-          
+
           {/* Cabeçalho da Seção */}
           <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest mb-4">
@@ -1719,7 +1842,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
           {/* Grid Principal: História do Fundador vs Pilares do Propósito */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-stretch mb-8 sm:mb-10">
-            
+
             {/* Card História & Fundador (7 colunas) */}
             <div className="lg:col-span-7 flex flex-col justify-between p-6 sm:p-8 md:p-10 rounded-3xl bg-slate-50 dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 shadow-sm dark:shadow-2xl relative overflow-hidden">
               <div className="space-y-4 sm:space-y-6 relative z-10">
@@ -1838,10 +1961,149 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         </div>
       </section>
 
+      {/* ─── SEÇÃO COMPARATIVA: ANTES VS. DEPOIS (BENTO GRID DE IMPACTO) ─── */}
+      <section className="py-10 sm:py-14 md:py-16 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0B0E14] transition-colors relative overflow-hidden">
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-10">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5">
+              <Activity size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
+              <span>EVOLUÇÃO OPERACIONAL</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+              Por que substituir planilhas e controles paralelos?
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mt-2.5 max-w-2xl mx-auto">
+              Compare o custo invisível de uma operação fragmentada com a previsibilidade de ter todo o escritório em uma única plataforma.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            {/* Coluna Esquerda: Sem Task Account (Rotina Fragmentada) */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#111622]/70 border border-rose-200/70 dark:border-rose-500/20 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100 dark:border-white/5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                      <X size={16} className="stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-rose-600 dark:text-rose-400 block">
+                        CENÁRIO TRADICIONAL
+                      </span>
+                      <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        Operação Fragmentada & Manual
+                      </h3>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-[9px] font-mono font-bold uppercase bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/20">
+                    Alto Risco
+                  </span>
+                </div>
+
+                <ul className="space-y-3.5">
+                  {[
+                    {
+                      title: 'Planilhas paralelas vulneráveis a erros',
+                      desc: 'Fórmulas apagadas, versões desatualizadas e retrabalho todo início de mês para recriar tarefas.'
+                    },
+                    {
+                      title: 'Atendimento espalhado no WhatsApp pessoal',
+                      desc: 'Solicitações, áudios e documentos importantes perdidos em conversas individuais sem histórico para o escritório.'
+                    },
+                    {
+                      title: 'Guias enviadas sem confirmação de leitura',
+                      desc: 'Insegurança sobre se o cliente realmente abriu o imposto antes do vencimento ou se o e-mail caiu no spam.'
+                    },
+                    {
+                      title: 'Certificados, alvarás e senhas descentralizados',
+                      desc: 'Descoberta de certificados digitais ou licenças vencidas apenas na hora de transmitir uma obrigação urgente.'
+                    }
+                  ].map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5">
+                      <div className="w-5 h-5 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 mt-0.5">
+                        <X size={11} className="stroke-[3]" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 leading-snug">
+                          {item.title}
+                        </h4>
+                        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Coluna Direita: Com Task Account (Ecossistema Unificado) */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#141A29] border-2 border-amber-400 dark:border-yellow-400/70 shadow-xl shadow-amber-500/10 dark:shadow-[0_0_45px_-12px_rgba(250,204,21,0.2)] flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400" />
+              <div>
+                <div className="flex items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100 dark:border-white/10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-yellow-400 text-slate-950 flex items-center justify-center shrink-0 shadow-md shadow-yellow-400/25">
+                      <Zap size={16} className="fill-slate-950 stroke-slate-950" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-600 dark:text-yellow-400 block">
+                        PADRÃO TASK ACCOUNT
+                      </span>
+                      <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        Operação Automatizada & Auditável
+                      </h3>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-[9px] font-mono font-black uppercase bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30">
+                    100% Controle
+                  </span>
+                </div>
+
+                <ul className="space-y-3.5">
+                  {[
+                    {
+                      title: 'Motor automático de recorrência e vencimentos',
+                      desc: 'Cálculo inteligente (Fixo, Antecipar ou Prorrogar em fins de semana e feriados) com checklists obrigatórios por tarefa.'
+                    },
+                    {
+                      title: 'Chat Setorial e Atendimento ao Cliente Unificado',
+                      desc: 'Comunicação organizada por departamento e empresa, com templates prontos, envio de áudios e anexos.'
+                    },
+                    {
+                      title: 'Portal do Cliente com auditoria em tempo real',
+                      desc: 'Saiba exatamente quem visualizou ou baixou cada guia tributária ou folha de pagamento, com alertas de urgência.'
+                    },
+                    {
+                      title: 'Dossiê 360° e Cockpit com 18 Widgets ao vivo',
+                      desc: 'Monitoramento preventivo de certificados digitais e licenças, mais telemetria completa da produtividade da equipe.'
+                    }
+                  ].map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-amber-50/50 dark:bg-yellow-400/[0.04] border border-amber-200/60 dark:border-yellow-400/15">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                        <Check size={11} className="stroke-[3]" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                          {item.title}
+                        </h4>
+                        <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── TABELA DE PLANOS & INVESTIMENTO ─── */}
       <section id="planos" className="py-10 sm:py-14 md:py-16 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-slate-100/60 dark:bg-[#0D1017] transition-colors">
         <div className="max-w-7xl mx-auto">
-          
+
           <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
               <Award size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
@@ -1861,11 +2123,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               return (
                 <div
                   key={i}
-                  className={`p-6 rounded-3xl border border-t-4 flex flex-col justify-between transition-all duration-300 ${
-                    isGold
+                  className={`p-6 rounded-3xl border border-t-4 flex flex-col justify-between transition-all duration-300 ${isGold
                       ? 'bg-white dark:bg-[#161D2B] border-amber-500 border-t-amber-500 dark:border-yellow-400 dark:border-t-yellow-400 shadow-xl shadow-amber-500/10 dark:shadow-[0_0_50px_-10px_rgba(250,204,21,0.25)] lg:-translate-y-2'
                       : 'bg-white dark:bg-[#121722]/70 border-slate-200/80 border-t-amber-500 dark:border-white/10 dark:border-t-yellow-400 hover:border-slate-300 dark:hover:border-white/20 shadow-sm dark:shadow-none'
-                  }`}
+                    }`}
                 >
                   <div>
                     {/* Topo do Card */}
@@ -1926,19 +2187,17 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                           return (
                             <li
                               key={idx}
-                              className={`flex items-start gap-2.5 p-1.5 -mx-1.5 rounded-xl transition-all ${
-                                isFeatureHighlighted && isGold
+                              className={`flex items-start gap-2.5 p-1.5 -mx-1.5 rounded-xl transition-all ${isFeatureHighlighted && isGold
                                   ? 'bg-amber-500/10 dark:bg-yellow-400/[0.06] border border-amber-500/20 dark:border-yellow-400/15 shadow-2xs'
                                   : 'hover:bg-slate-100/60 dark:hover:bg-white/[0.03]'
-                              }`}
+                                }`}
                             >
                               {/* Ícone Check Estilizado */}
                               <div
-                                className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                                  isGold
+                                className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isGold
                                     ? 'bg-amber-500/20 text-amber-700 dark:bg-yellow-400/20 dark:text-yellow-400 ring-1 ring-amber-500/40 dark:ring-yellow-400/40 shadow-xs'
                                     : 'bg-emerald-500/15 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400'
-                                }`}
+                                  }`}
                               >
                                 <Check size={10} className="stroke-[3]" />
                               </div>
@@ -1947,22 +2206,20 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <span
-                                    className={`text-xs leading-tight ${
-                                      isFeatureHighlighted && isGold
+                                    className={`text-xs leading-tight ${isFeatureHighlighted && isGold
                                         ? 'font-black text-amber-950 dark:text-yellow-300'
                                         : 'font-bold text-slate-900 dark:text-white'
-                                    }`}
+                                      }`}
                                   >
                                     {featureText}
                                   </span>
 
                                   {featureBadge && (
                                     <span
-                                      className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black tracking-wider uppercase ${
-                                        featureBadge === 'DESTAQUE'
+                                      className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black tracking-wider uppercase ${featureBadge === 'DESTAQUE'
                                           ? 'bg-yellow-400 text-slate-950 shadow-xs'
                                           : 'bg-amber-100 dark:bg-yellow-400/15 text-amber-800 dark:text-yellow-400 border border-amber-300/60 dark:border-yellow-400/30'
-                                      }`}
+                                        }`}
                                     >
                                       {featureBadge}
                                     </span>
@@ -1985,11 +2242,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   {/* Botão de Ação */}
                   <button
                     onClick={() => handleSelectPlan(plan)}
-                    className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${
-                      isGold
+                    className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${isGold
                         ? 'bg-yellow-400 hover:bg-yellow-300 text-slate-950 shadow-[0_0_20px_rgba(250,204,21,0.4)]'
                         : 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white'
-                    }`}
+                      }`}
                   >
                     {plan.name === 'Elite' ? 'Falar com Consultor' : 'Selecionar Plano'}
                   </button>
@@ -2025,11 +2281,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               return (
                 <div
                   key={faq.id}
-                  className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
-                    isOpen
+                  className={`rounded-2xl border transition-all duration-200 overflow-hidden ${isOpen
                       ? 'bg-slate-50/80 dark:bg-[#111622] border-amber-400/50 dark:border-yellow-400/30 shadow-md'
                       : 'bg-white dark:bg-white/[0.02] border-slate-200/80 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/15'
-                  }`}
+                    }`}
                 >
                   <button
                     type="button"
@@ -2040,11 +2295,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       {faq.question}
                     </span>
                     <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 ${
-                        isOpen
+                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 ${isOpen
                           ? 'rotate-180 bg-amber-400 text-slate-950 font-bold'
                           : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400'
-                      }`}
+                        }`}
                     >
                       <ChevronDown size={14} />
                     </div>
@@ -2097,18 +2351,19 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
       <footer className="py-12 px-4 sm:px-8 bg-slate-900 dark:bg-[#080B10] border-t border-slate-800 dark:border-white/5 text-xs text-slate-400 dark:text-slate-500 transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5 flex-wrap justify-center md:justify-start">
-            <button
-              type="button"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="flex items-center gap-2.5 cursor-pointer group text-left"
-              title="Voltar ao início"
-              aria-label="Voltar ao topo da página"
-            >
-              <div className="w-6 h-6 rounded bg-yellow-400 flex items-center justify-center text-slate-950 font-black group-hover:scale-105 transition-transform">
-                <Zap size={13} className="fill-slate-950 stroke-slate-950" />
-              </div>
-              <span className="font-bold text-white tracking-tight uppercase group-hover:text-yellow-400 transition-colors">Task Account</span>
-            </button>
+            <Tooltip content="Voltar ao início" position="top">
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
+                aria-label="Voltar ao topo da página"
+              >
+                <div className="w-6 h-6 rounded bg-yellow-400 flex items-center justify-center text-slate-950 font-black group-hover:scale-105 transition-transform">
+                  <Zap size={13} className="fill-slate-950 stroke-slate-950" />
+                </div>
+                <span className="font-bold text-white tracking-tight uppercase group-hover:text-yellow-400 transition-colors">Task Account</span>
+              </button>
+            </Tooltip>
             <span className="text-slate-600">|</span>
             <span>Desenvolvido por <a href="#sobre-nos" className="text-slate-300 hover:text-yellow-400 transition-colors font-semibold">Celsoftware Ltda</a></span>
           </div>
@@ -2171,7 +2426,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           onClick={() => setZoomImage(null)}
         >
           {/* Barra de controle superior */}
-          <div 
+          <div
             className="w-full max-w-6xl flex items-center justify-between py-2.5 px-3.5 sm:px-5 mb-2 sm:mb-3 bg-slate-900/90 border border-white/15 rounded-xl backdrop-blur-md text-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2189,19 +2444,20 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               <span className="text-[10px] sm:text-xs text-slate-400 font-mono hidden sm:inline">
                 ESC para fechar
               </span>
-              <button
-                onClick={() => setZoomImage(null)}
-                className="p-1 sm:p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-                title="Fechar visualização"
-                aria-label="Fechar"
-              >
-                <X size={18} />
-              </button>
+              <Tooltip content="Fechar visualização" position="bottom">
+                <button
+                  onClick={() => setZoomImage(null)}
+                  className="p-1 sm:p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                  aria-label="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </Tooltip>
             </div>
           </div>
 
           {/* Palco da Imagem Ampliada com alta resolução */}
-          <div 
+          <div
             className="relative max-w-6xl max-h-[85vh] flex items-center justify-center overflow-auto rounded-2xl border border-white/15 shadow-2xl bg-slate-950/70 p-1 sm:p-2"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2229,37 +2485,47 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         {/* Botão Voltar ao Topo */}
         <AnimatePresence>
           {isScrolled && (
-            <motion.button
+            <motion.div
               initial={{ opacity: 0, scale: 0.8, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: 10 }}
               transition={{ duration: 0.2 }}
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="pointer-events-auto w-10 h-10 rounded-full bg-white/90 dark:bg-[#121722]/90 backdrop-blur-xl border border-slate-200/90 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:text-amber-500 dark:hover:text-yellow-400 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
-              title="Voltar ao topo"
-              aria-label="Voltar ao topo"
+              className="pointer-events-auto"
             >
-              <ArrowUp size={16} />
-            </motion.button>
+              <Tooltip content="Voltar ao topo" position="left">
+                <button
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="w-10 h-10 rounded-full bg-white/90 dark:bg-[#121722]/90 backdrop-blur-xl border border-slate-200/90 dark:border-white/15 text-slate-700 dark:text-slate-200 hover:text-amber-500 dark:hover:text-yellow-400 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                  aria-label="Voltar ao topo"
+                >
+                  <ArrowUp size={16} />
+                </button>
+              </Tooltip>
+            </motion.div>
           )}
         </AnimatePresence>
 
         {/* Botão Flutuante de Consultor Comercial */}
-        <motion.button
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.5 }}
-          onClick={() => {
-            setConsultantModalPlan('Geral');
-            setIsConsultantModalOpen(true);
-          }}
-          className="pointer-events-auto group flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-full bg-slate-900/95 dark:bg-yellow-400 hover:bg-slate-900 dark:hover:bg-yellow-300 text-white dark:text-slate-950 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/10 dark:border-yellow-300/40 cursor-pointer"
-          title="Falar com Especialista"
+          className="pointer-events-auto"
         >
-          <div className="w-2 h-2 rounded-full bg-emerald-400 dark:bg-slate-950 animate-pulse" />
-          <span className="text-[11px] sm:text-xs font-bold tracking-wide">Falar com Consultor</span>
-          <MessageSquare size={13} className="stroke-[2.5]" />
-        </motion.button>
+          <Tooltip content="Falar com Especialista" position="left">
+            <button
+              onClick={() => {
+                setConsultantModalPlan('Geral');
+                setIsConsultantModalOpen(true);
+              }}
+              className="group flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-full bg-slate-900/95 dark:bg-yellow-400 hover:bg-slate-900 dark:hover:bg-yellow-300 text-white dark:text-slate-950 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all border border-white/10 dark:border-yellow-300/40 cursor-pointer"
+            >
+              <div className="w-2 h-2 rounded-full bg-emerald-400 dark:bg-slate-950 animate-pulse" />
+              <span className="text-[11px] sm:text-xs font-bold tracking-wide">Falar com Consultor</span>
+              <MessageSquare size={13} className="stroke-[2.5]" />
+            </button>
+          </Tooltip>
+        </motion.div>
       </div>
 
       {/* ─── MODAL DE CONTATO COM CONSULTOR (LEADS / WHATSAPP) ─── */}

@@ -2074,21 +2074,25 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => handleEditPendingTask(task)}
-                              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-colors"
-                              title="Editar"
-                            >
-                              <SquarePen size={14} />
-                            </button>
-                            {!isEditing && (
+                            <Tooltip content="Editar" position="top">
                               <button
-                                onClick={() => removePendingTask(task.id)}
-                                className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors"
-                                title="Remover"
+                                type="button"
+                                onClick={() => handleEditPendingTask(task)}
+                                className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-colors cursor-pointer"
                               >
-                                <Trash2 size={14} />
+                                <SquarePen size={14} />
                               </button>
+                            </Tooltip>
+                            {!isEditing && (
+                              <Tooltip content="Remover" position="top">
+                                <button
+                                  type="button"
+                                  onClick={() => removePendingTask(task.id)}
+                                  className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </Tooltip>
                             )}
                           </div>
                         </div>

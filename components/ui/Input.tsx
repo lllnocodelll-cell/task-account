@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Copy, Check, Search, ChevronDown, Info, X } from 'lucide-react';
+import { Copy, Check, Search, ChevronDown, Info, X, Calendar, Clock } from 'lucide-react';
 import { Tooltip } from './Tooltip';
 
 interface CopyButtonProps {
@@ -112,16 +112,26 @@ export const Input: React.FC<InputProps> = ({
             className={`w-full h-10 rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all
               ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}
               ${icon ? 'pl-10' : ''}
-              ${copyable ? 'pr-10' : ''}
+              ${copyable || props.type === 'month' || props.type === 'date' || props.type === 'time' ? 'pr-9' : ''}
               ${props.type === 'month' ? 'text-transparent cursor-pointer' : 'text-slate-900 dark:text-slate-100'}
-              ${props.type === 'month' || props.type === 'date' || props.type === 'time' ? 'dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-50 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 transition-opacity' : ''}
+              ${props.type === 'month' || props.type === 'date' || props.type === 'time' ? 'dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:pointer-events-none' : ''}
               ${className}
             `}
             {...props}
+            onClick={(e) => {
+              if (props.type === 'month' && inputRef.current && typeof inputRef.current.showPicker === 'function') {
+                try {
+                  inputRef.current.showPicker();
+                } catch {
+                  // ignore if unsupported or already open
+                }
+              }
+              props.onClick?.(e);
+            }}
             title={(props.type === 'month' || props.type === 'date' || props.type === 'time') ? "" : props.title}
           />
           {props.type === 'month' && (
-            <div className={`absolute left-[1px] top-[1px] bottom-[1px] right-10 bg-white dark:bg-slate-900 flex items-center pointer-events-none rounded-l-lg ${icon ? 'pl-10' : 'pl-3'}`}>
+            <div className={`absolute left-[1px] top-[1px] bottom-[1px] right-9 bg-white dark:bg-slate-900 flex items-center pointer-events-none rounded-l-lg ${icon ? 'pl-10' : 'pl-3'}`}>
               <span className="text-[12px] font-medium text-slate-900 dark:text-slate-100">
                 {props.value ? `${String(props.value).split('-')[1]}/${String(props.value).split('-')[0]}` : ''}
               </span>
@@ -139,14 +149,40 @@ export const Input: React.FC<InputProps> = ({
             </Tooltip>
           )}
           {(props.type === 'month' || props.type === 'date' || props.type === 'time') && (
-            <div
-              className="absolute right-0 top-0 bottom-0 w-10 flex items-center justify-center group/datepicker pointer-events-none"
-            >
-              {/* Tooltip CSS puro — não interfere no layout */}
-              <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-medium rounded shadow-xl border border-slate-700/50 whitespace-nowrap opacity-0 group-hover/datepicker:opacity-100 transition-opacity duration-150 pointer-events-none z-[9999]">
-                Mostrar seletor de datas
-                <div className="absolute top-full right-3 border-[4px] border-transparent border-t-slate-900 dark:border-t-slate-800" />
-              </div>
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center z-10">
+              <Tooltip
+                content={
+                  props.type === 'month'
+                    ? 'Mostrar seletor de mês'
+                    : props.type === 'time'
+                      ? 'Mostrar seletor de horário'
+                      : 'Mostrar seletor de datas'
+                }
+                position="top"
+              >
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (inputRef.current) {
+                      if (typeof inputRef.current.showPicker === 'function') {
+                        try {
+                          inputRef.current.showPicker();
+                        } catch {
+                          inputRef.current.focus();
+                        }
+                      } else {
+                        inputRef.current.focus();
+                      }
+                    }
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                >
+                  {props.type === 'time' ? <Clock size={15} /> : <Calendar size={15} />}
+                </button>
+              </Tooltip>
             </div>
           )}
         </div>
@@ -211,6 +247,10 @@ export const Select: React.FC<SelectProps> = ({
   ...props
 }) => {
   const [copied, setCopied] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleCopy = (e: React.MouseEvent, text: string) => {
     e.preventDefault();
@@ -221,11 +261,114 @@ export const Select: React.FC<SelectProps> = ({
     }
   };
 
-  const selectedOption = options.find(opt => opt.value === props.value);
+  const selectedOption = options.find(opt => String(opt.value) === String(props.value ?? ''));
   const displayValue = selectedOption ? selectedOption.label : '-';
+  const placeholderOption = options.find(opt => opt.value === '');
+  const placeholderText = placeholderOption ? placeholderOption.label : 'Selecione...';
+
+  const updateDropdownPosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const estimatedItemH = 38;
+    const dropdownH = Math.min(options.length * estimatedItemH + 12, 256);
+    const width = Math.min(Math.max(rect.width, 160), window.innerWidth - 16);
+
+    const spaceBelow = viewportHeight - rect.bottom;
+    const openUpward = spaceBelow < dropdownH && rect.top > dropdownH;
+
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) {
+      left = window.innerWidth - width - 8;
+    }
+    if (left < 8) {
+      left = 8;
+    }
+
+    setDropdownStyle({
+      position: 'fixed',
+      top: openUpward ? Math.max(8, rect.top - dropdownH - 4) : rect.bottom + 4,
+      left,
+      width,
+      zIndex: 99999,
+    });
+  };
+
+  const handleOpen = () => {
+    updateDropdownPosition();
+    setIsOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        !(document.getElementById('custom-select-portal')?.contains(target))
+      ) {
+        setIsOpen(false);
+      }
+    };
+    const handleScroll = (event: Event) => {
+      if (document.getElementById('custom-select-portal')?.contains(event.target as Node)) {
+        return;
+      }
+      updateDropdownPosition();
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', updateDropdownPosition);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', updateDropdownPosition);
+    };
+  }, [isOpen, options.length]);
+
+  const triggerChange = (val: string | number) => {
+    if (props.onChange) {
+      const syntheticEvent = {
+        target: { value: String(val), name: props.name || '' },
+        currentTarget: { value: String(val), name: props.name || '' },
+        preventDefault: () => { },
+        stopPropagation: () => { },
+      } as unknown as React.ChangeEvent<HTMLSelectElement>;
+      props.onChange(syntheticEvent);
+    }
+    setIsOpen(false);
+  };
+
+  const dropdownContent = isOpen ? (
+    <div
+      id="custom-select-portal"
+      style={dropdownStyle}
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden"
+    >
+      <div className="max-h-60 overflow-y-auto py-1 custom-scrollbar">
+        {options.map((opt, index) => {
+          const isSelected = String(opt.value) === String(props.value ?? '');
+          return (
+            <button
+              key={`${opt.value}-${index}`}
+              type="button"
+              onClick={() => triggerChange(opt.value)}
+              className={`w-full flex items-center justify-between text-left px-3.5 py-2 text-xs sm:text-sm transition-colors cursor-pointer ${isSelected
+                  ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-semibold'
+                  : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                }`}
+            >
+              <span className="truncate pr-2">{opt.label}</span>
+              {isSelected && <Check size={14} className="text-indigo-600 dark:text-indigo-400 shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
 
   return (
-    <div className="flex flex-col gap-1.5 font-sans">
+    <div className="flex flex-col gap-1.5 font-sans" ref={containerRef}>
       {label && (
         <div className="flex items-center gap-1.5 h-5">
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-none">{label}</label>
@@ -261,21 +404,24 @@ export const Select: React.FC<SelectProps> = ({
           )}
         </div>
       ) : (
-        <select
-          className={`w-full h-10 rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all
-          ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'} ${className}
-        `}
-          {...props}
-        >
-          {!options.some(opt => opt.value === '') && (
-            <option value="" disabled>Selecione...</option>
-          )}
-          {options.map((opt, index) => (
-            <option key={`${opt.value}-${index}`} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <button
+            ref={buttonRef}
+            type="button"
+            onClick={() => isOpen ? setIsOpen(false) : handleOpen()}
+            className={`w-full h-10 rounded-lg border bg-white dark:bg-slate-900 px-3 py-2 text-sm text-left flex items-center justify-between transition-all cursor-pointer
+              ${error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400'}
+              ${isOpen ? 'ring-2 ring-indigo-500 border-transparent' : ''}
+              ${className}
+            `}
+          >
+            <span className={`truncate pr-2 ${selectedOption && selectedOption.value !== '' ? 'text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-400 dark:text-slate-500 font-normal'}`}>
+              {selectedOption && selectedOption.value !== '' ? selectedOption.label : placeholderText}
+            </span>
+            <ChevronDown size={15} className={`text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {typeof document !== 'undefined' && createPortal(dropdownContent, document.body)}
+        </div>
       )}
       {error && <span className="text-xs text-red-500">{error}</span>}
     </div>
@@ -682,11 +828,10 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
             onChange('');
             setIsOpen(false);
           }}
-          className={`w-full text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors border-b border-slate-100 dark:border-slate-800 ${
-            !value
+          className={`w-full text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors border-b border-slate-100 dark:border-slate-800 ${!value
               ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold'
               : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-          }`}
+            }`}
         >
           {placeholder ? `Sem filtro / ${placeholder}` : 'Todos (Sem filtro)'}
         </button>
@@ -704,11 +849,10 @@ export const GroupedSelect: React.FC<GroupedSelectProps> = ({
                   onChange(opt.value.toString() === value.toString() ? '' : opt.value.toString());
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                  opt.value.toString() === value.toString()
+                className={`w-full text-left px-4 py-2 text-sm transition-colors ${opt.value.toString() === value.toString()
                     ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium'
                     : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                }`}
+                  }`}
               >
                 {opt.label}
               </button>
@@ -786,8 +930,8 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const selectedOptions = options.filter(opt => value.includes(String(opt.value)));
-  const displayValue = selectedOptions.length > 0 
-    ? (selectedOptions.length === 1 ? selectedOptions[0].label : `${selectedOptions.length} selecionados`) 
+  const displayValue = selectedOptions.length > 0
+    ? (selectedOptions.length === 1 ? selectedOptions[0].label : `${selectedOptions.length} selecionados`)
     : '-';
 
   const filteredOptions = options.filter(opt =>
@@ -968,7 +1112,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                 selectedOptions.map(opt => (
                   <span key={opt.value} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded text-[11px] font-medium truncate max-w-[150px]">
                     <span className="truncate">{opt.label}</span>
-                    <span 
+                    <span
                       role="button"
                       tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); toggleOption(String(opt.value)); }}

@@ -739,8 +739,8 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                                         key={name}
                                         className={`flex items-center justify-between px-3 py-2 text-xs cursor-pointer transition-colors ${
                                             name === activeScenario
-                                                ? 'bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 font-bold'
-                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
+                                                ? 'bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-50 dark:hover:bg-indigo-500/20'
+                                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
                                         }`}
                                         onClick={() => {
                                             setActiveScenario(name);
@@ -756,7 +756,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                                                         e.stopPropagation();
                                                         handleDeleteScenario(name);
                                                     }}
-                                                    className="p-1 text-slate-400 hover:text-red-500 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                    className="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors"
                                                 >
                                                     <Trash2 size={12} />
                                                 </button>
@@ -772,7 +772,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                                         setShowRenameModal(true);
                                         setRenameScenarioName(activeScenario);
                                     }}
-                                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 transition-colors"
+                                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                                 >
                                     <Edit3 size={14} className="text-slate-400" />
                                     Renomear Cenário
@@ -783,7 +783,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                                         setShowNewScenarioModal(true);
                                         setNewScenarioName("");
                                     }}
-                                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 font-semibold transition-colors"
+                                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/15 font-semibold transition-colors"
                                 >
                                     <Plus size={14} />
                                     Novo Cenário
@@ -851,7 +851,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                         <div className="flex justify-end gap-2 text-xs font-semibold">
                             <button
                                 onClick={() => setShowNewScenarioModal(false)}
-                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-slate-600 dark:text-slate-400 transition-colors"
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                             >
                                 Cancelar
                             </button>
@@ -885,7 +885,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                         <div className="flex justify-end gap-2 text-xs font-semibold">
                             <button
                                 onClick={() => setShowRenameModal(false)}
-                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-slate-600 dark:text-slate-400 transition-colors"
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                             >
                                 Cancelar
                             </button>
