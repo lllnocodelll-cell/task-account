@@ -1,29 +1,42 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { 
-  Building2, 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight, 
-  Clock, 
-  Timer, 
-  Filter, 
-  ArrowUpDown, 
-  Search, 
-  AlertTriangle, 
-  Layers, 
-  User, 
-  ChevronDown, 
-  ChevronUp, 
-  TrendingUp, 
-  CheckCircle2, 
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import {
+  Building2,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Timer,
+  Filter,
+  ArrowUpDown,
+  Search,
+  Layers,
+  User,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle2,
   Flame,
   Zap,
-  PieChart,
-  BarChart2
+  BarChart2,
+  List,
+  Eye,
+  EyeOff,
+  X,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
 import { Tooltip } from '../../ui/Tooltip';
+import { Input, Select } from '../../ui/Input';
 import { formatSecondsToFriendly } from './CollaboratorPerformanceWidget';
 import { TAX_REGIME_LABELS } from '../../../types';
 
@@ -32,13 +45,26 @@ interface Props {
   onRemove?: () => void;
 }
 
-interface ClientTaskItem {
+interface RawTaskItem {
   id: string;
   taskName: string;
   sector?: string;
   responsible?: string;
   status: string;
   secondsSpent: number;
+}
+
+interface RawClientGroup {
+  clientId: string;
+  clientName: string;
+  document?: string;
+  taxRegime?: string;
+  city?: string;
+  state?: string;
+  tasks: RawTaskItem[];
+}
+
+interface ClientTaskItem extends RawTaskItem {
   percentageOfClientTime: number;
 }
 
@@ -51,53 +77,162 @@ interface ClientMetric {
   state?: string;
   totalSecondsSpent: number;
   totalTasksCount: number;
-  avgSecondsPerTask: number; // Média de tempo por tarefa deste cliente
-  criticalTasksCount: number; // Tarefas que cumprem o limiar selecionado
+  avgSecondsPerTask: number;
+  criticalTasksCount: number;
   tasks: ClientTaskItem[];
 }
 
+interface SectorSlice {
+  name: string;
+  seconds: number;
+  pct: number;
+  colorClass: string;
+  dotClass: string;
+}
+
+interface ChartClientRow {
+  clientId: string;
+  shortName: string;
+  fullName: string;
+  minutes: number;
+  totalSeconds: number;
+  avgSeconds: number;
+  tasksCount: number;
+}
+
 type FilterMode = 'task' | 'client';
+type SortKey = 'time' | 'avg' | 'critical' | 'name';
+type ViewMode = 'list' | 'chart';
+
+const STORAGE_KEY_SHOW_SUMMARY = 'widget_client_time_show_summary';
 
 const TASK_THRESHOLD_OPTIONS = [
-  // Gargalos / Demoradas
-  { value: 1800, label: '🔥 ≥ 30 min (Gargalos - Padrão)' },
-  { value: 3600, label: '🔥 ≥ 1 hora (Críticos)' },
-  { value: 7200, label: '🔥 ≥ 2 horas' },
-  { value: 900, label: '🔥 ≥ 15 min' },
-  // Alta Performance / Rápidas
-  { value: -1800, label: '⚡ < 30 min (Alta Performance)' },
-  { value: -900, label: '⚡ < 15 min (Super Rápidas)' },
-  // Todas
+  { value: 1800, label: '≥ 30 min (Gargalos - Padrão)' },
+  { value: 3600, label: '≥ 1 hora (Críticos)' },
+  { value: 7200, label: '≥ 2 horas' },
+  { value: 900, label: '≥ 15 min' },
+  { value: -1800, label: '< 30 min (Alta Performance)' },
+  { value: -900, label: '< 15 min (Super Rápidas)' },
   { value: 0, label: 'Todas as tarefas' },
 ];
 
 const CLIENT_THRESHOLD_OPTIONS = [
-  // Maior Consumo
-  { value: 3600, label: '⏱️ ≥ 1 hora (Padrão)' },
-  { value: 7200, label: '⏱️ ≥ 2 horas' },
-  { value: 18000, label: '⏱️ ≥ 5 horas' },
-  { value: 1800, label: '⏱️ ≥ 30 min' },
-  // Baixo Consumo / Alta Performance
-  { value: -1800, label: '⚡ < 30 min (Alta Performance)' },
-  { value: -3600, label: '⚡ < 1 hora (Ágeis)' },
-  // Todos
+  { value: 3600, label: '≥ 1 hora (Padrão)' },
+  { value: 7200, label: '≥ 2 horas' },
+  { value: 18000, label: '≥ 5 horas' },
+  { value: 1800, label: '≥ 30 min' },
+  { value: -1800, label: '< 30 min (Alta Performance)' },
+  { value: -3600, label: '< 1 hora (Ágeis)' },
   { value: 0, label: 'Todos os clientes' },
 ];
+
+const TASK_STATUS_OPTIONS = [
+  { value: 'all', label: 'Todos os status' },
+  { value: 'Concluída', label: 'Concluída' },
+  { value: 'Iniciada', label: 'Em andamento (Iniciada)' },
+  { value: 'Pendente', label: 'Pendente' },
+  { value: 'Pausada', label: 'Pausada' },
+  { value: 'Atrasada', label: 'Atrasada' },
+];
+
+const SECTOR_PALETTE = [
+  { colorClass: 'bg-indigo-500', dotClass: 'bg-indigo-500' },
+  { colorClass: 'bg-emerald-500', dotClass: 'bg-emerald-500' },
+  { colorClass: 'bg-sky-500', dotClass: 'bg-sky-500' },
+  { colorClass: 'bg-amber-500', dotClass: 'bg-amber-500' },
+  { colorClass: 'bg-slate-400 dark:bg-slate-600', dotClass: 'bg-slate-400 dark:bg-slate-500' },
+];
+
+function truncateLabel(text: string, maxLen = 22): string {
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, maxLen - 1)}…`;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload: ChartClientRow }>;
+}
+
+const CustomClientChartTooltip: React.FC<ChartTooltipProps> = ({ active, payload }) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const item = payload[0].payload;
+
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-lg min-w-[200px] max-w-[260px]">
+      <p className="text-xs font-bold text-slate-800 dark:text-slate-100 mb-2 border-b border-slate-100 dark:border-slate-800 pb-1.5 truncate">
+        {item.fullName}
+      </p>
+      <div className="space-y-1 text-xs tabular-nums">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-slate-500 dark:text-slate-400">Tempo total</span>
+          <span className="font-bold font-mono text-indigo-600 dark:text-indigo-400">
+            {formatSecondsToFriendly(item.totalSeconds)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-slate-500 dark:text-slate-400">Média / tarefa</span>
+          <span className="font-semibold font-mono text-sky-600 dark:text-sky-400">
+            {formatSecondsToFriendly(item.avgSeconds)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-slate-500 dark:text-slate-400">Tarefas</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-200">
+            {item.tasksCount}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
   const now = new Date();
   const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const defaultPeriod = `${prevMonthDate.getFullYear()}-${(prevMonthDate.getMonth() + 1).toString().padStart(2, '0')}`;
+  const defaultPeriod = `${prevMonthDate.getFullYear()}-${(prevMonthDate.getMonth() + 1)
+    .toString()
+    .padStart(2, '0')}`;
 
-  const [metrics, setMetrics] = useState<ClientMetric[]>([]);
+  const [rawClients, setRawClients] = useState<RawClientGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [period, setPeriod] = useState(defaultPeriod);
   const [filterMode, setFilterMode] = useState<FilterMode>('task');
-  const [taskThreshold, setTaskThreshold] = useState<number>(1800); // 30 min padrão para tarefa
-  const [clientThreshold, setClientThreshold] = useState<number>(3600); // 1h padrão para cliente
+  const [taskThreshold, setTaskThreshold] = useState<number>(1800);
+  const [clientThreshold, setClientThreshold] = useState<number>(3600);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'time' | 'avg' | 'critical' | 'name'>('time');
+  const [sortBy, setSortBy] = useState<SortKey>('time');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
+
+  // Filtros avançados em memória (instantâneos)
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [selectedSector, setSelectedSector] = useState<string>('all');
+  const [selectedRegime, setSelectedRegime] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+
+  const [showSummary, setShowSummary] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SHOW_SUMMARY);
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const monthInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleShowSummary = () => {
+    setShowSummary((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(STORAGE_KEY_SHOW_SUMMARY, String(next));
+      } catch {
+        // Ignore storage quota errors
+      }
+      return next;
+    });
+  };
 
   const navigatePeriod = (direction: 'prev' | 'next') => {
     const base = period || defaultPeriod;
@@ -108,9 +243,24 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
   const resetToDefaultPeriod = () => setPeriod(defaultPeriod);
 
+  const openMonthPicker = () => {
+    const el = monthInputRef.current;
+    if (!el) return;
+    if (typeof el.showPicker === 'function') {
+      try {
+        el.showPicker();
+        return;
+      } catch {
+        // Fallback below
+      }
+    }
+    el.click();
+  };
+
   const fetchData = useCallback(async () => {
     if (!orgId) return;
     setLoading(true);
+    setFetchError(null);
 
     try {
       let query = (supabase as any)
@@ -148,27 +298,15 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
 
       if (result) {
         const nowMs = Date.now();
-        const clientMap: Record<string, {
-          clientId: string;
-          clientName: string;
-          document?: string;
-          taxRegime?: string;
-          city?: string;
-          state?: string;
-          totalSeconds: number;
-          tasks: {
-            id: string;
-            taskName: string;
-            sector?: string;
-            responsible?: string;
-            status: string;
-            secondsSpent: number;
-          }[];
-        }> = {};
+        const clientMap: Record<string, RawClientGroup> = {};
 
         result.forEach((row: any) => {
           const clientKey = row.client_id || row.client_name || 'Sem cliente';
-          const clientDisplayName = row.clients?.company_name || row.clients?.trade_name || row.client_name || 'Cliente Não Identificado';
+          const clientDisplayName =
+            row.clients?.company_name ||
+            row.clients?.trade_name ||
+            row.client_name ||
+            'Cliente Não Identificado';
 
           if (!clientMap[clientKey]) {
             clientMap[clientKey] = {
@@ -178,68 +316,142 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
               taxRegime: row.tax_regime,
               city: row.clients?.city,
               state: row.clients?.state,
-              totalSeconds: 0,
-              tasks: []
+              tasks: [],
             };
           }
 
-          // Segundos trabalhados na tarefa
           let taskSeconds = row.total_time_spent_seconds || 0;
 
-          // Se estiver com cronômetro em execução neste instante
           if (row.status === 'Iniciada' && row.timer_started_at) {
             const startMs = new Date(row.timer_started_at).getTime();
             const currentLiveSec = Math.max(0, Math.floor((nowMs - startMs) / 1000));
             taskSeconds += currentLiveSec;
           }
 
-          // Fallback para tarefas concluídas sem cronômetro ativo
           if (taskSeconds === 0 && row.status === 'Concluída') {
             const startFallback = row.started_at
               ? new Date(row.started_at).getTime()
               : row.created_at
-                ? new Date(row.created_at).getTime()
-                : null;
-            const completedFallback = row.completed_at ? new Date(row.completed_at).getTime() : null;
+              ? new Date(row.created_at).getTime()
+              : null;
+            const completedFallback = row.completed_at
+              ? new Date(row.completed_at).getTime()
+              : null;
             if (startFallback && completedFallback && completedFallback > startFallback) {
               taskSeconds = Math.floor((completedFallback - startFallback) / 1000);
             }
           }
 
-          clientMap[clientKey].totalSeconds += taskSeconds;
           clientMap[clientKey].tasks.push({
             id: row.id,
             taskName: row.task_name || 'Tarefa',
             sector: row.sector,
             responsible: row.responsible,
             status: row.status,
-            secondsSpent: taskSeconds
+            secondsSpent: taskSeconds,
           });
         });
 
-        const isTaskLessThan = taskThreshold < 0;
-        const absTaskThreshold = Math.abs(taskThreshold);
+        setRawClients(Object.values(clientMap));
+      }
+    } catch (err) {
+      console.error('Erro ao buscar tempo por cliente:', err);
+      setFetchError('Não foi possível carregar o tempo por cliente e tarefa.');
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId, period]);
 
-        // Calcula métricas e porcentagens
-        const calculated: ClientMetric[] = Object.values(clientMap).map(c => {
-          const clientTotalSec = c.totalSeconds;
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-          const processedTasks: ClientTaskItem[] = c.tasks
-            .map(t => ({
+  // Opções dinâmicas de Setor e Regime Tributário para o mês carregado
+  const { sectorOptions, regimeOptions } = useMemo(() => {
+    const sectors = new Set<string>();
+    const regimes = new Set<string>();
+
+    rawClients.forEach((c) => {
+      if (c.taxRegime) regimes.add(c.taxRegime);
+      c.tasks.forEach((t) => {
+        if (t.sector?.trim()) sectors.add(t.sector.trim());
+      });
+    });
+
+    const sortedSectors = Array.from(sectors)
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+      .map((s) => ({ value: s, label: s }));
+
+    const sortedRegimes = Array.from(regimes)
+      .sort((a, b) =>
+        (TAX_REGIME_LABELS[a] || a).localeCompare(TAX_REGIME_LABELS[b] || b, 'pt-BR')
+      )
+      .map((r) => ({ value: r, label: TAX_REGIME_LABELS[r] || r }));
+
+    return {
+      sectorOptions: [{ value: 'all', label: 'Todos os setores' }, ...sortedSectors],
+      regimeOptions: [{ value: 'all', label: 'Todos os regimes' }, ...sortedRegimes],
+    };
+  }, [rawClients]);
+
+  const isTaskLessThan = taskThreshold < 0;
+  const absTaskThreshold = Math.abs(taskThreshold);
+  const isClientLessThan = clientThreshold < 0;
+  const absClientThreshold = Math.abs(clientThreshold);
+
+  const activeAdvancedFilterCount =
+    (selectedSector !== 'all' ? 1 : 0) +
+    (selectedRegime !== 'all' ? 1 : 0) +
+    (selectedStatus !== 'all' ? 1 : 0);
+
+  const clearAdvancedFilters = () => {
+    setSelectedSector('all');
+    setSelectedRegime('all');
+    setSelectedStatus('all');
+  };
+
+  // Constrói métricas recalculadas em memória considerando filtros de status, regime e setor
+  const buildMetrics = useCallback(
+    (applySectorFilter: boolean): ClientMetric[] => {
+      return rawClients
+        .filter((c) => {
+          if (selectedRegime !== 'all' && c.taxRegime !== selectedRegime) return false;
+          if (!searchQuery.trim()) return true;
+          const q = searchQuery.toLowerCase();
+          return (
+            c.clientName.toLowerCase().includes(q) ||
+            (c.document && c.document.toLowerCase().includes(q)) ||
+            (c.city && c.city.toLowerCase().includes(q))
+          );
+        })
+        .map((c) => {
+          const scopedTasks = c.tasks.filter((t) => {
+            if (selectedStatus !== 'all' && t.status !== selectedStatus) return false;
+            if (applySectorFilter && selectedSector !== 'all') {
+              const taskSec = t.sector?.trim() || 'Sem setor';
+              if (taskSec !== selectedSector) return false;
+            }
+            return true;
+          });
+
+          const totalSecondsSpent = scopedTasks.reduce((acc, t) => acc + t.secondsSpent, 0);
+
+          const processedTasks: ClientTaskItem[] = scopedTasks
+            .map((t) => ({
               ...t,
-              percentageOfClientTime: clientTotalSec > 0 
-                ? Math.round((t.secondsSpent / clientTotalSec) * 100) 
-                : 0
+              percentageOfClientTime:
+                totalSecondsSpent > 0 ? Math.round((t.secondsSpent / totalSecondsSpent) * 100) : 0,
             }))
             .sort((a, b) => b.secondsSpent - a.secondsSpent);
 
-          const matchingCount = processedTasks.filter(t => {
+          const matchingCount = processedTasks.filter((t) => {
             if (taskThreshold === 0) return true;
             if (isTaskLessThan) return t.secondsSpent > 0 && t.secondsSpent < absTaskThreshold;
             return t.secondsSpent >= taskThreshold;
           }).length;
 
-          const avgSec = processedTasks.length > 0 ? Math.round(clientTotalSec / processedTasks.length) : 0;
+          const avgSecondsPerTask =
+            processedTasks.length > 0 ? Math.round(totalSecondsSpent / processedTasks.length) : 0;
 
           return {
             clientId: c.clientId,
@@ -248,241 +460,347 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
             taxRegime: c.taxRegime,
             city: c.city,
             state: c.state,
-            totalSecondsSpent: clientTotalSec,
+            totalSecondsSpent,
             totalTasksCount: processedTasks.length,
-            avgSecondsPerTask: avgSec,
+            avgSecondsPerTask,
             criticalTasksCount: matchingCount,
-            tasks: processedTasks
+            tasks: processedTasks,
           };
+        })
+        .filter((m) => {
+          if (m.totalTasksCount === 0) return false;
+          if (filterMode === 'task') {
+            if (taskThreshold !== 0 && m.criticalTasksCount === 0) return false;
+          } else {
+            if (clientThreshold > 0 && m.totalSecondsSpent < clientThreshold) return false;
+            if (
+              clientThreshold < 0 &&
+              (m.totalSecondsSpent === 0 || m.totalSecondsSpent >= absClientThreshold)
+            ) {
+              return false;
+            }
+          }
+          return true;
         });
+    },
+    [
+      rawClients,
+      selectedRegime,
+      selectedStatus,
+      selectedSector,
+      searchQuery,
+      taskThreshold,
+      isTaskLessThan,
+      absTaskThreshold,
+      filterMode,
+      clientThreshold,
+      absClientThreshold,
+    ]
+  );
 
-        setMetrics(calculated);
-      }
-    } catch (err) {
-      console.error('Erro ao buscar tempo por cliente:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [orgId, period, taskThreshold]);
+  // Métricas sem filtro de setor (para manter todas as opções clicáveis na barra de distribuição por setor)
+  const metricsBeforeSector = useMemo(() => buildMetrics(false), [buildMetrics]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Filtro e ordenação dos clientes conforme o modo selecionado
   const filteredAndSortedMetrics = useMemo(() => {
-    const isClientLessThan = clientThreshold < 0;
-    const absClientThreshold = Math.abs(clientThreshold);
+    const list = selectedSector === 'all' ? metricsBeforeSector : buildMetrics(true);
+    return [...list].sort((a, b) => {
+      if (sortBy === 'time') return b.totalSecondsSpent - a.totalSecondsSpent;
+      if (sortBy === 'avg') return b.avgSecondsPerTask - a.avgSecondsPerTask;
+      if (sortBy === 'critical') return b.criticalTasksCount - a.criticalTasksCount;
+      return a.clientName.localeCompare(b.clientName, 'pt-BR');
+    });
+  }, [metricsBeforeSector, selectedSector, buildMetrics, sortBy]);
 
-    return metrics
-      .filter(m => {
-        // Modo 1: Filtrar por tarefas individuais (gargalos >= X min OU alta performance < X min)
-        if (filterMode === 'task') {
-          if (taskThreshold !== 0 && m.criticalTasksCount === 0) {
-            return false;
-          }
-        } 
-        // Modo 2: Filtrar pelo tempo total acumulado do cliente
-        else if (filterMode === 'client') {
-          if (clientThreshold > 0 && m.totalSecondsSpent < clientThreshold) {
-            return false;
-          }
-          if (clientThreshold < 0 && (m.totalSecondsSpent === 0 || m.totalSecondsSpent >= absClientThreshold)) {
-            return false;
-          }
-        }
-
-        if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
-        return (
-          m.clientName.toLowerCase().includes(q) ||
-          (m.document && m.document.toLowerCase().includes(q)) ||
-          (m.city && m.city.toLowerCase().includes(q))
-        );
-      })
-      .sort((a, b) => {
-        if (sortBy === 'time') {
-          return b.totalSecondsSpent - a.totalSecondsSpent; // Mais tempo total
-        }
-        if (sortBy === 'avg') {
-          return b.avgSecondsPerTask - a.avgSecondsPerTask; // Maior média por tarefa
-        }
-        if (sortBy === 'critical') {
-          return b.criticalTasksCount - a.criticalTasksCount; // Mais tarefas no critério
-        }
-        return a.clientName.localeCompare(b.clientName); // Alfabética
-      });
-  }, [metrics, searchQuery, sortBy, filterMode, taskThreshold, clientThreshold]);
-
-  // Totais Gerais recalculados com base no filtro ativo
   const totals = useMemo(() => {
     let sumSeconds = 0;
     let sumTasks = 0;
     let sumCriticalTasks = 0;
     let totalClientsWithTime = 0;
 
-    filteredAndSortedMetrics.forEach(m => {
+    filteredAndSortedMetrics.forEach((m) => {
       sumSeconds += m.totalSecondsSpent;
       sumTasks += m.totalTasksCount;
       sumCriticalTasks += m.criticalTasksCount;
       if (m.totalSecondsSpent > 0) totalClientsWithTime += 1;
     });
 
-    const avgSecondsPerClient = totalClientsWithTime > 0 ? sumSeconds / totalClientsWithTime : 0;
-    const avgSecondsOverallTask = sumTasks > 0 ? sumSeconds / sumTasks : 0;
+    const avgSecondsPerClient =
+      totalClientsWithTime > 0 ? Math.round(sumSeconds / totalClientsWithTime) : 0;
+    const avgSecondsOverallTask = sumTasks > 0 ? Math.round(sumSeconds / sumTasks) : 0;
+    const attendedPct =
+      rawClients.length > 0 ? Math.round((totalClientsWithTime / rawClients.length) * 100) : 0;
+    const criticalTaskPct =
+      sumTasks > 0 ? Math.round((sumCriticalTasks / sumTasks) * 100) : 0;
 
     return {
-      totalClients: metrics.length,
+      totalClients: rawClients.length,
       totalClientsWithTime,
+      attendedPct,
       sumSeconds,
       sumTasks,
       avgSecondsPerClient,
       avgSecondsOverallTask,
-      sumCriticalTasks
+      sumCriticalTasks,
+      criticalTaskPct,
     };
-  }, [metrics, filteredAndSortedMetrics]);
+  }, [rawClients.length, filteredAndSortedMetrics]);
+
+  // Distribuição de horas por setor (Tremor CategoryBar clicável)
+  const { sectorDistribution, totalSectorBaseSeconds } = useMemo(() => {
+    const sectorTotals: Record<string, number> = {};
+    let totalSec = 0;
+
+    metricsBeforeSector.forEach((client) => {
+      client.tasks.forEach((t) => {
+        if (t.secondsSpent <= 0) return;
+        const sec = t.sector?.trim() || 'Sem setor';
+        sectorTotals[sec] = (sectorTotals[sec] || 0) + t.secondsSpent;
+        totalSec += t.secondsSpent;
+      });
+    });
+
+    if (totalSec === 0) {
+      return { sectorDistribution: [] as SectorSlice[], totalSectorBaseSeconds: 0 };
+    }
+
+    const sorted = Object.entries(sectorTotals).sort((a, b) => b[1] - a[1]);
+    const topFour = sorted.slice(0, 4);
+    const othersSeconds = sorted.slice(4).reduce((acc, [, sec]) => acc + sec, 0);
+
+    const combined =
+      othersSeconds > 0 ? [...topFour, ['Outros', othersSeconds] as [string, number]] : topFour;
+
+    const slices: SectorSlice[] = combined.map(([name, seconds], idx) => ({
+      name,
+      seconds,
+      pct: Math.round((seconds / totalSec) * 100),
+      colorClass: SECTOR_PALETTE[idx]?.colorClass || SECTOR_PALETTE[4].colorClass,
+      dotClass: SECTOR_PALETTE[idx]?.dotClass || SECTOR_PALETTE[4].dotClass,
+    }));
+
+    return { sectorDistribution: slices, totalSectorBaseSeconds: totalSec };
+  }, [metricsBeforeSector]);
+
+  // Dados para visão gráfica (Top 10 clientes por tempo)
+  const chartRows = useMemo<ChartClientRow[]>(() => {
+    return filteredAndSortedMetrics
+      .filter((c) => c.totalSecondsSpent > 0)
+      .slice(0, 10)
+      .map((c) => ({
+        clientId: c.clientId,
+        shortName: truncateLabel(c.clientName, 20),
+        fullName: c.clientName,
+        minutes: Math.max(1, Math.round(c.totalSecondsSpent / 60)),
+        totalSeconds: c.totalSecondsSpent,
+        avgSeconds: c.avgSecondsPerTask,
+        tasksCount: c.totalTasksCount,
+      }));
+  }, [filteredAndSortedMetrics]);
+
+  const maxFilteredSeconds = useMemo(() => {
+    if (filteredAndSortedMetrics.length === 0) return 1;
+    return Math.max(...filteredAndSortedMetrics.map((m) => m.totalSecondsSpent), 1);
+  }, [filteredAndSortedMetrics]);
 
   const periodLabel = period ? `${period.split('-')[1]}/${period.split('-')[0]}` : 'Todos';
 
-  // Maior tempo entre clientes para base da barra proporcional
-  const maxClientSeconds = useMemo(() => {
-    if (metrics.length === 0) return 1;
-    return Math.max(...metrics.map(m => m.totalSecondsSpent), 1);
-  }, [metrics]);
+  const sortLabel =
+    sortBy === 'time'
+      ? 'Tempo Total'
+      : sortBy === 'avg'
+      ? 'Média/Tarefa'
+      : sortBy === 'critical'
+      ? isTaskLessThan
+        ? 'Mais Rápidas'
+        : 'Mais Demoradas'
+      : 'Nome A-Z';
 
-  const isTaskLessThan = taskThreshold < 0;
-  const absTaskThreshold = Math.abs(taskThreshold);
-  const isClientLessThan = clientThreshold < 0;
-  const absClientThreshold = Math.abs(clientThreshold);
+  const nextSort = () => {
+    setSortBy((prev) =>
+      prev === 'time' ? 'avg' : prev === 'avg' ? 'critical' : prev === 'critical' ? 'name' : 'time'
+    );
+  };
+
+  const activeThresholdOptions =
+    filterMode === 'task' ? TASK_THRESHOLD_OPTIONS : CLIENT_THRESHOLD_OPTIONS;
+  const activeThresholdValue = filterMode === 'task' ? taskThreshold : clientThreshold;
+
+  const isFastFocus =
+    (filterMode === 'task' && isTaskLessThan) || (filterMode === 'client' && isClientLessThan);
+  const isBottleneckFocus = filterMode === 'task' && taskThreshold > 0;
 
   return (
     <WidgetContainer
       title="TEMPO POR CLIENTE E TAREFA"
-      icon={<Building2 size={14} className="text-indigo-500" />}
+      icon={<Building2 size={14} />}
       onRemove={onRemove}
-      compactThreshold={960}
+      compactThreshold={980}
       headerActions={
-        <div className="flex items-center gap-1 shrink-0 flex-nowrap" onMouseDown={e => e.stopPropagation()}>
-          {/* Alternador de Modo de Filtro (Por Tarefa vs Por Total do Cliente) */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded p-0.5 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5 no-drag">
+          {/* Ocultar/Exibir KPIs */}
+          <Tooltip
+            content={showSummary ? 'Ocultar resumo de métricas' : 'Exibir resumo de métricas'}
+            position="top"
+          >
             <button
+              type="button"
+              onClick={toggleShowSummary}
+              className={`h-6 w-6 flex items-center justify-center rounded-md transition-colors shrink-0 ${
+                showSummary
+                  ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              aria-label={showSummary ? 'Ocultar métricas' : 'Exibir métricas'}
+            >
+              {showSummary ? <Eye size={13} strokeWidth={2.2} /> : <EyeOff size={13} strokeWidth={2.2} />}
+            </button>
+          </Tooltip>
+
+          {/* Alternador Lista vs Gráfico */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+            <Tooltip content="Visualizar em lista detalhada" position="top">
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`h-5 px-1.5 flex items-center gap-1 rounded-md text-[10px] font-bold transition-all ${
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                aria-label="Visualização em lista"
+              >
+                <List size={11} />
+                <span>Lista</span>
+              </button>
+            </Tooltip>
+            <Tooltip content="Visualizar gráfico Top Clientes" position="top">
+              <button
+                type="button"
+                onClick={() => setViewMode('chart')}
+                className={`h-5 px-1.5 flex items-center gap-1 rounded-md text-[10px] font-bold transition-all ${
+                  viewMode === 'chart'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+                aria-label="Visualização em gráfico"
+              >
+                <BarChart2 size={11} />
+                <span>Gráfico</span>
+              </button>
+            </Tooltip>
+          </div>
+
+          {/* Modo de Filtro (Por Tarefa vs Por Total Cliente) */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+            <button
+              type="button"
               onClick={() => setFilterMode('task')}
-              className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold transition-all cursor-pointer ${
+              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
                 filterMode === 'task'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Por Tarefa
             </button>
             <button
+              type="button"
               onClick={() => setFilterMode('client')}
-              className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold transition-all cursor-pointer ${
+              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
                 filterMode === 'client'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Por Total Cliente
             </button>
           </div>
 
-          {/* Seletor de Limiar Dinâmico conforme o Modo */}
-          <Tooltip 
-            content={filterMode === 'task' ? "Filtra tarefas e clientes pelo tempo de execução" : "Filtra clientes pelo tempo total acumulado"} 
-            position="top"
-          >
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
-              <Filter size={10} className="text-indigo-500 shrink-0" />
-              {filterMode === 'task' ? (
-                <select
-                  value={taskThreshold}
-                  onChange={(e) => setTaskThreshold(Number(e.target.value))}
-                  className="bg-transparent border-none outline-none text-[10px] font-bold cursor-pointer pr-1 text-slate-700 dark:text-slate-200 max-w-[150px] sm:max-w-[190px] truncate"
-                >
-                  {TASK_THRESHOLD_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200">
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <select
-                  value={clientThreshold}
-                  onChange={(e) => setClientThreshold(Number(e.target.value))}
-                  className="bg-transparent border-none outline-none text-[10px] font-bold cursor-pointer pr-1 text-slate-700 dark:text-slate-200 max-w-[150px] sm:max-w-[190px] truncate"
-                >
-                  {CLIENT_THRESHOLD_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200">
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </Tooltip>
-
-          <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5 shrink-0">|</span>
+          {/* Select Padronizado de Limiar (Portal) */}
+          <div className="flex items-center gap-1 shrink-0 w-[168px] sm:w-[185px]">
+            <Select
+              value={activeThresholdValue}
+              onChange={(e) => {
+                const nextVal = Number(e.target.value);
+                if (filterMode === 'task') {
+                  setTaskThreshold(nextVal);
+                } else {
+                  setClientThreshold(nextVal);
+                }
+              }}
+              options={activeThresholdOptions}
+              className="!h-7 !py-0.5 !px-2 !text-[10px] font-bold !rounded-md"
+              aria-label="Filtro de tempo"
+            />
+          </div>
 
           {/* Ordenação */}
-          <Tooltip content="Alternar critério de ordenação" position="top">
+          <Tooltip content={`Ordenação atual: ${sortLabel}. Clique para alternar`} position="top">
             <button
-              onClick={() => {
-                setSortBy(prev => 
-                  prev === 'time' ? 'avg' : 
-                  prev === 'avg' ? 'critical' : 
-                  prev === 'critical' ? 'name' : 'time'
-                );
-              }}
-              className="h-6 px-1.5 flex items-center gap-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer shrink-0"
+              type="button"
+              onClick={nextSort}
+              className="h-7 px-2 flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors shrink-0"
             >
-              <ArrowUpDown size={10} />
-              <span>
-                {sortBy === 'time' ? 'Tempo Total' : 
-                 sortBy === 'avg' ? 'Média/Tarefa' : 
-                 sortBy === 'critical' ? (isTaskLessThan ? 'Mais Rápidas' : 'Mais Demoradas') : 'Nome A-Z'}
-              </span>
+              <ArrowUpDown size={11} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
+              <span>{sortLabel}</span>
             </button>
           </Tooltip>
 
-          <span className="text-[9px] text-slate-300 dark:text-slate-600 font-medium px-0.5 shrink-0">|</span>
-
-          {/* Navegação de Mês */}
-          <div className="flex items-center gap-0.5 shrink-0">
+          {/* Navegação de Competência */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
             <Tooltip content="Mês anterior" position="top">
               <button
+                type="button"
                 onClick={() => navigatePeriod('prev')}
-                className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                className="h-6 w-6 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                aria-label="Mês anterior"
               >
-                <ChevronLeft size={13} strokeWidth={2.5} />
+                <ChevronLeft size={13} strokeWidth={2.3} />
               </button>
             </Tooltip>
-            <div className={`relative flex items-center h-6 rounded px-2 gap-1 cursor-pointer transition-all ${
-              period === defaultPeriod ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'
-            }`}>
-              <Calendar size={11} className="shrink-0 pointer-events-none" />
-              <input
-                type="month"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                style={{ colorScheme: 'light dark' }}
-              />
-              <span className="text-[11px] font-bold pointer-events-none whitespace-nowrap">{periodLabel}</span>
-            </div>
+
+            <Tooltip content="Selecionar competência" position="top">
+              <button
+                type="button"
+                onClick={openMonthPicker}
+                className={`relative h-6 px-2 rounded-md flex items-center gap-1 text-[11px] font-bold transition-colors tabular-nums ${
+                  period === defaultPeriod
+                    ? 'text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-700'
+                    : 'text-amber-600 dark:text-amber-400 hover:bg-white dark:hover:bg-slate-700'
+                }`}
+              >
+                <Calendar size={11} className="shrink-0" />
+                <span className="whitespace-nowrap">{periodLabel}</span>
+                <input
+                  ref={monthInputRef}
+                  type="month"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  tabIndex={-1}
+                  title=""
+                  aria-hidden="true"
+                  className="sr-only"
+                />
+              </button>
+            </Tooltip>
+
             <Tooltip content="Próximo mês" position="top">
               <button
+                type="button"
                 onClick={() => navigatePeriod('next')}
-                className="h-6 w-6 flex items-center justify-center rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                className="h-6 w-6 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                aria-label="Próximo mês"
               >
-                <ChevronRight size={13} strokeWidth={2.5} />
+                <ChevronRight size={13} strokeWidth={2.3} />
               </button>
             </Tooltip>
+
             {period !== defaultPeriod && (
               <Tooltip content="Voltar ao mês padrão" position="top">
                 <button
+                  type="button"
                   onClick={resetToDefaultPeriod}
-                  className="h-6 px-1.5 flex items-center rounded text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                  className="h-6 px-1.5 flex items-center rounded-md text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/15 transition-colors"
                 >
                   Padrão
                 </button>
@@ -492,343 +810,717 @@ export const ClientTimeSpentWidget: React.FC<Props> = ({ orgId, onRemove }) => {
         </div>
       }
     >
-      {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <div className="w-10 h-10 rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-indigo-500 animate-spin" />
-          <div className="text-xs text-slate-400 font-medium animate-pulse">Calculando tempo por cliente e médias...</div>
-        </div>
-      ) : filteredAndSortedMetrics.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-sm gap-3">
-          <div className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center">
-            <Building2 size={24} className="text-slate-300 dark:text-slate-600" />
-          </div>
-          <span className="text-xs text-center px-4">
-            Nenhum cliente encontrado para o filtro ({
-              filterMode === 'task' 
-                ? (taskThreshold === 0 
-                    ? 'Todas as tarefas' 
-                    : isTaskLessThan 
-                      ? `Tarefas < ${Math.round(absTaskThreshold / 60)} min` 
-                      : `Tarefas ≥ ${Math.round(taskThreshold / 60)} min`)
-                : (clientThreshold === 0 
-                    ? 'Todos os clientes' 
-                    : isClientLessThan 
-                      ? `Total Cliente < ${formatSecondsToFriendly(absClientThreshold)}` 
-                      : `Total Cliente ≥ ${formatSecondsToFriendly(clientThreshold)}`)
-            }) em <strong>{periodLabel}</strong>
-          </span>
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
-          {/* Top KPI Cards: 2x2 no Mobile e 4 colunas no Desktop */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-2.5 sm:px-3 pt-2.5 sm:pt-3 pb-1 shrink-0">
-            <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1 truncate">
-                <Building2 size={10} className="shrink-0" /> Clientes Atendidos
-              </span>
-              <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {totals.totalClientsWithTime} <span className="text-[10px] font-normal text-slate-400">/ {totals.totalClients}</span>
-              </span>
+      <div className="flex-1 flex flex-col min-h-0 space-y-2.5 overflow-y-auto custom-scrollbar pr-0.5">
+        {loading ? (
+          <div className="flex-1 flex flex-col animate-pulse space-y-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              <div className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              <div className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              <div className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
             </div>
-
-            <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
-                <Clock size={10} className="shrink-0" /> Horas Totais
-              </span>
-              <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono truncate">
-                {formatSecondsToFriendly(totals.sumSeconds)}
-              </span>
-            </div>
-
-            <div className="bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 rounded-xl p-2 flex flex-col">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1 truncate">
-                <Timer size={10} className="shrink-0" /> Média Geral
-              </span>
-              <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5 font-mono truncate">
-                {formatSecondsToFriendly(totals.avgSecondsPerClient)}
-              </span>
-            </div>
-
-            <div className={`border rounded-xl p-2 flex flex-col transition-all ${
-              filterMode === 'task'
-                ? (taskThreshold < 0 
-                    ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/40' 
-                    : taskThreshold > 0 
-                      ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-100 dark:border-rose-900/40'
-                      : 'bg-slate-50/70 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700')
-                : (clientThreshold < 0 
-                    ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/40' 
-                    : clientThreshold > 0 
-                      ? 'bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/40'
-                      : 'bg-slate-50/70 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700')
-            }`}>
-              <span className={`text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 truncate ${
-                filterMode === 'task'
-                  ? (taskThreshold < 0 
-                      ? 'text-emerald-600 dark:text-emerald-400' 
-                      : taskThreshold > 0 
-                        ? 'text-rose-600 dark:text-rose-400'
-                        : 'text-slate-600 dark:text-slate-400')
-                  : (clientThreshold < 0 
-                      ? 'text-emerald-600 dark:text-emerald-400' 
-                      : clientThreshold > 0 
-                        ? 'text-indigo-600 dark:text-indigo-400'
-                        : 'text-slate-600 dark:text-slate-400')
-              }`}>
-                {filterMode === 'task' ? (
-                  taskThreshold < 0 ? (
-                    <>
-                      <Zap size={10} className="shrink-0" /> Alta Perf. (&lt;{Math.round(absTaskThreshold/60)}m)
-                    </>
-                  ) : taskThreshold > 0 ? (
-                    <>
-                      <Flame size={10} className="shrink-0" /> Gargalos (≥{Math.round(taskThreshold/60)}m)
-                    </>
-                  ) : (
-                    <>
-                      <Clock size={10} className="shrink-0" /> Tarefas Totais
-                    </>
-                  )
-                ) : (
-                  clientThreshold < 0 ? (
-                    <>
-                      <Zap size={10} className="shrink-0" /> Alta Perf. (&lt;{formatSecondsToFriendly(absClientThreshold)})
-                    </>
-                  ) : clientThreshold > 0 ? (
-                    <>
-                      <Clock size={10} className="shrink-0" /> Total Cliente (≥{formatSecondsToFriendly(clientThreshold)})
-                    </>
-                  ) : (
-                    <>
-                      <Building2 size={10} className="shrink-0" /> Todos os Clientes
-                    </>
-                  )
-                )}
-              </span>
-              <span className="text-sm sm:text-base font-black text-slate-800 dark:text-white leading-tight mt-0.5">
-                {filterMode === 'task' ? (
-                  <>
-                    {totals.sumCriticalTasks} <span className="text-[10px] font-normal text-slate-400">tarefas</span>
-                  </>
-                ) : (
-                  <>
-                    {filteredAndSortedMetrics.length} <span className="text-[10px] font-normal text-slate-400">clientes</span>
-                  </>
-                )}
-              </span>
+            <div className="h-12 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            <div className="h-9 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+            <div className="flex-1 space-y-2">
+              <div className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              <div className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+              <div className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl" />
             </div>
           </div>
-
-          {/* Barra de Busca Rápida */}
-          <div className="px-2.5 sm:px-3 pt-2 pb-1 shrink-0">
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Filtrar por nome do cliente ou CNPJ..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-7 pr-3 py-1 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-all"
-              />
-            </div>
+        ) : fetchError ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+            <p className="text-xs font-medium text-rose-600 dark:text-rose-400">{fetchError}</p>
           </div>
+        ) : (
+          <>
+            {/* Resumo Tremor (KPI Cards + CategoryBar por Setor) */}
+            {showSummary && (
+              <div className="space-y-2 shrink-0 animate-in fade-in duration-200">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {/* KPI 1: Clientes Atendidos */}
+                  <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col justify-between min-w-0">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+                        <Building2 size={12} className="text-indigo-500 shrink-0" />
+                        Clientes
+                      </span>
+                      <Tooltip
+                        content={`${totals.totalClientsWithTime} de ${totals.totalClients} clientes com tempo registrado no critério`}
+                        position="top"
+                      >
+                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 tabular-nums shrink-0">
+                          {totals.attendedPct}%
+                        </span>
+                      </Tooltip>
+                    </div>
+                    <div className="mt-1 flex items-baseline justify-between gap-1.5">
+                      <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 tabular-nums">
+                        {totals.totalClientsWithTime}
+                      </span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate tabular-nums">
+                        de {totals.totalClients} no mês
+                      </span>
+                    </div>
+                  </div>
 
-          {/* Lista de Clientes e suas Tarefas */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-2.5 sm:px-3 py-2 space-y-2.5 min-h-0">
-            {filteredAndSortedMetrics.map((client) => {
-              const isExpanded = expandedClientId === client.clientId;
-              const relativePercent = Math.min(100, Math.round((client.totalSecondsSpent / maxClientSeconds) * 100));
-              
-              // No modo 'client', exibe todas as tarefas do cliente. No modo 'task', filtra pelo limiar
-              const visibleTasks = client.tasks.filter(t => {
-                if (filterMode === 'client') return true;
-                if (taskThreshold === 0) return true;
-                if (isTaskLessThan) return t.secondsSpent > 0 && t.secondsSpent < absTaskThreshold;
-                return t.secondsSpent >= taskThreshold;
-              });
+                  {/* KPI 2: Horas Totais */}
+                  <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col justify-between min-w-0">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+                        <Clock size={12} className="text-emerald-500 shrink-0" />
+                        Horas Totais
+                      </span>
+                      <Tooltip
+                        content={`Soma de ${totals.sumTasks} tarefas dos clientes listados`}
+                        position="top"
+                      >
+                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 tabular-nums shrink-0">
+                          {totals.sumTasks} tar.
+                        </span>
+                      </Tooltip>
+                    </div>
+                    <div className="mt-1 flex items-baseline justify-between gap-1.5">
+                      <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 font-mono tabular-nums truncate">
+                        {formatSecondsToFriendly(totals.sumSeconds)}
+                      </span>
+                    </div>
+                  </div>
 
-              return (
-                <div
-                  key={client.clientId}
-                  className={`w-full rounded-xl border transition-all duration-200 overflow-hidden ${
-                    isExpanded 
-                      ? 'bg-white dark:bg-slate-800/90 border-indigo-300 dark:border-indigo-700 shadow-md ring-1 ring-indigo-400/20' 
-                      : 'bg-slate-50/60 dark:bg-slate-900/40 border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                  }`}
-                >
-                  {/* Header do Card do Cliente: Responsivo em Mobile */}
-                  <div
-                    onClick={() => setExpandedClientId(isExpanded ? null : client.clientId)}
-                    className="p-2.5 sm:p-3 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 select-none"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0 text-indigo-600 dark:text-indigo-400">
-                        <Building2 size={16} />
-                      </div>
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
-                            {client.clientName}
+                  {/* KPI 3: Média por Cliente */}
+                  <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col justify-between min-w-0">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+                        <Timer size={12} className="text-sky-500 shrink-0" />
+                        Média / Cliente
+                      </span>
+                      <Tooltip
+                        content={`Média geral por tarefa: ${formatSecondsToFriendly(totals.avgSecondsOverallTask)}`}
+                        position="top"
+                      >
+                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-400 font-mono tabular-nums shrink-0">
+                          ~{formatSecondsToFriendly(totals.avgSecondsOverallTask)}/t
+                        </span>
+                      </Tooltip>
+                    </div>
+                    <div className="mt-1 flex items-baseline justify-between gap-1.5">
+                      <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 font-mono tabular-nums truncate">
+                        {formatSecondsToFriendly(totals.avgSecondsPerClient)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* KPI 4: Critério Ativo */}
+                  <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col justify-between min-w-0">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+                        {isFastFocus ? (
+                          <Zap size={12} className="text-emerald-500 shrink-0" />
+                        ) : isBottleneckFocus ? (
+                          <Flame size={12} className="text-rose-500 shrink-0" />
+                        ) : (
+                          <Filter size={12} className="text-indigo-500 shrink-0" />
+                        )}
+                        <span className="truncate">
+                          {filterMode === 'task'
+                            ? taskThreshold < 0
+                              ? `Ágeis (<${Math.round(absTaskThreshold / 60)}m)`
+                              : taskThreshold > 0
+                              ? `Gargalos (≥${Math.round(taskThreshold / 60)}m)`
+                              : 'Tarefas Totais'
+                            : clientThreshold < 0
+                            ? `Ágeis (<${formatSecondsToFriendly(absClientThreshold)})`
+                            : clientThreshold > 0
+                            ? `Clientes (≥${formatSecondsToFriendly(clientThreshold)})`
+                            : 'Total Filtrado'}
+                        </span>
+                      </span>
+                      {filterMode === 'task' && totals.sumTasks > 0 && (
+                        <Tooltip
+                          content={`${totals.criticalTaskPct}% das tarefas listadas atendem ao critério`}
+                          position="top"
+                        >
+                          <span
+                            className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold tabular-nums shrink-0 ${
+                              isFastFocus
+                                ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                                : isBottleneckFocus
+                                ? 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            {totals.criticalTaskPct}%
                           </span>
-                          {client.taxRegime && (
-                            <span className="px-1.5 py-0.2 text-[8.5px] font-bold rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shrink-0">
-                              {TAX_REGIME_LABELS[client.taxRegime] || client.taxRegime}
-                            </span>
-                          )}
-                          {filterMode === 'task' && client.criticalTasksCount > 0 && (
-                            <span className={`px-1.5 py-0.2 text-[8.5px] font-black rounded-full border flex items-center gap-0.5 shrink-0 ${
-                              isTaskLessThan 
-                                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/40'
-                                : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/40'
-                            }`}>
-                              {isTaskLessThan ? (
+                        </Tooltip>
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-baseline justify-between gap-1.5">
+                      <span
+                        className={`text-base sm:text-lg font-bold tracking-tight tabular-nums ${
+                          isFastFocus
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : isBottleneckFocus
+                            ? 'text-rose-600 dark:text-rose-400'
+                            : 'text-indigo-600 dark:text-indigo-400'
+                        }`}
+                      >
+                        {filterMode === 'task'
+                          ? totals.sumCriticalTasks
+                          : filteredAndSortedMetrics.length}
+                      </span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                        {filterMode === 'task' ? 'tarefas' : 'clientes'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tremor CategoryBar: Distribuição de Horas por Setor (clicável para filtrar) */}
+                {sectorDistribution.length > 0 && (
+                  <div className="p-2.5 sm:px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1.5">
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                        Distribuição por Setor
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-medium tabular-nums">
+                        {sectorDistribution.map((slice) => {
+                          const canToggle = slice.name !== 'Outros';
+                          const isSelected = selectedSector === slice.name;
+                          const isDimmed =
+                            selectedSector !== 'all' && !isSelected;
+
+                          return (
+                            <Tooltip
+                              key={slice.name}
+                              content={
+                                canToggle
+                                  ? isSelected
+                                    ? `Clique para remover filtro de ${slice.name}`
+                                    : `Clique para filtrar apenas ${slice.name}`
+                                  : `${slice.name}: ${formatSecondsToFriendly(slice.seconds)}`
+                              }
+                              position="top"
+                            >
+                              <button
+                                type="button"
+                                disabled={!canToggle}
+                                onClick={() => {
+                                  if (!canToggle) return;
+                                  setSelectedSector((prev) =>
+                                    prev === slice.name ? 'all' : slice.name
+                                  );
+                                }}
+                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md transition-all ${
+                                  isSelected
+                                    ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-300 dark:ring-indigo-500/40'
+                                    : isDimmed
+                                    ? 'text-slate-400 dark:text-slate-500 opacity-55 hover:opacity-100'
+                                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                } ${canToggle ? 'cursor-pointer' : 'cursor-default'}`}
+                              >
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${slice.dotClass}`} />
+                                <span className="truncate max-w-[100px]">{slice.name}:</span>
+                                <strong className="text-slate-800 dark:text-slate-200 font-mono">
+                                  {formatSecondsToFriendly(slice.seconds)}
+                                </strong>
+                                <span>({slice.pct}%)</span>
+                              </button>
+                            </Tooltip>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex gap-0.5">
+                      {sectorDistribution.map((slice) => {
+                        const canToggle = slice.name !== 'Outros';
+                        const isSelected = selectedSector === slice.name;
+                        const isDimmed = selectedSector !== 'all' && !isSelected;
+
+                        return (
+                          <Tooltip
+                            key={slice.name}
+                            content={`${slice.name}: ${formatSecondsToFriendly(slice.seconds)} (${slice.pct}%)`}
+                            position="top"
+                            style={{
+                              width: `${Math.max(2, (slice.seconds / totalSectorBaseSeconds) * 100)}%`,
+                            }}
+                            className="h-full"
+                          >
+                            <button
+                              type="button"
+                              disabled={!canToggle}
+                              onClick={() => {
+                                if (!canToggle) return;
+                                setSelectedSector((prev) =>
+                                  prev === slice.name ? 'all' : slice.name
+                                );
+                              }}
+                              className={`h-full w-full block transition-all duration-300 ${
+                                slice.colorClass
+                              } ${isDimmed ? 'opacity-30 hover:opacity-75' : 'hover:brightness-110'} ${
+                                canToggle ? 'cursor-pointer' : 'cursor-default'
+                              }`}
+                              aria-label={`Filtrar setor ${slice.name}`}
+                            />
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Barra de Busca + Botão de Filtros Avançados */}
+            <div className="space-y-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 min-w-0">
+                  <Input
+                    type="text"
+                    placeholder="Filtrar por nome do cliente, CNPJ ou cidade..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    icon={<Search size={14} />}
+                    className="!h-9 !text-xs pr-8"
+                  />
+                  {searchQuery && (
+                    <Tooltip content="Limpar busca" position="top">
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        aria-label="Limpar busca"
+                      >
+                        <X size={13} />
+                      </button>
+                    </Tooltip>
+                  )}
+                </div>
+
+                <Tooltip
+                  content={
+                    isAdvancedFilterOpen
+                      ? 'Ocultar filtros por setor, regime e status'
+                      : 'Filtrar por setor, regime tributário ou status'
+                  }
+                  position="top"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIsAdvancedFilterOpen((prev) => !prev)}
+                    className={`h-9 px-2.5 rounded-lg border flex items-center gap-1.5 text-xs font-semibold transition-all shrink-0 ${
+                      isAdvancedFilterOpen || activeAdvancedFilterCount > 0
+                        ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-200 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-400'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <SlidersHorizontal size={13} />
+                    <span className="hidden sm:inline">Filtros</span>
+                    {activeAdvancedFilterCount > 0 && (
+                      <span className="min-w-[16px] h-4 px-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center tabular-nums">
+                        {activeAdvancedFilterCount}
+                      </span>
+                    )}
+                  </button>
+                </Tooltip>
+              </div>
+
+              {/* Painel Expansível de Filtros Extras (Setor, Regime Tributário e Status) */}
+              {isAdvancedFilterOpen && (
+                <div className="p-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-2 items-center animate-in fade-in slide-in-from-top-1 duration-150">
+                  <Select
+                    value={selectedSector}
+                    onChange={(e) => setSelectedSector(e.target.value)}
+                    options={sectorOptions}
+                    className="!h-8 !py-1 !text-xs"
+                    aria-label="Filtrar por setor"
+                  />
+                  <Select
+                    value={selectedRegime}
+                    onChange={(e) => setSelectedRegime(e.target.value)}
+                    options={regimeOptions}
+                    className="!h-8 !py-1 !text-xs"
+                    aria-label="Filtrar por regime tributário"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex-1 min-w-0">
+                      <Select
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        options={TASK_STATUS_OPTIONS}
+                        className="!h-8 !py-1 !text-xs"
+                        aria-label="Filtrar por status da tarefa"
+                      />
+                    </div>
+                    {activeAdvancedFilterCount > 0 && (
+                      <Tooltip content="Limpar filtros avançados" position="top">
+                        <button
+                          type="button"
+                          onClick={clearAdvancedFilters}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                          aria-label="Limpar filtros avançados"
+                        >
+                          <RotateCcw size={13} />
+                        </button>
+                      </Tooltip>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Área Principal: Estado Vazio, Lista BarList ou Gráfico Top Clientes */}
+            {filteredAndSortedMetrics.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-sm gap-3 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-6">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <Building2 size={22} className="text-slate-400 dark:text-slate-500" />
+                </div>
+                <div className="text-center max-w-sm space-y-1">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    Nenhum cliente encontrado para os filtros aplicados em {periodLabel}
+                  </p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                    Critério de tempo:{' '}
+                    {filterMode === 'task'
+                      ? taskThreshold === 0
+                        ? 'Todas as tarefas'
+                        : isTaskLessThan
+                        ? `Tarefas < ${Math.round(absTaskThreshold / 60)} min`
+                        : `Tarefas ≥ ${Math.round(taskThreshold / 60)} min`
+                      : clientThreshold === 0
+                      ? 'Todos os clientes'
+                      : isClientLessThan
+                      ? `Total Cliente < ${formatSecondsToFriendly(absClientThreshold)}`
+                      : `Total Cliente ≥ ${formatSecondsToFriendly(clientThreshold)}`}
+                  </p>
+                </div>
+                {(searchQuery.trim() ||
+                  activeThresholdValue !== 0 ||
+                  activeAdvancedFilterCount > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      clearAdvancedFilters();
+                      if (filterMode === 'task') setTaskThreshold(0);
+                      else setClientThreshold(0);
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition-colors"
+                  >
+                    Limpar filtros e exibir todos do mês
+                  </button>
+                )}
+              </div>
+            ) : viewMode === 'chart' ? (
+              <div className="flex-1 flex flex-col min-h-[200px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 sm:p-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                    <BarChart2 size={13} className="text-indigo-500 dark:text-indigo-400 shrink-0" />
+                    Top {chartRows.length} Clientes por Tempo Consumido (min)
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                    Clique na barra para detalhar tarefas
+                  </span>
+                </div>
+
+                {chartRows.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-xs text-slate-400 dark:text-slate-500">
+                    Nenhum cliente com tempo registrado neste filtro.
+                  </div>
+                ) : (
+                  <div className="flex-1 w-full min-h-[170px]">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                      <BarChart
+                        data={chartRows}
+                        layout="vertical"
+                        margin={{ top: 4, right: 16, left: 6, bottom: 4 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          horizontal={false}
+                          stroke="currentColor"
+                          className="text-slate-200 dark:text-slate-800"
+                        />
+                        <XAxis
+                          type="number"
+                          allowDecimals={false}
+                          tick={{ fontSize: 10, fill: 'currentColor' }}
+                          stroke="currentColor"
+                          className="text-slate-400 dark:text-slate-500"
+                          tickLine={false}
+                          axisLine={false}
+                          unit="m"
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="shortName"
+                          width={125}
+                          tick={{ fontSize: 10, fill: 'currentColor' }}
+                          stroke="currentColor"
+                          className="text-slate-600 dark:text-slate-300"
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <RechartsTooltip
+                          content={<CustomClientChartTooltip />}
+                          cursor={{ fill: 'rgba(148, 163, 184, 0.12)' }}
+                        />
+                        <Bar
+                          dataKey="minutes"
+                          fill={isFastFocus ? '#10b981' : '#6366f1'}
+                          radius={[0, 4, 4, 0]}
+                          maxBarSize={20}
+                          className="cursor-pointer"
+                          onClick={(barData: any) => {
+                            const cid = barData?.clientId;
+                            if (cid) {
+                              setExpandedClientId(cid);
+                              setViewMode('list');
+                            }
+                          }}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 min-h-[180px] pr-0.5">
+                {filteredAndSortedMetrics.map((client) => {
+                  const isExpanded = expandedClientId === client.clientId;
+                  const relativePercent = Math.min(
+                    100,
+                    Math.round((client.totalSecondsSpent / maxFilteredSeconds) * 100)
+                  );
+                  const shareOfTotalPct =
+                    totals.sumSeconds > 0
+                      ? Math.round((client.totalSecondsSpent / totals.sumSeconds) * 100)
+                      : 0;
+
+                  const visibleTasks = client.tasks.filter((t) => {
+                    if (filterMode === 'client') return true;
+                    if (taskThreshold === 0) return true;
+                    if (isTaskLessThan) {
+                      return t.secondsSpent > 0 && t.secondsSpent < absTaskThreshold;
+                    }
+                    return t.secondsSpent >= taskThreshold;
+                  });
+
+                  const barTintClass = isFastFocus
+                    ? 'bg-emerald-500/10 dark:bg-emerald-500/15'
+                    : isBottleneckFocus
+                    ? 'bg-rose-500/10 dark:bg-rose-500/15'
+                    : 'bg-indigo-500/10 dark:bg-indigo-500/15';
+
+                  return (
+                    <div
+                      key={client.clientId}
+                      className={`w-full rounded-xl border transition-all duration-200 overflow-hidden ${
+                        isExpanded
+                          ? 'bg-white dark:bg-slate-900 border-indigo-300 dark:border-indigo-500/60 shadow-sm ring-1 ring-indigo-500/15'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                      }`}
+                    >
+                      {/* Cabeçalho do Card no padrão Tremor BarList */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedClientId(isExpanded ? null : client.clientId)}
+                        className="relative w-full text-left p-2.5 sm:p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 select-none overflow-hidden cursor-pointer hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                      >
+                        {/* Barra proporcional ao fundo (BarList) */}
+                        <div
+                          className={`absolute inset-y-0 left-0 pointer-events-none transition-all duration-500 ${barTintClass}`}
+                          style={{ width: `${relativePercent}%` }}
+                        />
+
+                        <div className="relative flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 text-indigo-600 dark:text-indigo-400">
+                            <Building2 size={15} />
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                                {client.clientName}
+                              </span>
+                              {client.taxRegime && (
+                                <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                                  {TAX_REGIME_LABELS[client.taxRegime] || client.taxRegime}
+                                </span>
+                              )}
+                              {filterMode === 'task' && client.criticalTasksCount > 0 && (
+                                <span
+                                  className={`px-1.5 py-0.5 text-[9px] font-bold rounded-full border flex items-center gap-0.5 shrink-0 tabular-nums ${
+                                    isTaskLessThan
+                                      ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
+                                      : 'bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/30'
+                                  }`}
+                                >
+                                  {isTaskLessThan ? (
+                                    <>
+                                      <Zap size={9} className="fill-current" />{' '}
+                                      {client.criticalTasksCount} rápida(s)
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Flame size={9} className="fill-current" />{' '}
+                                      {client.criticalTasksCount} demorada(s)
+                                    </>
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium flex-wrap tabular-nums">
+                              {client.document && <span>CNPJ: {client.document}</span>}
+                              {client.city && (
+                                <span>
+                                  • {client.city}
+                                  {client.state ? `/${client.state}` : ''}
+                                </span>
+                              )}
+                              <span>• {client.totalTasksCount} tarefa(s)</span>
+                              {totals.sumSeconds > 0 && (
+                                <span className="text-slate-400 dark:text-slate-500">
+                                  • {shareOfTotalPct}% do total
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Métricas à direita */}
+                        <div className="relative flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-100 dark:border-slate-800 sm:border-t-0 shrink-0">
+                          <div className="flex items-center gap-3.5 tabular-nums">
+                            <div className="flex flex-col items-start sm:items-end">
+                              <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-semibold">
+                                Média / Tarefa
+                              </span>
+                              <span className="text-xs font-bold text-sky-600 dark:text-sky-400 font-mono">
+                                {formatSecondsToFriendly(client.avgSecondsPerTask)}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col items-start sm:items-end">
+                              <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-semibold">
+                                Tempo Total
+                              </span>
+                              <span className="text-xs sm:text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">
+                                {formatSecondsToFriendly(client.totalSecondsSpent)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 dark:text-slate-500 shrink-0">
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Lista Expandida de Tarefas (também em Tremor BarList) */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 p-2.5 sm:p-3 animate-in fade-in duration-150">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1">
+                            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              {filterMode === 'client' ? (
                                 <>
-                                  <Zap size={8} className="fill-current" /> {client.criticalTasksCount} rápida(s)
+                                  <Clock size={11} className="text-indigo-500" /> Todas as Tarefas do
+                                  Cliente
+                                </>
+                              ) : isTaskLessThan ? (
+                                <>
+                                  <Zap size={11} className="text-emerald-500" /> Tarefas de Alta
+                                  Performance (&lt; {Math.round(absTaskThreshold / 60)} min)
                                 </>
                               ) : (
                                 <>
-                                  <Flame size={8} className="fill-current" /> {client.criticalTasksCount} demorada(s)
+                                  <Clock size={11} className="text-indigo-500" /> Tarefas{' '}
+                                  {taskThreshold > 0
+                                    ? `Mais Demoradas (≥ ${Math.round(taskThreshold / 60)} min)`
+                                    : 'do Cliente'}
                                 </>
                               )}
                             </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-medium flex-wrap">
-                          {client.document && <span>CNPJ: {client.document}</span>}
-                          {client.city && <span>• {client.city}{client.state ? `/${client.state}` : ''}</span>}
-                          <span>• {client.totalTasksCount} tarefa(s)</span>
-                        </div>
-                      </div>
-                    </div>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tabular-nums">
+                              {visibleTasks.length}{' '}
+                              {filterMode === 'task' ? `de ${client.tasks.length}` : ''} tarefa(s) •
+                              Média: {formatSecondsToFriendly(client.avgSecondsPerTask)}
+                            </span>
+                          </div>
 
-                    {/* Lado Direito: Média por Tarefa + Tempo Total + Ação */}
-                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-100 dark:border-slate-800/80 sm:border-t-0 shrink-0">
-                      <div className="flex items-center gap-3">
-                        {/* Métrica de Média por Tarefa neste Cliente */}
-                        <div className="flex flex-col items-start sm:items-end">
-                          <span className="text-[8.5px] sm:text-[9px] text-slate-400 uppercase font-semibold">Média / Tarefa</span>
-                          <span className="text-xs font-black text-sky-600 dark:text-sky-400 font-mono">
-                            {formatSecondsToFriendly(client.avgSecondsPerTask)}
-                          </span>
-                        </div>
-
-                        {/* Tempo Total Gasto no Cliente */}
-                        <div className="flex flex-col items-start sm:items-end">
-                          <span className="text-[8.5px] sm:text-[9px] text-slate-400 uppercase font-semibold">Tempo Total</span>
-                          <span className="text-xs sm:text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">
-                            {formatSecondsToFriendly(client.totalSecondsSpent)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0">
-                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Barra de Proporção de Tempo Gasto */}
-                  <div className="px-3 pb-2">
-                    <div className="h-1 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          (filterMode === 'task' && isTaskLessThan) || (filterMode === 'client' && isClientLessThan)
-                            ? 'bg-gradient-to-r from-emerald-500 to-sky-500' 
-                            : 'bg-gradient-to-r from-indigo-500 to-rose-500'
-                        }`}
-                        style={{ width: `${relativePercent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Detalhes / Tarefas (Visível quando expandido) */}
-                  {isExpanded && (
-                    <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-2.5 sm:p-3 animate-in fade-in duration-150">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1">
-                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          {filterMode === 'client' ? (
-                            <>
-                              <Clock size={11} className="text-indigo-500" /> Todas as Tarefas do Cliente
-                            </>
-                          ) : isTaskLessThan ? (
-                            <>
-                              <Zap size={11} className="text-emerald-500" /> Tarefas de Alta Performance (&lt; {Math.round(absTaskThreshold / 60)} min)
-                            </>
+                          {visibleTasks.length === 0 ? (
+                            <div className="py-3 text-center text-xs text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1.5 bg-white dark:bg-slate-900 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
+                              <CheckCircle2 size={13} className="text-emerald-500" />
+                              <span>
+                                {filterMode === 'client'
+                                  ? 'Nenhuma tarefa vinculada a este cliente neste período'
+                                  : isTaskLessThan
+                                  ? `Nenhuma tarefa deste cliente levou menos de ${Math.round(absTaskThreshold / 60)} min`
+                                  : `Todas as tarefas deste cliente foram rápidas (< ${Math.round(taskThreshold / 60)} min)`}
+                              </span>
+                            </div>
                           ) : (
-                            <>
-                              <Clock size={11} className="text-indigo-500" /> Tarefas {taskThreshold > 0 ? `Mais Demoradas (≥ ${Math.round(taskThreshold / 60)} min)` : 'do Cliente'}
-                            </>
-                          )}
-                        </span>
-                        <span className="text-[9.5px] text-slate-400 font-medium">
-                          {visibleTasks.length} {filterMode === 'task' ? `de ${client.tasks.length}` : ''} tarefa(s) • Média: {formatSecondsToFriendly(client.avgSecondsPerTask)}
-                        </span>
-                      </div>
+                            <div className="space-y-1.5">
+                              {visibleTasks.map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="relative bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs overflow-hidden"
+                                >
+                                  {/* Mini barra proporcional do peso da tarefa no cliente */}
+                                  <div
+                                    className={`absolute inset-y-0 left-0 pointer-events-none transition-all duration-300 ${
+                                      isFastFocus
+                                        ? 'bg-emerald-500/10 dark:bg-emerald-500/15'
+                                        : 'bg-indigo-500/10 dark:bg-indigo-500/15'
+                                    }`}
+                                    style={{ width: `${task.percentageOfClientTime}%` }}
+                                  />
 
-                      {visibleTasks.length === 0 ? (
-                        <div className="py-3 text-center text-xs text-slate-400 flex items-center justify-center gap-1.5 bg-white/40 dark:bg-slate-800/40 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
-                          <CheckCircle2 size={13} className="text-emerald-500" />
-                          <span>
-                            {filterMode === 'client'
-                              ? 'Nenhuma tarefa vinculada a este cliente neste período'
-                              : isTaskLessThan 
-                                ? `Nenhuma tarefa deste cliente levou menos de ${Math.round(absTaskThreshold / 60)} min`
-                                : `Todas as tarefas deste cliente foram rápidas (< ${Math.round(taskThreshold / 60)} min)`}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {visibleTasks.map((task) => (
-                            <div
-                              key={task.id}
-                              className="bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs shadow-xs"
-                            >
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <div className="p-1 rounded bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 shrink-0">
-                                  <Layers size={12} />
-                                </div>
-                                <div className="flex flex-col min-w-0">
-                                  <span className="font-bold text-slate-700 dark:text-slate-200 truncate">
-                                    {task.taskName}
-                                  </span>
-                                  <div className="flex items-center gap-2 text-[9.5px] text-slate-400">
-                                    {task.responsible && (
-                                      <span className="flex items-center gap-0.5">
-                                        <User size={9} /> {task.responsible}
+                                  <div className="relative flex items-center gap-2 min-w-0 flex-1">
+                                    <div className="p-1.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
+                                      <Layers size={12} />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
+                                        {task.taskName}
                                       </span>
-                                    )}
-                                    {task.sector && <span>• {task.sector}</span>}
-                                    <span>• Status: {task.status}</span>
+                                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                                        {task.responsible && (
+                                          <span className="inline-flex items-center gap-0.5">
+                                            <User size={10} /> {task.responsible}
+                                          </span>
+                                        )}
+                                        {task.sector && <span>• {task.sector}</span>}
+                                        <span>• Status: {task.status}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="relative flex items-center gap-2 shrink-0 self-end sm:self-center tabular-nums">
+                                    <span
+                                      className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-md border ${
+                                        isFastFocus
+                                          ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
+                                          : 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30'
+                                      }`}
+                                    >
+                                      {task.percentageOfClientTime}% do cliente
+                                    </span>
+                                    <div className="text-right font-mono font-bold text-slate-900 dark:text-slate-100 text-xs min-w-[54px]">
+                                      {formatSecondsToFriendly(task.secondsSpent)}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-
-                              {/* Tempo da Tarefa e % do Cliente */}
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded border ${
-                                  (filterMode === 'task' && isTaskLessThan) || (filterMode === 'client' && isClientLessThan)
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-900/30'
-                                    : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-100 dark:border-indigo-900/30'
-                                }`}>
-                                  {task.percentageOfClientTime}% do cliente
-                                </span>
-                                <div className="text-right font-mono font-black text-slate-800 dark:text-slate-100 text-xs">
-                                  {formatSecondsToFriendly(task.secondsSpent)}
-                                </div>
-                              </div>
+                              ))}
                             </div>
-                          ))}
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </WidgetContainer>
   );
 };
-

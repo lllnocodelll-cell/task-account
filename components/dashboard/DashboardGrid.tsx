@@ -71,7 +71,7 @@ export const WIDGET_REGISTRY: Record<string, { name: string, component: React.FC
         defaultLayout: { i: 'documentAlerts', x: 8, y: 18, w: 4, h: 7, minW: 3, minH: 4 }
     },
     clientStatus: {
-        name: 'STATUS DE CLIENTES',
+        name: 'CARTEIRA DE CLIENTES',
         component: ClientStatusWidget,
         defaultLayout: { i: 'clientStatus', x: 0, y: 25, w: 6, h: 8, minW: 3, minH: 6 }
     },

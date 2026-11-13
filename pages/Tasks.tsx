@@ -1240,6 +1240,25 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   {task.priority}
                 </span>
 
+                <Tooltip content="Dados da Tarefa">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewTask(task);
+                    }}
+                    className="p-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-90"
+                  >
+                    <Eye size={13} />
+                  </button>
+                </Tooltip>
+
+                {task.workflows && task.workflows.length > 0 && (
+                  <TaskWorkflowPopover 
+                    task={task} 
+                    onToggleWorkflow={onToggleWorkflow} 
+                  />
+                )}
+
                 {task.status === TaskStatus.PAUSADA && (
                   <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-500/10 text-[9px] text-amber-700 dark:text-amber-400 font-bold whitespace-nowrap border border-amber-200 dark:border-amber-500/30 rounded-md shadow-sm flex items-center gap-1">
                     <Pause size={9} className="fill-current" /> Pausada
@@ -1258,25 +1277,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   onSave={onUpdateTag}
                   isKanban={true}
                 />
-
-                {task.workflows && task.workflows.length > 0 && (
-                  <TaskWorkflowPopover 
-                    task={task} 
-                    onToggleWorkflow={onToggleWorkflow} 
-                  />
-                )}
-
-                <Tooltip content="Dados da Tarefa">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewTask(task);
-                    }}
-                    className="p-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-90"
-                  >
-                    <Eye size={13} />
-                  </button>
-                </Tooltip>
               </div>
 
               {task.taxRegime && (

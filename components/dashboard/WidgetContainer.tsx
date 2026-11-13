@@ -10,6 +10,7 @@ interface WidgetContainerProps {
     children: React.ReactNode;
     allowZoom?: boolean;
     compactThreshold?: number;
+    keepHeaderActionsInline?: boolean;
 }
 
 const ZOOM_LEVELS = [60, 75, 85, 90, 100, 110, 125, 140, 150];
@@ -21,7 +22,8 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
     headerActions,
     children,
     allowZoom = true,
-    compactThreshold
+    compactThreshold,
+    keepHeaderActionsInline = false
 }) => {
     const storageKey = `widget_zoom_${title.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
 
@@ -162,14 +164,14 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
         return () => observer.disconnect();
     }, [effectiveThreshold]);
 
-    const isTwoRows = isCompact;
+    const isTwoRows = !keepHeaderActionsInline && isCompact;
 
     return (
         <div ref={containerRef} className="h-full w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col overflow-hidden relative group">
             {/* Header Responsivo Dinâmico */}
-            <div className={`flex ${isTwoRows && headerActions ? 'flex-col gap-2' : 'flex-row items-center justify-between gap-2.5'} px-2.5 py-2 sm:px-3 sm:py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 select-none`}>
+            <div className={`flex ${isTwoRows && headerActions ? 'flex-col gap-2' : 'flex-row items-center justify-between gap-2'} px-2.5 py-2 sm:px-3 sm:py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 select-none`}>
                 {/* Linha 1 no modo compacto / Lado Esquerdo no modo desktop amplo */}
-                <div className={`flex items-center justify-between ${isTwoRows ? 'w-full' : 'w-full sm:w-auto sm:flex-1'} min-w-0`}>
+                <div className={`flex items-center justify-between ${isTwoRows ? 'w-full' : keepHeaderActionsInline ? 'flex-1' : 'w-full sm:w-auto sm:flex-1'} min-w-0`}>
                     {/* Drag Handle: Apenas na área do título e ícone */}
                     <div className="flex items-center gap-2 sm:gap-2.5 drag-handle cursor-move min-w-0 pr-1.5 flex-1">
                         {/* Ícone */}
@@ -235,7 +237,7 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
                     /* Modo 1 Linha (Desktop Amplo): Ações + Zoom + Botão Remover tudo alinhado */
                     (headerActions || zoomControls || onRemove) && (
                         <div 
-                            className="no-drag flex items-center justify-end gap-2 shrink-0 flex-nowrap"
+                            className="no-drag flex items-center justify-end gap-1.5 shrink-0 flex-nowrap"
                             onClick={e => e.stopPropagation()}
                             onMouseDown={e => e.stopPropagation()}
                             onTouchStart={e => e.stopPropagation()}
@@ -244,7 +246,7 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
                         >
                             {/* Ações customizadas do widget (filtros, paginação, seletores, etc.) */}
                             {headerActions && (
-                                <div className="flex items-center gap-1 sm:gap-1.5 shrink min-w-0 overflow-x-auto scrollbar-none">
+                                <div className={`flex items-center gap-1 sm:gap-1.5 ${keepHeaderActionsInline ? 'shrink-0' : 'shrink min-w-0 overflow-x-auto scrollbar-none'}`}>
                                     {headerActions}
                                 </div>
                             )}
@@ -256,7 +258,7 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
                                 </div>
                             )}
 
-                            {/* Botão de Fechar / Remover no modo 1 linha (desktop amplo): canto direito na mesma linha das ações */}
+                            {/* Botão de Fechar / Remover no modo 1 linha: canto direito na mesma linha das ações */}
                             {onRemove && (
                                 <div className="flex items-center shrink-0 ml-0.5">
                                     <Tooltip content="Remover widget" position="top">
@@ -268,7 +270,7 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
                                             }}
                                             onPointerDown={e => e.stopPropagation()}
                                             onTouchStart={e => e.stopPropagation()}
-                                            className="h-5 w-5 flex items-center justify-center rounded-md bg-slate-100/80 hover:bg-rose-50 dark:bg-slate-800/80 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/60 dark:border-slate-700/60 hover:border-rose-200 dark:hover:border-rose-800/60 shadow-xs active:scale-90 transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                                            className={`h-5 w-5 flex items-center justify-center rounded-md bg-slate-100/80 hover:bg-rose-50 dark:bg-slate-800/80 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/60 dark:border-slate-700/60 hover:border-rose-200 dark:hover:border-rose-800/60 shadow-xs active:scale-90 transition-all cursor-pointer ${isCompact ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                                             aria-label="Remover widget"
                                         >
                                             <X size={12} strokeWidth={2.4} />
