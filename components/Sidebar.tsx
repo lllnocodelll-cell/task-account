@@ -29,6 +29,8 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   isCollapsed: boolean;
   toggleSidebar: () => void;
+  isMinimized?: boolean;
+  onToggleMinimize?: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
   onLogout?: () => void;
@@ -58,6 +60,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   isCollapsed,
   toggleSidebar,
+  isMinimized = false,
+  onToggleMinimize,
   isMobileOpen,
   onCloseMobile,
   onLogout,
@@ -71,10 +75,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onChatUnreadCountChange
 }) => {
   const { isStandalone, isInstalled } = usePWAInstall();
+  const isGlassMode = backgroundTheme !== 'none';
   const [unreadCounts, setUnreadCounts] = useState<{ internal: number; support: number; notification: number }>({ internal: 0, support: 0, notification: 0 });
+  const hasPendingAlerts = unreadCounts.internal + unreadCounts.support + unreadCounts.notification + pendingDocsCount > 0;
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isHoverPeek, setIsHoverPeek] = useState(false);
+  const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressHoverRef = useRef(false);
+  const isDesktopMinimizedBox = isMinimized && !isHoverPeek;
   const chatSubsRef = useRef<any[]>([]);
   const pollIntervalRef = useRef<any>(null);
+
+  const clearHoverCloseTimer = () => {
+    if (hoverCloseTimerRef.current) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!isMinimized) {
+      clearHoverCloseTimer();
+      setIsHoverPeek(false);
+    }
+  }, [isMinimized]);
+
+  useEffect(() => {
+    return () => clearHoverCloseTimer();
+  }, []);
+
+  const handleSidebarMouseEnter = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return;
+    clearHoverCloseTimer();
+    if (!isMinimized || suppressHoverRef.current) return;
+    setIsHoverPeek(true);
+  };
+
+  const handleSidebarMouseLeave = () => {
+    suppressHoverRef.current = false;
+    if (!isMinimized) return;
+    clearHoverCloseTimer();
+    hoverCloseTimerRef.current = setTimeout(() => {
+      setIsHoverPeek(false);
+    }, 160);
+  };
+
+  const handleLogoToggleClick = () => {
+    clearHoverCloseTimer();
+    if (!isMinimized) {
+      suppressHoverRef.current = true;
+    } else {
+      suppressHoverRef.current = false;
+    }
+    setIsHoverPeek(false);
+    onToggleMinimize?.();
+  };
 
   useEffect(() => {
     fetchChatsCountAndSetupRealtime();
@@ -297,6 +352,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         onClick={(e) => {
           if (!e.ctrlKey && !e.metaKey && e.button === 0) {
             e.preventDefault();
+            setIsHoverPeek(false);
             setActiveTab(item.id);
           }
         }}
@@ -424,35 +480,115 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      <div className={`fixed left-0 top-0 bottom-0 md:left-3 md:top-3 md:bottom-3 rounded-r-2xl md:rounded-2xl bg-gradient-to-b from-white/55 via-white/35 to-white/45 dark:from-slate-900/55 dark:via-slate-950/40 dark:to-slate-950/50 backdrop-blur-md backdrop-saturate-150 border-r md:border border-white/80 dark:border-white/15 md:ring-1 md:ring-slate-900/5 dark:md:ring-white/5 shadow-[0_12px_36px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.95)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.16)] flex flex-col z-[80] transition-all duration-300 ease-in-out ${isCollapsed ? 'w-20' : 'w-64'} ${isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}>
-        <div className={`h-16 flex items-center border-b border-slate-200/70 dark:border-white/10 ${isCollapsed ? 'justify-center px-2' : 'px-5'}`}>
-          {isCollapsed ? (
-            <Tooltip content="TaskAccount Core v2.6" position="right">
-              <div className="w-8 h-8 rounded-xl bg-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)] shrink-0 transition-transform hover:scale-105">
-                <Zap size={18} className="fill-slate-950 stroke-slate-950" />
-              </div>
-            </Tooltip>
-          ) : (
-            <BrandLogo size="md" />
-          )}
-        </div>
-
+      <div
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
+        className={`fixed left-0 top-0 bottom-0 md:left-3 md:top-3 md:bottom-auto rounded-r-2xl md:rounded-2xl flex flex-col z-[80] transition-all duration-300 ease-in-out ${
+          isGlassMode
+            ? 'p-1.5 bg-white/35 dark:bg-slate-800/35 backdrop-blur-lg backdrop-saturate-150 border-r md:border border-white/85 dark:border-white/20 md:ring-1 md:ring-slate-900/5 dark:md:ring-white/10 shadow-[0_14px_38px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] dark:shadow-[0_22px_52px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.20)]'
+            : 'bg-white dark:bg-slate-900 border-r md:border border-slate-200 dark:border-slate-800 shadow-[0_12px_36px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.55)]'
+        } ${
+          isCollapsed ? 'w-20' : 'w-64'
+        } ${
+          isDesktopMinimizedBox ? 'md:w-16 md:h-16' : 'md:h-[calc(100vh-1.5rem)]'
+        } ${isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}`}
+      >
         <button
           type="button"
           onClick={toggleSidebar}
           aria-label={isCollapsed ? 'Expandir barra lateral' : 'Recolher barra lateral'}
-          className="hidden md:flex items-center justify-center absolute -right-3 top-[3.35rem] bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200/90 dark:border-white/15 text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white rounded-full p-1 shadow-md z-50 hover:bg-white dark:hover:bg-slate-700 transition-colors cursor-pointer"
+          className={`${isDesktopMinimizedBox ? 'hidden' : 'hidden md:flex'} items-center justify-center absolute -right-3 top-[3.35rem] bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200/90 dark:border-white/15 text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white rounded-full p-1 shadow-md z-50 hover:bg-white dark:hover:bg-slate-700 transition-colors cursor-pointer`}
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
 
-        {/* Main Navigation */}
-        <nav className="flex-1 py-5 px-3 space-y-1">
-          {mainMenuItems.map(renderMenuItem)}
-        </nav>
+        {/* Container interno encaixado dentro da moldura translúcida */}
+        <div
+          className={`flex-1 flex flex-col min-h-0 w-full ${
+            isGlassMode
+              ? 'rounded-r-[11px] md:rounded-[11px] bg-gradient-to-b from-white/60 via-white/40 to-white/50 dark:from-slate-900/65 dark:via-slate-950/55 dark:to-slate-950/65 border border-white/80 dark:border-white/10 shadow-[inset_0_2px_6px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[inset_0_2px_8px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.12)]'
+              : ''
+          }`}
+        >
+          <div
+            className={`flex items-center border-slate-200/70 dark:border-white/10 transition-all duration-200 ${
+              isGlassMode
+                ? isDesktopMinimizedBox
+                  ? 'h-[58px] border-b md:h-full md:border-b-0'
+                  : 'h-[58px] border-b'
+                : isDesktopMinimizedBox
+                  ? 'h-16 border-b md:h-full md:border-b-0'
+                  : 'h-16 border-b'
+            } ${
+              isCollapsed
+                ? 'justify-center px-2'
+                : isDesktopMinimizedBox
+                  ? 'px-5 md:justify-center md:px-0'
+                  : 'px-5'
+            }`}
+          >
+            <Tooltip
+              content={
+                !isMinimized
+                  ? 'Recolher menu no ícone'
+                  : isHoverPeek
+                    ? 'Clique para fixar o menu'
+                    : 'Abrir menu lateral'
+              }
+              position={!isMinimized || isHoverPeek ? 'right' : 'bottom'}
+              className="inline-flex items-center justify-center"
+            >
+              <button
+                type="button"
+                onClick={handleLogoToggleClick}
+                aria-label={
+                  !isMinimized
+                    ? 'Recolher menu no ícone'
+                    : isHoverPeek
+                      ? 'Fixar menu lateral'
+                      : 'Abrir menu lateral'
+                }
+                className="relative flex items-center justify-center rounded-xl focus:outline-none cursor-pointer group/logo transition-transform active:scale-95"
+              >
+                {isCollapsed ? (
+                  <div className="relative w-8 h-8 rounded-xl bg-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)] shrink-0 transition-transform group-hover/logo:scale-105">
+                    <Zap size={18} className="fill-slate-950 stroke-slate-950" />
+                    {isDesktopMinimizedBox && hasPendingAlerts && (
+                      <span className="hidden md:block absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
+                    )}
+                  </div>
+                ) : isDesktopMinimizedBox ? (
+                  <>
+                    <BrandLogo size="md" className="md:hidden" />
+                    <div className="hidden md:flex relative w-8 h-8 rounded-xl bg-yellow-400 items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(250,204,21,0.4)] shrink-0 transition-transform group-hover/logo:scale-105">
+                      <Zap size={18} className="fill-slate-950 stroke-slate-950" />
+                      {hasPendingAlerts && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <BrandLogo size="md" className="group-hover/logo:opacity-90 transition-opacity" />
+                )}
+              </button>
+            </Tooltip>
+          </div>
 
-        {/* Bottom Navigation & Logout */}
-        <div className="px-3 pb-4 space-y-1">
+          {/* Corpo retrátil da gaveta (encolhe suavemente para dentro do ícone no desktop) */}
+          <div
+            className={`flex-1 flex flex-col min-h-0 transition-all duration-200 origin-top ${
+              isDesktopMinimizedBox
+                ? 'md:max-h-0 md:opacity-0 md:scale-y-95 md:pointer-events-none md:overflow-hidden'
+                : 'opacity-100'
+            }`}
+          >
+            {/* Main Navigation */}
+            <nav className={`flex-1 py-5 space-y-1 ${isGlassMode ? 'px-2' : 'px-3'}`}>
+              {mainMenuItems.map(renderMenuItem)}
+            </nav>
+
+            {/* Bottom Navigation & Logout */}
+            <div className={`pb-4 space-y-1 ${isGlassMode ? 'px-2' : 'px-3'}`}>
           <div className="border-t border-slate-200/70 dark:border-white/10 my-2 mx-2" />
 
           <button
@@ -481,6 +617,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={() => {
+                setIsHoverPeek(false);
                 setIsThemeModalOpen(true);
                 onCloseMobile();
               }}
@@ -505,7 +642,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {!isStandalone && !isInstalled && onOpenInstall && (
             <button
-              onClick={onOpenInstall}
+              onClick={() => {
+                setIsHoverPeek(false);
+                onOpenInstall();
+              }}
               className={`group w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap relative text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-500/10 dark:hover:bg-indigo-400/15 ${isCollapsed ? 'justify-center' : 'justify-between'}`}
             >
               <div className={`flex items-center min-w-0 ${isCollapsed ? '' : 'gap-3'}`}>
@@ -548,6 +688,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
           </button>
+            </div>
+          </div>
         </div>
       </div>
 

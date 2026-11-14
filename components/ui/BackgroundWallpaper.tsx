@@ -7,6 +7,21 @@ interface BackgroundWallpaperProps {
   className?: string;
 }
 
+const GRADIENT_THEMES: Partial<Record<BackgroundThemeId, { light: string; dark: string }>> = {
+  chumbo: {
+    light: 'radial-gradient(circle at 18% 15%, #e6eaf0 0%, #d4dae4 50%, #c1c9d6 100%)',
+    dark: 'radial-gradient(circle at 18% 15%, #3f4756 0%, #2b313d 48%, #1e232c 100%)',
+  },
+  lavanda: {
+    light: 'linear-gradient(135deg, #e7e9ff 0%, #B5B9FF 100%)',
+    dark: 'linear-gradient(135deg, #B5B9FF 0%, #2B2C49 100%)',
+  },
+  oceano: {
+    light: 'linear-gradient(135deg, #d7e9f0 0%, #9ec7d8 50%, #d7e9f0 100%)',
+    dark: 'linear-gradient(135deg, #6da6be 0%, #4b859e 50%, #6da6be 100%)',
+  },
+};
+
 export const BackgroundWallpaper: React.FC<BackgroundWallpaperProps> = ({
   themeId,
   isDarkMode,
@@ -19,6 +34,16 @@ export const BackgroundWallpaper: React.FC<BackgroundWallpaperProps> = ({
     return (
       <div
         className={`w-full h-full bg-slate-50 dark:bg-slate-950 transition-colors duration-300 ${className}`}
+      />
+    );
+  }
+
+  const gradientTheme = GRADIENT_THEMES[themeId];
+  if (gradientTheme) {
+    return (
+      <div
+        className={`w-full h-full transition-colors duration-300 ${className}`}
+        style={{ background: isDarkMode ? gradientTheme.dark : gradientTheme.light }}
       />
     );
   }

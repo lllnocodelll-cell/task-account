@@ -35,6 +35,7 @@ interface HeaderProps {
   userProfile: UserProfile | null;
   chatUnreadCount?: number;
   pendingDocsCount?: number;
+  isSidebarMinimized?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -51,7 +52,8 @@ export const Header: React.FC<HeaderProps> = ({
   userRole,
   userProfile,
   chatUnreadCount = 0,
-  pendingDocsCount = 0
+  pendingDocsCount = 0,
+  isSidebarMinimized = false
 }) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -81,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <div className="sticky top-0 z-[60] md:pt-3 md:pr-3 pointer-events-none">
+      <div className={`sticky top-0 z-[60] md:pt-3 md:pr-3 pointer-events-none transition-all duration-300 ${isSidebarMinimized ? 'md:ml-[calc(4rem+1.5rem)]' : ''}`}>
         <header className="relative pointer-events-auto h-16 bg-gradient-to-r from-white/55 via-white/40 to-white/50 dark:from-slate-900/55 dark:via-slate-950/40 dark:to-slate-900/55 backdrop-blur-md backdrop-saturate-150 border-b md:border border-white/80 dark:border-white/15 md:ring-1 md:ring-slate-900/5 dark:md:ring-white/5 md:rounded-2xl md:shadow-[0_12px_36px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.95)] md:dark:shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.16)] flex items-center justify-between px-3 sm:px-4 md:px-6 transition-all duration-300">
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button

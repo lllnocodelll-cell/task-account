@@ -84,7 +84,26 @@ function App() {
   const [chatUnreadCount, setChatUnreadCount] = useState<number>(0);
   const [pendingDocsCount, setPendingDocsCount] = useState<number>(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isSidebarMinimized, setIsSidebarMinimized] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem('taskaccount:sidebar_minimized') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleSidebarMinimized = () => {
+    setIsSidebarMinimized((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('taskaccount:sidebar_minimized', String(next));
+      } catch {
+        // Ignore storage errors silently
+      }
+      return next;
+    });
+  };
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
   const [backgroundTheme, setBackgroundTheme] = useState<BackgroundThemeId>(DEFAULT_BACKGROUND_THEME);
@@ -1048,6 +1067,8 @@ function App() {
         }}
         isCollapsed={isSidebarCollapsed}
         toggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isMinimized={isSidebarMinimized}
+        onToggleMinimize={toggleSidebarMinimized}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         onLogout={handleLogout}
@@ -1061,7 +1082,17 @@ function App() {
         onChatUnreadCountChange={setChatUnreadCount}
       />
 
-      <div className={`relative z-10 flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${activeTab === 'chat' ? 'h-full max-h-full overflow-hidden' : ''} ${isSidebarCollapsed ? 'md:ml-[calc(5rem+1.5rem)]' : 'md:ml-[calc(16rem+1.5rem)]'}`}>
+      <div
+        className={`relative z-10 flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
+          activeTab === 'chat' ? 'h-full max-h-full overflow-hidden' : ''
+        } ${
+          isSidebarMinimized
+            ? 'md:ml-0'
+            : isSidebarCollapsed
+              ? 'md:ml-[calc(5rem+1.5rem)]'
+              : 'md:ml-[calc(16rem+1.5rem)]'
+        }`}
+      >
         <Header
           activeTab={activeTab}
           isDarkMode={isDarkMode}
@@ -1077,10 +1108,27 @@ function App() {
           userProfile={userProfile}
           chatUnreadCount={chatUnreadCount}
           pendingDocsCount={pendingDocsCount}
+          isSidebarMinimized={isSidebarMinimized}
         />
 
-        <main className={`flex-1 min-h-0 ${activeTab === 'chat' ? 'fixed inset-x-0 top-16 bottom-0 md:relative md:inset-auto md:top-auto p-0 md:p-8 overflow-hidden flex flex-col' : ['tasks', 'clients'].includes(activeTab) ? 'overflow-x-clip px-4 pb-4 pt-2 md:px-8 md:pb-8 md:pt-4' : 'overflow-x-clip p-4 md:p-8'}`}>
-          <div className={`mx-auto w-full ${activeTab === 'chat' ? 'h-full flex-1 min-h-0 flex flex-col max-w-[1600px]' : 'max-w-[1600px]'}`}>
+        <main
+          className={`flex-1 min-h-0 ${
+            activeTab === 'chat'
+              ? `fixed inset-x-0 top-16 bottom-0 md:relative md:inset-auto md:top-auto p-0 ${isSidebarMinimized ? 'md:p-6' : 'md:p-8'} overflow-hidden flex flex-col`
+              : ['tasks', 'clients'].includes(activeTab)
+                ? `overflow-x-clip px-4 pb-4 pt-2 ${isSidebarMinimized ? 'md:px-6' : 'md:px-8'} md:pb-8 md:pt-4`
+                : `overflow-x-clip p-4 ${isSidebarMinimized ? 'md:p-6' : 'md:p-8'}`
+          }`}
+        >
+          <div
+            className={`mx-auto w-full ${
+              activeTab === 'chat'
+                ? `h-full flex-1 min-h-0 flex flex-col ${isSidebarMinimized ? 'max-w-[1840px]' : 'max-w-[1600px]'}`
+                : isSidebarMinimized
+                  ? 'max-w-[1840px]'
+                  : 'max-w-[1600px]'
+            }`}
+          >
             {renderContent()}
           </div>
         </main>

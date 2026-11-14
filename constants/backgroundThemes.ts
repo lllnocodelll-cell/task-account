@@ -5,6 +5,9 @@ export type BackgroundThemeId =
   | 'dunas'
   | 'horizonte'
   | 'nebulosa'
+  | 'chumbo'
+  | 'lavanda'
+  | 'oceano'
   | 'none';
 
 export interface BackgroundThemeOption {
@@ -50,6 +53,21 @@ export const BACKGROUND_THEMES: BackgroundThemeOption[] = [
     id: 'nebulosa',
     name: 'Nebulosa Índigo',
     description: 'Esferas foscas e anéis orbitais com iluminação de estúdio.',
+  },
+  {
+    id: 'chumbo',
+    name: 'Cinza Chumbo',
+    description: 'Gradiente minimalista em tons de chumbo sem elementos gráficos.',
+  },
+  {
+    id: 'lavanda',
+    name: 'Lavanda Índigo',
+    description: 'Transição suave de lavanda luminosa para índigo noturno.',
+  },
+  {
+    id: 'oceano',
+    name: 'Brisa Oceânica',
+    description: 'Gradiente simétrico em tons serenos de azul-petróleo claro.',
   },
   {
     id: 'none',
