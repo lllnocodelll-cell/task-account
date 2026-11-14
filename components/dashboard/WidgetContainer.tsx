@@ -167,16 +167,16 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({
     const isTwoRows = !keepHeaderActionsInline && isCompact;
 
     return (
-        <div ref={containerRef} className="h-full w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col overflow-hidden relative group">
+        <div ref={containerRef} className="h-full w-full bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col overflow-hidden relative group">
             {/* Header Responsivo Dinâmico */}
-            <div className={`flex ${isTwoRows && headerActions ? 'flex-col gap-2' : 'flex-row items-center justify-between gap-2'} px-2.5 py-2 sm:px-3 sm:py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 select-none`}>
+            <div className={`flex ${isTwoRows && headerActions ? 'flex-col gap-2' : 'flex-row items-center justify-between gap-2'} px-2.5 py-2 sm:px-3 sm:py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 glass-card-inset select-none`}>
                 {/* Linha 1 no modo compacto / Lado Esquerdo no modo desktop amplo */}
                 <div className={`flex items-center justify-between ${isTwoRows ? 'w-full' : keepHeaderActionsInline ? 'flex-1' : 'w-full sm:w-auto sm:flex-1'} min-w-0`}>
                     {/* Drag Handle: Apenas na área do título e ícone */}
                     <div className="flex items-center gap-2 sm:gap-2.5 drag-handle cursor-move min-w-0 pr-1.5 flex-1">
                         {/* Ícone */}
                         {icon && (
-                            <div className="p-1 sm:p-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md flex-shrink-0 shadow-sm pointer-events-none">
+                            <div className="p-1 sm:p-1.5 bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700 rounded-md flex-shrink-0 shadow-sm pointer-events-none">
                                 <span className="text-slate-500 dark:text-slate-400 flex items-center">{icon}</span>
                             </div>
                         )}

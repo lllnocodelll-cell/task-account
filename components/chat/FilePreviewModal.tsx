@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Download,
@@ -190,7 +191,9 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
       })
     : activeRows;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -584,6 +587,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -576,7 +576,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
         <div className="space-y-6 h-full flex flex-col">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div className="flex items-center gap-3 mb-2 md:mb-0">
-                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-control-pill border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
                         <Building2 size={18} className="text-slate-500 dark:text-slate-400" />
                     </div>
                     <div className="flex flex-col">
@@ -687,15 +687,15 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                             )}
                         </div>
                     
-                    <div className="flex items-center bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm h-9">
+                    <div className="flex items-center gap-0.5 bg-white dark:bg-slate-800 glass-control-pill p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm h-10">
                         <Tooltip content={showMetrics ? "Ocultar Métricas" : "Mostrar Métricas"}>
                             <button
                                 onClick={() => setShowMetrics(!showMetrics)}
-                                className={`p-2 rounded transition-all ${showMetrics 
+                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${showMetrics 
                                     ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' 
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                             >
-                                <BarChart2 size={18} />
+                                <BarChart2 size={16} />
                             </button>
                         </Tooltip>
 
@@ -704,21 +704,21 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                         <Tooltip content="Tabela" position="top">
                             <button
                                 onClick={() => setDisplayMode('table')}
-                                className={`p-2 rounded transition-colors ${displayMode === 'table' 
+                                className={`p-1.5 rounded-md transition-colors flex items-center justify-center ${displayMode === 'table' 
                                     ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' 
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                             >
-                                <TableIcon size={18} />
+                                <TableIcon size={16} />
                             </button>
                         </Tooltip>
                         <Tooltip content="Card" position="top">
                             <button
                                 onClick={() => setDisplayMode('cards')}
-                                className={`p-2 rounded transition-colors ${displayMode === 'cards' 
+                                className={`p-1.5 rounded-md transition-colors flex items-center justify-center ${displayMode === 'cards' 
                                     ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' 
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                             >
-                                <LayoutGrid size={18} />
+                                <LayoutGrid size={16} />
                             </button>
                         </Tooltip>
                     </div>
@@ -793,7 +793,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                     <div className="overflow-hidden flex-1 flex flex-col min-h-0 bg-transparent border-0 shadow-none">
                         <div className="overflow-auto w-full pb-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
                             <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
-                                <thead className="bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[20] shadow-sm">
+                                <thead className="bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md glass-table-head text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm">
                                     <tr>
                                         {(() => {
                                             const codeActive = !!filters.code;
@@ -992,13 +992,13 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                 <tbody>
                                     {filteredClients.length === 0 ? (
                                         <tr>
-                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-400 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 glass-table-empty shadow-sm">
                                                 Nenhum cliente encontrado com os filtros selecionados.
                                             </td>
                                         </tr>
                                     ) : (
                                         filteredClients.map((client) => (
-                                            <tr key={client.id} className="group relative bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-sm">
+                                            <tr key={client.id} className="group relative bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/80 glass-table-row transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-sm">
                                                 <td className="px-6 py-4 font-mono text-slate-500 rounded-l-xl border-y border-l border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">{client.code}</td>
                                                 <td className="px-6 py-4 font-medium text-slate-900 dark:text-white border-y border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                                                     <div className="flex flex-col gap-1">
@@ -1099,13 +1099,13 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         </Tooltip>
                                                     ) : '-'}
                                                 </td>
-                                                <td className="px-6 py-4 relative rounded-r-xl border-y border-r border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
+                                                <td className="px-6 py-4 relative z-20 rounded-r-xl border-y border-r border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
                                                         {client.status}
                                                     </span>
 
                                                     {/* Hover Actions Overlay */}
-                                                    <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 bg-white dark:bg-slate-900 shadow-lg px-1 py-1 rounded-lg border border-slate-200 dark:border-slate-700 z-10 animate-in fade-in duration-200">
+                                                    <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 bg-white dark:bg-slate-900 glass-control-pill shadow-lg px-1 py-1 rounded-lg border border-slate-200 dark:border-slate-700 z-30 animate-in fade-in duration-200">
                                                         <Tooltip content="Visualizar" position="top">
                                                             <Button
                                                                 size="sm"
@@ -1145,14 +1145,14 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-8 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ maxHeight: showMetrics ? 'calc(100vh - 260px)' : 'calc(100vh - 150px)' }}>
                         {filteredClients.length === 0 ? (
-                            <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+                            <div className="col-span-full py-12 text-center text-slate-400 bg-white dark:bg-slate-900 glass-surface rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
                                 Nenhum cliente encontrado com os filtros selecionados.
                             </div>
                         ) : (
                             filteredClients.map((client) => (
                                 <Card key={client.id} className="group hover:border-indigo-500/50 dark:hover:border-indigo-400/30 transition-all duration-300 hover:shadow-lg dark:hover:shadow-indigo-500/5 flex flex-col p-0 overflow-hidden relative border-slate-200 dark:border-slate-800">
                                     {/* Secao 1: Cabecalho e Infos */}
-                                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800/40 dark:to-slate-900/40">
+                                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800/40 dark:to-slate-900/40 glass-card-inset">
                                         <div className="flex justify-between items-start mb-3">
                                             <span className="text-[10px] font-black tracking-widest text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">#{client.code}</span>
                                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm ${client.status === 'Ativo' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20' : 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20'}`}>
@@ -1195,7 +1195,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                     </div>
                                     
                                     {/* Secao 2: Contatos */}
-                                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-1 flex flex-col justify-center">
+                                    <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 glass-card-clear flex-1 flex flex-col justify-center">
                                         <h4 className="text-[9px] uppercase tracking-widest font-black text-slate-400 dark:text-slate-500 mb-2.5">Contato Principal</h4>
                                         
                                         <div className="flex flex-col gap-2.5">
@@ -1272,7 +1272,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                     </div>
 
                                     {/* Secao 3: Localizacao e Acoes */}
-                                    <div className="p-2.5 sm:p-3 bg-slate-50/70 dark:bg-slate-800/40 flex items-center justify-between gap-2 relative">
+                                    <div className="p-2.5 sm:p-3 bg-slate-50/70 dark:bg-slate-800/40 glass-card-inset flex items-center justify-between gap-2 relative">
                                         {(client.city || client.state) ? (
                                             <Tooltip content="Copiar Localização" position="top" className="min-w-0 flex-1">
                                                 <div 

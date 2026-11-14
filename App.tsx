@@ -25,6 +25,14 @@ import { Button } from './components/ui/Button';
 import { updateTabMeta, TAB_CONFIG } from './utils/tabFavicon';
 import { PWAInstallPrompt } from './components/pwa/PWAInstallPrompt';
 import { ThemeTransitionOverlay } from './components/ui/ThemeTransitionOverlay';
+import { BackgroundWallpaper } from './components/ui/BackgroundWallpaper';
+import {
+  BackgroundThemeId,
+  DEFAULT_BACKGROUND_THEME,
+  getStoredBackgroundTheme,
+  isValidBackgroundTheme,
+  setStoredBackgroundTheme,
+} from './constants/backgroundThemes';
 import { registerPushSubscription } from './utils/webPush';
 import { GlobalChatNotifier } from './components/chat/GlobalChatNotifier';
 import { triggerCronHealthCheck } from './utils/cronHealthCheck';
@@ -79,6 +87,7 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
+  const [backgroundTheme, setBackgroundTheme] = useState<BackgroundThemeId>(DEFAULT_BACKGROUND_THEME);
   const [isTutorialsOpen, setIsTutorialsOpen] = useState(false);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
   const [isPWAInstallOpen, setIsPWAInstallOpen] = useState(false);
@@ -150,6 +159,19 @@ function App() {
     }
   }, [isDarkMode]);
 
+  // Ativa superfícies translúcidas (vidro) apenas quando o usuário autenticado usa um tema com fundo visual
+  useEffect(() => {
+    const html = document.documentElement;
+    if (session && backgroundTheme !== 'none') {
+      html.setAttribute('data-glass-ui', 'true');
+    } else {
+      html.removeAttribute('data-glass-ui');
+    }
+    return () => {
+      html.removeAttribute('data-glass-ui');
+    };
+  }, [backgroundTheme, session]);
+
   // Dynamic Browser Tab Title & Favicon Synchronization
   useEffect(() => {
     if (!session) {
@@ -188,13 +210,30 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const syncUserBackgroundTheme = (currentSession: any) => {
+    const userId = currentSession?.user?.id;
+    const remoteTheme = currentSession?.user?.user_metadata?.background_theme;
+    const resolvedTheme: BackgroundThemeId = isValidBackgroundTheme(remoteTheme)
+      ? remoteTheme
+      : getStoredBackgroundTheme(userId) || DEFAULT_BACKGROUND_THEME;
+
+    setBackgroundTheme(resolvedTheme);
+    if (userId) {
+      setStoredBackgroundTheme(userId, resolvedTheme);
+    }
+  };
+
   // Auth Listener Effect
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) fetchUserProfile(session);
-      else setLoading(false);
+      if (session) {
+        syncUserBackgroundTheme(session);
+        fetchUserProfile(session);
+      } else {
+        setLoading(false);
+      }
     });
 
     const {
@@ -202,10 +241,12 @@ function App() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
+        syncUserBackgroundTheme(session);
         fetchUserProfile(session);
       } else {
         setLoading(false);
         setUserProfile(null);
+        setBackgroundTheme(DEFAULT_BACKGROUND_THEME);
       }
     });
 
@@ -218,6 +259,7 @@ function App() {
     if (params.get('demo') === 'true') {
       console.log('--- MODO DEMONSTRAÇÃO ATIVO ---');
       setSession({ user: { id: 'demo-id', email: 'demo@taskaccount.com' } });
+      setBackgroundTheme(getStoredBackgroundTheme('demo-id') || DEFAULT_BACKGROUND_THEME);
       setUserProfile({
         id: 'demo-id',
         full_name: 'Dr. Ricardo Santos',
@@ -670,6 +712,38 @@ function App() {
     }, 450);
   };
 
+  const handleChangeBackgroundTheme = async (
+    nextThemeId: BackgroundThemeId
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const previousTheme = backgroundTheme;
+    const userId = session?.user?.id;
+
+    setBackgroundTheme(nextThemeId);
+    setStoredBackgroundTheme(userId, nextThemeId);
+
+    if (!userId || userId === 'demo-id') {
+      return { ok: true };
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { background_theme: nextThemeId },
+      });
+
+      if (error) {
+        setBackgroundTheme(previousTheme);
+        setStoredBackgroundTheme(userId, previousTheme);
+        return { ok: false, error: error.message };
+      }
+
+      return { ok: true };
+    } catch (err: any) {
+      setBackgroundTheme(previousTheme);
+      setStoredBackgroundTheme(userId, previousTheme);
+      return { ok: false, error: err?.message || 'Erro ao salvar tema no servidor.' };
+    }
+  };
+
   const handleLogout = async () => {
     if (session?.user?.id) {
       try {
@@ -953,7 +1027,19 @@ function App() {
 
   return (
     <ToastProvider>
-      <div className={`min-h-screen ${activeTab === 'chat' ? 'h-screen md:min-h-screen overflow-hidden md:overflow-visible' : ''} bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-300`}>
+      <div className={`relative min-h-screen ${activeTab === 'chat' ? 'h-screen md:min-h-screen overflow-hidden md:overflow-visible' : ''} bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex transition-colors duration-300`}>
+      {/* Camada de papel de parede personalizado por usuário (Light/Dark) atrás da vidraça da Sidebar e do Header */}
+      <div aria-hidden="true" className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none">
+        <BackgroundWallpaper
+          themeId={backgroundTheme}
+          isDarkMode={isDarkMode}
+          className="opacity-95 dark:opacity-90"
+        />
+        {backgroundTheme !== 'none' && (
+          <div className="absolute inset-0 bg-slate-50/15 dark:bg-slate-950/20" />
+        )}
+      </div>
+
       <Sidebar
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -969,11 +1055,13 @@ function App() {
         userRole={userRole}
         isDarkMode={isDarkMode}
         toggleTheme={toggleTheme}
+        backgroundTheme={backgroundTheme}
+        onChangeBackgroundTheme={handleChangeBackgroundTheme}
         pendingDocsCount={pendingDocsCount}
         onChatUnreadCountChange={setChatUnreadCount}
       />
 
-      <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${activeTab === 'chat' ? 'h-full max-h-full overflow-hidden' : ''} ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+      <div className={`relative z-10 flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${activeTab === 'chat' ? 'h-full max-h-full overflow-hidden' : ''} ${isSidebarCollapsed ? 'md:ml-[calc(5rem+1.5rem)]' : 'md:ml-[calc(16rem+1.5rem)]'}`}>
         <Header
           activeTab={activeTab}
           isDarkMode={isDarkMode}

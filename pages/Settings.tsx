@@ -88,7 +88,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
     <div className="space-y-5">
       <div className="flex items-center justify-between mb-2 md:mb-0">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-card-inset border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
             <SettingsIcon size={18} className="text-slate-500 dark:text-slate-400" />
           </div>
           <div className="flex flex-col">
@@ -114,21 +114,22 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
           </Button>
 
           {/* Versão Celular: Seta com borda arredondada */}
-          <button
-            type="button"
-            onClick={handleBack}
-            title="Voltar"
-            aria-label="Voltar"
-            className="sm:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-xs flex items-center justify-center transition-all active:scale-95 cursor-pointer"
-          >
-            <ArrowLeft size={18} />
-          </button>
+          <Tooltip content="Voltar" position="left">
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Voltar"
+              className="sm:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 glass-control-pill text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-xs flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
       {/* Barra de Abas Estilo Segmented Pills Flutuante (Sticky) */}
-      <div className="sticky top-16 z-30 -my-2 py-2.5 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md transition-colors">
-        <div className="bg-slate-200/60 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="sticky top-16 z-30 -my-2 py-2.5 bg-slate-50/90 dark:bg-slate-950/90 glass-sticky-strip backdrop-blur-md transition-colors">
+        <div className="bg-slate-200/60 dark:bg-slate-900/80 glass-control-pill p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {SETTINGS_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -154,7 +155,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
                   isLocked
                     ? 'opacity-60 cursor-not-allowed text-slate-400 dark:text-slate-500 border border-transparent hover:bg-slate-100/40 dark:hover:bg-slate-800/30'
                     : isActive
-                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700/70 ring-1 ring-indigo-500/10 cursor-pointer'
+                      ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700/70 ring-1 ring-indigo-500/10 cursor-pointer'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent cursor-pointer'
                 }`}
               >
@@ -164,7 +165,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
                       ? 'bg-slate-100 dark:bg-slate-800/60 text-amber-500 dark:text-amber-400'
                       : isActive
                         ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 scale-105'
-                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 group-hover:scale-105'
+                        : 'bg-slate-100 dark:bg-slate-800/80 glass-card-inset text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 group-hover:scale-105'
                   }`}
                 >
                   {isLocked ? <Lock size={15} /> : <Icon size={15} />}
@@ -192,7 +193,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onBack }) => {
       </div>
 
       {/* Card Principal com o Conteúdo da Aba */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+      <div className="bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
         <div className="p-6">
           <div key={activeTab} className="animate-in fade-in duration-200">
             {activeTab === 'credenciais' && <TeamSettings {...contentProps} />}
@@ -648,13 +649,13 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
   return (
     <div className="space-y-8">
-      <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+      <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div 
           className="flex items-center justify-between mb-4 cursor-pointer group/header"
           onClick={() => setIsFormExpanded(!isFormExpanded)}
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-card-inset border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
               <Users size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -738,7 +739,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             onClick={() => setIsMembersExpanded(!isMembersExpanded)}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+              <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-card-inset border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
                 <Users size={18} className="text-slate-500 dark:text-slate-400" />
               </div>
               <div className="flex flex-col text-left">
@@ -749,10 +750,10 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
+              <span className="bg-slate-100 dark:bg-slate-800 glass-card-inset text-slate-500 dark:text-slate-300 text-xs px-2 py-1 rounded-full font-bold border border-slate-200/70 dark:border-slate-700/60">
                 {(memberSearchTerm || memberSectorFilters.length > 0 || memberStatusFilter !== 'all') ? `${filteredMembers.length}/${internalMembers.length}` : internalMembers.length}
               </span>
-              <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isMembersExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
+              <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isMembersExpanded ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700 glass-control-pill'} group-hover/header:border-indigo-300 group-hover/header:shadow-md`}>
                 {isMembersExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </div>
             </div>
@@ -762,7 +763,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             <div className="overflow-hidden">
               <div className="space-y-3 pt-4">
                 {/* Filtros de Membros */}
-                <div className="bg-slate-50/80 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                <div className="bg-slate-50/80 dark:bg-slate-900/60 glass-card-inset p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
                     <div className="relative">
                       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -771,17 +772,18 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                         placeholder="Buscar por nome ou e-mail..."
                         value={memberSearchTerm}
                         onChange={(e) => setMemberSearchTerm(e.target.value)}
-                        className="w-full h-10 pl-9 pr-7 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+                        className="w-full h-10 pl-9 pr-7 text-xs bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
                       />
                       {memberSearchTerm && (
-                        <button
-                          type="button"
-                          onClick={() => setMemberSearchTerm('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                          title="Limpar busca"
-                        >
-                          <X size={13} />
-                        </button>
+                        <Tooltip content="Limpar busca" position="top" className="absolute right-2 top-1/2 -translate-y-1/2 flex">
+                          <button
+                            type="button"
+                            onClick={() => setMemberSearchTerm('')}
+                            className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          >
+                            <X size={13} />
+                          </button>
+                        </Tooltip>
                       )}
                     </div>
                     <div>
@@ -815,7 +817,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                                 : st === 'Ativo'
                                 ? 'bg-emerald-500 text-white shadow-sm'
                                 : 'bg-indigo-600 text-white shadow-sm'
-                              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700'
+                              : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700'
                           }`}
                         >
                           {st === 'all' ? 'Todos' : st === 'Ativo' ? 'Ativos' : 'Inativos'}
@@ -864,7 +866,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   />
                 ))}
                 {filteredMembers.length === 0 && (
-                  <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                  <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 glass-card-inset rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
                     <p className="text-sm text-slate-500">
                       {internalMembers.length === 0 ? 'Nenhum membro cadastrado.' : 'Nenhum membro encontrado com os filtros selecionados.'}
                     </p>
@@ -882,7 +884,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             onClick={() => setIsClientsExpanded(!isClientsExpanded)}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-emerald-300 transition-colors">
+              <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-card-inset border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-emerald-300 transition-colors">
                 <UserCircle size={18} className="text-slate-500 dark:text-slate-400" />
               </div>
               <div className="flex flex-col text-left">
@@ -893,10 +895,10 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
+              <span className="bg-slate-100 dark:bg-slate-800 glass-card-inset text-slate-500 dark:text-slate-300 text-xs px-2 py-1 rounded-full font-bold border border-slate-200/70 dark:border-slate-700/60">
                 {(clientSearchTerm || clientCompanyFilters.length > 0 || clientStatusFilter !== 'all') ? `${filteredClients.length}/${clientMembers.length}` : clientMembers.length}
               </span>
-              <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isClientsExpanded ? 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
+              <div className={`p-1.5 rounded-lg border shadow-sm transition-all duration-200 ${isClientsExpanded ? 'bg-emerald-50 border-emerald-200 text-emerald-600 shadow-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30' : 'bg-white border-slate-200 text-slate-400 dark:bg-slate-800 dark:border-slate-700 glass-control-pill'} group-hover/header:border-emerald-300 group-hover/header:shadow-md`}>
                 {isClientsExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </div>
             </div>
@@ -906,7 +908,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
             <div className="overflow-hidden">
               <div className="space-y-3 pt-4">
                 {/* Filtros de Clientes */}
-                <div className="bg-slate-50/80 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                <div className="bg-slate-50/80 dark:bg-slate-900/60 glass-card-inset p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
                     <div className="relative">
                       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -915,17 +917,18 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                         placeholder="Buscar por nome ou e-mail..."
                         value={clientSearchTerm}
                         onChange={(e) => setClientSearchTerm(e.target.value)}
-                        className="w-full h-10 pl-9 pr-7 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+                        className="w-full h-10 pl-9 pr-7 text-xs bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
                       />
                       {clientSearchTerm && (
-                        <button
-                          type="button"
-                          onClick={() => setClientSearchTerm('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                          title="Limpar busca"
-                        >
-                          <X size={13} />
-                        </button>
+                        <Tooltip content="Limpar busca" position="top" className="absolute right-2 top-1/2 -translate-y-1/2 flex">
+                          <button
+                            type="button"
+                            onClick={() => setClientSearchTerm('')}
+                            className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                          >
+                            <X size={13} />
+                          </button>
+                        </Tooltip>
                       )}
                     </div>
                     <div>
@@ -957,7 +960,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                                 : st === 'Ativo'
                                 ? 'bg-emerald-500 text-white shadow-sm'
                                 : 'bg-emerald-600 text-white shadow-sm'
-                              : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700'
+                              : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700'
                           }`}
                         >
                           {st === 'all' ? 'Todos' : st === 'Ativo' ? 'Ativos' : 'Inativos'}
@@ -1006,7 +1009,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   />
                 ))}
                 {filteredClients.length === 0 && (
-                  <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                  <div className="text-center py-10 bg-slate-50 dark:bg-slate-900/50 glass-card-inset rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
                     <p className="text-sm text-slate-500">
                       {clientMembers.length === 0 ? 'Nenhum cliente com acesso liberado.' : 'Nenhum cliente encontrado com os filtros selecionados.'}
                     </p>
@@ -1075,7 +1078,7 @@ const TeamSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                       </div>
                   </div>
 
-                  <div className="bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                  <div className="bg-slate-50 dark:bg-slate-900/60 glass-card-inset p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
                       <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                           Vínculos Identificados:
                       </p>
@@ -1144,7 +1147,7 @@ const MemberCard: React.FC<any> = ({
 
   if (isEditing) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-indigo-500 p-4 rounded-xl shadow-lg space-y-4">
+      <div className="bg-white dark:bg-slate-900 glass-card-clear border border-indigo-500 p-4 rounded-xl shadow-lg space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Input 
             label="Nome" 
@@ -1203,7 +1206,7 @@ const MemberCard: React.FC<any> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
+    <div className="bg-white dark:bg-slate-900 glass-chat-item p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
           {member.avatar_url && !imgError ? (
@@ -1241,17 +1244,17 @@ const MemberCard: React.FC<any> = ({
                         const isInactive = foundClient && foundClient.status !== 'Ativo';
                         const clientName = foundClient ? foundClient.company_name : 'Desconhecida';
                         return (
-                          <span 
-                            key={cid} 
-                            className={`text-[9px] px-1.5 py-0.5 rounded font-bold border truncate max-w-[130px] ${
-                              isInactive 
-                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-100 dark:border-rose-500/20' 
-                                : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20'
-                            }`}
-                            title={clientName}
-                          >
-                            {clientName}{isInactive && ' (Inativa)'}
-                          </span>
+                          <Tooltip key={cid} content={clientName} position="top" className="inline-flex max-w-[130px]">
+                            <span 
+                              className={`text-[9px] px-1.5 py-0.5 rounded font-bold border truncate block ${
+                                isInactive 
+                                  ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border-rose-100 dark:border-rose-500/20' 
+                                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-100 dark:border-emerald-500/20'
+                              }`}
+                            >
+                              {clientName}{isInactive && ' (Inativa)'}
+                            </span>
+                          </Tooltip>
                         );
                       })}
                       {member.client_ids.length > 2 && (
@@ -1281,13 +1284,13 @@ const MemberCard: React.FC<any> = ({
                     const sectorName = foundSector ? foundSector.name : null;
                     if (!sectorName) return null;
                     return (
-                      <span 
-                        key={sid} 
-                        className="text-[9px] px-1.5 py-0.5 rounded font-bold border truncate max-w-[130px] bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20"
-                        title={sectorName}
-                      >
-                        {sectorName}
-                      </span>
+                      <Tooltip key={sid} content={sectorName} position="top" className="inline-flex max-w-[130px]">
+                        <span 
+                          className="text-[9px] px-1.5 py-0.5 rounded font-bold border truncate block bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20"
+                        >
+                          {sectorName}
+                        </span>
+                      </Tooltip>
                     );
                   })}
                   {member.sector_ids.length > 2 && (
@@ -1323,18 +1326,18 @@ const MemberCard: React.FC<any> = ({
           <Tooltip content={member.status === 'Inativo' ? "Ativar" : "Inativar"}>
             <button
               onClick={() => onToggleStatus(member.id, member.status || 'Ativo')}
-              className={`p-1.5 rounded-lg transition-colors ${member.status === 'Inativo' ? 'text-red-400 hover:bg-red-50' : 'text-emerald-500 hover:bg-emerald-50'}`}
+              className={`p-1.5 rounded-lg transition-colors ${member.status === 'Inativo' ? 'text-red-400 hover:bg-red-50 dark:hover:bg-red-500/15' : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/15'}`}
             >
               {member.status === 'Inativo' ? <UserPlus size={16} /> : <UserMinus size={16} />}
             </button>
           </Tooltip>
           <Tooltip content="Editar">
-            <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg">
+            <button onClick={onEdit} className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/15 rounded-lg transition-colors">
               <Edit2 size={16} />
             </button>
           </Tooltip>
           <Tooltip content="Excluir">
-            <button onClick={() => onDelete(member)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+            <button onClick={() => onDelete(member)} className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/15 rounded-lg transition-colors">
               <Trash2 size={16} />
             </button>
           </Tooltip>
@@ -1342,7 +1345,7 @@ const MemberCard: React.FC<any> = ({
       </div>
       
       {/* Botões de convite rápidos */}
-      <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 flex">
+      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex">
          <button 
            onClick={() => {
              const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
@@ -1361,7 +1364,7 @@ const MemberCard: React.FC<any> = ({
                prompt('Copie o link de acesso:', inviteLink);
              }
            }}
-           className="flex-1 py-2 text-[9px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-center gap-1.5 border border-transparent hover:border-indigo-200 hover:bg-white dark:hover:bg-slate-700 transition-all uppercase"
+           className="flex-1 py-2 text-[9px] font-bold text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 bg-slate-50 dark:bg-slate-800 glass-card-inset rounded-lg flex items-center justify-center gap-1.5 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-500/30 hover:bg-white dark:hover:bg-slate-700/70 transition-all uppercase"
          >
            <Copy size={11} /> Copiar Link de Acesso
          </button>
@@ -1871,13 +1874,13 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
 
   return (
     <div className="space-y-8">
-      <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+      <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div 
           className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 cursor-pointer group/header"
           onClick={() => setIsFormExpanded(!isFormExpanded)}
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-card-inset border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
               <Blocks size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -3266,13 +3269,13 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
 
   return (
     <div className="space-y-8">
-      <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+      <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div 
           className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 cursor-pointer group/header"
           onClick={() => setIsFormExpanded(!isFormExpanded)}
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-card-inset border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
               <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -4300,13 +4303,13 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
   return (
     <div className="space-y-8">
       {/* Bloco de Adicionar / Importar Feriados */}
-      <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+      <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div 
           className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 cursor-pointer group/header"
           onClick={() => setIsFormExpanded(!isFormExpanded)}
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-card-inset border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
               <CalendarClock size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -5746,13 +5749,13 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
   return (
     <div className="space-y-8">
       {/* 1. Cadastrar / Editar Template */}
-      <div ref={formContainerRef} className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+      <div ref={formContainerRef} className="bg-slate-50 dark:bg-slate-950 glass-card-inset p-6 rounded-xl border border-slate-200 dark:border-slate-800">
         <div 
           className="flex items-center justify-between mb-4 cursor-pointer group/header"
           onClick={() => setIsFormExpanded(!isFormExpanded)}
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-card-inset border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm group-hover/header:border-indigo-300 transition-colors">
               <Mail size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">

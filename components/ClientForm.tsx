@@ -934,7 +934,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
         <div className="space-y-6 max-w-7xl mx-auto pb-12">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0">
                 <div className="flex items-center gap-3 mb-2 md:mb-0">
-                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-control-pill border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
                         <CopyPlus size={18} className="text-slate-500 dark:text-slate-400" />
                     </div>
                     <div className="flex flex-col">
@@ -1254,8 +1254,8 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
             </Card>
 
             {/* Section 3: Tabs */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden min-h-[400px] shadow-sm">
-                <div className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 p-2 sm:p-2.5 overflow-x-auto custom-scrollbar">
+            <div className="bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden min-h-[400px] shadow-sm">
+                <div className="bg-slate-50/70 dark:bg-slate-900/60 glass-card-inset border-b border-slate-200/80 dark:border-slate-800 p-2 sm:p-2.5 overflow-x-auto custom-scrollbar">
                     <div className="flex items-center gap-1.5 sm:gap-2 w-max">
                         {tabs.map((tab) => {
                             const IconComponent = tab.icon;
@@ -1388,7 +1388,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="md:col-span-1">
                                         <Select
                                             label="Tipo de Inscrição"
@@ -1555,7 +1555,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome do Contato"
                                         value={tempContact.name}
@@ -1743,7 +1743,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Início em:"
                                         type="date"
@@ -2007,7 +2007,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="md:col-span-2">
                                         <Select
                                             label="Ordem"
@@ -2166,7 +2166,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome do acesso"
                                         placeholder="Simples Nacional, Empregador Web..."
@@ -2360,7 +2360,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="space-y-4 bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="space-y-4 bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="flex flex-col md:flex-row items-end gap-4 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-lg">
                                         <div className="flex-1 w-full">
                                             <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Autopreenchimento A1 (.pfx/.p12)</label>
@@ -2586,7 +2586,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <Input
                                         label="Nome da Licença"
                                         placeholder="Alvará, Vigilância..."
@@ -2781,7 +2781,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="md:col-span-1 lg:col-span-3">
                                         <Textarea
                                             label="Descrição da Legislação"
@@ -2942,7 +2942,7 @@ export const ClientForm: React.FC<{ onBack: () => void; initialData?: Client | n
                                 )}
                             </div>
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isFormExpanded && !readOnly ? 'max-h-[1000px] opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end bg-slate-50 dark:bg-slate-950 glass-card-inset-dark p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                                     <div className="lg:col-span-12 mb-1">
                                         <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 block">Tipo de DF-e</label>
                                         <div className="flex flex-wrap gap-2">

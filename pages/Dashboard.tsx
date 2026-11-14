@@ -17,7 +17,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userRole }) =
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3 mb-2 md:mb-0">
-          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-control-pill border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
             <LayoutDashboard size={18} className="text-slate-500 dark:text-slate-400" />
           </div>
           <div className="flex flex-col">
@@ -32,7 +32,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userProfile, userRole }) =
       {userId ? (
         <DashboardGrid userId={userId} role={role} orgId={orgId} />
       ) : (
-        <div className="flex items-center justify-center h-64 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+        <div className="flex items-center justify-center h-64 bg-white dark:bg-slate-900 glass-surface border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
           <p className="text-slate-500 dark:text-slate-400">Carregando painéis...</p>
         </div>
       )}

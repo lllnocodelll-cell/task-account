@@ -972,7 +972,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
     return [
       {
         id: 'simples',
-        label: 'Simples',
+        label: 'Simples Nacional',
         fullLabel: 'Simples Nacional',
         icon: Scale,
         count: simplesCount
@@ -1033,7 +1033,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-2">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-control-pill border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
             <FileCheck2 size={18} className="text-slate-500 dark:text-slate-400" />
           </div>
           <div className="flex flex-col">
@@ -1149,7 +1149,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium cursor-pointer transition-all ${
                                 activeClientId === id
                                   ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
+                                  : 'bg-white dark:bg-slate-900 glass-control-pill border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-indigo-300'
                               }`}
                             >
                               <span className="truncate max-w-[140px] text-[11px]">{id}</span>
@@ -1237,52 +1237,50 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
           </Card>
 
           {/* TABBARS REDUZIDAS PARA CONTEXTO GERAL */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-            <div className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 p-1.5 sm:p-2 overflow-x-auto custom-scrollbar">
-              <div className="flex items-center gap-1 sm:gap-1.5 min-w-full">
+          <div className="bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-slate-50/70 dark:bg-slate-900/60 glass-card-inset border-b border-slate-200/80 dark:border-slate-800 p-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 {tabs.map((tab) => {
                   const IconComponent = tab.icon;
                   const isActive = activeTab === tab.id;
                   return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      title={tab.fullLabel}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`group relative flex-1 flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none cursor-pointer ${
-                        isActive
-                          ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
-                      }`}
-                    >
-                      <span className={`p-1 rounded-lg transition-colors shrink-0 ${
-                        isActive
-                          ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                          : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
-                      }`}>
-                        <IconComponent size={13} strokeWidth={isActive ? 2.3 : 1.8} />
-                      </span>
-
-                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider truncate">
-                        {tab.id === 'simples' ? (
-                          <span>Simples<span className="hidden xl:inline"> Nac.</span></span>
-                        ) : (
-                          tab.label
-                        )}
-                      </span>
-
-                      {tab.count > 0 ? (
-                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black transition-colors shrink-0 ${
+                    <Tooltip key={tab.id} content={tab.fullLabel} position="top" className="flex w-full min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`group relative w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none cursor-pointer ${
                           isActive
-                            ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
-                            : 'bg-slate-200/70 dark:bg-slate-700/70 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
-                        }`}>
-                          {tab.count}
+                            ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <span className={`p-1 rounded-lg transition-colors shrink-0 ${
+                            isActive
+                              ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
+                              : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
+                          }`}>
+                            <IconComponent size={13} strokeWidth={isActive ? 2.3 : 1.8} />
+                          </span>
+
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider whitespace-nowrap">
+                            {tab.label}
+                          </span>
                         </span>
-                      ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 opacity-40 group-hover:opacity-80 shrink-0" />
-                      )}
-                    </button>
+
+                        {tab.count > 0 ? (
+                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black transition-colors shrink-0 ${
+                            isActive
+                              ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
+                              : 'bg-slate-200/70 dark:bg-slate-700/70 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                          }`}>
+                            {tab.count}
+                          </span>
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 opacity-40 group-hover:opacity-80 shrink-0" />
+                        )}
+                      </button>
+                    </Tooltip>
                   );
                 })}
               </div>
@@ -1307,7 +1305,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
               {activeTab === 'simples' && activeClientId && clientConfigs[activeClientId] && (
                 <div className="space-y-4">
                   {/* Banner Informativo de Configuração Individual */}
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 glass-card-inset border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
                     <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
                       <Building2 size={15} />
                     </div>
@@ -1326,7 +1324,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-900/50 glass-card-inset p-4 rounded-xl border border-slate-100 dark:border-slate-800">
                     <Toggle
                       label="Exclusão Notificada"
                       value={clientConfigs[activeClientId].notifiedExclusion}
@@ -1361,8 +1359,8 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                           type="button"
                           onClick={() => toggleAnnex(annex)}
                           className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-all ${clientConfigs[activeClientId].selectedAnnexes.includes(annex)
-                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/30'
-                            : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-700'
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                            : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 glass-control-pill'
                             }`}
                         >
                           {annex}
@@ -1377,7 +1375,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
               {activeTab === 'observacao' && activeClientId && clientConfigs[activeClientId] && (
                 <div className="space-y-3">
                   {/* Banner Informativo de Configuração Individual */}
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 glass-card-inset border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
                     <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
                       <Building2 size={15} />
                     </div>
@@ -1405,7 +1403,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                         [activeClientId]: { ...prev[activeClientId], observation: val }
                       }));
                     }}
-                    className="w-full h-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full h-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field p-3 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Observações específicas para esta empresa..."
                   />
                 </div>
@@ -1415,7 +1413,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
               {activeTab === 'arquivos' && activeClientId && clientConfigs[activeClientId] && (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
                   {/* Banner Informativo de Configuração Individual */}
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 glass-card-inset border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2.5">
                     <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5">
                       <Building2 size={15} />
                     </div>
@@ -1443,7 +1441,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                   />
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
+                    className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/50 glass-card-inset hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
                   >
                     <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-3 group-hover:scale-110 transition-transform">
                       <Upload size={24} />
@@ -1455,7 +1453,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                   <div className="space-y-2">
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-2">Arquivos selecionados</h4>
                     {(clientConfigs[activeClientId].uploadedFiles.length === 0 && clientConfigs[activeClientId].existingAttachments.length === 0) ? (
-                      <div className="text-center py-4 text-xs text-slate-400 italic bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                      <div className="text-center py-4 text-xs text-slate-400 italic bg-white dark:bg-slate-900 glass-card-inset rounded-lg border border-slate-100 dark:border-slate-800">
                         Nenhum arquivo anexado ainda.
                       </div>
                     ) : (
@@ -1491,7 +1489,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
 
                         {/* New Uploads */}
                         {clientConfigs[activeClientId].uploadedFiles.map((file, idx) => (
-                          <div key={`new-${idx}`} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                          <div key={`new-${idx}`} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 glass-chat-item rounded-lg border border-slate-100 dark:border-slate-700">
                             <div className="flex items-center gap-2 overflow-hidden">
                               <File size={14} className="text-indigo-500 shrink-0" />
                               <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{file.name}</span>
@@ -1536,14 +1534,14 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                     </div>
                   </div>
 
-                  <div className="flex items-end gap-3 bg-slate-50/50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-end gap-3 bg-slate-50/50 dark:bg-slate-900/50 glass-card-inset p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                     <div className="flex-1">
                       <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 block">Novo Checklist</label>
                       <input
                         type="text"
                         id={`workflow-input-${activeClientId}`}
                         placeholder="Digite e aperte Enter..."
-                        className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             e.preventDefault();
@@ -1582,13 +1580,13 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
 
                   <div className="space-y-2 mt-4">
                     {(clientConfigs[activeClientId].workflows?.length === 0) ? (
-                      <div className="text-center py-4 text-xs text-slate-400 italic bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                      <div className="text-center py-4 text-xs text-slate-400 italic bg-white dark:bg-slate-900 glass-card-inset rounded-lg border border-slate-100 dark:border-slate-800">
                         Nenhum item no workflow.
                       </div>
                     ) : (
                       <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-1">
                         {clientConfigs[activeClientId].workflows?.map((wf: any, idx: number) => (
-                          <div key={wf.id || idx} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                          <div key={wf.id || idx} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/50 glass-chat-item rounded-lg border border-slate-200 dark:border-slate-700">
                             <div className="flex items-center gap-3">
                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
                               <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{wf.description}</span>
@@ -1637,7 +1635,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
           <Card title="Adicionar Tarefas à Operação" titleClassName="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em]">
             <div className="space-y-6">
               {/* LINHA DE ADIÇÃO RÁPIDA */}
-              <div className="bg-slate-50 dark:bg-slate-950/50 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="bg-slate-50 dark:bg-slate-950/50 glass-card-inset p-4 rounded-xl border border-slate-200 dark:border-slate-800">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   <div className="md:col-span-3">
                     <Select
@@ -1950,7 +1948,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                 </div>
 
                 {pendingTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-slate-100 dark:border-slate-800/50 rounded-2xl bg-slate-50/30 dark:bg-slate-900/20 text-center animate-in fade-in duration-500">
+                  <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-slate-100 dark:border-slate-800/50 rounded-2xl bg-slate-50/30 dark:bg-slate-900/20 glass-card-inset text-center animate-in fade-in duration-500">
                     <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-600 mb-4 scale-110">
                       <Zap size={32} />
                     </div>

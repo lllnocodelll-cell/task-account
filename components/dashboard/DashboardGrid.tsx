@@ -660,7 +660,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
         saveScenarios(updatedScenarios, nextActive);
     };
 
-    if (loading) return <div className="animate-pulse flex space-x-4"><div className="flex-1 space-y-4 py-1"><div className="h-4 bg-slate-200 rounded w-3/4"></div></div></div>;
+    if (loading) return <div className="animate-pulse flex space-x-4"><div className="flex-1 space-y-4 py-1"><div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-3/4"></div></div></div>;
 
     return (
         <div className="w-full">
@@ -721,7 +721,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 <div className="relative" ref={scenarioDropdownRef}>
                     <button
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 glass-control-pill glass-surface-interactive border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
                     >
                         <FolderHeart size={16} className="text-indigo-500" />
                         <span>Cenário: <strong className="text-indigo-600 dark:text-indigo-400 font-bold">{activeScenario}</strong></span>
@@ -729,7 +729,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                     </button>
 
                     {isDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
                             <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                 Cenários Disponíveis
                             </div>
@@ -796,7 +796,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                 <Tooltip content="Configurar Widgets" position="left">
                     <button
                         onClick={() => setShowMenu(true)}
-                        className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
+                        className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 glass-control-pill glass-surface-interactive border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900 transition-all focus:outline-none"
                     >
                         <Settings2 size={20} />
                     </button>
@@ -831,7 +831,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
             </ResponsiveGridLayout>
 
             {/* Modal para criar novo cenário */}
-            {showNewScenarioModal && (
+            {showNewScenarioModal && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
                         <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase mb-4">
@@ -864,11 +864,12 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Modal para renomear cenário */}
-            {showRenameModal && (
+            {showRenameModal && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
                     <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
                         <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase mb-4">
@@ -898,7 +899,8 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
             <WidgetManagerDrawer
                 isOpen={showMenu}
@@ -1196,7 +1198,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                        <div className="p-2 bg-white dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
                             <LayoutGrid size={18} className="text-slate-500 dark:text-slate-400" />
                         </div>
                         <div className="flex flex-col text-left">

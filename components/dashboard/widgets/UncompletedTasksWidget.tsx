@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ClipboardList, Calendar, AlertTriangle, Clock, Hourglass, ChevronLeft, ChevronRight, Search, X, ChevronDown, CheckCircle2, Building2 } from 'lucide-react';
 import { WidgetContainer } from '../WidgetContainer';
 import { supabase } from '../../../utils/supabaseClient';
@@ -343,7 +344,7 @@ export const UncompletedTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => 
             )}
 
             {/* Modal Drilldown de Tarefas */}
-            {selectedStatusFilter && (
+            {selectedStatusFilter && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
                         {/* Header do Modal */}
@@ -456,7 +457,8 @@ export const UncompletedTasksWidget: React.FC<Props> = ({ orgId, onRemove }) => 
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </WidgetContainer>
     );

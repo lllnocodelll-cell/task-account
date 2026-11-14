@@ -47,6 +47,16 @@ import { ConsultantContactModal } from '../components/ConsultantContactModal';
 import { Tooltip } from '../components/ui/Tooltip';
 import { LegalModal, LegalTabType } from '../components/lgpd/LegalModal';
 import { CookieBanner } from '../components/lgpd/CookieBanner';
+import { LANDING_PLANS, PlanItem, PlansSection } from '../components/landing/PlansSection';
+import { LANDING_MODULES, ModulesSection } from '../components/landing/ModulesSection';
+import {
+  AnimatedGridBackground,
+  AnimatedInteger,
+  BlurFade,
+  BorderBeam,
+  ShimmerCtaButton,
+  SpotlightCard
+} from '../components/landing/LandingPrimitives';
 
 /* ──────────────────────────── DATA ──────────────────────────── */
 
@@ -86,122 +96,6 @@ const faqs: FaqItem[] = [
     id: 'f6',
     question: 'O sistema emite alertas de prazos, alvarás e vencimento de certificados digitais?',
     answer: 'Sim. O sistema monitora ativamente as datas de validade de certificados digitais (e-CNPJ e e-CPF), alvarás e licenças, enviando avisos prévios para evitar surpresas ou atrasos operacionais.'
-  }
-];
-
-interface ShowcaseModule {
-  id: string;
-  code?: string;
-  tag: string;
-  title: string;
-  desc: string;
-  image: string;
-  darkImage?: string;
-  lightImage?: string;
-  badge?: string;
-  stats: { label: string; value: string }[];
-  bulletPoints: string[];
-}
-
-const modules: ShowcaseModule[] = [
-  {
-    id: 'tasks',
-    tag: 'FLUXO & KANBAN',
-    title: 'Gestão Inteligente de Tarefas e Prazos',
-    desc: 'Controle de ponta a ponta de todas as rotinas fiscais, contábeis e trabalhistas.',
-    image: '/showcase-tasks-table.png',
-    darkImage: '/showcase-tasks-table.png',
-    lightImage: '/showcase-tasks-table-light.png',
-    badge: 'TABELA DE TAREFAS',
-    stats: [
-      { label: 'PONTUALIDADE', value: '98.4%' },
-      { label: 'RECORRÊNCIA', value: 'Dinâmica' },
-      { label: 'CHECKLISTS', value: '100% Auditáveis' }
-    ],
-    bulletPoints: [
-      'Tabela e Kanban: entrega uma visão completa da tarefa em execução.',
-      'Drawers: acesse com um clique as gavetas de dados do cliente, senhas fáceis, observações, legislação e muito mais, sem precisar sair do módulo de tarefas.',
-      'Workflow: crie fluxos de execução e garanta que todos os pontos importantes da tarefa foram checados antes da conclusão final.',
-      'Cards e métricas: visualize a quantidade de tarefas por status através dos cards e métricas disponíveis no módulo.',
-      'Criação de tarefas: cadastre tarefas em lote e ganhe tempo operacional.',
-      'Timer: controle o tempo de execução de cada tarefa e descubra quais obrigações mais tomam tempo da sua equipe.'
-    ]
-  },
-  {
-    id: 'chat',
-    tag: 'CENTRAL DE ATENDIMENTO',
-    title: 'Chat Interno e Atendimento ao Cliente',
-    desc: 'Comunicação direta e facilitada entre setores internos e clientes',
-    image: '/app-chat.png',
-    badge: 'ATENDIMENTO MULTICANAL',
-    stats: [
-      { label: 'NOTIFICAÇÕES', value: 'Automáticas' },
-      { label: 'CHAT', value: 'Unificado' },
-      { label: 'HISTÓRICO', value: 'Preservado' },
-      { label: 'SEGURANÇA', value: 'Isolada (RLS)' }
-    ],
-    bulletPoints: [
-      'Chat centralizado: ferramenta completa de comunicação interna e de atendimento ao cliente, com opção de criação de grupos, interações, controle unificado do histórico de atendimento e muito mais.',
-      'Mensagens modelos: crie mensagens padronizadas para envios automáticos aos clientes, como lembretes de vencimentos, avisos de férias coletivas, atualizações sobre legislações e muito mais.'
-    ]
-  },
-  {
-    id: 'dashboard',
-    tag: 'CENTRAL DE DASHBOARDS',
-    title: 'Cockpit Operacional em Tempo Real',
-    desc: 'Dashboards robustos e modernos que auxiliam no monitoramento operacional do escritório.',
-    image: '/showcase-dashboard-dark.png',
-    darkImage: '/showcase-dashboard-dark.png',
-    lightImage: '/showcase-dashboard-light.png',
-    badge: 'TELEMETRIA AO VIVO • 18 WIDGETS',
-    stats: [
-      { label: 'WIDGETS', value: '18' },
-      { label: 'ATUALIZAÇÃO', value: 'Tempo Real' },
-      { label: 'VISÃO', value: 'Ampla' }
-    ],
-    bulletPoints: [
-      '18 widgets analíticos: painel operacional, calendário de obrigações, próximos vencimentos, segmentos mais atendidos, exclusão do simples, índices econômicos e controle dos vencimentos de certificados digitais e licenças.',
-      'Cenários: crie diversos cenários com os widgets que desejar para acessar de forma rápida.'
-    ]
-  },
-  {
-    id: 'clients',
-    tag: 'CADASTRO DE CLIENTE',
-    title: 'Dossiê Completo de Clientes',
-    desc: 'O cadastro de cliente mais detalhado do mercado! Centralize contatos, inscrições, acessos de sistemas e portais, históricos de regimes, sócio administrador, séries DF-es utilizadas e muitos mais.',
-    image: '/showcase-clients-dark.png',
-    darkImage: '/showcase-clients-dark.png',
-    lightImage: '/showcase-clients-light.png',
-    badge: 'DOSSIÊ CADASTRAL • 398 CLIENTES',
-    stats: [
-      { label: 'CADASTRO', value: 'Facilitado' },
-      { label: 'ALVARÁS', value: 'Até 15' },
-      { label: 'CERTIFICADOS', value: 'Até 15' }
-    ],
-    bulletPoints: [
-      'Diferenciais: vincule ao cadastro do cliente as inscrições, contatos, legislações específicas, histórico de regimes tributários, controle dos modelos de DF-e utilizados e monitor de vencimento de certificados e licenças.',
-      'Cadastro lote: registre os clientes em lote de forma prática através da planilha padrão Task Account.'
-    ]
-  },
-  {
-    id: 'portal',
-    tag: 'PORTAL DO CLIENTE',
-    title: 'Portal do Cliente com Auditoria e Guias',
-    desc: 'Ambiente exclusivo e seguro para seus clientes acessarem guias tributárias, folhas de pagamento, relatórios fiscais e notificações em tempo real.',
-    image: '/showcase-portal-dark.png',
-    darkImage: '/showcase-portal-dark.png',
-    lightImage: '/showcase-portal-light.png',
-    badge: 'PORTAL DO CLIENTE • GUIAS & DOCS',
-    stats: [
-      { label: 'STATUS', value: 'Leitura ao Vivo' },
-      { label: 'PRAZOS', value: 'Alertas de Vencimento' },
-      { label: 'HISTÓRICO', value: '100% Organizado' }
-    ],
-    bulletPoints: [
-      'Disponibilização de guias e tributos: entregue balanços, folhas de pagamento, impostos e guias com aviso de vencimento direto no portal do cliente.',
-      'Auditoria de leitura e urgência: saiba exatamente quando o cliente visualizou, baixou ou deixou de ler um documento com controle de urgência.',
-      'Autoatendimento ágil: seu cliente consulta competências fiscais e documentos a qualquer momento com total praticidade e segurança.'
-    ]
   }
 ];
 
@@ -307,106 +201,6 @@ const testimonials: Testimonial[] = [
   }
 ];
 
-const plans = [
-  {
-    name: 'Bronze',
-    tier: '01',
-    price: 'R$ 199,90',
-    period: '/mês',
-    clientsLimit: 'Até 100 clientes',
-    storageLimit: '50GB',
-    costPerClient: 'R$ 1,99 por cliente',
-    description: 'Ideal para contadores autônomos e escritórios em início de atividade.',
-    features: [
-      { text: 'Cockpit Analítico', detail: '18 widgets operacionais ao vivo' },
-      { text: 'Tarefas & Obrigações', detail: 'Modos Lista, Kanban e Cronômetro' },
-      { text: 'Workflows & Checklists', detail: 'Etapas de conferência auditáveis' },
-      { text: 'Dossiê do Cliente', detail: 'Certificados, licenças e senhas' },
-      { text: 'Chat Setorial & Grupos', detail: 'Canais com equipe e clientes' },
-      { text: 'Portal do Cliente', detail: 'Acesso web exclusivo para guias e docs' },
-      { text: 'Modelos de Mensagem', detail: 'Disparos padronizados e comunicados' },
-      { text: 'Sem Limite de Usuários', detail: 'Toda a sua equipe conectada', badge: 'ILIMITADO' },
-      { text: 'Suporte Técnico', detail: 'Atendimento direto com especialistas' }
-    ],
-    highlight: false,
-    stripePriceId: 'price_1UGolXI20uneiCQ1YHvdJmqj',
-    stripePaymentLink: 'https://buy.stripe.com/test_fZufZhcHt2sT8A4cJm2cg00'
-  },
-  {
-    name: 'Prata',
-    tier: '02',
-    price: 'R$ 349,90',
-    period: '/mês',
-    clientsLimit: 'Até 250 clientes',
-    storageLimit: '100GB',
-    costPerClient: 'R$ 1,40 por cliente',
-    description: 'Para escritórios consolidados que buscam controle rígido de rotinas e padronização.',
-    features: [
-      { text: 'Tudo do plano Bronze', detail: 'com capacidade ampliada para 250 empresas', highlight: true },
-      { text: 'Cockpit Analítico', detail: '18 widgets operacionais ao vivo' },
-      { text: 'Tarefas & Obrigações', detail: 'Modos Lista, Kanban e Cronômetro' },
-      { text: 'Workflows & Checklists', detail: 'Etapas de conferência auditáveis' },
-      { text: 'Dossiê do Cliente', detail: 'Certificados, licenças e senhas' },
-      { text: 'Chat Setorial & Grupos', detail: 'Canais com equipe e clientes' },
-      { text: 'Portal do Cliente', detail: 'Acesso web exclusivo para guias e docs' },
-      { text: 'Modelos de Mensagem', detail: 'Disparos padronizados e comunicados' },
-      { text: 'Sem Limite de Usuários', detail: 'Toda a sua equipe conectada', badge: 'ILIMITADO' },
-      { text: 'Suporte Técnico', detail: 'Atendimento prioritário ao escritório' }
-    ],
-    highlight: false,
-    stripePriceId: 'price_1UGon5I20uneiCQ19kUdURZ1',
-    stripePaymentLink: 'https://buy.stripe.com/test_8x2eVd8rdffFdUo38M2cg01'
-  },
-  {
-    name: 'Ouro',
-    tier: '03',
-    price: 'R$ 499,90',
-    period: '/mês',
-    clientsLimit: 'Até 350 clientes',
-    storageLimit: '120GB',
-    costPerClient: 'R$ 1,43 por cliente',
-    description: 'Destaque no mercado: alta produtividade, fluxo integrado com a equipe e clientes.',
-    features: [
-      { text: 'Tudo do plano Prata', detail: 'com escala avançada para até 350 empresas', highlight: true },
-      { text: 'Cockpit Analítico Completo', detail: '18 widgets com telemetria ao vivo', highlight: true },
-      { text: 'Tarefas com Timer Ativo', detail: 'Métricas de produtividade por analista', highlight: true },
-      { text: 'Workflows Obrigatórios', detail: 'Conformidade e zero risco de prazos', highlight: true },
-      { text: 'Dossiê Cadastral Avançado', detail: 'Alertas de vencimento de certificados e alvarás', highlight: true },
-      { text: 'Chat Setorial, Áudio & Anexos', detail: 'Atendimento multicanal integrado em tempo real', highlight: true },
-      { text: 'Portal com Auditoria', detail: 'Confirmação de leitura e download de guias', highlight: true },
-      { text: 'Templates Automatizados', detail: 'Envios programados de comunicados fiscais', highlight: true },
-      { text: 'Sem Limite de Operadores', detail: 'Sem custo adicional por colaborador', badge: 'DESTAQUE' },
-      { text: 'Suporte VIP Direto', detail: 'Fila prioritária com especialistas', highlight: true }
-    ],
-    highlight: true,
-    badge: 'RECOMENDADO',
-    stripePriceId: 'price_1UGooDI20uneiCQ1INRQdvOB',
-    stripePaymentLink: 'https://buy.stripe.com/test_9B6eVd6j58Rh3fKdNq2cg02'
-  },
-  {
-    name: 'Elite',
-    tier: '04',
-    price: 'Sob Consulta',
-    period: '',
-    clientsLimit: 'Volume sob demanda',
-    storageLimit: 'Espaço customizado',
-    costPerClient: 'Customizado conforme escala',
-    description: 'Para escritórios corporativos com altíssimo volume e exigência de SLA rigoroso.',
-    features: [
-      { text: 'Todos os Recursos Inclusos', detail: 'Acesso irrestrito a todos os módulos e ferramentas', badge: 'ALL-IN' },
-      { text: 'Capacidade Sob Demanda', detail: 'Adequado para grandes estruturas contábeis', highlight: true },
-      { text: 'SLA de Atendimento Dedicado', detail: 'Tempo de resposta contratual prioritário', highlight: true },
-      { text: 'Onboarding & Migração Assistida', detail: 'Importação assistida de toda a carteira e dados', highlight: true },
-      { text: 'Gerente de Contas Dedicado', detail: 'Acompanhamento estratégico para a sua equipe', highlight: true },
-      { text: 'Sem Limite de Operadores', detail: 'Sem restrição de acessos simultâneos', badge: 'ILIMITADO' }
-    ],
-    highlight: false,
-    badge: 'ENTERPRISE',
-    stripePriceId: 'price_1UGoqoI20uneiCQ109egwRza',
-    stripePaymentLink: 'https://buy.stripe.com/test_eVq5kD6j52sT8A410E2cg03'
-  }
-];
-
 interface LandingPageProProps {
   onLoginClick: () => void;
   isDarkMode?: boolean;
@@ -477,12 +271,12 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         }
       }
 
-      for (let i = modules.length - 1; i >= 0; i--) {
-        const modEl = document.getElementById(`modulo-${modules[i].id}`);
+      for (let i = LANDING_MODULES.length - 1; i >= 0; i--) {
+        const modEl = document.getElementById(`modulo-${LANDING_MODULES[i].id}`);
         if (modEl) {
           const rect = modEl.getBoundingClientRect();
           if (rect.top <= 260) {
-            setActiveModuleId(modules[i].id);
+            setActiveModuleId(LANDING_MODULES[i].id);
             break;
           }
         }
@@ -544,7 +338,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
       const planParam = params.get('plan');
 
       if (isSuccess && planParam) {
-        const foundPlan = plans.find(
+        const foundPlan = LANDING_PLANS.find(
           (p) => p.name.toLowerCase() === planParam.toLowerCase()
         );
         if (foundPlan) {
@@ -580,248 +374,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
     };
   }, [zoomImage]);
 
-  const chatSlides = [
-    {
-      id: 'client',
-      title: 'Atendimento a Clientes (CRM)',
-      tabLabel: 'Chat com Clientes',
-      badge: 'CRM EXTERNO & NOTIFICAÇÕES',
-      code: 'INTERFACE // CHAT_CLIENTE_LIVE',
-      darkImage: '/showcase-chat-client-dark.png',
-      lightImage: '/showcase-chat-client-light.png',
-      caption: 'Comunicação direta com empresas e envio de comunicados fiscais (NFSe Nacional).'
-    },
-    {
-      id: 'team',
-      title: 'Chat Interno da Equipe',
-      tabLabel: 'Chat da Equipe',
-      badge: 'COMUNICAÇÃO INTERSETORIAL',
-      code: 'INTERFACE // CHAT_EQUIPE_LIVE',
-      darkImage: '/showcase-chat-team-dark.png',
-      lightImage: '/showcase-chat-team-light.png',
-      caption: 'Alinhamentos ágeis entre departamentos (Fiscal, Pessoal, Contábil) e cronogramas.'
-    }
-  ];
-
-  const currentChatSlide = chatSlides[chatSlideIndex] || chatSlides[0];
-
-  const renderModuleMockup = (m: ShowcaseModule) => {
-    if (m.id === 'chat') {
-      const activeChatImg = isDarkMode ? currentChatSlide.darkImage : currentChatSlide.lightImage;
-      return (
-        <div
-          onMouseEnter={() => setIsChatHovered(true)}
-          onMouseLeave={() => setIsChatHovered(false)}
-          className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-1.5 sm:p-2.5 shadow-xl overflow-hidden group/chat transition-colors"
-        >
-          {/* Header do Mockup com Seletor do Carrossel */}
-          <div className="px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 rounded-t-xl transition-colors">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <div className="flex gap-1 sm:gap-1.5">
-                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500/80" />
-                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500/80" />
-                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500/80" />
-              </div>
-              <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1 hidden xs:inline sm:inline">
-                {currentChatSlide.code}
-              </span>
-            </div>
-
-            {/* Seletor de Abas do Carrossel (Clientes vs Equipe) */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0B0E14] p-0.5 sm:p-1 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-800/80">
-              {chatSlides.map((slide, idx) => {
-                const isSlideActive = chatSlideIndex === idx;
-                return (
-                  <button
-                    key={slide.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setChatSlideIndex(idx);
-                    }}
-                    className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 ${isSlideActive
-                        ? 'bg-yellow-400 text-slate-950 shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                  >
-                    <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isSlideActive ? 'bg-slate-950' : 'bg-slate-400'}`} />
-                    <span>{slide.tabLabel}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Tag do Slide e Botão de Expandir */}
-            <div className="flex items-center gap-1.5">
-              <span className="hidden sm:inline-block text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-2 py-0.5 rounded">
-                {currentChatSlide.badge}
-              </span>
-              <Tooltip content="Ampliar visualização (tela cheia)" position="top">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setZoomImage({
-                      src: activeChatImg,
-                      title: `Módulo 02 // ${currentChatSlide.title}`,
-                      subtitle: currentChatSlide.caption
-                    });
-                  }}
-                  className="p-1 sm:p-1.5 rounded-md text-slate-400 hover:text-amber-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
-                  aria-label="Ampliar visualização"
-                >
-                  <Maximize2 size={13} />
-                </button>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* Palco da Imagem do Carrossel (Sem Cortes + Click para Zoom) */}
-          <div
-            onClick={() => setZoomImage({
-              src: activeChatImg,
-              title: `Módulo 02 // ${currentChatSlide.title}`,
-              subtitle: currentChatSlide.caption
-            })}
-            className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center cursor-zoom-in group/stage aspect-[16/9.2] w-full"
-          >
-            <img
-              key={`${chatSlideIndex}-${isDarkMode}`}
-              src={activeChatImg}
-              alt={currentChatSlide.title}
-              className="w-full h-full object-cover object-top block rounded-lg transition-transform duration-500 group-hover/stage:scale-[1.015] animate-in fade-in duration-300"
-            />
-
-            {/* Overlay sutil de dica de zoom no hover */}
-            <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover/stage:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 text-white text-[11px] font-semibold backdrop-blur-md border border-white/20 shadow-xl">
-                <Maximize2 size={12} className="text-yellow-400" />
-                Clique para ampliar
-              </span>
-            </div>
-
-            {/* Botão Anterior */}
-            <div className="absolute left-1.5 sm:left-2.5 top-1/2 -translate-y-1/2 z-10">
-              <Tooltip content="Ver tela anterior" position="right">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setChatSlideIndex((prev) => (prev === 0 ? 1 : 0));
-                  }}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg"
-                  aria-label="Anterior"
-                >
-                  <ChevronLeft size={14} className="sm:scale-110" />
-                </button>
-              </Tooltip>
-            </div>
-
-            {/* Botão Próximo */}
-            <div className="absolute right-1.5 sm:right-2.5 top-1/2 -translate-y-1/2 z-10">
-              <Tooltip content="Ver próxima tela" position="left">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setChatSlideIndex((prev) => (prev === 1 ? 0 : 1));
-                  }}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900/70 hover:bg-slate-950 text-white dark:bg-black/60 dark:hover:bg-black/90 flex items-center justify-center backdrop-blur-md border border-white/15 transition-all opacity-80 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer shadow-lg"
-                  aria-label="Próximo"
-                >
-                  <ChevronRight size={14} className="sm:scale-110" />
-                </button>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* Rodapé Informativo e Dots do Carrossel */}
-          <div className="mt-1.5 sm:mt-2.5 px-1.5 sm:px-2 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="font-medium truncate max-w-[75%] sm:max-w-[80%] text-[10px] sm:text-[11px]">
-              {currentChatSlide.caption}
-            </span>
-            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-              {chatSlides.map((_, dotIdx) => (
-                <button
-                  key={dotIdx}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setChatSlideIndex(dotIdx);
-                  }}
-                  className={`h-1 sm:h-1.5 rounded-full transition-all cursor-pointer ${chatSlideIndex === dotIdx
-                      ? 'w-4 sm:w-5 bg-amber-500 dark:bg-yellow-400'
-                      : 'w-1 sm:w-1.5 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400'
-                    }`}
-                  aria-label={`Ir para slide ${dotIdx + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    const moduleImg = isDarkMode ? (m.darkImage || m.image) : (m.lightImage || m.image);
-    return (
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 p-1.5 sm:p-2.5 shadow-xl overflow-hidden group/img transition-colors">
-        <div className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between mb-1.5 sm:mb-2 rounded-t-lg transition-colors">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="flex gap-1 sm:gap-1.5">
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500/80" />
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-yellow-500/80" />
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500/80" />
-            </div>
-            <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-1 truncate max-w-[170px] sm:max-w-none">
-              INTERFACE // {m.id.toUpperCase()}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {m.badge && (
-              <span className="text-[8px] sm:text-[9px] font-mono font-bold text-amber-600 dark:text-yellow-400 uppercase bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-1.5 sm:px-2 py-0.5 rounded truncate max-w-[120px] sm:max-w-none">
-                {m.badge}
-              </span>
-            )}
-            <Tooltip content="Ampliar visualização (tela cheia)" position="top">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setZoomImage({
-                    src: moduleImg,
-                    title: m.title,
-                    subtitle: m.tag
-                  });
-                }}
-                className="p-1 sm:p-1.5 rounded-md text-slate-400 hover:text-amber-600 dark:hover:text-yellow-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
-                aria-label="Ampliar visualização"
-              >
-                <Maximize2 size={13} />
-              </button>
-            </Tooltip>
-          </div>
-        </div>
-        <div
-          onClick={() => setZoomImage({
-            src: moduleImg,
-            title: m.title,
-            subtitle: m.tag
-          })}
-          className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-[#070A12] flex items-center justify-center cursor-zoom-in group/stage"
-        >
-          <img
-            key={`${m.id}-${isDarkMode}`}
-            src={moduleImg}
-            alt={m.title}
-            className="w-full h-auto rounded-lg block transform group-hover/stage:scale-[1.015] transition-transform duration-500"
-          />
-          {/* Overlay sutil de dica de zoom no hover */}
-          <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover/stage:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/85 text-white text-[11px] font-semibold backdrop-blur-md border border-white/20 shadow-xl">
-              <Maximize2 size={12} className="text-yellow-400" />
-              Clique para ampliar
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const handleSelectPlan = (plan: typeof plans[0]) => {
+  const handleSelectPlan = (plan: PlanItem) => {
     if (plan.name === 'Elite' || plan.price === 'Sob Consulta') {
       setConsultantModalPlan('Elite');
       setIsConsultantModalOpen(true);
@@ -1236,16 +789,8 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           {/* Glow central de iluminação zenital */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] sm:w-[950px] lg:w-[1100px] h-[450px] sm:h-[550px] bg-gradient-to-b from-amber-400/20 via-yellow-400/10 to-transparent dark:from-yellow-400/15 dark:via-amber-500/5 dark:to-transparent rounded-full blur-[140px] pointer-events-none" />
 
-          {/* Grid de linhas técnicas sutis */}
-          <div
-            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.035] pointer-events-none"
-            style={{
-              backgroundImage: isDarkMode
-                ? 'linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)'
-                : 'linear-gradient(#000000 1px, transparent 1px), linear-gradient(90deg, #000000 1px, transparent 1px)',
-              backgroundSize: '48px 48px',
-            }}
-          />
+          {/* Grid técnico animado (Magic UI) */}
+          <AnimatedGridBackground isDarkMode={isDarkMode} />
 
           {/* Fade suave na base conectando com a próxima seção */}
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-100/90 dark:from-[#0D1017] to-transparent pointer-events-none" />
@@ -1357,8 +902,12 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               {/* Glow suave atrás do banner */}
               <div className="absolute -inset-1.5 sm:-inset-2 bg-gradient-to-br from-yellow-400/20 via-amber-400/10 to-transparent dark:from-yellow-400/10 dark:via-amber-500/5 dark:to-transparent rounded-[26px] sm:rounded-[34px] blur-xl opacity-75 pointer-events-none" />
 
-              {/* Card de Vidro com Efeito Vidrificado */}
-              <div className="relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-6 xl:p-7 bg-white/45 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden">
+              {/* Card de Vidro com Efeito Vidrificado + Spotlight */}
+              <SpotlightCard
+                isDarkMode={isDarkMode}
+                isHighlighted
+                className="relative rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-6 xl:p-7 bg-white/45 dark:bg-white/[0.04] backdrop-blur-xl sm:backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col justify-between overflow-hidden"
+              >
 
                 {/* Linha de brilho superior */}
                 <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-yellow-400 via-amber-400/50 to-transparent" />
@@ -1434,19 +983,18 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 </div>
 
                 {/* Dupla de CTAs de Conversão + Micro-Selo de Confiança */}
-                <div className="mt-4 pt-3.5 border-t border-slate-200/60 dark:border-white/10 space-y-2.5">
+                <div className="relative z-10 mt-4 pt-3.5 border-t border-slate-200/60 dark:border-white/10 space-y-2.5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <a
-                      href="#planos"
-                      onClick={(e) => {
-                        e.preventDefault();
+                    <ShimmerCtaButton
+                      onClick={() => {
                         document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-400 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-yellow-400/25 hover:scale-[1.01] active:scale-[0.98] transition-all cursor-pointer border border-yellow-300/60"
+                      variant="gold"
+                      className="!py-2.5 !text-[11px] border border-yellow-300/60"
                     >
                       <span>Ver Planos</span>
-                      <ArrowRight size={13} className="stroke-[2.5]" />
-                    </a>
+                      <ArrowRight size={13} className="stroke-[2.5] group-hover/cta:translate-x-0.5 transition-transform" />
+                    </ShimmerCtaButton>
 
                     <button
                       type="button"
@@ -1477,7 +1025,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   </div>
                 </div>
 
-              </div>
+              </SpotlightCard>
             </motion.div>
 
           </div>
@@ -1489,225 +1037,82 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             transition={{ duration: 0.6, delay: 0.25 }}
             className="mt-6 sm:mt-8 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4"
           >
-            <div className="p-3 sm:p-4 rounded-2xl bg-white/70 dark:bg-[#111622]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-600 dark:text-yellow-400 flex items-center justify-center shrink-0">
+            <SpotlightCard
+              isDarkMode={isDarkMode}
+              className="p-3 sm:p-4 rounded-2xl bg-white/75 dark:bg-[#111622]/85 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs overflow-hidden hover:-translate-y-0.5 transition-transform"
+            >
+              <div className="relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-600 dark:text-yellow-400 flex items-center justify-center shrink-0">
                 <BarChart3 size={18} />
               </div>
-              <div className="min-w-0">
-                <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono">18 Widgets</div>
+              <div className="relative z-10 min-w-0">
+                <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono tabular-nums">
+                  <AnimatedInteger value={18} suffix=" Widgets" />
+                </div>
                 <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Cockpit em tempo real</div>
               </div>
-            </div>
+            </SpotlightCard>
 
-            <div className="p-3 sm:p-4 rounded-2xl bg-white/70 dark:bg-[#111622]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <SpotlightCard
+              isDarkMode={isDarkMode}
+              className="p-3 sm:p-4 rounded-2xl bg-white/75 dark:bg-[#111622]/85 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs overflow-hidden hover:-translate-y-0.5 transition-transform"
+            >
+              <div className="relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 dark:bg-emerald-400/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                 <Users size={18} />
               </div>
-              <div className="min-w-0">
+              <div className="relative z-10 min-w-0">
                 <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono">∞ Usuários</div>
                 <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Ilimitados em qualquer plano</div>
               </div>
-            </div>
+            </SpotlightCard>
 
-            <div className="p-3 sm:p-4 rounded-2xl bg-white/70 dark:bg-[#111622]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <SpotlightCard
+              isDarkMode={isDarkMode}
+              className="p-3 sm:p-4 rounded-2xl bg-white/75 dark:bg-[#111622]/85 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs overflow-hidden hover:-translate-y-0.5 transition-transform"
+            >
+              <div className="relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-100 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                 <FileCheck size={18} />
               </div>
-              <div className="min-w-0">
-                <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono">100% Auditável</div>
+              <div className="relative z-10 min-w-0">
+                <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono tabular-nums">
+                  <AnimatedInteger value={100} suffix="% Auditável" />
+                </div>
                 <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Checklists e leitura no Portal</div>
               </div>
-            </div>
+            </SpotlightCard>
 
-            <div className="p-3 sm:p-4 rounded-2xl bg-white/70 dark:bg-[#111622]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-100 dark:bg-cyan-400/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
+            <SpotlightCard
+              isDarkMode={isDarkMode}
+              className="p-3 sm:p-4 rounded-2xl bg-white/75 dark:bg-[#111622]/85 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center gap-3 shadow-xs overflow-hidden hover:-translate-y-0.5 transition-transform"
+            >
+              <div className="relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-100 dark:bg-cyan-400/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
                 <ShieldCheck size={18} />
               </div>
-              <div className="min-w-0">
+              <div className="relative z-10 min-w-0">
                 <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight font-mono">LGPD & RLS</div>
                 <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 truncate">Isolamento por organização</div>
               </div>
-            </div>
+            </SpotlightCard>
           </motion.div>
 
         </div>
       </section>
 
-      {/* ─── SEÇÃO DE MÓDULOS (STACKING CARDS - COBERTURA TOTAL RESPONSIVA) ─── */}
-      <section id="modulos" className="py-10 sm:py-14 md:py-16 px-3 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-slate-100/60 dark:bg-[#0D1017] transition-colors">
-        <div className="max-w-7xl mx-auto">
-
-          {/* Cabeçalho da Seção */}
-          <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-8">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
-              <Layers size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
-              <span>ARQUITETURA DE MÓDULOS</span>
-            </div>
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-              Engenharia para o seu dia a dia.
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm md:text-base mt-2 sm:mt-3 max-w-2xl mx-auto">
-              Cada módulo foi projetado de raiz para resolver os gargalos reais da rotina contábil, eliminando redundâncias e garantindo máxima conformidade.
-            </p>
-
-            {/* Barra de Atalhos Interativa dos Módulos (Quick-Jump Pills) */}
-            <div className="mt-5 sm:mt-6 flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap">
-              {modules.map((m, idx) => {
-                const isModActive = activeModuleId === m.id;
-                const shortLabel =
-                  m.id === 'tasks'
-                    ? 'Tarefas & Kanban'
-                    : m.id === 'chat'
-                      ? 'Chat & CRM'
-                      : m.id === 'dashboard'
-                        ? 'Cockpit (18 Widgets)'
-                        : m.id === 'clients'
-                          ? 'Dossiê de Clientes'
-                          : 'Portal do Cliente';
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveModuleId(m.id);
-                      const el = document.getElementById(`modulo-${m.id}`);
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                    className={`px-3 sm:px-3.5 py-1.5 rounded-full text-[10px] sm:text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${isModActive
-                        ? 'bg-slate-900 text-white dark:bg-yellow-400 dark:text-slate-950 border-slate-900 dark:border-yellow-400 shadow-md scale-[1.02]'
-                        : 'bg-white dark:bg-[#111622] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-amber-400/60 dark:hover:border-yellow-400/40 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                  >
-                    <span className={`font-mono text-[9px] sm:text-[10px] ${isModActive ? 'text-yellow-400 dark:text-slate-950 font-black' : 'text-amber-600 dark:text-yellow-400'}`}>
-                      0{idx + 1}.
-                    </span>
-                    <span>{shortLabel}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Trilha de Cards Empilhados (Stacking Track - Ampliado para max-w-7xl) */}
-          <div className="relative max-w-7xl mx-auto pb-6 sm:pb-8 space-y-6 sm:space-y-8 md:space-y-10">
-            {modules.map((m, i) => {
-              const stepNumber = String(i + 1).padStart(2, '0');
-              const totalSteps = String(modules.length).padStart(2, '0');
-
-              return (
-                <div
-                  key={m.id}
-                  id={`modulo-${m.id}`}
-                  style={{ zIndex: 10 + i * 5 }}
-                  className="sticky top-16 sm:top-20 md:top-24 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 md:p-8 lg:p-8 bg-white dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 dark:border-t-yellow-400/30 shadow-[0_-8px_25px_rgba(0,0,0,0.06),0_15px_35px_rgba(0,0,0,0.04)] dark:shadow-[0_-14px_40px_rgba(0,0,0,0.95),0_20px_45px_rgba(0,0,0,0.8)] transition-all duration-300 group"
-                >
-                  {/* Header interno do Card */}
-                  <div className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-5 border-b border-slate-100 dark:border-white/5">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <span className="text-[9px] sm:text-[10px] font-mono font-bold text-amber-800 dark:text-yellow-400 uppercase tracking-widest bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                        {m.tag}
-                      </span>
-                      {m.badge && (
-                        <span className="hidden sm:inline-block text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-1 rounded-md">
-                          {m.badge}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl sm:text-3xl md:text-4xl font-black font-mono text-slate-300 dark:text-white/10 group-hover:text-amber-500/30 dark:group-hover:text-yellow-400/25 transition-colors select-none">
-                        {stepNumber} / {totalSteps}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Grid Otimizado: 4 Colunas para Textos vs 8 Colunas para a Imagem (67% de largura no Desktop) */}
-                  <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-7 lg:gap-8 items-stretch lg:items-start">
-
-                    {/* Informações do Módulo (4 colunas no Desktop) */}
-                    <div className="lg:col-span-4 flex flex-col space-y-3 sm:space-y-4">
-                      <div>
-                        <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white leading-tight">
-                          {m.title}
-                        </h3>
-                        <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed mt-1 sm:mt-2.5 line-clamp-2 sm:line-clamp-none">
-                          {m.desc}
-                        </p>
-                      </div>
-
-                      {/* Mockup da Interface no Mobile */}
-                      <div className="block lg:hidden my-1">
-                        {renderModuleMockup(m)}
-                      </div>
-
-                      {/* Métricas do Módulo (Compactas e dinâmicas) */}
-                      <div className={`grid gap-1.5 sm:gap-2 py-2 sm:py-3.5 border-y border-slate-200 dark:border-slate-800 ${m.stats.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
-                        {m.stats.map((stat, sIdx) => (
-                          <div key={sIdx} className="flex flex-col">
-                            <span className="text-[8px] sm:text-[9px] font-mono text-slate-400 dark:text-slate-500 uppercase truncate">{stat.label}</span>
-                            <span className="text-xs sm:text-sm lg:text-base font-black text-slate-900 dark:text-white mt-0.5">{stat.value}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Bullets de Funcionalidades */}
-                      <ul className="space-y-2 sm:space-y-3 hidden sm:block">
-                        {m.bulletPoints.map((bp, bIdx) => {
-                          const colonIndex = bp.indexOf(':');
-                          if (colonIndex !== -1) {
-                            const title = bp.substring(0, colonIndex + 1);
-                            const rest = bp.substring(colonIndex + 1);
-                            return (
-                              <li key={bIdx} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-snug">
-                                <Check size={14} className="text-amber-500 dark:text-yellow-400 shrink-0 mt-0.5" />
-                                <span>
-                                  <strong className="font-bold text-slate-900 dark:text-white">{title}</strong>
-                                  {rest}
-                                </span>
-                              </li>
-                            );
-                          }
-                          return (
-                            <li key={bIdx} className="flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-snug">
-                              <Check size={14} className="text-amber-500 dark:text-yellow-400 shrink-0 mt-0.5" />
-                              <span>{bp}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-
-                      <div className="pt-0.5 sm:pt-1">
-                        <a
-                          href="#planos"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            const el = document.getElementById('planos');
-                            if (el) {
-                              el.scrollIntoView({ behavior: 'smooth' });
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-600 dark:text-yellow-400 hover:text-amber-500 dark:hover:text-yellow-300 transition-colors cursor-pointer group/link"
-                        >
-                          <span>Experimente este módulo</span>
-                          <ArrowRight size={13} className="sm:scale-110 group-hover/link:translate-x-0.5 transition-transform" />
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* Imagem Real do Módulo no Desktop (8 colunas à direita = 67% da largura) */}
-                    <div className="hidden lg:block lg:col-span-8">
-                      {renderModuleMockup(m)}
-                    </div>
-
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-        </div>
-      </section>
+      {/* ─── SEÇÃO DE MÓDULOS (STACKING CARDS + SLIDING PILLS) ─── */}
+      <ModulesSection
+        isDarkMode={isDarkMode}
+        activeModuleId={activeModuleId}
+        onSelectModule={setActiveModuleId}
+        chatSlideIndex={chatSlideIndex}
+        onChangeChatSlide={setChatSlideIndex}
+        onChatHoverChange={setIsChatHovered}
+        onZoomImage={setZoomImage}
+        onGoToPlans={() => {
+          const el = document.getElementById('planos');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+      />
 
       {/* ─── SEÇÃO DE DEPOIMENTOS (ESTEIRA ANIMADA / PROVA SOCIAL) ─── */}
       <section id="depoimentos" className="py-10 sm:py-14 md:py-16 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0A0D14] transition-colors relative overflow-hidden">
@@ -1732,6 +1137,12 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           .animate-marquee-right:hover {
             animation-play-state: paused;
           }
+          @media (prefers-reduced-motion: reduce) {
+            .animate-marquee-left,
+            .animate-marquee-right {
+              animation: none;
+            }
+          }
         `}</style>
 
         {/* Glow de Fundo Sutil */}
@@ -1740,7 +1151,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         <div className="relative z-10">
 
           {/* Cabeçalho da Seção */}
-          <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-8 px-4">
+          <BlurFade className="text-center max-w-3xl mx-auto mb-6 sm:mb-8 px-4">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
               <Star size={13} className="shrink-0 fill-amber-500 dark:fill-yellow-400 text-amber-500 dark:text-yellow-400" />
               <span>DEPOIMENTOS & IMPACTO REAL</span>
@@ -1751,7 +1162,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm md:text-base mt-2 sm:mt-3 max-w-2xl mx-auto">
               Histórias reais de contadores e gestores que eliminaram atrasos, padronizaram rotinas e elevaram o nível de atendimento ao cliente.
             </p>
-          </div>
+          </BlurFade>
 
           {/* Esteira de Depoimentos (Marquee Tracks com Fade Lateral) */}
           <div className="relative w-full overflow-hidden">
@@ -1763,13 +1174,14 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             {/* Esteira Única de Depoimentos */}
             <div className="flex gap-4 sm:gap-6 py-2 w-max animate-marquee-left">
               {[...testimonials, ...testimonials].map((t, idx) => (
-                <div
+                <SpotlightCard
                   key={`row1-${t.id}-${idx}`}
+                  isDarkMode={isDarkMode}
                   className="w-[320px] sm:w-[380px] p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 shadow-sm dark:shadow-xl hover:border-amber-400/60 dark:hover:border-yellow-400/40 transition-all duration-300 flex flex-col justify-between shrink-0 group relative overflow-hidden"
                 >
                   <Quote size={48} className="absolute -top-2 -right-2 text-slate-100 dark:text-white/[0.03] stroke-[1] pointer-events-none" />
 
-                  <div>
+                  <div className="relative z-10">
                     {/* Header do Card (Tag + Stars) */}
                     <div className="flex items-center justify-between gap-2 mb-3.5">
                       <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border ${t.tagBg}`}>
@@ -1789,7 +1201,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   </div>
 
                   {/* Footer (Métrica + Autor) */}
-                  <div className="pt-3 border-t border-slate-100 dark:border-white/5 space-y-3">
+                  <div className="relative z-10 pt-3 border-t border-slate-100 dark:border-white/5 space-y-3">
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/5 text-[10px] font-mono font-bold text-slate-900 dark:text-slate-200">
                       <span>{t.metric}</span>
                     </div>
@@ -1812,7 +1224,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       </div>
                     </div>
                   </div>
-                </div>
+                </SpotlightCard>
               ))}
             </div>
 
@@ -1830,7 +1242,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
         <div className="max-w-7xl mx-auto relative z-10">
 
           {/* Cabeçalho da Seção */}
-          <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-10">
+          <BlurFade className="text-center max-w-3xl mx-auto mb-6 sm:mb-10">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest mb-4">
               <Building2 size={12} className="shrink-0" />
               <span>CELSOFTWARE LTDA</span>
@@ -1838,13 +1250,16 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
               Nascemos da união entre a vivência contábil e a inovação tecnológica.
             </h2>
-          </div>
+          </BlurFade>
 
           {/* Grid Principal: História do Fundador vs Pilares do Propósito */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-stretch mb-8 sm:mb-10">
 
             {/* Card História & Fundador (7 colunas) */}
-            <div className="lg:col-span-7 flex flex-col justify-between p-6 sm:p-8 md:p-10 rounded-3xl bg-slate-50 dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 shadow-sm dark:shadow-2xl relative overflow-hidden">
+            <SpotlightCard
+              isDarkMode={isDarkMode}
+              className="lg:col-span-7 flex flex-col justify-between p-6 sm:p-8 md:p-10 rounded-3xl bg-slate-50 dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 shadow-sm dark:shadow-2xl relative overflow-hidden"
+            >
               <div className="space-y-4 sm:space-y-6 relative z-10">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-yellow-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-yellow-400/20 shrink-0">
@@ -1866,97 +1281,128 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               </div>
 
               {/* Estatísticas Rápidas da Empresa */}
-              <div className="grid grid-cols-3 gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 text-center">
+              <div className="relative z-10 grid grid-cols-3 gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 text-center">
                 <div>
-                  <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">2021</span>
+                  <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono tabular-nums">
+                    <AnimatedInteger value={2021} startFrom={2012} />
+                  </span>
                   <span className="text-[10px] font-mono text-slate-400 uppercase">Fundação</span>
                 </div>
                 <div>
-                  <span className="block text-xl sm:text-2xl font-black text-amber-600 dark:text-yellow-400 font-mono">100%</span>
+                  <span className="block text-xl sm:text-2xl font-black text-amber-600 dark:text-yellow-400 font-mono tabular-nums">
+                    <AnimatedInteger value={100} suffix="%" />
+                  </span>
                   <span className="text-[10px] font-mono text-slate-400 uppercase">Foco Contábil</span>
                 </div>
                 <div>
-                  <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">3 Pilares</span>
+                  <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono tabular-nums">
+                    <AnimatedInteger value={3} suffix=" Pilares" />
+                  </span>
                   <span className="text-[10px] font-mono text-slate-400 uppercase">Soluções</span>
                 </div>
               </div>
-            </div>
+            </SpotlightCard>
 
             {/* Card Pilares & Propósito (5 colunas) */}
             <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
-              <div className="p-6 sm:p-8 rounded-3xl bg-slate-50 dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 space-y-3">
-                <div className="flex items-center gap-2.5 text-amber-600 dark:text-yellow-400 font-mono text-xs font-bold uppercase tracking-wider">
+              <SpotlightCard
+                isDarkMode={isDarkMode}
+                className="p-6 sm:p-8 rounded-3xl bg-slate-50 dark:bg-[#111622] border border-slate-200/90 dark:border-white/10 space-y-3 overflow-hidden"
+              >
+                <div className="relative z-10 flex items-center gap-2.5 text-amber-600 dark:text-yellow-400 font-mono text-xs font-bold uppercase tracking-wider">
                   <Award size={16} />
                   <span>NOSSO PROPÓSITO</span>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                <p className="relative z-10 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                   Desenvolvemos soluções inteligentes com três pilares fundamentais. Sabemos que o tempo do contador é valioso, por isso criamos sistemas que simplificam processos e automatizam a rotina.
                 </p>
-              </div>
+              </SpotlightCard>
 
-              {/* 3 Pilares em Cards */}
+              {/* 3 Pilares em Cards com SpotlightCard + BlurFade escalonado */}
               <div className="grid grid-cols-1 gap-3">
-                <div className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm">
-                  <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
-                    <Layers size={18} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">1. Organização</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Centralização inteligente de tarefas, prazos, dossiê do cliente e arquivos sem bagunça.</p>
-                  </div>
-                </div>
+                <BlurFade delay={0.05}>
+                  <SpotlightCard
+                    isDarkMode={isDarkMode}
+                    className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm overflow-hidden hover:border-amber-400/50 dark:hover:border-yellow-400/30 transition-colors"
+                  >
+                    <div className="relative z-10 p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
+                      <Layers size={18} />
+                    </div>
+                    <div className="relative z-10">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">1. Organização</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Centralização inteligente de tarefas, prazos, dossiê do cliente e arquivos sem bagunça.</p>
+                    </div>
+                  </SpotlightCard>
+                </BlurFade>
 
-                <div className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm">
-                  <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
-                    <Zap size={18} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">2. Produtividade</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Eliminação de tarefas manuais repetitivas através de automação e cronometragem de rotinas.</p>
-                  </div>
-                </div>
+                <BlurFade delay={0.1}>
+                  <SpotlightCard
+                    isDarkMode={isDarkMode}
+                    className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm overflow-hidden hover:border-amber-400/50 dark:hover:border-yellow-400/30 transition-colors"
+                  >
+                    <div className="relative z-10 p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
+                      <Zap size={18} />
+                    </div>
+                    <div className="relative z-10">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">2. Produtividade</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Eliminação de tarefas manuais repetitivas através de automação e cronometragem de rotinas.</p>
+                    </div>
+                  </SpotlightCard>
+                </BlurFade>
 
-                <div className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm">
-                  <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
-                    <TrendingUp size={18} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">3. Escalabilidade</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Estrutura preparada para o seu escritório crescer em carteira de clientes mantendo a alta performance.</p>
-                  </div>
-                </div>
+                <BlurFade delay={0.15}>
+                  <SpotlightCard
+                    isDarkMode={isDarkMode}
+                    className="p-4 rounded-2xl bg-white dark:bg-[#161D2B] border border-slate-200 dark:border-white/5 flex items-start gap-3.5 shadow-sm overflow-hidden hover:border-amber-400/50 dark:hover:border-yellow-400/30 transition-colors"
+                  >
+                    <div className="relative z-10 p-2.5 rounded-xl bg-amber-100 dark:bg-yellow-400/10 text-amber-700 dark:text-yellow-400 shrink-0">
+                      <TrendingUp size={18} />
+                    </div>
+                    <div className="relative z-10">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">3. Escalabilidade</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Estrutura preparada para o seu escritório crescer em carteira de clientes mantendo a alta performance.</p>
+                    </div>
+                  </SpotlightCard>
+                </BlurFade>
               </div>
             </div>
 
           </div>
 
           {/* Banner Visão de Futuro */}
-          <div className="p-6 sm:p-10 rounded-3xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent dark:from-yellow-400/10 dark:via-amber-500/5 dark:to-transparent border border-amber-300/60 dark:border-yellow-400/20 relative overflow-hidden">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
-              <div className="space-y-2 max-w-3xl">
-                <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-amber-700 dark:text-yellow-400 uppercase tracking-widest">
-                  <Sparkles size={15} />
-                  <span>NOSSA VISÃO DE FUTURO</span>
+          <BlurFade delay={0.1}>
+            <SpotlightCard
+              isDarkMode={isDarkMode}
+              isHighlighted
+              className="p-6 sm:p-10 rounded-3xl bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent dark:from-yellow-400/10 dark:via-amber-500/5 dark:to-transparent border border-amber-300/60 dark:border-yellow-400/20 relative overflow-hidden"
+            >
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+                <div className="space-y-2 max-w-3xl">
+                  <div className="inline-flex items-center gap-2 text-xs font-mono font-bold text-amber-700 dark:text-yellow-400 uppercase tracking-widest">
+                    <Sparkles size={15} />
+                    <span>NOSSA VISÃO DE FUTURO</span>
+                  </div>
+                  <p className="text-sm sm:text-base text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
+                    O mercado contábil está em constante evolução, e nós também. Acompanhamos as principais tendências de tecnologia e design para entregar plataformas modernas, com interfaces limpas, rápidas e de operacionalização extremamente simples e intuitiva.
+                  </p>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                    "Acreditamos que um bom software não deve gerar dúvidas, mas sim resultados. Na Celsoftware, construímos exatamente o que o setor contábil precisa, com a fluidez e a inovação que o futuro exige."
+                  </p>
                 </div>
-                <p className="text-sm sm:text-base text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
-                  O mercado contábil está em constante evolução, e nós também. Acompanhamos as principais tendências de tecnologia e design para entregar plataformas modernas, com interfaces limpas, rápidas e de operacionalização extremamente simples e intuitiva.
-                </p>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                  "Acreditamos que um bom software não deve gerar dúvidas, mas sim resultados. Na Celsoftware, construímos exatamente o que o setor contábil precisa, com a fluidez e a inovação que o futuro exige."
-                </p>
-              </div>
 
-              <div className="shrink-0 pt-2 md:pt-0">
-                <button
-                  onClick={onLoginClick}
-                  className="px-6 py-3.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black text-xs tracking-wider uppercase shadow-lg shadow-yellow-400/20 transition-all cursor-pointer flex items-center gap-2"
-                >
-                  <span>Conhecer o Task Account</span>
-                  <ArrowRight size={15} />
-                </button>
+                <div className="shrink-0 pt-2 md:pt-0">
+                  <ShimmerCtaButton
+                    onClick={onLoginClick}
+                    variant="gold"
+                    className="!w-auto px-6 py-3.5 rounded-2xl"
+                  >
+                    <span>Conhecer o Task Account</span>
+                    <ArrowRight size={15} className="group-hover/cta:translate-x-0.5 transition-transform" />
+                  </ShimmerCtaButton>
+                </div>
               </div>
-            </div>
-          </div>
+            </SpotlightCard>
+          </BlurFade>
 
         </div>
       </section>
@@ -1964,7 +1410,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
       {/* ─── SEÇÃO COMPARATIVA: ANTES VS. DEPOIS (BENTO GRID DE IMPACTO) ─── */}
       <section className="py-10 sm:py-14 md:py-16 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0B0E14] transition-colors relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-10">
+          <BlurFade className="text-center max-w-3xl mx-auto mb-8 sm:mb-10">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5">
               <Activity size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
               <span>EVOLUÇÃO OPERACIONAL</span>
@@ -1975,12 +1421,15 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mt-2.5 max-w-2xl mx-auto">
               Compare o custo invisível de uma operação fragmentada com a previsibilidade de ter todo o escritório em uma única plataforma.
             </p>
-          </div>
+          </BlurFade>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* Coluna Esquerda: Sem Task Account (Rotina Fragmentada) */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#111622]/70 border border-rose-200/70 dark:border-rose-500/20 shadow-xs flex flex-col justify-between">
-              <div>
+            <SpotlightCard
+              isDarkMode={isDarkMode}
+              className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#111622]/70 border border-rose-200/70 dark:border-rose-500/20 shadow-xs flex flex-col justify-between overflow-hidden"
+            >
+              <div className="relative z-10">
                 <div className="flex items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100 dark:border-white/5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
@@ -2035,12 +1484,16 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   ))}
                 </ul>
               </div>
-            </div>
+            </SpotlightCard>
 
-            {/* Coluna Direita: Com Task Account (Ecossistema Unificado) */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#141A29] border-2 border-amber-400 dark:border-yellow-400/70 shadow-xl shadow-amber-500/10 dark:shadow-[0_0_45px_-12px_rgba(250,204,21,0.2)] flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400" />
-              <div>
+            {/* Coluna Direita: Com Task Account (Ecossistema Unificado + BorderBeam) */}
+            <SpotlightCard
+              isDarkMode={isDarkMode}
+              isHighlighted
+              className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#141A29] border border-amber-400/70 dark:border-yellow-400/50 shadow-xl shadow-amber-500/10 dark:shadow-[0_0_45px_-12px_rgba(250,204,21,0.2)] flex flex-col justify-between relative overflow-hidden"
+            >
+              <BorderBeam isDarkMode={isDarkMode} duration={7} borderWidth={2} />
+              <div className="relative z-10">
                 <div className="flex items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100 dark:border-white/10">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-yellow-400 text-slate-950 flex items-center justify-center shrink-0 shadow-md shadow-yellow-400/25">
@@ -2079,8 +1532,11 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                       desc: 'Monitoramento preventivo de certificados digitais e licenças, mais telemetria completa da produtividade da equipe.'
                     }
                   ].map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-3 p-3 rounded-2xl bg-amber-50/50 dark:bg-yellow-400/[0.04] border border-amber-200/60 dark:border-yellow-400/15">
-                      <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                    <li
+                      key={idx}
+                      className="group/comp flex items-start gap-3 p-3 rounded-2xl bg-amber-50/50 dark:bg-yellow-400/[0.04] border border-amber-200/60 dark:border-yellow-400/15 hover:border-amber-400/70 dark:hover:border-yellow-400/40 transition-colors"
+                    >
+                      <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs transition-transform duration-200 group-hover/comp:scale-110">
                         <Check size={11} className="stroke-[3]" />
                       </div>
                       <div>
@@ -2095,173 +1551,19 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                   ))}
                 </ul>
               </div>
-            </div>
+            </SpotlightCard>
           </div>
         </div>
       </section>
 
       {/* ─── TABELA DE PLANOS & INVESTIMENTO ─── */}
-      <section id="planos" className="py-10 sm:py-14 md:py-16 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-slate-100/60 dark:bg-[#0D1017] transition-colors">
-        <div className="max-w-7xl mx-auto">
-
-          <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3.5 sm:mb-4">
-              <Award size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
-              <span>PLANOS DE ASSINATURA</span>
-            </div>
-            <h2 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
-              Investimento claro e sem surpresas.
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mt-3">
-              Escolha a capacidade ideal para o volume de clientes do seu escritório.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {plans.map((plan, i) => {
-              const isGold = plan.highlight;
-              return (
-                <div
-                  key={i}
-                  className={`p-6 rounded-3xl border border-t-4 flex flex-col justify-between transition-all duration-300 ${isGold
-                      ? 'bg-white dark:bg-[#161D2B] border-amber-500 border-t-amber-500 dark:border-yellow-400 dark:border-t-yellow-400 shadow-xl shadow-amber-500/10 dark:shadow-[0_0_50px_-10px_rgba(250,204,21,0.25)] lg:-translate-y-2'
-                      : 'bg-white dark:bg-[#121722]/70 border-slate-200/80 border-t-amber-500 dark:border-white/10 dark:border-t-yellow-400 hover:border-slate-300 dark:hover:border-white/20 shadow-sm dark:shadow-none'
-                    }`}
-                >
-                  <div>
-                    {/* Topo do Card */}
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-yellow-400">
-                        TIER • {plan.tier}
-                      </span>
-                      {plan.badge && (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-yellow-400 text-slate-950 font-mono">
-                          {plan.badge}
-                        </span>
-                      )}
-                    </div>
-
-                    <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-2">{plan.name}</h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed min-h-[40px] mb-6">
-                      {plan.description}
-                    </p>
-
-                    {/* Preço */}
-                    <div className="pb-6 border-b border-slate-200 dark:border-slate-800 mb-6">
-                      <div className="flex items-baseline">
-                        <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{plan.price}</span>
-                        {plan.period && <span className="text-xs text-slate-500 ml-1.5">{plan.period}</span>}
-                      </div>
-
-                      <div className="mt-3 flex flex-col gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-                        <div className="flex items-center justify-between font-mono text-[11px]">
-                          <span className="text-slate-400 dark:text-slate-500">CAPACIDADE:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{plan.clientsLimit}</span>
-                        </div>
-                        <div className="flex items-center justify-between font-mono text-[11px]">
-                          <span className="text-slate-400 dark:text-slate-500">ESPAÇO:</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{plan.storageLimit}</span>
-                        </div>
-                        <div className="mt-2 bg-amber-50 dark:bg-[#0B0E14] border border-amber-200 dark:border-slate-800 p-2 rounded-lg text-center font-mono text-[10px] text-amber-800 dark:text-yellow-400 font-bold">
-                          {plan.costPerClient}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Lista de Recursos (Upgraded com visual enriquecido) */}
-                    <div className="space-y-2 mb-8">
-                      <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 pb-1.5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
-                        <span>RECURSOS INCLUSOS</span>
-                        <span className="text-[9px] font-bold text-amber-600 dark:text-yellow-400 bg-amber-50 dark:bg-yellow-400/10 border border-amber-200 dark:border-yellow-400/20 px-1.5 py-0.5 rounded">
-                          {plan.features.length} ITENS
-                        </span>
-                      </div>
-
-                      <ul className="space-y-2 pt-1">
-                        {plan.features.map((feat, idx) => {
-                          const isFeatureHighlighted = (feat as any).highlight;
-                          const featureBadge = (feat as any).badge;
-                          const featureDetail = (feat as any).detail;
-                          const featureText = (feat as any).text;
-
-                          return (
-                            <li
-                              key={idx}
-                              className={`flex items-start gap-2.5 p-1.5 -mx-1.5 rounded-xl transition-all ${isFeatureHighlighted && isGold
-                                  ? 'bg-amber-500/10 dark:bg-yellow-400/[0.06] border border-amber-500/20 dark:border-yellow-400/15 shadow-2xs'
-                                  : 'hover:bg-slate-100/60 dark:hover:bg-white/[0.03]'
-                                }`}
-                            >
-                              {/* Ícone Check Estilizado */}
-                              <div
-                                className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isGold
-                                    ? 'bg-amber-500/20 text-amber-700 dark:bg-yellow-400/20 dark:text-yellow-400 ring-1 ring-amber-500/40 dark:ring-yellow-400/40 shadow-xs'
-                                    : 'bg-emerald-500/15 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400'
-                                  }`}
-                              >
-                                <Check size={10} className="stroke-[3]" />
-                              </div>
-
-                              {/* Conteúdo com Título, Subtítulo e Tag */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span
-                                    className={`text-xs leading-tight ${isFeatureHighlighted && isGold
-                                        ? 'font-black text-amber-950 dark:text-yellow-300'
-                                        : 'font-bold text-slate-900 dark:text-white'
-                                      }`}
-                                  >
-                                    {featureText}
-                                  </span>
-
-                                  {featureBadge && (
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-black tracking-wider uppercase ${featureBadge === 'DESTAQUE'
-                                          ? 'bg-yellow-400 text-slate-950 shadow-xs'
-                                          : 'bg-amber-100 dark:bg-yellow-400/15 text-amber-800 dark:text-yellow-400 border border-amber-300/60 dark:border-yellow-400/30'
-                                        }`}
-                                    >
-                                      {featureBadge}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {featureDetail && (
-                                  <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">
-                                    {featureDetail}
-                                  </p>
-                                )}
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Botão de Ação */}
-                  <button
-                    onClick={() => handleSelectPlan(plan)}
-                    className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${isGold
-                        ? 'bg-yellow-400 hover:bg-yellow-300 text-slate-950 shadow-[0_0_20px_rgba(250,204,21,0.4)]'
-                        : 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white'
-                      }`}
-                  >
-                    {plan.name === 'Elite' ? 'Falar com Consultor' : 'Selecionar Plano'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-        </div>
-      </section>
+      <PlansSection isDarkMode={isDarkMode} onSelectPlan={handleSelectPlan} />
 
       {/* ─── SEÇÃO DE PERGUNTAS FREQUENTES (FAQ / QUEBRA DE OBJEÇÕES) ─── */}
       <section id="faq" className="py-12 sm:py-16 md:py-20 px-4 sm:px-8 border-t border-slate-200 dark:border-white/5 bg-white dark:bg-[#0A0D14] transition-colors relative overflow-hidden">
         <div className="max-w-4xl mx-auto">
           {/* Cabeçalho da Seção */}
-          <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-12">
+          <BlurFade className="text-center max-w-2xl mx-auto mb-8 sm:mb-12">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-100 dark:bg-yellow-400/10 border border-amber-300 dark:border-yellow-400/20 text-amber-900 dark:text-yellow-400 text-[10px] font-mono font-bold uppercase tracking-widest shadow-sm mb-3">
               <HelpCircle size={13} className="shrink-0 text-amber-700 dark:text-yellow-400" />
               <span>DÚVIDAS FREQUENTES</span>
@@ -2272,9 +1574,9 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
             <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm mt-2 max-w-xl mx-auto">
               Respostas claras e diretas sobre implantação, migração de dados e segurança do seu escritório contábil.
             </p>
-          </div>
+          </BlurFade>
 
-          {/* Acordeão Interativo de FAQs */}
+          {/* Acordeão Interativo de FAQs (Animate UI spring + overflow-hidden) */}
           <div className="space-y-3">
             {faqs.map((faq) => {
               const isOpen = openFaqId === faq.id;
@@ -2288,20 +1590,23 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 >
                   <button
                     type="button"
+                    aria-expanded={isOpen}
                     onClick={() => setOpenFaqId(isOpen ? null : faq.id)}
                     className="w-full px-5 py-4 sm:py-5 flex items-center justify-between gap-4 text-left cursor-pointer transition-colors"
                   >
                     <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white leading-snug">
                       {faq.question}
                     </span>
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 ${isOpen
-                          ? 'rotate-180 bg-amber-400 text-slate-950 font-bold'
+                    <motion.div
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ type: 'spring', stiffness: 360, damping: 26 }}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${isOpen
+                          ? 'bg-amber-400 text-slate-950 font-bold'
                           : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400'
                         }`}
                     >
                       <ChevronDown size={14} />
-                    </div>
+                    </motion.div>
                   </button>
 
                   <AnimatePresence initial={false}>
@@ -2310,9 +1615,10 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                        transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
                       >
-                        <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-100 dark:border-white/5">
+                        <div className="px-5 pb-5 pt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-100 dark:border-white/5">
                           {faq.answer}
                         </div>
                       </motion.div>
@@ -2324,8 +1630,12 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
           </div>
 
           {/* Chamada para Contato Direto */}
-          <div className="mt-8 sm:mt-10 p-5 rounded-2xl bg-gradient-to-r from-amber-400/10 via-yellow-400/5 to-transparent border border-amber-300/40 dark:border-yellow-400/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-            <div>
+          <SpotlightCard
+            isDarkMode={isDarkMode}
+            isHighlighted
+            className="mt-8 sm:mt-10 p-5 rounded-2xl bg-gradient-to-r from-amber-400/10 via-yellow-400/5 to-transparent border border-amber-300/40 dark:border-yellow-400/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left overflow-hidden"
+          >
+            <div className="relative z-10">
               <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                 Tem alguma dúvida específica sobre a sua operação?
               </h4>
@@ -2339,11 +1649,11 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
                 setConsultantModalPlan('Geral');
                 setIsConsultantModalOpen(true);
               }}
-              className="shrink-0 px-4 py-2 rounded-full bg-slate-900 text-white dark:bg-yellow-400 dark:text-slate-950 text-xs font-bold uppercase tracking-wider hover:scale-105 active:scale-95 transition-all shadow-sm cursor-pointer"
+              className="relative z-10 shrink-0 px-4 py-2 rounded-full bg-slate-900 text-white dark:bg-yellow-400 dark:text-slate-950 text-xs font-bold uppercase tracking-wider hover:scale-105 active:scale-95 transition-all shadow-sm cursor-pointer"
             >
               Falar com Consultor
             </button>
-          </div>
+          </SpotlightCard>
         </div>
       </section>
 

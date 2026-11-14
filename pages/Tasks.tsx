@@ -327,7 +327,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ task, onStatusChange, onConclud
     <div className="relative flex justify-end items-center" ref={menuRef}>
       {/* Horizontal Expanded Menu */}
       <div 
-        className={`absolute right-full mr-2 flex items-center gap-1 overflow-hidden transition-all duration-300 ease-out bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-full shadow-lg ${isOpen ? 'opacity-100 translate-x-0 px-2 py-1.5 max-w-[250px]' : 'opacity-0 translate-x-4 max-w-0 pointer-events-none px-0 py-1.5 border-transparent'}`}
+        className={`absolute right-full mr-2 z-30 flex items-center gap-1 overflow-hidden transition-all duration-300 ease-out bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-full shadow-lg ${isOpen ? 'opacity-100 translate-x-0 px-2 py-1.5 max-w-[250px]' : 'opacity-0 translate-x-4 max-w-0 pointer-events-none px-0 py-1.5 border-transparent'}`}
       >
         {task.status === TaskStatus.CONCLUIDA ? (
           <Tooltip content="Reabrir Tarefa">
@@ -3244,7 +3244,7 @@ export const Tasks: React.FC<{
 
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 shrink-0">
         <div className="flex items-center gap-3 mb-2 md:mb-0">
-          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-control-pill border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
             <ListChecks size={18} className="text-slate-500 dark:text-slate-400" />
           </div>
           <div className="flex flex-col">
@@ -3255,15 +3255,15 @@ export const Tasks: React.FC<{
           </div>
         </div>
         <div className="flex gap-3">
-          <div className="flex items-center bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm h-9">
+          <div className="flex items-center gap-0.5 bg-white dark:bg-slate-800 glass-control-pill p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm h-10">
             {layoutMode === 'list' && (
               <>
                 <Tooltip content={showMetrics ? "Ocultar Métricas" : "Mostrar Métricas"}>
                   <button
                     onClick={() => setShowMetrics(!showMetrics)}
-                    className={`p-2 rounded transition-all ${showMetrics ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`p-1.5 rounded-md transition-all flex items-center justify-center ${showMetrics ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                   >
-                    <BarChart2 size={18} />
+                    <BarChart2 size={16} />
                   </button>
                 </Tooltip>
                 
@@ -3271,30 +3271,22 @@ export const Tasks: React.FC<{
               </>
             )}
 
-            <div className="relative group flex">
+            <Tooltip content="Lista" position="top">
               <button
                 onClick={() => setLayoutMode('list')}
-                className={`p-2 rounded transition-colors ${layoutMode === 'list' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`p-1.5 rounded-md transition-colors flex items-center justify-center ${layoutMode === 'list' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
               >
-                <LayoutList size={18} />
+                <LayoutList size={16} />
               </button>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-                Lista
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
-              </div>
-            </div>
-            <div className="relative group flex">
+            </Tooltip>
+            <Tooltip content="Kanban" position="top">
               <button
                 onClick={() => setLayoutMode('kanban')}
-                className={`p-2 rounded transition-colors ${layoutMode === 'kanban' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`p-1.5 rounded-md transition-colors flex items-center justify-center ${layoutMode === 'kanban' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
               >
-                <LayoutGrid size={18} />
+                <LayoutGrid size={16} />
               </button>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block whitespace-nowrap px-2 py-1 bg-slate-900 text-white text-[10px] rounded shadow-lg z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-100">
-                Kanban
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900" />
-              </div>
-            </div>
+            </Tooltip>
 
             {layoutMode === 'list' && (
               <>
@@ -3421,7 +3413,7 @@ export const Tasks: React.FC<{
                   }}
                 >
               <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400 border-separate border-spacing-y-2">
-                <thead className="bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm">
+                <thead className="bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md glass-table-head text-slate-800 dark:text-slate-100 uppercase font-medium text-xs sticky top-0 z-[40] shadow-sm">
                   <tr>
                     {/* == CLIENTE == */}
                     {(() => {
@@ -3887,13 +3879,13 @@ export const Tasks: React.FC<{
                 <tbody className="">
                   {filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 shadow-sm">
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-400 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 glass-table-empty shadow-sm">
                         Nenhuma tarefa encontrada com os filtros selecionados.
                       </td>
                     </tr>
                   ) : (
                     filteredTasks.slice(0, MAX_RENDER_TABLE).map((task) => (
-                      <tr key={task.id} className="group relative bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-sm">
+                      <tr key={task.id} className="group relative bg-white dark:bg-slate-900 hover:bg-slate-50/90 dark:hover:bg-slate-800/80 glass-table-row transition-all shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-sm">
                         <td className="px-6 py-4 w-[280px] min-w-[240px] max-w-[320px] rounded-l-xl border-y border-l border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <div className="flex flex-col max-w-[260px]">
                             <div
@@ -4159,7 +4151,7 @@ export const Tasks: React.FC<{
                             />
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right rounded-r-xl border-y border-r border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
+                        <td className="px-6 py-4 text-right relative z-20 rounded-r-xl border-y border-r border-slate-200/80 dark:border-slate-800/80 group-hover:border-slate-300 dark:group-hover:border-slate-700/80 transition-colors">
                           <ActionMenu
                             task={task}
                             onStatusChange={handleStatusChange}

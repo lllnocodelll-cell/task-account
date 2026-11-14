@@ -24,7 +24,7 @@ export const TableSkeleton: React.FC<TableSkeletonProps> = ({ rows = 8, cols = 7
     <div className="w-full overflow-hidden flex flex-col min-h-0">
       <div className="w-full pb-4">
         <table className="w-full border-separate border-spacing-y-2">
-          <thead>
+          <thead className="glass-table-head">
             <tr className="bg-slate-200/60 dark:bg-slate-900/60">
               <th className="px-6 py-3.5 rounded-l-2xl border-t-[3px] border-l border-slate-300/60 dark:border-slate-800 border-t-indigo-500/40">
                 <Skeleton className="h-3 w-16" />
@@ -43,7 +43,7 @@ export const TableSkeleton: React.FC<TableSkeletonProps> = ({ rows = 8, cols = 7
             {Array.from({ length: rows }).map((_, rowIndex) => (
               <tr
                 key={rowIndex}
-                className="bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 shadow-xs"
+                className="bg-white dark:bg-slate-900/90 glass-table-row border border-slate-200/80 dark:border-slate-800/80 shadow-xs"
               >
                 {/* Coluna 1: Ações / Ícone */}
                 <td className="px-6 py-4 rounded-l-2xl border-y border-l border-slate-200/80 dark:border-slate-800/80">
@@ -178,7 +178,7 @@ export const ClientCardsSkeleton: React.FC<{ count?: number }> = ({ count = 8 })
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden flex flex-col justify-between"
+          className="bg-white dark:bg-slate-900 glass-surface rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs overflow-hidden flex flex-col justify-between"
         >
           {/* Topo: Avatar e Identificação */}
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 space-y-3">
@@ -233,7 +233,7 @@ export const ChatSidebarSkeleton: React.FC<{ count?: number }> = ({ count = 6 })
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="w-full flex items-center gap-2 py-2 px-2.5 rounded-lg border border-slate-100 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/30"
+          className="w-full flex items-center gap-2 py-2 px-2.5 rounded-lg border border-slate-100 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/30 glass-chat-item"
         >
           {/* Avatar com indicador de status */}
           <div className="relative shrink-0">
@@ -264,7 +264,7 @@ export const ChatMessageBubblesSkeleton: React.FC = () => {
       {/* Mensagem recebida (esquerda) */}
       <div className="flex items-end gap-2.5 max-w-[70%]">
         <Skeleton className="w-8 h-8 rounded-full shrink-0 mb-1" />
-        <div className="space-y-1.5 p-3.5 rounded-2xl rounded-bl-none bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex-1">
+        <div className="space-y-1.5 p-3.5 rounded-2xl rounded-bl-none bg-white dark:bg-slate-900 glass-chat-bubble-in border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex-1">
           <Skeleton className="h-3.5 w-44" />
           <Skeleton className="h-3 w-32 opacity-75" />
           <Skeleton className="h-2 w-12 ml-auto mt-1 opacity-50" />
@@ -283,7 +283,7 @@ export const ChatMessageBubblesSkeleton: React.FC = () => {
       {/* Mensagem recebida mais longa (esquerda) */}
       <div className="flex items-end gap-2.5 max-w-[78%]">
         <Skeleton className="w-8 h-8 rounded-full shrink-0 mb-1" />
-        <div className="space-y-1.5 p-3.5 rounded-2xl rounded-bl-none bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex-1">
+        <div className="space-y-1.5 p-3.5 rounded-2xl rounded-bl-none bg-white dark:bg-slate-900 glass-chat-bubble-in border border-slate-200/80 dark:border-slate-800/80 shadow-xs flex-1">
           <Skeleton className="h-3.5 w-full" />
           <Skeleton className="h-3.5 w-4/5" />
           <Skeleton className="h-3 w-2/3 opacity-75" />
@@ -307,10 +307,10 @@ export const ChatMessagesSkeleton: React.FC<{ showHeader?: boolean; showInput?: 
   showInput = true
 }) => {
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-50/50 dark:bg-slate-950/50">
+    <div className="flex-1 flex flex-col h-full bg-slate-50/50 dark:bg-slate-950/50 glass-chat-canvas">
       {/* Header simulado */}
       {showHeader && (
-        <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+        <div className="p-4 bg-white dark:bg-slate-900 glass-card-inset border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <Skeleton className="w-10 h-10 rounded-full shrink-0" />
             <div className="space-y-1">
@@ -332,7 +332,7 @@ export const ChatMessagesSkeleton: React.FC<{ showHeader?: boolean; showInput?: 
 
       {/* Input de mensagem simulado no rodapé */}
       {showInput && (
-        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
+        <div className="p-4 bg-white dark:bg-slate-900 glass-card-inset border-t border-slate-200 dark:border-slate-800 shrink-0">
           <Skeleton className="h-11 w-full rounded-xl" />
         </div>
       )}

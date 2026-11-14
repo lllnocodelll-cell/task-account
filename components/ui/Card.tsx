@@ -15,9 +15,9 @@ export const Card: React.FC<CardProps> = ({ children, className = '', title, tit
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
   return (
-    <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm transition-colors duration-300 ${className}`}>
+    <div className={`bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm transition-colors duration-300 ${className}`}>
       {(title || action || collapsible) && (
-        <div 
+        <div
           className={`px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center ${collapsible ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors select-none group' : ''}`}
           onClick={() => collapsible && setIsCollapsed(!isCollapsed)}
         >
@@ -28,17 +28,16 @@ export const Card: React.FC<CardProps> = ({ children, className = '', title, tit
           <div className="flex items-center gap-3">
             {action && <div onClick={(e) => collapsible && e.stopPropagation()}>{action}</div>}
             {collapsible && (
-               <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 shadow-sm transition-all duration-300">
-                 {isCollapsed ? <ChevronDown size={18} strokeWidth={2.5} /> : <ChevronUp size={18} strokeWidth={2.5} />}
-               </span>
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 shadow-sm transition-all duration-300">
+                {isCollapsed ? <ChevronDown size={18} strokeWidth={2.5} /> : <ChevronUp size={18} strokeWidth={2.5} />}
+              </span>
             )}
           </div>
         </div>
       )}
-      <div 
-        className={`overflow-hidden transition-all duration-500 ease-in-out ${
-          isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[5000px] opacity-100'
-        }`}
+      <div
+        className={`overflow-hidden transition-all duration-500 ease-in-out ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[5000px] opacity-100'
+          }`}
       >
         <div className="p-6">
           {children}
@@ -73,7 +72,7 @@ export const MetricCard: React.FC<{
     amber: 'border-t-4 border-t-amber-500',
     slate: 'border-t-4 border-t-slate-500',
   };
-  
+
   const progressColorClasses = {
     indigo: 'bg-indigo-500 dark:bg-indigo-400',
     emerald: 'bg-emerald-500 dark:bg-emerald-400',
@@ -86,14 +85,14 @@ export const MetricCard: React.FC<{
     return (
       <div
         onClick={onClick}
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-center justify-between shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-700 ${borderTopClasses[color]} ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
+        className={`bg-white dark:bg-slate-900 glass-surface glass-surface-interactive glass-preserve-top-border border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-center justify-between shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-700 ${borderTopClasses[color]} ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}`}
       >
         <div className="flex flex-col min-w-0">
           <div className="flex items-center gap-1.5">
-             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">{title}</span>
-             {progress !== undefined && (
-               <span className="text-[10px] font-extrabold text-indigo-500 dark:text-indigo-400">{progress.toFixed(0)}%</span>
-             )}
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">{title}</span>
+            {progress !== undefined && (
+              <span className="text-[10px] font-extrabold text-indigo-500 dark:text-indigo-400">{progress.toFixed(0)}%</span>
+            )}
           </div>
           {trend && (
             <div className="flex items-center mt-0.5">
@@ -117,9 +116,9 @@ export const MetricCard: React.FC<{
   return (
     <div
       onClick={onClick}
-      className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col justify-between shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-700 ${borderTopClasses[color]} ${onClick
-          ? 'cursor-pointer active:scale-[0.98]'
-          : ''
+      className={`bg-white dark:bg-slate-900 glass-surface glass-surface-interactive glass-preserve-top-border border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col justify-between shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-700 ${borderTopClasses[color]} ${onClick
+        ? 'cursor-pointer active:scale-[0.98]'
+        : ''
         }`}
     >
       <div className="flex items-start justify-between w-full">
@@ -132,7 +131,7 @@ export const MetricCard: React.FC<{
           {icon}
         </div>
       </div>
-      
+
       {progress !== undefined && (
         <div className="w-full mt-4">
           <div className="flex justify-between items-center mb-1.5">

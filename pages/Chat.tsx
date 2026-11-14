@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   Send,
@@ -53,6 +54,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
+import { Select, SearchableSelect } from '../components/ui/Input';
 import { supabase } from '../utils/supabaseClient';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { CreateGroupModal } from '../components/chat/CreateGroupModal';
@@ -5034,10 +5036,11 @@ export const Chat: React.FC = () => {
   });
 
   return (
-    <div className="flex h-full md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 border-0 md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative m-0 md:m-0">
+    <>
+    <div className="flex h-full md:h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 glass-surface border-0 md:border border-slate-200 dark:border-slate-800 md:rounded-xl overflow-hidden shadow-sm relative m-0 md:m-0">
 
       {/* Sidebar - Contact List */}
-      <div className={`transition-all duration-300 ease-in-out overflow-hidden h-full flex-col bg-slate-50/50 dark:bg-slate-950/30 absolute md:relative z-10 ${showSidebarOnMobile ? 'w-full flex' : 'w-0 hidden md:flex'} ${isSidebarCollapsed ? 'md:w-0 md:opacity-0 border-r border-transparent pointer-events-none' : 'md:w-[328px] md:opacity-100 border-r border-slate-200 dark:border-slate-800'}`}>
+      <div className={`transition-all duration-300 ease-in-out overflow-hidden h-full flex-col bg-slate-50/50 dark:bg-slate-950/30 glass-card-inset absolute md:relative z-10 ${showSidebarOnMobile ? 'w-full flex' : 'w-0 hidden md:flex'} ${isSidebarCollapsed ? 'md:w-0 md:opacity-0 border-r border-transparent pointer-events-none' : 'md:w-[328px] md:opacity-100 border-r border-slate-200 dark:border-slate-800'}`}>
         <div className="w-full md:w-[328px] h-full flex flex-col shrink-0">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
@@ -5071,7 +5074,7 @@ export const Chat: React.FC = () => {
                     return (
                       <button
                         onClick={() => setShowStatusMenu(!showStatusMenu)}
-                        className={`flex items-center gap-2 h-[38px] px-3 bg-white dark:bg-slate-900 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all shadow-sm ${
+                        className={`flex items-center gap-2 h-[38px] px-3 bg-white dark:bg-slate-900 glass-chat-field border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all shadow-sm ${
                           showStatusMenu ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-700'
                         }`}
                       >
@@ -5087,7 +5090,7 @@ export const Chat: React.FC = () => {
                   })()}
 
                   {showStatusMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                       <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800/80 mb-1">
                         <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Definir meu status</p>
                       </div>
@@ -5173,7 +5176,7 @@ export const Chat: React.FC = () => {
                 placeholder={activeTab === 'contacts' ? "Buscar equipe..." : "Buscar conversas..."}
                 value={contactSearchTerm}
                 onChange={(e) => setContactSearchTerm(e.target.value)}
-                className="w-full h-8 pl-8 pr-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full h-8 pl-8 pr-3 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
             </div>
@@ -5185,7 +5188,7 @@ export const Chat: React.FC = () => {
                   className={`w-8 h-8 rounded-lg border transition-all flex items-center justify-center shrink-0 ${
                     showSectorFilter || selectedSectorFilterId
                       ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-500/10 dark:border-indigo-500/30 dark:text-indigo-400'
-                      : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:hover:text-slate-300'
+                      : 'bg-white border-slate-200 text-slate-400 hover:text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:hover:text-slate-300 glass-chat-field'
                   }`}
                 >
                   <SlidersHorizontal size={15} />
@@ -5197,7 +5200,7 @@ export const Chat: React.FC = () => {
                 type="button"
                 onClick={handleManualSync}
                 disabled={isSyncing}
-                className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center shrink-0 disabled:opacity-50"
+                className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center shrink-0 disabled:opacity-50"
               >
                 <RefreshCw size={15} className={isSyncing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''} />
               </button>
@@ -5205,13 +5208,13 @@ export const Chat: React.FC = () => {
           </div>
 
           {currentUser?.role === 'cliente' && (
-            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-900 glass-chat-tab-bar rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
               <button
                 type="button"
                 onClick={() => { setClientSubTab('atendimento'); setSelectedChannelId(null); }}
                 className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
                   clientSubTab === 'atendimento'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -5228,7 +5231,7 @@ export const Chat: React.FC = () => {
                 onClick={() => { setClientSubTab('notificacao'); setSelectedChannelId(null); }}
                 className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5 ${
                   clientSubTab === 'notificacao'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -5264,7 +5267,7 @@ export const Chat: React.FC = () => {
               <select
                 value={selectedSectorFilterId}
                 onChange={(e) => setSelectedSectorFilterId(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
                 style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0\' stroke=\'%2364748b\' stroke-width=\'2\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' d=\'M19 9l-7 7-7-7\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '0.75rem' }}
               >
                 <option value="">Todos os Setores</option>
@@ -5276,13 +5279,13 @@ export const Chat: React.FC = () => {
           )}
 
           {activeTab === 'support' && currentUser?.role !== 'cliente' && (
-            <div className="grid grid-cols-4 gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="grid grid-cols-4 gap-0.5 p-0.5 bg-slate-100 dark:bg-slate-900 glass-chat-tab-bar rounded-lg border border-slate-200/60 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
               <button
                 type="button"
                 onClick={() => setSupportSubTab('queue')}
                 className={`py-1 px-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 ${
                   supportSubTab === 'queue'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -5302,7 +5305,7 @@ export const Chat: React.FC = () => {
                 onClick={() => setSupportSubTab('mine')}
                 className={`py-1 px-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 ${
                   supportSubTab === 'mine'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -5322,7 +5325,7 @@ export const Chat: React.FC = () => {
                 onClick={() => setSupportSubTab('all')}
                 className={`py-1 px-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 ${
                   supportSubTab === 'all'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -5342,7 +5345,7 @@ export const Chat: React.FC = () => {
                 onClick={() => setSupportSubTab('alerts')}
                 className={`py-1 px-1 text-[10px] font-semibold rounded transition-all flex items-center justify-center gap-1 ${
                   supportSubTab === 'alerts'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-xs border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -5372,12 +5375,12 @@ export const Chat: React.FC = () => {
 
         {currentUser?.role !== 'cliente' && (
           <div className="px-4 py-2 shrink-0 border-b border-slate-200/60 dark:border-slate-800/60">
-            <div className="flex p-1 bg-slate-100/80 dark:bg-slate-900/50 rounded-xl border border-slate-200/40 dark:border-slate-800/40">
+            <div className="flex p-1 bg-slate-100/80 dark:bg-slate-900/50 glass-chat-tab-bar rounded-xl border border-slate-200/40 dark:border-slate-800/40">
               <button
                 onClick={() => { setActiveTab('chats'); setSelectedChannelId(null); }}
                 className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'chats'
-                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -5388,7 +5391,7 @@ export const Chat: React.FC = () => {
                 onClick={() => { setActiveTab('support'); setSelectedChannelId(null); }}
                 className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'support'
-                    ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
+                    ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/30 dark:border-slate-700/30'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                 }`}
               >
@@ -5430,8 +5433,8 @@ export const Chat: React.FC = () => {
                   }}
                   className={`group/item w-full flex items-center gap-2 py-2 px-2.5 rounded-lg transition-all border ${
                     selectedChannelId === item.id
-                      ? 'bg-indigo-50/40 dark:bg-indigo-500/5 border-indigo-100/80 dark:border-indigo-500/20'
-                      : 'bg-white dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:border-slate-200/80 dark:hover:border-slate-700/50'
+                      ? 'bg-indigo-50/40 dark:bg-indigo-500/5 border-indigo-100/80 dark:border-indigo-500/20 glass-chat-item-active'
+                      : 'bg-white dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:border-slate-200/80 dark:hover:border-slate-700/50 glass-chat-item'
                   } ${isDragOver ? 'border-2 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : ''} ${
                     isDragging ? 'opacity-40 scale-95' : ''
                   }`}
@@ -5533,8 +5536,8 @@ export const Chat: React.FC = () => {
                   }}
                   className={`group/item w-full flex items-center gap-2 py-2 px-2.5 rounded-lg transition-all border ${
                     selectedChannelId === channel.id
-                      ? 'bg-indigo-50/40 dark:bg-indigo-500/5 border-indigo-100/80 dark:border-indigo-500/20'
-                      : 'bg-white dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:border-slate-200/80 dark:hover:border-slate-700/50'
+                      ? 'bg-indigo-50/40 dark:bg-indigo-500/5 border-indigo-100/80 dark:border-indigo-500/20 glass-chat-item-active'
+                      : 'bg-white dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/30 hover:border-slate-200/80 dark:hover:border-slate-700/50 glass-chat-item'
                   } ${isDragOver ? 'border-2 border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40' : ''} ${
                     isDragging ? 'opacity-40 scale-95' : ''
                   }`}
@@ -5753,7 +5756,7 @@ export const Chat: React.FC = () => {
         <div className={`flex-1 flex-col min-w-0 h-full overflow-hidden ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'}`}>
 
           {/* Header */}
-          <div className="min-h-16 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 bg-white dark:bg-slate-900 sticky top-0 z-20 shrink-0 select-none">
+          <div className="min-h-16 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 bg-white dark:bg-slate-900 glass-card-inset sticky top-0 z-20 shrink-0 select-none">
             <div className="flex items-center gap-2 sm:gap-3">
               <button 
                 type="button"
@@ -5864,7 +5867,7 @@ export const Chat: React.FC = () => {
                   placeholder="Pesquisar..."
                   value={messageSearchTerm}
                   onChange={(e) => setMessageSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 w-40 lg:w-48 bg-slate-50 dark:bg-slate-950/50 border border-transparent focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg text-sm text-slate-900 dark:text-white transition-all outline-none placeholder:text-slate-400"
+                  className="pl-9 pr-4 py-2 w-40 lg:w-48 bg-slate-50 dark:bg-slate-950/50 glass-chat-field border border-transparent focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-lg text-sm text-slate-900 dark:text-white transition-all outline-none placeholder:text-slate-400"
                 />
               </div>
               <Tooltip content={showFavoritesOnly ? "Mostrar Todas" : "Favoritos"} position="bottom">
@@ -5958,7 +5961,7 @@ export const Chat: React.FC = () => {
                   </Tooltip>
 
                   {showSupportActionsMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                       {(() => {
                         const isGestor = currentUser?.role === 'gestor';
                         const isAssignedToMe = selectedChannel.assigned_to === userId;
@@ -6136,7 +6139,7 @@ export const Chat: React.FC = () => {
           <div 
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4 bg-slate-50/50 dark:bg-slate-950/50 overscroll-y-contain"
+            className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-4 bg-slate-50/50 dark:bg-slate-950/50 glass-chat-canvas overscroll-y-contain"
             style={{ overscrollBehaviorY: 'contain' }}
           >
             {loadingMore && (
@@ -6242,7 +6245,7 @@ export const Chat: React.FC = () => {
 
                         <div className={`group relative p-3 rounded-2xl shadow-sm text-sm flex flex-col ${msg.isMe || isMeet
                           ? 'bg-indigo-600 text-white'
-                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                          : 'bg-white dark:bg-slate-800 glass-chat-bubble-in text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
                           }`}>
 
                           {/* Botões flutuantes Hover */}
@@ -6921,7 +6924,7 @@ export const Chat: React.FC = () => {
 
           {/* Input Area */}
           <div 
-            className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 relative z-20"
+            className="p-3 sm:p-4 bg-white dark:bg-slate-900 glass-card-inset border-t border-slate-200 dark:border-slate-800 shrink-0 relative z-20"
             style={{ paddingBottom: 'max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))' }}
           >
             {showEmojiPicker && (
@@ -6945,7 +6948,7 @@ export const Chat: React.FC = () => {
             )}
 
             {selectedFiles.length > 0 && (
-              <div className="mb-3 p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center gap-2 overflow-x-auto custom-scrollbar">
+              <div className="mb-3 p-2.5 bg-slate-50 dark:bg-slate-900 glass-card-inset border border-slate-200 dark:border-slate-800 rounded-xl flex items-center gap-2 overflow-x-auto custom-scrollbar">
                 {selectedFiles.map((file, idx) => {
                   const isImg = file.type.startsWith('image/');
                   const isVid = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|m4v)($|\?)/i.test(file.name);
@@ -7168,7 +7171,7 @@ export const Chat: React.FC = () => {
                         textareaRef.current?.focus();
                       }
                     }}
-                    className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200/80 dark:border-slate-800/80 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20 dark:focus-within:ring-indigo-400/20 focus-within:bg-white dark:focus-within:bg-slate-900 shadow-xs focus-within:shadow-md transition-all duration-200 cursor-text"
+                    className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950/60 glass-chat-field p-2 rounded-xl border border-slate-200/80 dark:border-slate-800/80 focus-within:border-indigo-500 dark:focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20 dark:focus-within:ring-indigo-400/20 focus-within:bg-white dark:focus-within:bg-slate-900 shadow-xs focus-within:shadow-md transition-all duration-200 cursor-text"
                   >
                     <Tooltip content="Anexar arquivo ou vídeo (máx 10MB)" position="top">
                       <button
@@ -7301,9 +7304,9 @@ export const Chat: React.FC = () => {
           <ChatMessagesSkeleton />
         </div>
       ) : (
-        <div className={`flex-1 flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 text-slate-400 ${!showSidebarOnMobile ? 'flex' : 'hidden'} md:flex relative overflow-hidden h-full`}>
+        <div className={`flex-1 flex-col items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 glass-chat-canvas text-slate-400 ${!showSidebarOnMobile ? 'flex' : 'hidden'} md:flex relative overflow-hidden h-full`}>
           {/* Barra superior com botão de expandir */}
-          <div className="absolute top-0 left-0 right-0 h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
+          <div className="absolute top-0 left-0 right-0 h-16 flex items-center px-4 border-b border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 glass-card-inset backdrop-blur-sm">
             <button
               type="button"
               className="md:hidden w-9 h-9 flex items-center justify-center -ml-1 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-90 rounded-full transition-all shrink-0 cursor-pointer"
@@ -7327,12 +7330,13 @@ export const Chat: React.FC = () => {
           </div>
 
           {/* Conteúdo central */}
-          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 glass-control-pill rounded-full flex items-center justify-center mb-4">
             <MousePointerClick size={32} className="text-slate-400 dark:text-slate-500 animate-pulse" />
           </div>
           <p>Selecione uma conversa para começar</p>
         </div>
       )}
+    </div>
 
       <CreateGroupModal
         isOpen={isCreateModalOpen}
@@ -7406,40 +7410,31 @@ export const Chat: React.FC = () => {
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
                   Colaborador <span className="text-slate-400 text-[10px] lowercase font-normal italic">(opcional - em branco para Fila)</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={transferUserId}
-                  onChange={(e) => {
-                    setTransferUserId(e.target.value);
-                  }}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Nenhum (Transferir para a Fila do Setor)</option>
-                  {profiles
-                    .filter(p => p.role !== 'cliente' && p.id !== userId && isUserAvailableForTransfer(p))
-                    .map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.full_name} ({p.role})
-                      </option>
-                    ))}
-                </select>
+                  onChange={(val) => setTransferUserId(val)}
+                  placeholder="Nenhum (Transferir para a Fila do Setor)"
+                  options={[
+                    { value: '', label: 'Nenhum (Transferir para a Fila do Setor)' },
+                    ...profiles
+                      .filter(p => p.role !== 'cliente' && p.id !== userId && isUserAvailableForTransfer(p))
+                      .map(p => ({ value: p.id, label: `${p.full_name} (${p.role})` }))
+                  ]}
+                />
               </div>
 
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
                   Setor <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
                   value={transferSectorId}
                   onChange={(e) => setTransferSectorId(e.target.value)}
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Selecione o Setor</option>
-                  {allowedSectors.map(sector => (
-                    <option key={sector.id} value={sector.id}>
-                      {sector.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Selecione o Setor' },
+                    ...allowedSectors.map(sector => ({ value: sector.id, label: sector.name }))
+                  ]}
+                />
               </div>
             </div>
           </Modal>
@@ -7447,12 +7442,12 @@ export const Chat: React.FC = () => {
       })()}
 
 
-      {isSupportCreateModalOpen && (() => {
+      {isSupportCreateModalOpen && typeof document !== 'undefined' && (() => {
         const selectedSector = sectors.find(s => s.id === supportSectorId);
         const scopeList = selectedSector ? getSectorScope(selectedSector.name) : [];
 
-        return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4">
+        return createPortal(
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
                 <h2 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none flex items-center gap-2">
@@ -7476,26 +7471,23 @@ export const Chat: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                     Setor <span className="text-rose-500">*</span>
                   </label>
-                  <select
+                  <Select
                     value={supportSectorId}
                     onChange={(e) => setSupportSectorId(e.target.value)}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-                  >
-                    <option value="">Selecione um Setor</option>
-                    {sectors
-                      .filter(sector => {
-                        const isClient = currentUser?.role === 'cliente';
-                        const isActive = sector.status !== 'Inativo';
-                        if (isClient) {
-                          return isActive && sector.chat_available !== false;
-                        }
-                        return isActive;
-                      })
-                      .map(sector => (
-                        <option key={sector.id} value={sector.id}>{sector.name}</option>
-                      ))
-                    }
-                  </select>
+                    options={[
+                      { value: '', label: 'Selecione um Setor' },
+                      ...sectors
+                        .filter(sector => {
+                          const isClient = currentUser?.role === 'cliente';
+                          const isActive = sector.status !== 'Inativo';
+                          if (isClient) {
+                            return isActive && sector.chat_available !== false;
+                          }
+                          return isActive;
+                        })
+                        .map(sector => ({ value: sector.id, label: sector.name }))
+                    ]}
+                  />
                 </div>
 
                 {scopeList.length > 0 && (
@@ -7533,16 +7525,17 @@ export const Chat: React.FC = () => {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         );
       })()}
 
-      {isStaffSupportModalOpen && (() => {
+      {isStaffSupportModalOpen && typeof document !== 'undefined' && (() => {
         const selectedSector = sectors.find(s => s.id === staffSupportSectorId);
         const scopeList = selectedSector ? getSectorScope(selectedSector.name) : [];
 
-        return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4">
+        return createPortal(
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
                 <h2 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none flex items-center gap-2">
@@ -7566,35 +7559,28 @@ export const Chat: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Cliente <span className="text-rose-500">*</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={staffSupportClientId}
-                    onChange={(e) => setStaffSupportClientId(e.target.value)}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-                  >
-                    <option value="">Selecione o Cliente</option>
-                    {clientProfiles.map(client => (
-                      <option key={client.id} value={client.id}>{client.full_name}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setStaffSupportClientId(val)}
+                    placeholder="Selecione o Cliente"
+                    options={clientProfiles.map(client => ({ value: client.id, label: client.full_name }))}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Setor <span className="text-slate-400 text-[10px] lowercase italic">(opcional)</span>
                   </label>
-                  <select
+                  <Select
                     value={staffSupportSectorId}
                     onChange={(e) => setStaffSupportSectorId(e.target.value)}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm"
-                  >
-                    <option value="">Nenhum setor específico</option>
-                    {sectors
-                      .filter(sector => sector.status !== 'Inativo')
-                      .map(sector => (
-                        <option key={sector.id} value={sector.id}>{sector.name}</option>
-                      ))
-                    }
-                  </select>
+                    options={[
+                      { value: '', label: 'Nenhum setor específico' },
+                      ...sectors
+                        .filter(sector => sector.status !== 'Inativo')
+                        .map(sector => ({ value: sector.id, label: sector.name }))
+                    ]}
+                  />
                 </div>
 
                 {scopeList.length > 0 && (
@@ -7632,7 +7618,8 @@ export const Chat: React.FC = () => {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         );
       })()}
 
@@ -7707,8 +7694,8 @@ export const Chat: React.FC = () => {
         </div>
       </Modal>
       {/* Modal Encaminhar Mensagem */}
-      {forwardMessageModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      {forwardMessageModal.isOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300 max-h-[85vh]">
             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
               <div className="flex items-center gap-3">
@@ -7829,11 +7816,12 @@ export const Chat: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal de Seleção de Setor ao Assumir Atendimento */}
-      {assignSectorModalState.isOpen && (
+      {assignSectorModalState.isOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden flex flex-col scale-100 animate-in zoom-in-95 duration-200">
             {/* Header */}
@@ -7979,7 +7967,8 @@ export const Chat: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Drawer de Mensagens Modelos */}
@@ -8002,6 +7991,6 @@ export const Chat: React.FC = () => {
         fileType={previewModal.type}
         fileSize={previewModal.size}
       />
-    </div>
+    </>
   );
 };
