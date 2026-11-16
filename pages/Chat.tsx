@@ -66,7 +66,9 @@ import { formatMessageText, stripFormatting } from '../utils/stringUtils';
 import { Tooltip } from '../components/ui/Tooltip';
 import { useToast } from '../contexts/ToastContext';
 import { MessageTemplatesDrawer } from '../components/chat/MessageTemplatesDrawer';
-import { triggerPushNotification } from '../utils/webPush';
+import { triggerPushNotification, hasActivePushSubscriptionFlag } from '../utils/webPush';
+import { soundEffects } from '../utils/soundEffects';
+import { sendBrowserNotification } from '../utils/browserNotification';
 import { AudioRecorder } from '../components/chat/AudioRecorder';
 import { AudioMessagePlayer } from '../components/chat/AudioMessagePlayer';
 import { ChatSidebarSkeleton, ChatMessagesSkeleton, ChatMessageBubblesSkeleton } from '../components/ui/Skeleton';
@@ -405,64 +407,20 @@ const getSectorScope = (sectorName: string): string[] => {
 };
 
 const playNotificationSound = () => {
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const audioCtx = new AudioContextClass();
-    const now = audioCtx.currentTime;
-    
-    // Primeiro bip (Ré5)
-    const osc1 = audioCtx.createOscillator();
-    const gain1 = audioCtx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(587.33, now);
-    gain1.gain.setValueAtTime(0, now);
-    gain1.gain.linearRampToValueAtTime(0.15, now + 0.05);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-    osc1.connect(gain1);
-    gain1.connect(audioCtx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.2);
-    
-    // Segundo bip (Lá5)
-    const osc2 = audioCtx.createOscillator();
-    const gain2 = audioCtx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(880, now + 0.1);
-    gain2.gain.setValueAtTime(0, now + 0.1);
-    gain2.gain.linearRampToValueAtTime(0.15, now + 0.15);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-    osc2.connect(gain2);
-    gain2.connect(audioCtx.destination);
-    osc2.start(now + 0.1);
-    osc2.stop(now + 0.35);
-  } catch (error) {
-    console.warn('Erro ao reproduzir som de notificação:', error);
-  }
+  soundEffects.playNotificationSound();
 };
 
-const showBrowserNotification = (title: string, options?: NotificationOptions) => {
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    if (Notification.permission === 'granted') {
-      try {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.ready.then(reg => {
-            reg.showNotification(title, {
-              ...options,
-              icon: options?.icon || '/pwa-192x192.png',
-              badge: '/favicon.png'
-            });
-          }).catch(() => {
-            new Notification(title, options);
-          });
-        } else {
-          new Notification(title, options);
-        }
-      } catch (e) {
-        console.warn('Erro ao disparar notificação:', e);
-      }
-    }
-  }
+const showBrowserNotification = (
+  title: string,
+  options?: { body?: string; icon?: string; tag?: string; channelId?: string }
+) => {
+  if (hasActivePushSubscriptionFlag()) return;
+  sendBrowserNotification(title, {
+    body: options?.body,
+    icon: options?.icon,
+    tag: options?.tag,
+    channelId: options?.channelId
+  });
 };
 
 const isUserAvailableForTransfer = (profile: any): boolean => {
@@ -933,12 +891,36 @@ export const Chat: React.FC = () => {
     userIdRef.current = userId;
   }, [userId]);
 
+  // Abrir conversa automaticamente via deep-link (?channelId=...) ou clique em notificação Push
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
+    const syncChannelFromUrl = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const deepChannelId = params.get('channelId');
+        if (deepChannelId) {
+          setSelectedChannelId(deepChannelId);
+          setShowSidebarOnMobile(false);
+        }
+      } catch {
+        // Ignora erro de URL
       }
-    }
+    };
+
+    syncChannelFromUrl();
+
+    const handleOpenChannelEvent = (event: Event) => {
+      const custom = event as CustomEvent<{ channelId?: string }>;
+      const targetChannelId = custom.detail?.channelId;
+      if (targetChannelId) {
+        setSelectedChannelId(targetChannelId);
+        setShowSidebarOnMobile(false);
+      }
+    };
+
+    window.addEventListener('taskaccount:open-chat-channel', handleOpenChannelEvent);
+    return () => {
+      window.removeEventListener('taskaccount:open-chat-channel', handleOpenChannelEvent);
+    };
   }, []);
 
   useEffect(() => {
@@ -1500,7 +1482,9 @@ export const Chat: React.FC = () => {
               
               showBrowserNotification(title, {
                 body: newMsg.text || 'Arquivo enviado',
-                icon: sender?.avatar_url || undefined
+                icon: sender?.avatar_url || undefined,
+                tag: `chat-channel-${newMsg.channel_id}`,
+                channelId: newMsg.channel_id
               });
             }
           }
@@ -1875,7 +1859,9 @@ export const Chat: React.FC = () => {
               
               showBrowserNotification(title, {
                 body: newMsg.text || 'Arquivo enviado',
-                icon: sender?.avatar_url || undefined
+                icon: sender?.avatar_url || undefined,
+                tag: `chat-channel-${newMsg.channel_id}`,
+                channelId: newMsg.channel_id
               });
             }
           }
@@ -4628,6 +4614,7 @@ export const Chat: React.FC = () => {
         senderId: userId,
         senderName: senderProfile?.full_name || 'Usuário',
         senderAvatar: senderProfile?.avatar_url || undefined,
+        isPrivate: selectedChannel?.is_private ?? false,
         text: textToSend || (filesToSend.length > 0 ? '📎 Enviou um anexo' : 'Nova mensagem')
       });
     } catch (error) {
@@ -4795,6 +4782,7 @@ export const Chat: React.FC = () => {
         senderId: userId,
         senderName: senderProfile?.full_name || 'Usuário',
         senderAvatar: senderProfile?.avatar_url || undefined,
+        isPrivate: selectedChannel?.is_private ?? false,
         text: '🎤 Mensagem de áudio'
       });
 

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellRing, Check, Smartphone, Share, PlusSquare, X } from 'lucide-react';
-import { 
-  getPushNotificationState, 
-  registerPushSubscription, 
-  PushNotificationState,
-  isIOS,
-  isStandalone
+import { createPortal } from 'react-dom';
+import { Bell, BellRing, Smartphone, Share, PlusSquare, X, ExternalLink, Copy } from 'lucide-react';
+import {
+  getPushNotificationState,
+  registerPushSubscription,
+  PushNotificationState
 } from '../../utils/webPush';
 import { useToast } from '../../contexts/ToastContext';
+import { Tooltip } from '../ui/Tooltip';
 
 interface PushNotificationBannerProps {
   userId: string;
@@ -38,7 +38,6 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
     checkState();
   }, [userId]);
 
-  // Não exibir se já concedido ou não suportado ou se o usuário dispensou o banner
   if (pushState === 'granted' || pushState === 'unsupported' || isDismissed) {
     return null;
   }
@@ -48,7 +47,21 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
     localStorage.setItem('taskaccount_push_banner_dismissed', 'true');
   };
 
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.origin);
+      addToast('success', 'Link copiado', 'Cole no Safari ou Chrome para ativar as notificações no celular.');
+    } catch {
+      addToast('info', 'Abra no navegador', 'Use o menu do aplicativo para abrir no Safari ou Chrome.');
+    }
+  };
+
   const handleEnablePush = async () => {
+    if (pushState === 'in_app_browser') {
+      await handleCopyLink();
+      return;
+    }
+
     if (pushState === 'needs_ios_install') {
       setShowIOSModal(true);
       return;
@@ -88,7 +101,11 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
               Notificações no Celular
             </p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {pushState === 'denied' ? 'Bloqueadas pelo navegador' : 'Receba avisos com o celular bloqueado'}
+              {pushState === 'denied'
+                ? 'Bloqueadas pelo navegador'
+                : pushState === 'in_app_browser'
+                  ? 'Abra no Safari ou Chrome para ativar'
+                  : 'Receba avisos com o celular bloqueado'}
             </p>
           </div>
         </div>
@@ -97,10 +114,16 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
             type="button"
             onClick={handleEnablePush}
             disabled={isSubscribing}
-            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
           >
-            <Bell size={13} />
-            <span>{isSubscribing ? 'Ativando...' : 'Ativar'}</span>
+            {pushState === 'in_app_browser' ? <Copy size={13} /> : <Bell size={13} />}
+            <span>
+              {pushState === 'in_app_browser'
+                ? 'Copiar Link'
+                : isSubscribing
+                  ? 'Ativando...'
+                  : 'Ativar'}
+            </span>
           </button>
         )}
       </div>
@@ -110,31 +133,45 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
   return (
     <>
       <div className={`relative overflow-hidden p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent dark:from-indigo-950/50 dark:via-purple-950/30 border border-indigo-200/70 dark:border-indigo-800/60 shadow-xs ${className}`}>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="absolute top-2.5 right-2.5 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors"
-          title="Fechar aviso"
-        >
-          <X size={15} />
-        </button>
+        <div className="absolute top-2.5 right-2.5">
+          <Tooltip content="Fechar aviso" position="left">
+            <button
+              type="button"
+              onClick={handleDismiss}
+              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-white/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+              aria-label="Fechar aviso"
+            >
+              <X size={15} />
+            </button>
+          </Tooltip>
+        </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 pr-6">
           <div className="flex items-start gap-3">
             <div className="p-2.5 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 rounded-xl shadow-xs shrink-0 mt-0.5 sm:mt-0">
-              <BellRing size={20} className="animate-pulse" />
+              {pushState === 'in_app_browser' ? (
+                <ExternalLink size={20} />
+              ) : (
+                <BellRing size={20} className="animate-pulse" />
+              )}
             </div>
             <div>
               <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span>Ativar Notificações no Celular</span>
+                <span>
+                  {pushState === 'in_app_browser'
+                    ? 'Abra no Safari ou Chrome para Notificações'
+                    : 'Ativar Notificações no Celular'}
+                </span>
                 <span className="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-300">
                   PWA
                 </span>
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed max-w-xl">
-                {pushState === 'needs_ios_install' 
-                  ? 'No iPhone, adicione o aplicativo à Tela de Início para poder receber avisos em tempo real.'
-                  : 'Receba alertas instantâneos de mensagens e novidades no seu smartphone mesmo com a tela bloqueada.'}
+                {pushState === 'in_app_browser'
+                  ? 'Você abriu o portal pelo navegador interno de outro app (ex.: WhatsApp/Instagram). Abra no Safari ou Chrome e adicione à Tela Inicial para receber alertas.'
+                  : pushState === 'needs_ios_install'
+                    ? 'No iPhone, adicione o aplicativo à Tela de Início para poder receber avisos em tempo real.'
+                    : 'Receba alertas instantâneos de mensagens e novidades no seu smartphone mesmo com a tela bloqueada.'}
               </p>
             </div>
           </div>
@@ -146,7 +183,12 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
               disabled={isSubscribing}
               className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
-              {pushState === 'needs_ios_install' ? (
+              {pushState === 'in_app_browser' ? (
+                <>
+                  <Copy size={15} />
+                  <span>Copiar Link</span>
+                </>
+              ) : pushState === 'needs_ios_install' ? (
                 <>
                   <Smartphone size={15} />
                   <span>Como Ativar no iPhone</span>
@@ -163,7 +205,7 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
       </div>
 
       {/* Modal explicativo para iOS / iPhone */}
-      {showIOSModal && (
+      {showIOSModal && createPortal(
         <div className="fixed inset-0 z-[99999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 text-center animate-in zoom-in-95 duration-200">
             <div className="w-14 h-14 mx-auto mb-4 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center border border-indigo-100 dark:border-indigo-900 shadow-sm">
@@ -174,7 +216,7 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
               Ativar Notificações no iPhone
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-5">
-              O sistema iOS (Apple) requer que a aplicação seja adicionada à <strong>Tela de Início</strong> para permitir o envio de notificações push.
+              O sistema iOS (Apple) requer que a aplicação seja adicionada à <strong>Tela de Início</strong> pelo Safari para permitir notificações push e avisos no ícone.
             </p>
 
             <div className="text-left space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
@@ -195,12 +237,13 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
             <button
               type="button"
               onClick={() => setShowIOSModal(false)}
-              className="w-full py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-xl hover:opacity-95 transition-opacity"
+              className="w-full py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-xl hover:opacity-95 transition-opacity cursor-pointer"
             >
               Entendi
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -4,6 +4,11 @@ export type BackgroundThemeId =
   | 'aurora'
   | 'dunas'
   | 'horizonte'
+  | 'crepusculo'
+  | 'alvorada'
+  | 'expresso'
+  | 'voo'
+  | 'metropole'
   | 'nebulosa'
   | 'chumbo'
   | 'lavanda'
@@ -48,6 +53,39 @@ export const BACKGROUND_THEMES: BackgroundThemeOption[] = [
     id: 'horizonte',
     name: 'Horizonte Alpino',
     description: 'Camadas atmosféricas em azul cobalto e neblina minimalista.',
+  },
+  {
+    id: 'crepusculo',
+    name: 'Crepúsculo Alpino',
+    description: 'Cordilheira minimalista ao entardecer em violeta, índigo e névoa suave.',
+  },
+  {
+    id: 'alvorada',
+    name: 'Alvorada Alpina',
+    description: 'Picos nevados iluminados em magenta sobre cordilheiras atmosféricas.',
+    lightImage: '/bg-theme-alvorada.jpg',
+    darkImage: '/bg-theme-alvorada.jpg',
+  },
+  {
+    id: 'expresso',
+    name: 'Expresso Estelar',
+    description: 'Viaduto iluminado sob picos nevados e céu estrelado em violeta.',
+    lightImage: '/bg-theme-expresso.jpg',
+    darkImage: '/bg-theme-expresso.jpg',
+  },
+  {
+    id: 'voo',
+    name: 'Voo Crepuscular',
+    description: 'Avião cruzando o horizonte solar sob lua crescente em tons quentes.',
+    lightImage: '/bg-theme-voo.jpg',
+    darkImage: '/bg-theme-voo.jpg',
+  },
+  {
+    id: 'metropole',
+    name: 'Névoa Urbana',
+    description: 'Horizonte metropolitano envolto por neblina matinal e luz suave.',
+    lightImage: '/bg-theme-metropole.jpg',
+    darkImage: '/bg-theme-metropole.jpg',
   },
   {
     id: 'nebulosa',

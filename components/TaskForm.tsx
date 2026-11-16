@@ -601,7 +601,54 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
 
       const finalTasksToInsert: any[] = [];
       const updateTasksToExecute: any[] = [];
+      const seriesToSync: any[] = [];
       const clientAttachmentsMap: Record<string, File[]> = {};
+      const resolvedOrgId = userProfile?.org_id || user.id;
+      const isContinuousRecurrence = (rec?: string) =>
+        ['mensal', 'bimestral', 'trimestral', 'semestral', 'anual'].includes((rec || '').trim().toLowerCase());
+      const buildSeriesSyncPayload = (params: {
+        clientId: string;
+        clientName: string;
+        taskName: string;
+        recurrence: string;
+        recurrenceMonths?: number[] | null;
+        baseDueDay: number;
+        monthOffset: number;
+        variableAdjustment?: string | null;
+        sector?: string | null;
+        responsible?: string | null;
+        responsibles?: string[];
+        priority: string;
+        taxRegime?: string | null;
+        registrationRegime?: string | null;
+        noMovement?: boolean;
+        exceededSublimit?: boolean;
+        factorR?: boolean;
+        notifiedExclusion?: boolean;
+        selectedAnnexes?: string[] | null;
+        observation?: string | null;
+      }) => ({
+        p_client_id: params.clientId,
+        p_client_name: params.clientName,
+        p_task_name: params.taskName,
+        p_recurrence: params.recurrence,
+        p_recurrence_months: params.recurrenceMonths || null,
+        p_base_due_day: params.baseDueDay,
+        p_month_offset: params.monthOffset,
+        p_variable_adjustment: params.variableAdjustment || null,
+        p_sector: params.sector || null,
+        p_responsible: params.responsible || null,
+        p_responsibles: params.responsibles || [],
+        p_priority: params.priority,
+        p_tax_regime: params.taxRegime || null,
+        p_registration_regime: params.registrationRegime || null,
+        p_no_movement: Boolean(params.noMovement),
+        p_exceeded_sublimit: Boolean(params.exceededSublimit),
+        p_factor_r: Boolean(params.factorR),
+        p_notified_exclusion: Boolean(params.notifiedExclusion),
+        p_selected_annexes: params.selectedAnnexes || null,
+        p_observation: params.observation || null
+      });
 
       // We will iterate over EACH client
       for (const clientName of Array.from(allTargetClients)) {
@@ -657,7 +704,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
               notified_exclusion: config.notifiedExclusion,
               selected_annexes: config.selectedAnnexes,
               observation: config.observation,
-              org_id: user.id
+              org_id: resolvedOrgId
             });
           } else {
             // Lógica de expansão para CRIAÇÃO
@@ -671,6 +718,31 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
               const dMonth = dDate.getMonth() + 1;
               monthOffset = (dYear - startYear) * 12 + (dMonth - startMonth);
               baseDay = dDate.getDate();
+            }
+
+            if (isContinuousRecurrence(t.recurrence)) {
+              seriesToSync.push(buildSeriesSyncPayload({
+                clientId: client.id,
+                clientName: client.companyName,
+                taskName: t.taskName,
+                recurrence: t.recurrence,
+                recurrenceMonths: t.months,
+                baseDueDay: baseDay,
+                monthOffset,
+                variableAdjustment: t.vencimentoVariavel,
+                sector: t.sector,
+                responsible: primaryResp,
+                responsibles: taskRespList,
+                priority: t.priority,
+                taxRegime: config.taxRegime,
+                registrationRegime: config.regimeRegistro,
+                noMovement: config.semMovimento,
+                exceededSublimit: config.excedeuSublimite,
+                factorR: config.fatorR,
+                notifiedExclusion: config.notifiedExclusion,
+                selectedAnnexes: config.selectedAnnexes,
+                observation: config.observation
+              }));
             }
 
             const createIterationPayload = (month: number, year: number) => {
@@ -704,7 +776,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                 notified_exclusion: config.notifiedExclusion,
                 selected_annexes: config.selectedAnnexes,
                 observation: config.observation,
-                org_id: user.id
+                org_id: resolvedOrgId
               };
             };
 
@@ -755,6 +827,40 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
 
           // Atualizar tarefas futuras se solicitado
           if (updateFutureTasks && taskData) {
+            const editedTask = tasksToSave.find(x => x.id === payload.id);
+            if (isContinuousRecurrence(payload.recurrence)) {
+              let editBaseDay = 10;
+              let editMonthOffset = 0;
+              if (editedTask && editedTask.vencimento && editedTask.competence) {
+                const [startYear, startMonth] = editedTask.competence.split('-').map(Number);
+                const dDate = new Date(editedTask.vencimento + 'T12:00:00');
+                editMonthOffset = (dDate.getFullYear() - startYear) * 12 + ((dDate.getMonth() + 1) - startMonth);
+                editBaseDay = dDate.getDate();
+              }
+              seriesToSync.push(buildSeriesSyncPayload({
+                clientId: payload.client_id,
+                clientName: payload.client_name,
+                taskName: payload.task_name,
+                recurrence: payload.recurrence,
+                recurrenceMonths: payload.recurrence_months,
+                baseDueDay: editBaseDay,
+                monthOffset: editMonthOffset,
+                variableAdjustment: payload.variable_adjustment,
+                sector: payload.sector,
+                responsible: payload.responsible,
+                responsibles: payload.responsibles,
+                priority: payload.priority,
+                taxRegime: payload.tax_regime,
+                registrationRegime: payload.registration_regime,
+                noMovement: payload.no_movement,
+                exceededSublimit: payload.exceeded_sublimit,
+                factorR: payload.factor_r,
+                notifiedExclusion: payload.notified_exclusion,
+                selectedAnnexes: payload.selected_annexes,
+                observation: payload.observation
+              }));
+            }
+
             const { data: futureTasks, error: fetchFutureError } = await (supabase.from('tasks') as any)
                .select('id, competence')
                .eq('client_id', payload.client_id)
@@ -763,7 +869,7 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
                .gt('competence', initialData.competence);
 
             if (futureTasks && futureTasks.length > 0) {
-              const t = tasksToSave.find(x => x.id === payload.id);
+              const t = editedTask;
               for (const ft of futureTasks) {
                 let updatedFields: any = {
                   responsible: payload.responsible,
@@ -936,6 +1042,14 @@ export default function TaskForm({ onBack, initialData, clients, userProfile }: 
               .insert(finalWorkflowsToInsert);
             if (wfError) throw wfError;
           }
+        }
+      }
+
+      // Sincroniza a regra vigente das séries recorrentes contínuas para o motor pg_cron
+      if (seriesToSync.length > 0) {
+        for (const seriesPayload of seriesToSync) {
+          const { error: seriesError } = await (supabase as any).rpc('upsert_recurring_task_series', seriesPayload);
+          if (seriesError) throw seriesError;
         }
       }
 

@@ -33,7 +33,11 @@ import {
   isValidBackgroundTheme,
   setStoredBackgroundTheme,
 } from './constants/backgroundThemes';
-import { registerPushSubscription } from './utils/webPush';
+import {
+  syncExistingPushSubscription,
+  listenPushSubscriptionChanges,
+  updateAppBadge,
+} from './utils/webPush';
 import { GlobalChatNotifier } from './components/chat/GlobalChatNotifier';
 import { triggerCronHealthCheck } from './utils/cronHealthCheck';
 
@@ -640,8 +644,8 @@ function App() {
       setUserRole(profileData.role as UserRole);
       setUserProfile(finalProfile);
 
-      // Registrar/atualizar a inscrição de Notificações Web Push PWA
-      registerPushSubscription(session.user.id, finalProfile.org_id).catch(() => {});
+      // Sincronizar inscrição Web Push silenciosamente se permissão já estiver concedida
+      syncExistingPushSubscription(session.user.id, finalProfile.org_id).catch(() => {});
 
       // Auto-cura e verificação de saúde do cron de tarefas recorrentes em background
       triggerCronHealthCheck(profileData.role);
@@ -707,6 +711,17 @@ function App() {
       supabase.removeChannel(channel);
     };
   }, [userProfile]);
+
+  useEffect(() => {
+    if (!userProfile?.id) return;
+    return listenPushSubscriptionChanges(userProfile.id, userProfile.org_id);
+  }, [userProfile?.id, userProfile?.org_id]);
+
+  useEffect(() => {
+    if (!userProfile?.id) return;
+    const totalBadge = unreadNotificationsCount + chatUnreadCount + pendingDocsCount;
+    updateAppBadge(totalBadge).catch(() => {});
+  }, [userProfile?.id, unreadNotificationsCount, chatUnreadCount, pendingDocsCount]);
 
   const refreshUserProfile = () => {
     if (session) {
@@ -1152,13 +1167,14 @@ function App() {
           userProfile={userProfile}
           activeTab={activeTab}
           onNavigateToChat={(channelId) => {
-            setActiveTab('chat');
             if (channelId) {
               const url = new URL(window.location.href);
               url.searchParams.set('tab', 'chat');
               url.searchParams.set('channelId', channelId);
               window.history.replaceState({}, '', url.toString());
+              window.dispatchEvent(new CustomEvent('taskaccount:open-chat-channel', { detail: { channelId } }));
             }
+            setActiveTab('chat');
           }}
         />
       )}

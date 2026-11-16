@@ -1,6 +1,7 @@
 /**
  * Utilitário para gerenciamento de notificações da Web Notification API nativa.
- * Permite alertar o usuário mesmo quando a aba do navegador não está em foco ou no celular.
+ * Usa prioritariamente ServiceWorkerRegistration.showNotification() para compatibilidade
+ * com Android Chrome PWA (onde `new Notification()` lança Illegal constructor).
  */
 
 export async function requestBrowserNotificationPermission(): Promise<NotificationPermission> {
@@ -22,12 +23,14 @@ export function isBrowserNotificationSupported(): boolean {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
 
-export function sendBrowserNotification(
+export async function sendBrowserNotification(
   title: string,
   options?: {
     body?: string;
     tag?: string;
     icon?: string;
+    url?: string;
+    channelId?: string;
     force?: boolean;
     onClick?: () => void;
   }
@@ -38,18 +41,33 @@ export function sendBrowserNotification(
 
   try {
     const isDocHidden = typeof document !== 'undefined' && document.hidden;
-    // Se force for verdadeiro ou a página estiver em segundo plano, exibe a notificação
     if (!isDocHidden && !options?.force) {
       return;
     }
 
-    const n = new Notification(title, {
+    const notifOptions: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
       body: options?.body,
       tag: options?.tag || 'task-account-alert',
+      renotify: true,
       icon: options?.icon || '/pwa-192x192.png',
-      badge: '/favicon.png'
-    });
+      badge: '/favicon.png',
+      vibrate: [200, 100, 200],
+      data: {
+        url: options?.url || (options?.channelId ? `/?tab=chat&channelId=${options.channelId}` : '/?tab=chat'),
+        channelId: options?.channelId
+      }
+    };
 
+    // No Android/PWA instalado, `new Notification()` falha — usar o Service Worker é obrigatório
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg && typeof reg.showNotification === 'function') {
+        await reg.showNotification(title, notifOptions);
+        return;
+      }
+    }
+
+    const n = new Notification(title, notifOptions);
     n.onclick = () => {
       try {
         window.focus();

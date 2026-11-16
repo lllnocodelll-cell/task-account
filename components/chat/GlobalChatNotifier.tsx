@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../utils/supabaseClient';
 import { soundEffects } from '../../utils/soundEffects';
-import { MessageSquare, X, ArrowRight, User } from 'lucide-react';
+import { sendBrowserNotification } from '../../utils/browserNotification';
+import { hasActivePushSubscriptionFlag } from '../../utils/webPush';
+import { Tooltip } from '../ui/Tooltip';
+import { X, ArrowRight, User } from 'lucide-react';
 
 interface GlobalChatNotifierProps {
   userProfile: any;
@@ -48,12 +51,18 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
           });
         }
 
-        // 2. Se for cliente, incluir canais vinculados ao seu client_id
-        if (userProfile.client_id) {
+        // 2. Se for cliente, incluir canais vinculados aos seus client_ids/client_id
+        const userClientIds: string[] = Array.isArray(userProfile.client_ids) && userProfile.client_ids.length > 0
+          ? userProfile.client_ids.filter(Boolean)
+          : userProfile.client_id
+            ? [userProfile.client_id]
+            : [];
+
+        if (userClientIds.length > 0) {
           const { data: clientChannels } = await (supabase as any)
             .from('chat_channels')
             .select('id')
-            .eq('client_id', userProfile.client_id);
+            .in('client_id', userClientIds);
 
           if (clientChannels) {
             clientChannels.forEach((c: any) => {
@@ -143,17 +152,25 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
             }
           }
 
-          if (!isRecipient && userProfile.role === 'cliente' && userProfile.client_id) {
-            const { data: checkCh } = await (supabase as any)
-              .from('chat_channels')
-              .select('id')
-              .eq('id', newMsg.channel_id)
-              .eq('client_id', userProfile.client_id)
-              .maybeSingle();
+          if (!isRecipient && userProfile.role === 'cliente') {
+            const userClientIds: string[] = Array.isArray(userProfile.client_ids) && userProfile.client_ids.length > 0
+              ? userProfile.client_ids.filter(Boolean)
+              : userProfile.client_id
+                ? [userProfile.client_id]
+                : [];
 
-            if (checkCh) {
-              isRecipient = true;
-              userChannelIdsRef.current.add(newMsg.channel_id);
+            if (userClientIds.length > 0 && !newMsg.is_private) {
+              const { data: checkCh } = await (supabase as any)
+                .from('chat_channels')
+                .select('id')
+                .eq('id', newMsg.channel_id)
+                .in('client_id', userClientIds)
+                .maybeSingle();
+
+              if (checkCh) {
+                isRecipient = true;
+                userChannelIdsRef.current.add(newMsg.channel_id);
+              }
             }
           }
 
@@ -193,26 +210,16 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
             createdAt: newMsg.created_at
           };
 
-          // Se a página estiver minimizada ou em segundo plano, disparar notificação do Service Worker
+          // Se a página estiver minimizada/oculta e NÃO houver assinatura Web Push ativa
+          // (para evitar notificação duplicada com o sw-push.js), usa notificação local do SW como fallback
           const isDocHidden = typeof document !== 'undefined' && document.hidden;
-          if (isDocHidden && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-            try {
-              navigator.serviceWorker.ready.then(reg => {
-                reg.showNotification(`${senderName} (Task Account)`, {
-                  body: alertData.text,
-                  icon: senderAvatar || '/pwa-192x192.png',
-                  badge: '/favicon.png',
-                  tag: `chat-channel-${newMsg.channel_id}`,
-                  renotify: true,
-                  data: {
-                    url: `/?tab=chat&channelId=${newMsg.channel_id}`,
-                    channelId: newMsg.channel_id
-                  }
-                } as any);
-              });
-            } catch (err) {
-              console.warn('Erro ao disparar banner nativo:', err);
-            }
+          if (isDocHidden && !hasActivePushSubscriptionFlag()) {
+            sendBrowserNotification(`${senderName} (Task Account)`, {
+              body: alertData.text,
+              icon: senderAvatar || '/pwa-192x192.png',
+              tag: `chat-channel-${newMsg.channel_id}`,
+              channelId: newMsg.channel_id
+            });
           }
 
           // Se o usuário NÃO estiver visualizando ativamente a aba de chat, exibe o Toast visual flutuante
@@ -279,17 +286,19 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setActiveAlert(null);
-          }}
-          className="shrink-0 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-          title="Fechar"
-        >
-          <X size={16} />
-        </button>
+        <Tooltip content="Fechar" position="left">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveAlert(null);
+            }}
+            className="shrink-0 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+            aria-label="Fechar"
+          >
+            <X size={16} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

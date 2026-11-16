@@ -72,6 +72,7 @@ export const BackgroundWallpaper: React.FC<BackgroundWallpaperProps> = ({
       {themeId === 'aurora' && renderAuroraSvg(uid, isDarkMode)}
       {themeId === 'dunas' && renderDunasSvg(uid, isDarkMode)}
       {themeId === 'horizonte' && renderHorizonteSvg(uid, isDarkMode)}
+      {themeId === 'crepusculo' && renderCrepusculoSvg(uid, isDarkMode)}
       {themeId === 'nebulosa' && renderNebulosaSvg(uid, isDarkMode)}
     </svg>
   );
@@ -248,6 +249,79 @@ function renderHorizonteSvg(uid: string, isDarkMode: boolean) {
         fill="none"
         stroke={isDarkMode ? 'rgba(165,180,252,0.32)' : 'rgba(255,255,255,0.8)'}
         strokeWidth="2"
+      />
+    </>
+  );
+}
+
+function renderCrepusculoSvg(uid: string, isDarkMode: boolean) {
+  return (
+    <>
+      <defs>
+        <linearGradient id={`${uid}-cp-bg`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={isDarkMode ? '#1e1b4b' : '#ede9fe'} />
+          <stop offset="52%" stopColor={isDarkMode ? '#111827' : '#e0e7ff'} />
+          <stop offset="100%" stopColor={isDarkMode ? '#020617' : '#f8fafc'} />
+        </linearGradient>
+        <radialGradient id={`${uid}-cp-halo`} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor={isDarkMode ? '#a78bfa' : '#ffffff'} stopOpacity={isDarkMode ? '0.28' : '0.92'} />
+          <stop offset="55%" stopColor={isDarkMode ? '#6366f1' : '#e0e7ff'} stopOpacity={isDarkMode ? '0.12' : '0.45'} />
+          <stop offset="100%" stopColor={isDarkMode ? '#0f172a' : '#f8fafc'} stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`${uid}-cp-m1`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={isDarkMode ? '#6366f1' : '#a5b4fc'} stopOpacity={isDarkMode ? '0.28' : '0.42'} />
+          <stop offset="100%" stopColor={isDarkMode ? '#0f172a' : '#e2e8f0'} stopOpacity={isDarkMode ? '0.14' : '0.18'} />
+        </linearGradient>
+        <linearGradient id={`${uid}-cp-m2`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={isDarkMode ? '#7c3aed' : '#c4b5fd'} stopOpacity={isDarkMode ? '0.32' : '0.46'} />
+          <stop offset="100%" stopColor={isDarkMode ? '#0f172a' : '#f1f5f9'} stopOpacity={isDarkMode ? '0.18' : '0.22'} />
+        </linearGradient>
+        <linearGradient id={`${uid}-cp-m3`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={isDarkMode ? '#4338ca' : '#cbd5e1'} stopOpacity={isDarkMode ? '0.34' : '0.58'} />
+          <stop offset="100%" stopColor={isDarkMode ? '#020617' : '#f8fafc'} stopOpacity="0.14" />
+        </linearGradient>
+      </defs>
+      <rect width="1600" height="900" fill={`url(#${uid}-cp-bg)`} />
+      <circle cx="250" cy="145" r="220" fill={`url(#${uid}-cp-halo)`} />
+      <circle
+        cx="250"
+        cy="145"
+        r="96"
+        fill={isDarkMode ? 'rgba(196,181,253,0.18)' : 'rgba(255,255,255,0.9)'}
+      />
+      {/* Cadeia distante */}
+      <path
+        d="M-60,390 L170,220 L390,340 L640,175 L930,350 L1240,210 L1660,360 L1660,940 L-60,940 Z"
+        fill={`url(#${uid}-cp-m1)`}
+      />
+      {/* Cadeia intermediária */}
+      <path
+        d="M-60,550 L130,360 L350,485 L590,305 L860,490 L1180,335 L1660,470 L1660,940 L-60,940 Z"
+        fill={`url(#${uid}-cp-m2)`}
+      />
+      {/* Cadeia em primeiro plano */}
+      <path
+        d="M-60,710 L210,515 L470,635 L770,455 L1090,645 L1410,510 L1660,610 L1660,940 L-60,940 Z"
+        fill={`url(#${uid}-cp-m3)`}
+      />
+      {/* Cristas luminosas */}
+      <path
+        d="M-60,390 L170,220 L390,340 L640,175 L930,350 L1240,210 L1660,360"
+        fill="none"
+        stroke={isDarkMode ? 'rgba(196,181,253,0.34)' : 'rgba(255,255,255,0.88)'}
+        strokeWidth="1.8"
+      />
+      <path
+        d="M-60,550 L130,360 L350,485 L590,305 L860,490 L1180,335 L1660,470"
+        fill="none"
+        stroke={isDarkMode ? 'rgba(167,139,250,0.36)' : 'rgba(255,255,255,0.85)'}
+        strokeWidth="2"
+      />
+      <path
+        d="M-60,710 L210,515 L470,635 L770,455 L1090,645 L1410,510 L1660,610"
+        fill="none"
+        stroke={isDarkMode ? 'rgba(129,140,248,0.3)' : 'rgba(255,255,255,0.78)'}
+        strokeWidth="1.8"
       />
     </>
   );

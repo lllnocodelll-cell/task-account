@@ -8,7 +8,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Tratar requisição prévia de CORS (OPTIONS)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -34,65 +33,103 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-    const { 
-      channelId, 
-      senderId, 
-      senderName, 
-      senderAvatar, 
-      text, 
-      recipientUserIds 
+    const {
+      channelId,
+      senderId,
+      senderName: rawSenderName,
+      senderAvatar: rawSenderAvatar,
+      text,
+      isPrivate = false,
+      recipientUserIds
     } = body;
 
     if (!channelId && (!recipientUserIds || recipientUserIds.length === 0)) {
       throw new Error('channelId ou recipientUserIds é obrigatório');
     }
 
-    let targetUserIds: string[] = [];
+    let senderName = rawSenderName;
+    let senderAvatar = rawSenderAvatar;
+    if ((!senderName || !senderAvatar) && senderId) {
+      const { data: senderProf } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', senderId)
+        .maybeSingle();
+      if (senderProf) {
+        senderName = senderName || senderProf.full_name;
+        senderAvatar = senderAvatar || senderProf.avatar_url;
+      }
+    }
+
+    const candidateSet = new Set<string>();
 
     if (recipientUserIds && Array.isArray(recipientUserIds) && recipientUserIds.length > 0) {
-      targetUserIds = recipientUserIds.filter(id => id && id !== senderId);
+      recipientUserIds.forEach((id: string) => {
+        if (id && id !== senderId) candidateSet.add(id);
+      });
     } else if (channelId) {
-      // Descobrir membros do canal a partir do banco
+      // 1. Membros explícitos do canal
       const { data: members, error: membersError } = await supabase
         .from('chat_channel_members')
         .select('user_id')
         .eq('channel_id', channelId);
 
       if (!membersError && members) {
-        targetUserIds = members
-          .map((m: any) => m.user_id)
-          .filter((uid: string) => uid && uid !== senderId);
+        members.forEach((m: any) => {
+          if (m.user_id && m.user_id !== senderId) {
+            candidateSet.add(m.user_id);
+          }
+        });
       }
 
-      // Se não houver membros explícitos na tabela de membros (ex: canal de suporte do cliente)
-      if (targetUserIds.length === 0) {
-        const { data: channel } = await supabase
-          .from('chat_channels')
-          .select('client_id, created_by')
-          .eq('id', channelId)
-          .single();
+      // 2. Complementa com criador e usuários do cliente (client_id ou array client_ids)
+      const { data: channel } = await supabase
+        .from('chat_channels')
+        .select('client_id, created_by, is_private')
+        .eq('id', channelId)
+        .maybeSingle();
 
-        if (channel) {
-          const candidateIds: string[] = [];
-          if (channel.created_by && channel.created_by !== senderId) {
-            candidateIds.push(channel.created_by);
+      const effectivePrivate = Boolean(isPrivate || channel?.is_private);
+
+      if (channel) {
+        if (channel.created_by && channel.created_by !== senderId) {
+          candidateSet.add(channel.created_by);
+        }
+
+        if (channel.client_id && !effectivePrivate) {
+          const { data: clientProfiles } = await supabase
+            .from('profiles')
+            .select('id, role')
+            .or(`client_id.eq.${channel.client_id},client_ids.cs.{${channel.client_id}}`);
+
+          if (clientProfiles) {
+            clientProfiles.forEach((p: any) => {
+              if (p.id && p.id !== senderId) {
+                candidateSet.add(p.id);
+              }
+            });
           }
-          // Se o canal tem client_id, buscar os usuários desse cliente
-          if (channel.client_id) {
-            const { data: clientProfiles } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('client_id', channel.client_id);
-            if (clientProfiles) {
-              clientProfiles.forEach((p: any) => {
-                if (p.id !== senderId) candidateIds.push(p.id);
-              });
+        }
+      }
+
+      // Se a mensagem/canal for privado, remove qualquer perfil do portal cliente
+      if (effectivePrivate && candidateSet.size > 0) {
+        const { data: rolesData } = await supabase
+          .from('profiles')
+          .select('id, role')
+          .in('id', Array.from(candidateSet));
+
+        if (rolesData) {
+          rolesData.forEach((p: any) => {
+            if (p.role === 'cliente') {
+              candidateSet.delete(p.id);
             }
-          }
-          targetUserIds = Array.from(new Set(candidateIds));
+          });
         }
       }
     }
+
+    const targetUserIds = Array.from(candidateSet);
 
     if (targetUserIds.length === 0) {
       return new Response(JSON.stringify({ message: 'Nenhum destinatário elegível encontrado', sent: 0 }), {
@@ -114,16 +151,38 @@ serve(async (req) => {
       });
     }
 
+    const title = senderName ? `${senderName} (Task Account)` : 'Task Account';
+    const messageBody = text || 'Nova mensagem recebida no chat';
+    const icon = senderAvatar || '/pwa-192x192.png';
+    const badge = '/favicon.png';
+    const tag = `chat-channel-${channelId || 'global'}`;
+    const targetPath = channelId ? `/?tab=chat&channelId=${channelId}` : '/?tab=chat';
+    const appOrigin = Deno.env.get('APP_PUBLIC_URL') || '';
+    const navigateUrl = appOrigin ? `${appOrigin.replace(/\/$/, '')}${targetPath}` : targetPath;
+
+    // Envelope compatível com Declarative Web Push (Safari/iOS 18.4+ RFC 8030) + SW padrão (Android/Desktop)
     const pushPayload = JSON.stringify({
-      title: senderName ? `${senderName} (Task Account)` : 'Task Account',
-      body: text || 'Nova mensagem recebida no chat',
-      icon: senderAvatar || '/pwa-192x192.png',
-      badge: '/favicon.png',
-      tag: `chat-channel-${channelId || 'global'}`,
+      web_push: 8030,
+      notification: {
+        title,
+        body: messageBody,
+        icon,
+        badge,
+        tag,
+        renotify: true,
+        silent: false,
+        navigate: navigateUrl,
+        app_badge: '1'
+      },
+      title,
+      body: messageBody,
+      icon,
+      badge,
+      tag,
       data: {
-        url: channelId ? `/?tab=chat&channelId=${channelId}` : '/?tab=chat',
-        channelId: channelId,
-        senderId: senderId
+        url: targetPath,
+        channelId,
+        senderId
       }
     });
 
@@ -141,11 +200,14 @@ serve(async (req) => {
                 auth: sub.auth
               }
             },
-            pushPayload
+            pushPayload,
+            {
+              TTL: 86400,
+              urgency: 'high'
+            }
           );
           sentCount++;
         } catch (err: any) {
-          // Se 410 (Gone) ou 404 (Not Found), o dispositivo desinstalou ou cancelou
           if (err.statusCode === 410 || err.statusCode === 404) {
             expiredIds.push(sub.id);
           } else {
@@ -155,7 +217,6 @@ serve(async (req) => {
       })
     );
 
-    // Limpeza de inscrições obsoletas
     if (expiredIds.length > 0) {
       await supabase
         .from('user_push_subscriptions')
@@ -164,17 +225,16 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        sent: sentCount, 
-        expiredRemoved: expiredIds.length 
+      JSON.stringify({
+        success: true,
+        sent: sentCount,
+        expiredRemoved: expiredIds.length
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
-
   } catch (error: any) {
     console.error('Erro na Edge Function send-push:', error);
     return new Response(JSON.stringify({ error: error.message || 'Erro interno' }), {

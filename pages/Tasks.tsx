@@ -472,22 +472,24 @@ const TaskWorkflowPopover: React.FC<TaskWorkflowPopoverProps> = ({ task, onToggl
 
   return (
     <>
-      <button
-        ref={buttonRef}
-        onClick={toggleOpen}
-        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all duration-200 active:scale-95 group/wf ${
-          isFullyCompleted 
-            ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400' 
-            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:shadow-sm'
-        }`}
-        title="Workflow (Checklist)"
-      >
-        <CheckCircle2 
-          size={12} 
-          className={`transition-colors ${isFullyCompleted ? "text-emerald-500" : "text-indigo-500 dark:text-indigo-400 group-hover/wf:text-indigo-600"}`} 
-        />
-        <span className="text-[10px] font-bold tracking-tight">{completedCount}/{totalCount}</span>
-      </button>
+      <Tooltip content={isOpen ? null : 'Workflow (Checklist)'} position="top">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={toggleOpen}
+          className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all duration-200 active:scale-95 group/wf ${
+            isFullyCompleted 
+              ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400' 
+              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:shadow-sm'
+          }`}
+        >
+          <CheckCircle2 
+            size={12} 
+            className={`transition-colors ${isFullyCompleted ? "text-emerald-500" : "text-indigo-500 dark:text-indigo-400 group-hover/wf:text-indigo-600"}`} 
+          />
+          <span className="text-[10px] font-bold tracking-tight">{completedCount}/{totalCount}</span>
+        </button>
+      </Tooltip>
 
       {isOpen && createPortal(
         <div
@@ -2809,15 +2811,25 @@ export const Tasks: React.FC<{
         if (currentError) throw currentError;
 
         // Delete future
+        const resolvedOrgId = userProfile?.org_id || (await supabase.auth.getUser()).data.user?.id;
         const { error: futureError } = await (supabase
           .from('tasks') as any)
           .delete()
           .eq('client_id', taskToDelete.clientId)
           .eq('task_name', taskToDelete.taskName)
-          .eq('org_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('org_id', resolvedOrgId)
           .gt('competence', taskToDelete.competence);
 
         if (futureError) throw futureError;
+
+        // Encerrar a série recorrente para impedir que o pg_cron recrie tarefas excluídas
+        if (taskToDelete.clientId && taskToDelete.taskName) {
+          const { error: seriesError } = await (supabase as any).rpc('deactivate_recurring_task_series', {
+            p_client_id: taskToDelete.clientId,
+            p_task_name: taskToDelete.taskName
+          });
+          if (seriesError) throw seriesError;
+        }
 
         // Refresh list
         await fetchTasks();
