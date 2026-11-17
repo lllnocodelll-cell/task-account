@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
+import { Input, Select } from '../components/ui/Input';
+import { Tooltip } from '../components/ui/Tooltip';
 import { User, Mail, Phone, MapPin, Camera, Shield, Key, Save, LogOut, Loader2, Briefcase, ScanFace, Building2, Upload, FileText, ExternalLink, HardDrive, ChevronDown, Eye, EyeOff, Check, X, Lock, ArrowLeft } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { Modal } from '../components/ui/Modal';
@@ -634,7 +635,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
       <div className="space-y-6">
          <div className="flex items-center justify-between mb-2 md:mb-0">
             <div className="flex items-center gap-3">
-               <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+               <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-control-pill border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
                   <ScanFace size={18} className="text-slate-500 dark:text-slate-400" />
                </div>
                <div className="flex flex-col">
@@ -651,7 +652,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                size="sm"
                onClick={handleBack}
                icon={<ArrowLeft size={16} />}
-               className="font-semibold text-xs shadow-2xs"
+               className="font-semibold text-xs shadow-2xs glass-control-pill"
             >
                Voltar
             </Button>
@@ -714,9 +715,9 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
             </div>
 
             <div className="lg:col-span-2">
-               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm min-h-[500px]">
+               <div className="bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm min-h-[500px]">
                   {/* Barra de Abas no estilo moderno padrão do formulário de clientes */}
-                  <div className="bg-slate-50/70 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800 p-2 sm:p-2.5 overflow-x-auto custom-scrollbar">
+                  <div className="bg-slate-50/70 dark:bg-slate-900/60 glass-card-inset border-b border-slate-200/80 dark:border-slate-800 p-2 sm:p-2.5 overflow-x-auto custom-scrollbar">
                      <div className="flex items-center gap-1.5 sm:gap-2 w-max sm:w-auto">
                         {/* Aba: Dados Pessoais */}
                         <button
@@ -724,7 +725,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                            onClick={() => setActiveTab('personal')}
                            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
                               activeTab === 'personal'
-                                 ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                 ? 'bg-white dark:bg-slate-800 glass-control-pill text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
                            }`}
                         >
@@ -744,7 +745,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                            onClick={() => setActiveTab('security')}
                            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
                               activeTab === 'security'
-                                 ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                 ? 'bg-white dark:bg-slate-800 glass-control-pill text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
                            }`}
                         >
@@ -765,7 +766,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                               onClick={() => setActiveTab('companies')}
                               className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
                                  activeTab === 'companies'
-                                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                    ? 'bg-white dark:bg-slate-800 glass-control-pill text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
                               }`}
                            >
@@ -794,7 +795,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                               onClick={() => setActiveTab('office')}
                               className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs tracking-wide transition-all duration-200 select-none whitespace-nowrap cursor-pointer ${
                                  activeTab === 'office'
-                                    ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
+                                    ? 'bg-white dark:bg-slate-800 glass-control-pill text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200/90 dark:border-slate-700 ring-1 ring-indigo-500/10'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
                               }`}
                            >
@@ -843,23 +844,16 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
 
                               {profile?.role !== 'cliente' && (
                                  <div className="flex flex-col gap-1.5">
-                                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                       Nível de Acesso (Permissões)
-                                    </label>
-                                    <div className="relative">
-                                       <select
-                                          value={role}
-                                          onChange={(e) => setRole(e.target.value)}
-                                          disabled={profile?.role === 'operacional'}
-                                          className={`w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 dark:text-white appearance-none ${profile?.role === 'operacional' ? 'opacity-60 cursor-not-allowed bg-slate-50 dark:bg-slate-900' : ''}`}
-                                       >
-                                          <option value="gestor">Gestor (Acesso Completo)</option>
-                                          <option value="operacional">Operacional (Acesso Restrito)</option>
-                                       </select>
-                                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                                          <Briefcase size={16} className="text-slate-400" />
-                                       </div>
-                                    </div>
+                                    <Select
+                                       label="Nível de Acesso (Permissões)"
+                                       value={role}
+                                       onChange={(e) => setRole(e.target.value)}
+                                       disabled={profile?.role === 'operacional'}
+                                       options={[
+                                          { value: 'gestor', label: 'Gestor (Acesso Completo)' },
+                                          { value: 'operacional', label: 'Operacional (Acesso Restrito)' }
+                                       ]}
+                                    />
                                     {profile?.role === 'operacional' ? (
                                        <span className="text-xs text-amber-600 dark:text-amber-500">
                                           Usuários operacionais não podem alterar o próprio nível de acesso. Contate um gestor.
@@ -936,14 +930,18 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                     placeholder="Digite sua senha atual para confirmar"
                                     className="pr-10"
                                  />
-                                 <button
-                                    type="button"
-                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                    className="absolute right-3 top-[34px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
-                                    title={showCurrentPassword ? 'Ocultar senha' : 'Exibir senha'}
-                                 >
-                                    {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                 </button>
+                                 <div className="absolute right-3 top-[34px]">
+                                    <Tooltip content={showCurrentPassword ? 'Ocultar senha' : 'Exibir senha'} position="left">
+                                       <button
+                                          type="button"
+                                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 cursor-pointer"
+                                          aria-label={showCurrentPassword ? 'Ocultar senha' : 'Exibir senha'}
+                                       >
+                                          {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                       </button>
+                                    </Tooltip>
+                                 </div>
                               </div>
 
                               <div className="border-t border-slate-100 dark:border-slate-800/80 my-3"></div>
@@ -960,14 +958,18 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                        placeholder="Crie uma nova senha forte"
                                        className="pr-10"
                                     />
-                                    <button
-                                       type="button"
-                                       onClick={() => setShowNewPassword(!showNewPassword)}
-                                       className="absolute right-3 top-[34px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
-                                       title={showNewPassword ? 'Ocultar senha' : 'Exibir senha'}
-                                    >
-                                       {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
+                                    <div className="absolute right-3 top-[34px]">
+                                       <Tooltip content={showNewPassword ? 'Ocultar senha' : 'Exibir senha'} position="left">
+                                          <button
+                                             type="button"
+                                             onClick={() => setShowNewPassword(!showNewPassword)}
+                                             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 cursor-pointer"
+                                             aria-label={showNewPassword ? 'Ocultar senha' : 'Exibir senha'}
+                                          >
+                                             {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                          </button>
+                                       </Tooltip>
+                                    </div>
                                  </div>
 
                                  {/* Medidor de Força da Senha */}
@@ -986,14 +988,18 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                        placeholder="Repita a nova senha criada"
                                        className="pr-10"
                                     />
-                                    <button
-                                       type="button"
-                                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                       className="absolute right-3 top-[34px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
-                                       title={showConfirmPassword ? 'Ocultar senha' : 'Exibir senha'}
-                                    >
-                                       {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
+                                    <div className="absolute right-3 top-[34px]">
+                                       <Tooltip content={showConfirmPassword ? 'Ocultar senha' : 'Exibir senha'} position="left">
+                                          <button
+                                             type="button"
+                                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 cursor-pointer"
+                                             aria-label={showConfirmPassword ? 'Ocultar senha' : 'Exibir senha'}
+                                          >
+                                             {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                          </button>
+                                       </Tooltip>
+                                    </div>
                                  </div>
 
                                  {confirmNewPassword.length > 0 && (
@@ -1097,16 +1103,16 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                     return (
                                        <div 
                                           key={company.id} 
-                                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between gap-4 group"
+                                          className="bg-white dark:bg-slate-900 glass-card-inset glass-surface-interactive border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between gap-4 group"
                                        >
                                           <div className="space-y-3">
                                              <div className="flex justify-between items-start gap-3">
                                                 <div className="min-w-0">
-                                                   <h4 className="font-black text-sm text-slate-900 dark:text-white leading-tight truncate" title={company.company_name}>
+                                                   <h4 className="font-black text-sm text-slate-900 dark:text-white leading-tight truncate">
                                                       {company.company_name}
                                                    </h4>
                                                    {company.trade_name && (
-                                                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate mt-0.5" title={company.trade_name}>
+                                                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate mt-0.5">
                                                          {company.trade_name}
                                                       </p>
                                                    )}
@@ -1142,9 +1148,9 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                              </div>
                                           </div>
 
-                                          <div className="bg-slate-50 dark:bg-slate-950 px-4 py-2.5 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                          <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset px-4 py-2.5 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
                                              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Regime Tributário</span>
-                                             <span className="px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] uppercase font-black tracking-wider shadow-sm">
+                                             <span className="px-2.5 py-1 bg-white dark:bg-slate-800 glass-control-pill text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] uppercase font-black tracking-wider shadow-sm">
                                                 {regimeLabel}
                                              </span>
                                           </div>
@@ -1176,10 +1182,10 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                               </div>
                            ) : (
                               <>
-                                 <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20 shadow-sm">
+                                 <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20 glass-card-inset shadow-sm">
                                     <div 
                                        onClick={() => setIsSection1Expanded(!isSection1Expanded)}
-                                       className="flex justify-between items-center px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900/80 cursor-pointer transition-colors select-none"
+                                       className="flex justify-between items-center px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 glass-card-inset hover:bg-slate-100 dark:hover:bg-slate-900/80 cursor-pointer transition-colors select-none"
                                     >
                                        <div>
                                           <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2">
@@ -1207,7 +1213,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                              transition={{ duration: 0.3, ease: 'easeInOut' }}
                                              className="overflow-hidden"
                                           >
-                                             <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                                             <div className="p-6 bg-white/70 dark:bg-slate-900/50 glass-card-clear border-t border-slate-200 dark:border-slate-800">
                                                 {profile?.role === 'gestor' ? (
                                                    <div className="space-y-4">
                                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1375,10 +1381,10 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                     </AnimatePresence>
                                  </div>
 
-                                 <div className={`border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20 shadow-sm ${profile?.role !== 'gestor' ? 'hidden' : ''}`}>
+                                 <div className={`border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/20 glass-card-inset shadow-sm ${profile?.role !== 'gestor' ? 'hidden' : ''}`}>
                                     <div 
                                        onClick={() => setIsSection2Expanded(!isSection2Expanded)}
-                                       className="flex justify-between items-center px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900/80 cursor-pointer transition-colors select-none"
+                                       className="flex justify-between items-center px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 glass-card-inset hover:bg-slate-100 dark:hover:bg-slate-900/80 cursor-pointer transition-colors select-none"
                                     >
                                        <div>
                                           <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2">
@@ -1406,9 +1412,9 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                              transition={{ duration: 0.3, ease: 'easeInOut' }}
                                              className="overflow-hidden"
                                           >
-                                             <div className="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                                             <div className="p-6 bg-white/70 dark:bg-slate-900/50 glass-card-clear border-t border-slate-200 dark:border-slate-800">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                   <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between gap-4">
+                                                   <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between gap-4">
                                                       <div>
                                                          <div className="flex justify-between items-start">
                                                             <div>
@@ -1492,7 +1498,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                                       </div>
                                                    </div>
 
-                                                   <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
+                                                   <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset rounded-2xl p-6 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
                                                       <div>
                                                          {(() => {
                                                             const storagePercent = calculateStoragePercentage(officeStorageUsedBytes, officeStorageLimitGb);
@@ -1617,7 +1623,7 @@ export const Profile: React.FC<ProfileProps> = ({ userProfile, onProfileUpdate, 
                                              </span>
                                           )}
                                        </div>
-                                       <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-baseline">
+                                       <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-baseline">
                                           <span className="text-xs text-slate-400 font-normal">Mensalidade</span>
                                           <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
                                              {p.isCustomPrice || p.price === 0 ? 'Sob Consulta' : `R$ ${p.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}

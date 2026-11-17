@@ -74,7 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingDocsCount = 0,
   onChatUnreadCountChange
 }) => {
-  const { isStandalone, isInstalled } = usePWAInstall();
+  const { isStandalone, isInstalled, isMobile } = usePWAInstall();
   const isGlassMode = backgroundTheme !== 'none';
   const [unreadCounts, setUnreadCounts] = useState<{ internal: number; support: number; notification: number }>({ internal: 0, support: 0, notification: 0 });
   const hasPendingAlerts = unreadCounts.internal + unreadCounts.support + unreadCounts.notification + pendingDocsCount > 0;
@@ -640,7 +640,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           )}
 
-          {!isStandalone && !isInstalled && onOpenInstall && (
+          {isMobile && !isStandalone && !isInstalled && onOpenInstall && (
             <button
               onClick={() => {
                 setIsHoverPeek(false);

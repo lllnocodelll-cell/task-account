@@ -87,6 +87,7 @@ export function usePWAInstall() {
     canInstall: (!!deferredPrompt || isMobile) && !isInstalled && !isStandalone,
     isStandalone,
     isIOS,
+    isMobile,
     isInstalled,
     installApp,
     hasNativePrompt: !!deferredPrompt

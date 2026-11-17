@@ -317,6 +317,7 @@ export async function triggerPushNotification(params: {
   senderName: string;
   senderAvatar?: string;
   text: string;
+  image?: string;
   isPrivate?: boolean;
   recipientUserIds?: string[];
 }): Promise<void> {

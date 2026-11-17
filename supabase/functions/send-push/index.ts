@@ -39,6 +39,7 @@ serve(async (req) => {
       senderName: rawSenderName,
       senderAvatar: rawSenderAvatar,
       text,
+      image,
       isPrivate = false,
       recipientUserIds
     } = body;
@@ -151,10 +152,10 @@ serve(async (req) => {
       });
     }
 
-    const title = senderName ? `${senderName} (Task Account)` : 'Task Account';
+    const title = senderName ? senderName : 'Task Account';
     const messageBody = text || 'Nova mensagem recebida no chat';
     const icon = senderAvatar || '/pwa-192x192.png';
-    const badge = '/favicon.png';
+    const badge = '/pwa-badge.png';
     const tag = `chat-channel-${channelId || 'global'}`;
     const targetPath = channelId ? `/?tab=chat&channelId=${channelId}` : '/?tab=chat';
     const appOrigin = Deno.env.get('APP_PUBLIC_URL') || '';
@@ -168,6 +169,7 @@ serve(async (req) => {
         body: messageBody,
         icon,
         badge,
+        ...(image ? { image } : {}),
         tag,
         renotify: true,
         silent: false,
@@ -178,6 +180,7 @@ serve(async (req) => {
       body: messageBody,
       icon,
       badge,
+      ...(image ? { image } : {}),
       tag,
       data: {
         url: targetPath,

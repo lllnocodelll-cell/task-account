@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
         },
         includeAssets: [
           'favicon.png',
+          'pwa-badge.png',
           'apple-touch-icon.png',
           '1.1 Logo Dark.png',
           '1.2 nome Dark da aplicação.png'

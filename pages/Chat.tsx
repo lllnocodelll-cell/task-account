@@ -4562,6 +4562,7 @@ export const Chat: React.FC = () => {
       }
 
       // 2. Enviar cada um dos arquivos anexados sequencialmente
+      let firstImageUrl: string | undefined;
       if (filesToSend.length > 0) {
         setUploadProgress(10);
         for (let i = 0; i < filesToSend.length; i++) {
@@ -4582,6 +4583,10 @@ export const Chat: React.FC = () => {
           const { data: { publicUrl } } = supabase.storage
             .from('chat_attachments')
             .getPublicUrl(filePath);
+
+          if (!firstImageUrl && fileToSend.type.startsWith('image/')) {
+            firstImageUrl = publicUrl;
+          }
 
           await supabase
             .from('chat_messages')
@@ -4614,8 +4619,9 @@ export const Chat: React.FC = () => {
         senderId: userId,
         senderName: senderProfile?.full_name || 'Usuário',
         senderAvatar: senderProfile?.avatar_url || undefined,
+        image: firstImageUrl,
         isPrivate: selectedChannel?.is_private ?? false,
-        text: textToSend || (filesToSend.length > 0 ? '📎 Enviou um anexo' : 'Nova mensagem')
+        text: textToSend || (filesToSend.length > 0 ? (firstImageUrl ? '🖼️ Enviou uma foto' : '📎 Enviou um anexo') : 'Nova mensagem')
       });
     } catch (error) {
       console.error('Error sending message:', error);

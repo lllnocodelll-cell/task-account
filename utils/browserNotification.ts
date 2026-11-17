@@ -29,6 +29,7 @@ export async function sendBrowserNotification(
     body?: string;
     tag?: string;
     icon?: string;
+    image?: string;
     url?: string;
     channelId?: string;
     force?: boolean;
@@ -45,12 +46,13 @@ export async function sendBrowserNotification(
       return;
     }
 
-    const notifOptions: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
+    const notifOptions: NotificationOptions & { renotify?: boolean; vibrate?: number[]; image?: string } = {
       body: options?.body,
       tag: options?.tag || 'task-account-alert',
       renotify: true,
       icon: options?.icon || '/pwa-192x192.png',
-      badge: '/favicon.png',
+      badge: '/pwa-badge.png',
+      ...(options?.image ? { image: options.image } : {}),
       vibrate: [200, 100, 200],
       data: {
         url: options?.url || (options?.channelId ? `/?tab=chat&channelId=${options.channelId}` : '/?tab=chat'),

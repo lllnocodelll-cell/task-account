@@ -214,7 +214,7 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
           // (para evitar notificação duplicada com o sw-push.js), usa notificação local do SW como fallback
           const isDocHidden = typeof document !== 'undefined' && document.hidden;
           if (isDocHidden && !hasActivePushSubscriptionFlag()) {
-            sendBrowserNotification(`${senderName} (Task Account)`, {
+            sendBrowserNotification(senderName || 'Task Account', {
               body: alertData.text,
               icon: senderAvatar || '/pwa-192x192.png',
               tag: `chat-channel-${newMsg.channel_id}`,

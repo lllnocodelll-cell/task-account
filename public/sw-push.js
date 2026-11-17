@@ -5,7 +5,8 @@ self.addEventListener('push', (event) => {
     title: 'Task Account',
     body: 'Você recebeu uma nova mensagem.',
     icon: '/pwa-192x192.png',
-    badge: '/favicon.png',
+    badge: '/pwa-badge.png',
+    image: undefined,
     tag: 'task-account-chat',
     appBadge: 1,
     data: {
@@ -26,6 +27,7 @@ self.addEventListener('push', (event) => {
           body: n.body || notificationData.body,
           icon: n.icon || notificationData.icon,
           badge: n.badge || notificationData.badge,
+          image: n.image || payload.image,
           tag: n.tag || notificationData.tag,
           appBadge: typeof n.app_badge === 'number' ? n.app_badge : (parseInt(n.app_badge, 10) || 1),
           data: {
@@ -55,7 +57,8 @@ self.addEventListener('push', (event) => {
   const options = {
     body: notificationData.body,
     icon: notificationData.icon || '/pwa-192x192.png',
-    badge: notificationData.badge || '/favicon.png',
+    badge: '/pwa-badge.png',
+    ...(notificationData.image ? { image: notificationData.image } : {}),
     tag: notificationData.tag || 'task-account-chat',
     renotify: true,
     silent: false,

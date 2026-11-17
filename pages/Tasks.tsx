@@ -858,7 +858,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       className={`flex flex-col h-full min-h-0 rounded-xl p-3 border transition-colors duration-200
         ${isDragOver
           ? 'bg-indigo-50/50 dark:bg-indigo-900/10 border-indigo-300 dark:border-indigo-700 shadow-inner'
-          : 'bg-slate-100/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800'
+          : 'bg-slate-100/50 dark:bg-slate-900/50 glass-card-inset border-slate-200 dark:border-slate-800'
         }`}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
@@ -883,7 +883,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               }
               position="top"
             >
-              <span className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] px-1.5 py-0.5 rounded font-bold cursor-default">
+              <span className="bg-slate-200 dark:bg-slate-800 glass-control-pill text-slate-700 dark:text-slate-300 text-[10px] px-1.5 py-0.5 rounded font-bold cursor-default">
                 {isFilterActive ? `${localFilteredTasks.length}/${totalTasks}` : `${tasks.length}/${totalTasks}`}
               </span>
             </Tooltip>
@@ -901,7 +901,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 className={`relative p-1.5 rounded-lg border transition-all duration-200 ${
                   isFilterActive || isFilterOpen
                     ? accent.btn
-                    : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                    : 'border-slate-200 dark:border-slate-700 glass-control-pill text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <SlidersHorizontal size={12} strokeWidth={2.5} />
@@ -923,7 +923,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             className="fixed z-[9999] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
             onClick={e => e.stopPropagation()}
           >
-            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
+            <div className="bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
 
               {/* Topo do painel */}
               <div className="flex items-center justify-between px-3.5 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
@@ -1210,7 +1210,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               key={task.id}
               draggable
               onDragStart={(e) => onDragStart(e, task.id)}
-              className={`bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 border-t-4 ${color.replace('border-', 'border-t-')} hover:-translate-y-1 hover:shadow-xl transition-all duration-200 active:cursor-grabbing group select-none relative cursor-default`}
+              className={`bg-white dark:bg-slate-800 glass-surface glass-surface-interactive glass-preserve-top-border rounded-xl shadow-md border border-slate-200 dark:border-slate-700 border-t-4 ${color.replace('border-', 'border-t-')} hover:-translate-y-1 hover:shadow-xl transition-all duration-200 active:cursor-grabbing group select-none relative cursor-default`}
             >
               <div className="flex justify-between items-center px-3 pt-3 pb-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1221,11 +1221,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 <div className="flex items-center gap-1.5">
                   <GripVertical size={13} className="text-slate-300 dark:text-slate-600" />
                   <div className="flex flex-col items-end">
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 leading-tight" title={(task.responsibles && task.responsibles.length > 0) ? task.responsibles.join(', ') : task.responsible}>
-                      {(task.responsibles && task.responsibles.length > 1) 
-                        ? `${task.responsibles[0].split(' ')[0]} +${task.responsibles.length - 1}` 
-                        : (task.responsible ? task.responsible.split(' ').slice(0, 2).join(' ') : '---')}
-                    </span>
+                    <Tooltip
+                      content={(task.responsibles && task.responsibles.length > 0) ? task.responsibles.join(', ') : (task.responsible || null)}
+                      position="top"
+                    >
+                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 leading-tight">
+                        {(task.responsibles && task.responsibles.length > 1)
+                          ? `${task.responsibles[0].split(' ')[0]} +${task.responsibles.length - 1}`
+                          : (task.responsible ? task.responsible.split(' ').slice(0, 2).join(' ') : '---')}
+                      </span>
+                    </Tooltip>
                     {task.sector && (
                       <span className="text-[9px] text-slate-400 dark:text-slate-500 leading-tight">{task.sector}</span>
                     )}
@@ -1248,7 +1253,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       e.stopPropagation();
                       onViewTask(task);
                     }}
-                    className="p-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-90"
+                    className="p-1 bg-slate-50 dark:bg-slate-900 glass-control-pill border border-slate-200 dark:border-slate-700 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm active:scale-90"
                   >
                     <Eye size={13} />
                   </button>
@@ -1282,7 +1287,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               </div>
 
               {task.taxRegime && (
-                <div className="mx-3 mb-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50">
+                <div className="mx-3 mb-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-slate-100 dark:border-slate-700/50">
                   <span className="text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Regime Fiscal</span>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate">
@@ -1327,7 +1332,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               )}
 
               <div
-                className="mx-3 mb-2 px-2.5 py-2 rounded-lg bg-indigo-50/40 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30 group/client"
+                className="mx-3 mb-2 px-2.5 py-2 rounded-lg bg-indigo-50/40 dark:bg-indigo-900/10 glass-card-inset border border-indigo-100 dark:border-indigo-800/30 group/client"
               >
                 <div className="flex items-start justify-between gap-1 mb-0.5">
                   <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight line-clamp-2 transition-colors">
@@ -1367,7 +1372,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                             e.stopPropagation();
                             if (clientData) onViewClient(clientData);
                           }}
-                          className="h-[26px] w-[26px] flex items-center justify-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                          className="h-[26px] w-[26px] flex items-center justify-center bg-slate-50 dark:bg-slate-900 glass-control-pill border border-slate-200 dark:border-slate-800 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
                         >
                           <Eye size={14} />
                         </button>
@@ -1380,7 +1385,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                               e.stopPropagation();
                               onViewTaskInfo(task);
                             }}
-                            className="h-[26px] w-[26px] flex items-center justify-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
+                            className="h-[26px] w-[26px] flex items-center justify-center bg-slate-50 dark:bg-slate-900 glass-control-pill border border-slate-200 dark:border-slate-800 rounded-md text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all shadow-sm active:scale-90"
                           >
                             <ExternalLink size={14} />
                           </button>
@@ -1437,7 +1442,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-700/50 rounded-b-xl gap-2">
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50/50 dark:bg-slate-900/30 glass-card-inset border-t border-slate-100 dark:border-slate-700/50 rounded-b-xl gap-2">
                 {/* Cronômetro no Rodapé do Kanban */}
                 <div className="flex items-center">
                   <TaskTimer
