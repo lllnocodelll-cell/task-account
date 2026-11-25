@@ -40,8 +40,10 @@ import {
 } from 'lucide-react';
 import { Client, TAX_REGIME_LABELS } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import { triggerClientDocumentNotification } from '../utils/webPush';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { Modal } from './ui/Modal';
+import { Input, Select } from './ui/Input';
 import { Tooltip } from './ui/Tooltip';
 import { DrawerBackButton } from './ui/DrawerBackButton';
 import { useToast } from '../contexts/ToastContext';
@@ -430,6 +432,15 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
 
       if (dbError) throw dbError;
 
+      triggerClientDocumentNotification({
+        clientId: client.id,
+        orgId: (client as any).org_id || currentUserProfile?.org_id || null,
+        senderId: currentUserProfile?.id || null,
+        senderName: currentUserProfile?.full_name || null,
+        documentNames: [docName],
+        competence: uploadCompetence || null,
+      });
+
       setUploadFile(null);
       setUploadName('');
       setUploadSectorId('');
@@ -706,7 +717,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
     const isDragged = draggedSectionId === sectionId;
     const isDragOver = dragOverSectionId === sectionId;
     const isOpen = openSections[sectionId];
-    return `bg-white dark:bg-slate-800/40 border rounded-2xl ${isOpen ? 'overflow-visible' : 'overflow-hidden'} shadow-sm transition-all duration-200 shrink-0 max-w-full min-w-0 w-full ${
+    return `bg-white dark:bg-slate-800/40 glass-card-inset border rounded-2xl ${isOpen ? 'overflow-visible' : 'overflow-hidden'} shadow-sm transition-all duration-200 shrink-0 max-w-full min-w-0 w-full ${
       isDragged ? 'opacity-30 border-dashed border-indigo-500 dark:border-indigo-400 scale-[0.98]' : 
       isDragOver ? 'border-indigo-500 scale-[1.01] shadow-md bg-indigo-50/5 dark:bg-indigo-500/5' : 
       'border-slate-200 dark:border-slate-700/50'
@@ -757,7 +768,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
 
     return (
       <div 
-        className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
+        className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
         onClick={(e) => copyToClipboard(value, id, e)}
       >
         <div className="flex items-center justify-between">
@@ -786,13 +797,13 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
       
       <div 
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[450px] max-w-full overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[450px] max-w-full overflow-hidden bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
               <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -1055,7 +1066,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 grid grid-cols-2 gap-2">
                   {inscriptions.length > 0 ? inscriptions.map((insc, idx) => (
-                    <div key={idx} className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={(e) => copyToClipboard(insc.number, `insc-${idx}`, e)}>
+                    <div key={idx} className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-100 dark:border-slate-800/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" onClick={(e) => copyToClipboard(insc.number, `insc-${idx}`, e)}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[9px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter truncate">{insc.type}</span>
                         {copyFeedback === `insc-${idx}` && <span className="text-[8px] font-bold text-emerald-500 flex-shrink-0">Copiado!</span>}
@@ -1096,10 +1107,10 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 space-y-3">
                   {contacts.length > 0 ? contacts.map((cont, idx) => (
-                    <div key={idx} className={`p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/50 shadow-sm relative overflow-hidden group ${idx !== 0 ? 'mt-4 pt-4 border-t border-dashed' : ''}`}>
+                    <div key={idx} className={`p-4 rounded-xl bg-white dark:bg-slate-900 glass-chat-item border border-slate-100 dark:border-slate-800/50 shadow-sm relative overflow-hidden group ${idx !== 0 ? 'mt-4 pt-4 border-t border-dashed' : ''}`}>
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700">
+                          <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 glass-control-pill flex items-center justify-center border border-slate-100 dark:border-slate-700">
                              <User size={14} className="text-slate-400" />
                           </div>
                           <div className="flex flex-col">
@@ -1113,7 +1124,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                       
                       <div className="grid grid-cols-1 gap-2.5">
                         {cont.email && (
-                          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 cursor-pointer transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20" onClick={(e) => copyToClipboard(cont.email, `cont-e-${idx}`, e)}>
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 glass-card-inset hover:bg-indigo-50 dark:hover:bg-indigo-500/10 cursor-pointer transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20" onClick={(e) => copyToClipboard(cont.email, `cont-e-${idx}`, e)}>
                             <div className="flex items-center gap-2.5">
                               <Mail size={12} className="text-indigo-400" />
                               <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{cont.email}</span>
@@ -1124,7 +1135,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                         
                         <div className="flex flex-wrap gap-2">
                           {cont.phone_mobile && (
-                            <div className="flex-1 min-w-[140px] flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 cursor-pointer transition-all border border-transparent hover:border-emerald-100 dark:hover:border-emerald-500/20" onClick={(e) => copyToClipboard(cont.phone_mobile, `cont-m-${idx}`, e)}>
+                            <div className="flex-1 min-w-[140px] flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 glass-card-inset hover:bg-emerald-50 dark:hover:bg-emerald-500/10 cursor-pointer transition-all border border-transparent hover:border-emerald-100 dark:hover:border-emerald-500/20" onClick={(e) => copyToClipboard(cont.phone_mobile, `cont-m-${idx}`, e)}>
                               <div className="flex items-center gap-2.5">
                                 <Phone size={12} className="text-emerald-400" />
                                 <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{formatPhone(cont.phone_mobile)}</span>
@@ -1133,7 +1144,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                             </div>
                           )}
                           {cont.phone_fixed && (
-                            <div className="flex-1 min-w-[140px] flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700" onClick={(e) => copyToClipboard(cont.phone_fixed, `cont-f-${idx}`, e)}>
+                            <div className="flex-1 min-w-[140px] flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/40 glass-card-inset hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-700" onClick={(e) => copyToClipboard(cont.phone_fixed, `cont-f-${idx}`, e)}>
                               <div className="flex items-center gap-2.5">
                                 <Phone size={12} className="text-slate-400" />
                                 <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{formatPhone(cont.phone_fixed)}</span>
@@ -1175,7 +1186,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 grid grid-cols-1 gap-3">
                   {certificates.length > 0 ? certificates.map((cert, idx) => (
-                    <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 relative overflow-hidden group">
+                    <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-slate-100 dark:border-slate-800/50 relative overflow-hidden group">
                       <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
                         {/* Modelo / Tipo */}
                         <div className="flex items-center gap-2.5 min-w-[85px]">
@@ -1218,7 +1229,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Senha</span>
                             {copyFeedback === `cert-p-${idx}` && <span className="text-[9px] font-bold text-emerald-500 animate-in fade-in zoom-in">Copiado</span>}
                           </div>
-                          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg group-hover:border-indigo-300 transition-all w-full shadow-sm min-w-0">
+                          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-white dark:bg-slate-800 glass-chat-item border border-slate-200 dark:border-slate-700 rounded-lg group-hover:border-indigo-300 transition-all w-full shadow-sm min-w-0">
                             <Fingerprint size={12} className="text-indigo-400 shrink-0" />
                             <span className="text-[12px] font-mono font-bold text-indigo-600 dark:text-indigo-400 truncate">
                               {cert.password || '---'}
@@ -1252,7 +1263,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                 </span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Licenças & Alvarás</span>
                 {licenses.length > 0 && (
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 glass-control-pill px-2 py-0.5 rounded-full">
                     {licenses.length}
                   </span>
                 )}
@@ -1279,16 +1290,18 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                     }
 
                     return (
-                      <div key={idx} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 flex flex-col gap-2.5 group hover:border-indigo-200 dark:hover:border-indigo-800/40 transition-all">
+                      <div key={idx} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-100 dark:border-slate-800/50 flex flex-col gap-2.5 group hover:border-indigo-200 dark:hover:border-indigo-800/40 transition-all">
                         {/* Linha 1: Nome da Licença + Status Badge */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center border border-indigo-100/50 dark:border-indigo-500/20 shrink-0">
                               <Award size={14} className="text-indigo-500" />
                             </div>
-                            <span className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate" title={lic.license_name}>
-                              {lic.license_name || 'Sem denominação'}
-                            </span>
+                            <Tooltip content={lic.license_name} position="top" className="block min-w-0">
+                              <span className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate block">
+                                {lic.license_name || 'Sem denominação'}
+                              </span>
+                            </Tooltip>
                           </div>
                           {expiry && (
                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
@@ -1402,7 +1415,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                   {activities.length > 0 ? [...activities].sort((a, b) => a.order_type === 'principal' ? -1 : b.order_type === 'principal' ? 1 : 0).map((act, idx) => (
                     <div 
                       key={idx} 
-                      className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 cursor-pointer group"
+                      className="flex flex-col p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-100 dark:border-slate-800/50 cursor-pointer group"
                       onClick={(e) => copyToClipboard(act.cnae_code, `act-${idx}`, e)}
                     >
                       <div className="flex items-center justify-between">
@@ -1449,13 +1462,13 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                 <div className="p-4 pt-0 flex flex-col gap-4 max-w-full min-w-0 w-full">
                   
                   {/* Seletor de Abas: Documentos Ativos vs Histórico de Excluídos */}
-                  <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+                  <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 glass-card-inset rounded-xl border border-slate-200/60 dark:border-slate-700/60 shrink-0">
                     <button
                       type="button"
                       onClick={() => setDocsActiveTab('active')}
                       className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                         docsActiveTab === 'active'
-                          ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                          ? 'bg-white dark:bg-slate-900 glass-card-clear text-indigo-600 dark:text-indigo-400 shadow-sm'
                           : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1467,7 +1480,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                       onClick={() => setDocsActiveTab('deleted')}
                       className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                         docsActiveTab === 'deleted'
-                          ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm'
+                          ? 'bg-white dark:bg-slate-900 glass-card-clear text-amber-600 dark:text-amber-400 shadow-sm'
                           : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                       }`}
                     >
@@ -1479,7 +1492,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                   {docsActiveTab === 'active' ? (
                     <>
                       {/* Formulário/Botão de Upload */}
-                      <div className={`border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30 relative min-w-0 max-w-full w-full ${isUploadCalendarOpen ? 'z-50' : 'z-10'}`}>
+                      <div className={`border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-900/30 glass-card-inset relative min-w-0 max-w-full w-full ${isUploadCalendarOpen ? 'z-50' : 'z-10'}`}>
                         {!showUploadForm ? (
                           <button
                             onClick={() => setShowUploadForm(true)}
@@ -1500,30 +1513,29 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 min-w-0 max-w-full w-full">
                               <div className="min-w-0 w-full">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Setor Destino *</label>
-                                <select
+                                <Select
                                   value={uploadSectorId}
                                   onChange={(e) => setUploadSectorId(e.target.value)}
-                                  className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none truncate"
-                                >
-                                  <option value="">Selecione o Setor</option>
-                                  {sectors.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                  ))}
-                                </select>
+                                  className="text-xs py-2"
+                                  options={[
+                                    { value: '', label: 'Selecione o Setor' },
+                                    ...sectors.map(s => ({ value: s.id, label: s.name }))
+                                  ]}
+                                />
                               </div>
                               <div className={`relative min-w-0 w-full ${isUploadCalendarOpen ? 'z-50' : ''}`} ref={uploadCalendarRef}>
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Competência (Mês/Ano) *</label>
                                 <button
                                   type="button"
                                   onClick={() => setIsUploadCalendarOpen(!isUploadCalendarOpen)}
-                                  className="w-full min-w-0 text-left text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none flex items-center justify-between font-bold text-slate-700 dark:text-slate-200"
+                                  className="w-full min-w-0 text-left text-xs p-2 bg-white dark:bg-slate-800 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg outline-none flex items-center justify-between font-bold text-slate-700 dark:text-slate-200"
                                 >
                                   <span className="truncate">{uploadCompetence || 'Selecione...'}</span>
                                   <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform ${isUploadCalendarOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 {isUploadCalendarOpen && (
-                                  <div className="absolute right-0 mt-1 w-60 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-3 animate-in fade-in slide-in-from-top-2 duration-150">
+                                  <div className="absolute right-0 mt-1 w-60 bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-3 animate-in fade-in slide-in-from-top-2 duration-150">
                                     {/* Seletor de Ano */}
                                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
                                       <button
@@ -1562,7 +1574,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                                             className={`py-2 text-[10px] font-black rounded-lg transition-all text-center ${
                                               isSelected
                                                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                                                : 'bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                                                : 'bg-slate-50 dark:bg-slate-800/40 glass-control-pill hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                                             }`}
                                           >
                                             {mLabel}
@@ -1583,21 +1595,21 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                                   placeholder="Ex: Guia do DAS Simples"
                                   value={uploadName}
                                   onChange={(e) => setUploadName(e.target.value)}
-                                  className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                                  className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
                                 />
                               </div>
                               <div className="min-w-0 w-full">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-1">Data de Vencimento (Opcional)</label>
-                                <input
+                                <Input
                                   type="date"
                                   value={uploadDueDate}
                                   onChange={(e) => setUploadDueDate(e.target.value)}
-                                  className="w-full min-w-0 text-xs p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none"
+                                  className="text-xs py-1.5"
                                 />
                               </div>
                             </div>
 
-                            <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors relative min-w-0 max-w-full w-full overflow-hidden">
+                            <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 glass-card-inset rounded-xl p-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors relative min-w-0 max-w-full w-full overflow-hidden">
                               <input
                                 type="file"
                                 onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
@@ -1605,9 +1617,11 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                               />
                               <Upload className="mx-auto text-slate-400 mb-2 shrink-0" size={20} />
                               <div className="w-full min-w-0 max-w-full overflow-hidden px-2">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 break-all line-clamp-2 max-w-full text-center" title={uploadFile ? uploadFile.name : undefined}>
-                                  {uploadFile ? uploadFile.name : 'Clique para selecionar ou arraste o arquivo'}
-                                </p>
+                                <Tooltip content={uploadFile?.name || ''} position="top" className="block w-full">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 break-all line-clamp-2 max-w-full text-center">
+                                    {uploadFile ? uploadFile.name : 'Clique para selecionar ou arraste o arquivo'}
+                                  </p>
+                                </Tooltip>
                               </div>
                             </div>
 
@@ -1630,7 +1644,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                       </div>
 
                       {/* Filtros e Barra de Pesquisa */}
-                      <div className={`flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 relative min-w-0 max-w-full w-full ${isFilterCalendarOpen ? 'z-50' : 'z-20'}`}>
+                      <div className={`flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 glass-card-inset p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 relative min-w-0 max-w-full w-full ${isFilterCalendarOpen ? 'z-50' : 'z-20'}`}>
                         <div className="relative min-w-0 max-w-full w-full">
                           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={12} />
                           <input
@@ -1638,7 +1652,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                             placeholder="Buscar documento pelo nome..."
                             value={searchFilter}
                             onChange={(e) => setSearchFilter(e.target.value)}
-                            className="w-full min-w-0 pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none"
+                            className="w-full min-w-0 pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg text-xs outline-none"
                           />
                         </div>
                         
@@ -1647,14 +1661,14 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                             <button
                               type="button"
                               onClick={() => setIsFilterCalendarOpen(!isFilterCalendarOpen)}
-                              className="w-full min-w-0 text-left text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
+                              className="w-full min-w-0 text-left text-[10px] p-1.5 bg-white dark:bg-slate-800 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold text-slate-700 dark:text-slate-200 flex items-center justify-between"
                             >
                               <span className="truncate">{competenceFilter || 'Período'}</span>
                               <ChevronDown size={12} className={`text-slate-400 shrink-0 transition-transform ${isFilterCalendarOpen ? 'rotate-180' : ''}`} />
                             </button>
 
                             {isFilterCalendarOpen && (
-                              <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                              <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-[60] p-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
                                 {/* Seletor de Ano */}
                                 <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
                                   <button
@@ -1693,7 +1707,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                                         className={`py-1 text-[9px] font-black rounded-md transition-all text-center ${
                                           isSelected
                                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                                            : 'bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                                            : 'bg-slate-50 dark:bg-slate-800/40 glass-control-pill hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                                         }`}
                                       >
                                         {mLabel}
@@ -1710,7 +1724,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                                       setCompetenceFilter('');
                                       setIsFilterCalendarOpen(false);
                                     }}
-                                    className="w-full py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider rounded-md transition-all text-center"
+                                    className="w-full py-1 bg-slate-100 dark:bg-slate-800 glass-control-pill hover:bg-slate-200 dark:hover:bg-slate-700 text-[9px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider rounded-md transition-all text-center"
                                   >
                                     Ver Todas
                                   </button>
@@ -1719,28 +1733,28 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                             )}
                           </div>
 
-                          <select
+                          <Select
                             value={sectorFilter}
                             onChange={(e) => setSectorFilter(e.target.value)}
-                            className="text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold"
-                          >
-                            <option value="">Todos Setores</option>
-                            {sectors.map(s => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
+                            className="text-[10px] py-1.5"
+                            options={[
+                              { value: '', label: 'Todos Setores' },
+                              ...sectors.map(s => ({ value: s.id, label: s.name }))
+                            ]}
+                          />
 
-                          <select
+                          <Select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="text-[10px] p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none font-bold"
-                          >
-                            <option value="">Todos Status</option>
-                            <option value="Enviado">Enviado</option>
-                            <option value="Lido">Lido</option>
-                            <option value="Pago">Pago</option>
-                            <option value="Baixado">Baixado</option>
-                          </select>
+                            className="text-[10px] py-1.5"
+                            options={[
+                              { value: '', label: 'Todos Status' },
+                              { value: 'Enviado', label: 'Enviado' },
+                              { value: 'Lido', label: 'Lido' },
+                              { value: 'Pago', label: 'Pago' },
+                              { value: 'Baixado', label: 'Baixado' }
+                            ]}
+                          />
                         </div>
                       </div>
 
@@ -1764,7 +1778,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                           }).map((doc, idx) => {
                             const sec = sectors.find(s => s.id === doc.sector_id);
                             return (
-                              <div key={doc.id || idx} className="flex gap-0 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors w-full max-w-full min-w-0">
+                              <div key={doc.id || idx} className="flex gap-0 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors w-full max-w-full min-w-0">
                                 {/* Faixa lateral com Setor na Vertical (90º) */}
                                 <div className={`w-6 shrink-0 flex items-center justify-center ${getSectorStyle(sec?.name).bar} relative`}>
                                   <span className="text-[7.5px] font-black uppercase tracking-widest text-white/90 [writing-mode:vertical-lr] rotate-180 whitespace-nowrap py-1 select-none">
@@ -1774,7 +1788,9 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
 
                                 <div className="flex items-center justify-between p-2.5 flex-1 min-w-0">
                                   <div className="min-w-0 flex-1 pl-1.5">
-                                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate break-words" title={doc.name}>{doc.name}</p>
+                                    <Tooltip content={doc.name} position="top" className="block min-w-0">
+                                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate break-words">{doc.name}</p>
+                                    </Tooltip>
                                     <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                       <span className="text-[9px] font-black text-slate-400 uppercase shrink-0">{doc.competence_month}</span>
                                       {doc.due_date && (
@@ -1825,7 +1841,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                             );
                           })
                         ) : (
-                          <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                          <div className="text-center py-6 text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/10 glass-card-inset rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
                             Nenhum documento encontrado
                           </div>
                         )}
@@ -1854,7 +1870,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                           {deletedLogs.map((log, idx) => (
                             <div
                               key={log.id || idx}
-                              className="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/90 dark:border-slate-800 flex flex-col gap-2 transition-all hover:border-slate-300 dark:hover:border-slate-700"
+                              className="p-3 rounded-xl bg-slate-50/90 dark:bg-slate-900/60 glass-card-inset border border-slate-200/90 dark:border-slate-800 flex flex-col gap-2 transition-all hover:border-slate-300 dark:hover:border-slate-700"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
@@ -1862,9 +1878,11 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                                     <span className="text-red-500 shrink-0">
                                       <Trash2 size={13} />
                                     </span>
-                                    <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate" title={log.document_name}>
-                                      {log.document_name}
-                                    </p>
+                                    <Tooltip content={log.document_name} position="top" className="block min-w-0">
+                                      <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                                        {log.document_name}
+                                      </p>
+                                    </Tooltip>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[9px] text-slate-400">
                                     {log.competence_month && (
@@ -1883,7 +1901,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                                     Lido pelo cliente
                                   </span>
                                 ) : (
-                                  <span className="shrink-0 text-[8.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                  <span className="shrink-0 text-[8.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 glass-control-pill">
                                     Não lido
                                   </span>
                                 )}
@@ -1899,11 +1917,13 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
 
                                 <div className="flex items-center gap-1">
                                   {log.deletion_source === 'reopen_task' ? (
-                                    <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold truncate max-w-[200px]" title={log.task_title ? `Reabertura: ${log.task_title}` : 'Reabertura de Tarefa'}>
-                                      Reabertura: {log.task_title || 'Tarefa'}
-                                    </span>
+                                    <Tooltip content={log.task_title ? `Reabertura: ${log.task_title}` : 'Reabertura de Tarefa'} position="top">
+                                      <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold truncate max-w-[200px] block">
+                                        Reabertura: {log.task_title || 'Tarefa'}
+                                      </span>
+                                    </Tooltip>
                                   ) : (
-                                    <span className="px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold">
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-700 dark:bg-slate-800 dark:text-slate-300 glass-control-pill font-semibold">
                                       Exclusão Manual no Cliente
                                     </span>
                                   )}
@@ -1913,7 +1933,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/10 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                        <div className="text-center py-8 text-slate-400 text-xs italic bg-slate-50/50 dark:bg-slate-900/10 glass-card-inset rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
                           <ShieldAlert size={24} className="mx-auto mb-1.5 text-slate-300 dark:text-slate-700" />
                           Nenhum registro de exclusão para este cliente.
                         </div>
@@ -1943,7 +1963,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
           <div className="flex justify-end gap-2 w-full">
             <button
               onClick={() => setDeleteConfirmDoc(null)}
-              className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
+              className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 glass-control-pill transition-colors"
             >
               Cancelar
             </button>
@@ -1986,7 +2006,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
               setProtocolModalOpen(false);
               setSelectedProtocolDoc(null);
             }}
-            className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 rounded-xl transition-colors"
+            className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 glass-control-pill text-xs font-bold text-slate-700 dark:text-slate-300 rounded-xl transition-colors"
           >
             Fechar
           </button>
@@ -2004,7 +2024,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
             </div>
           </div>
 
-          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+          <div className="border border-slate-200 dark:border-slate-800 glass-card-inset rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
             {protocolLoading ? (
               <div className="flex flex-col items-center justify-center p-10 text-slate-400">
                 <Loader2 size={22} className="animate-spin mb-2 text-indigo-500" />
@@ -2028,7 +2048,7 @@ export const ClientDetailsDrawer: React.FC<ClientDetailsDrawerProps> = ({
                     </span>
                   </div>
                   {log.user_agent && (
-                    <div className="mt-2 text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-100 dark:border-slate-800 break-all leading-relaxed">
+                    <div className="mt-2 text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-950 glass-card-inset p-2 rounded-lg border border-slate-100 dark:border-slate-800 break-all leading-relaxed">
                       {log.user_agent}
                     </div>
                   )}

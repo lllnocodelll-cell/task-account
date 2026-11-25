@@ -26,6 +26,7 @@ import {
     ChevronUp
 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { Tooltip } from '../ui/Tooltip';
 import {
     downloadClientTemplate,
     parseAndValidateClientWorkbook,
@@ -226,9 +227,9 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                     isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
                 }`}
             >
-                <div className="w-full max-w-[1600px] max-h-[92vh] flex flex-col pointer-events-auto bg-white dark:bg-slate-900 border-b border-x border-slate-200/90 dark:border-slate-800 shadow-2xl rounded-b-2xl md:rounded-b-3xl overflow-hidden">
+                <div className="w-full max-w-[1600px] max-h-[92vh] flex flex-col pointer-events-auto bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl border-b border-x border-slate-200/90 dark:border-slate-800 shadow-2xl rounded-b-2xl md:rounded-b-3xl overflow-hidden">
                     {/* Header Fixo no Topo */}
-                    <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shrink-0">
+                    <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 glass-card-inset shrink-0">
                         {/* Título e Ícone no padrão dos Drawers */}
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg flex-shrink-0 shadow-sm">
@@ -244,10 +245,10 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
 
                         {/* Abas Superiores (Importação / Instruções) e Botão Fechar */}
                         <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
-                            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+                            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 glass-card-inset p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
                                 <button
                                     onClick={() => setMainTab('import')}
-                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                         mainTab === 'import'
                                             ? 'bg-indigo-600 text-white shadow-sm'
                                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -258,7 +259,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                                 </button>
                                 <button
                                     onClick={() => setMainTab('instructions')}
-                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                                         mainTab === 'instructions'
                                             ? 'bg-indigo-600 text-white shadow-sm'
                                             : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -272,18 +273,19 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
 
                             {/* Botão Fechar com Atalho ESC */}
                             <div className="flex items-center gap-1.5 pl-1.5 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
-                                <button
-                                    onClick={handleClose}
-                                    disabled={step === 'importing'}
-                                    className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed group flex items-center gap-1.5"
-                                    title="Recolher gaveta (Esc)"
-                                >
-                                    <span className="hidden md:inline text-[10px] font-mono text-slate-400 group-hover:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                                        ESC
-                                    </span>
-                                    <ChevronUp size={20} className="hidden sm:inline" />
-                                    <X size={20} className="sm:hidden" />
-                                </button>
+                                <Tooltip content="Recolher gaveta (Esc)" position="bottom">
+                                    <button
+                                        onClick={handleClose}
+                                        disabled={step === 'importing'}
+                                        className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed group flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                        <span className="hidden md:inline text-[10px] font-mono text-slate-400 group-hover:text-slate-500 bg-slate-100 dark:bg-slate-800 glass-control-pill px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                            ESC
+                                        </span>
+                                        <ChevronUp size={20} className="hidden sm:inline" />
+                                        <X size={20} className="sm:hidden" />
+                                    </button>
+                                </Tooltip>
                             </div>
                         </div>
                     </div>
@@ -321,7 +323,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                             </p>
                         </div>
 
-                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 glass-card-inset border border-slate-200 dark:border-slate-700 space-y-2">
                             <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
                                 <Info size={16} className="text-indigo-500" />
                                 <span>8 Abas Opcionais</span>
@@ -373,7 +375,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                     </div>
 
                     {/* Bloco 3: Formatação e Validações de Campos */}
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 glass-card-inset border border-slate-200 dark:border-slate-700 space-y-3">
                         <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                             <FileCheck size={16} className="text-emerald-500" />
                             <span>Padrões de Preenchimento Recomendados</span>
@@ -422,7 +424,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                     {step === 'upload' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             {/* Banner de Download do Modelo */}
-                            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100/60 dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-200/80 dark:border-indigo-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 to-indigo-100/50 dark:from-indigo-950/40 dark:to-slate-900/50 glass-card-inset border border-indigo-200/80 dark:border-indigo-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                 <div className="flex items-start gap-3">
                                     <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30 shrink-0">
                                         <FileSpreadsheet size={24} />
@@ -459,7 +461,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                                 className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center ${
                                     isDragging
                                         ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 scale-[0.99]'
-                                        : 'border-slate-300 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 bg-slate-50/50 dark:bg-slate-900/40'
+                                        : 'border-slate-300 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 bg-slate-50/50 dark:bg-slate-900/40 glass-card-inset'
                                 }`}
                             >
                                 <input
@@ -506,7 +508,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                         <div className="space-y-4 animate-in fade-in duration-200">
                             {/* Cards de Métricas */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 glass-card-inset border border-slate-200 dark:border-slate-700">
                                     <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Lidos</div>
                                     <div className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{parseResult.totalRows}</div>
                                     <div className="text-[10px] text-slate-400">no arquivo</div>
@@ -540,28 +542,28 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                             {/* Resumo de Dados Complementares Detectados */}
                             <div className="flex items-center gap-2 overflow-x-auto py-1 text-xs text-slate-600 dark:text-slate-400 font-medium">
                                 <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold">Vínculos detectados:</span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700">
                                     {parseResult.secondaryStats.taxRegimes} Regimes
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700">
                                     {parseResult.secondaryStats.contacts} Contatos
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700">
                                     {parseResult.secondaryStats.inscriptions} Inscrições
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700">
                                     {parseResult.secondaryStats.activities} CNAEs
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700">
                                     {parseResult.secondaryStats.accesses} Acessos
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700">
                                     {parseResult.secondaryStats.licenses} Licenças
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700">
                                     {parseResult.secondaryStats.legislations} Legislações
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700">
                                     {parseResult.secondaryStats.dfeSeries} Séries DF-e
                                 </span>
                             </div>
@@ -665,12 +667,12 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                                 <div className="flex items-center justify-between gap-3 pt-1">
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-semibold text-slate-500">Filtrar:</span>
-                                        <div className="inline-flex p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                                        <div className="inline-flex p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 glass-card-inset border border-slate-200 dark:border-slate-700 text-xs">
                                             <button
                                                 onClick={() => setStatusFilter('all')}
-                                                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                                                className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
                                                     statusFilter === 'all'
-                                                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                                                        ? 'bg-white dark:bg-slate-700 glass-card-clear text-slate-900 dark:text-white shadow-sm'
                                                         : 'text-slate-600 dark:text-slate-400'
                                                 }`}
                                             >
@@ -716,7 +718,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                             )}
 
                             {/* CONTAINER DE TABELA COM SCROLLING VERTICAL E HORIZONTAL + STICKY HEADER */}
-                            <div className="max-h-[380px] overflow-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-inner relative custom-scrollbar">
+                            <div className="max-h-[380px] overflow-auto border border-slate-200 dark:border-slate-800 rounded-xl bg-white/70 dark:bg-slate-900/50 glass-card-inset shadow-inner relative custom-scrollbar">
                                 {activeTab === 'clientes' && (
                                     <table className="w-full text-left border-collapse text-xs">
                                         <thead className="sticky top-0 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 z-10">
@@ -757,20 +759,22 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                                                                 </span>
                                                             )}
                                                             {row.validationStatus === 'duplicate' && (
-                                                                <span
-                                                                    title={row.validationMessage}
-                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 cursor-help"
-                                                                >
-                                                                    <AlertTriangle size={12} /> Duplicado (Ignorado)
-                                                                </span>
+                                                                <Tooltip content={row.validationMessage || 'Cliente já cadastrado'} position="top">
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 cursor-help"
+                                                                    >
+                                                                        <AlertTriangle size={12} /> Duplicado (Ignorado)
+                                                                    </span>
+                                                                </Tooltip>
                                                             )}
                                                             {row.validationStatus === 'error' && (
-                                                                <span
-                                                                    title={row.validationMessage}
-                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 cursor-help"
-                                                                >
-                                                                    <AlertCircle size={12} /> {row.validationMessage || 'Inconsistente'}
-                                                                </span>
+                                                                <Tooltip content={row.validationMessage || 'Inconsistente'} position="top">
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 cursor-help"
+                                                                    >
+                                                                        <AlertCircle size={12} /> {row.validationMessage || 'Inconsistente'}
+                                                                    </span>
+                                                                </Tooltip>
                                                             )}
                                                         </td>
                                                         <td className="py-2 px-3 font-mono text-slate-500">{row.code || '-'}</td>
@@ -1069,7 +1073,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                                     <span>Processando clientes...</span>
                                     <span>{progressPercent}%</span>
                                 </div>
-                                <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-700">
+                                <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 glass-card-inset rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-700">
                                     <div
                                         className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full transition-all duration-300 ease-out"
                                         style={{ width: `${progressPercent}%` }}
@@ -1111,7 +1115,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center">
+                                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 glass-card-inset border border-slate-200 dark:border-slate-700 text-center">
                                     <div className="text-2xl font-black text-slate-800 dark:text-slate-200">
                                         {Object.values(importSummary.secondaryCounts).reduce((a, b) => a + b, 0)}
                                     </div>
@@ -1131,7 +1135,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                             </div>
 
                             {/* Detalhamento dos vínculos criados */}
-                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 glass-card-inset border border-slate-200 dark:border-slate-700">
                                 <h6 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">
                                     Resumo por Entidade Gravada
                                 </h6>
@@ -1167,7 +1171,7 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                     </div>
 
                     {/* Rodapé Fixo */}
-                    <div className="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md flex items-center justify-between shrink-0 gap-3">
+                    <div className="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 glass-card-inset flex items-center justify-between shrink-0 gap-3">
                         {mainTab === 'import' && step === 'upload' && (
                             <>
                                 <Button
@@ -1262,13 +1266,14 @@ export const ClientImportModal: React.FC<ClientImportModalProps> = ({
                     </div>
 
                     {/* Alça inferior decorativa para recolher */}
-                    <div
-                        onClick={step !== 'importing' ? handleClose : undefined}
-                        className="w-full flex justify-center py-1 bg-slate-100 dark:bg-slate-950 border-t border-slate-200/60 dark:border-slate-800/60 cursor-pointer group hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors"
-                        title={step !== 'importing' ? "Clique para recolher a gaveta" : undefined}
-                    >
-                        <div className="w-12 h-1 rounded-full bg-slate-300 dark:bg-slate-700 group-hover:bg-indigo-500 transition-colors" />
-                    </div>
+                    <Tooltip content={step !== 'importing' ? 'Clique para recolher a gaveta' : ''} position="top" className="block w-full">
+                        <div
+                            onClick={step !== 'importing' ? handleClose : undefined}
+                            className="w-full flex justify-center py-1 bg-slate-100/80 dark:bg-slate-950/70 glass-card-inset border-t border-slate-200/60 dark:border-slate-800/60 cursor-pointer group hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors"
+                        >
+                            <div className="w-12 h-1 rounded-full bg-slate-300 dark:bg-slate-700 group-hover:bg-indigo-500 transition-colors" />
+                        </div>
+                    </Tooltip>
                 </div>
             </div>
         </div>,

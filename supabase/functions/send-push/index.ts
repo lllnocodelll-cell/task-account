@@ -34,17 +34,29 @@ serve(async (req) => {
 
     const body = await req.json();
     const {
+      eventType = 'chat',
       channelId,
+      clientId,
+      orgId,
       senderId,
       senderName: rawSenderName,
       senderAvatar: rawSenderAvatar,
       text,
       image,
       isPrivate = false,
-      recipientUserIds
+      recipientUserIds,
+      documentNames,
+      taskName,
+      competence,
     } = body;
 
-    if (!channelId && (!recipientUserIds || recipientUserIds.length === 0)) {
+    const isClientDocumentEvent = eventType === 'client_document';
+
+    if (isClientDocumentEvent) {
+      if (!clientId) {
+        throw new Error('clientId é obrigatório para notificação de documento');
+      }
+    } else if (!channelId && (!recipientUserIds || recipientUserIds.length === 0)) {
       throw new Error('channelId ou recipientUserIds é obrigatório');
     }
 
@@ -63,8 +75,40 @@ serve(async (req) => {
     }
 
     const candidateSet = new Set<string>();
+    let clientCompanyName = '';
+    let resolvedOrgId: string | null = orgId || null;
 
-    if (recipientUserIds && Array.isArray(recipientUserIds) && recipientUserIds.length > 0) {
+    if (isClientDocumentEvent) {
+      const { data: clientInfo } = await supabase
+        .from('clients')
+        .select('company_name, trade_name, org_id')
+        .eq('id', clientId)
+        .maybeSingle();
+
+      if (clientInfo) {
+        clientCompanyName = clientInfo.trade_name || clientInfo.company_name || '';
+        resolvedOrgId = resolvedOrgId || clientInfo.org_id || null;
+      }
+
+      let clientProfilesQuery = supabase
+        .from('profiles')
+        .select('id, role, org_id')
+        .eq('role', 'cliente')
+        .or(`client_id.eq.${clientId},client_ids.cs.{${clientId}}`);
+
+      if (resolvedOrgId) {
+        clientProfilesQuery = clientProfilesQuery.eq('org_id', resolvedOrgId);
+      }
+
+      const { data: clientProfiles } = await clientProfilesQuery;
+      if (clientProfiles) {
+        clientProfiles.forEach((p: any) => {
+          if (p.id && p.id !== senderId) {
+            candidateSet.add(p.id);
+          }
+        });
+      }
+    } else if (recipientUserIds && Array.isArray(recipientUserIds) && recipientUserIds.length > 0) {
       recipientUserIds.forEach((id: string) => {
         if (id && id !== senderId) candidateSet.add(id);
       });
@@ -139,25 +183,92 @@ serve(async (req) => {
       });
     }
 
-    // Buscar inscrições push ativas para os destinatários
-    const { data: subscriptions, error: subsError } = await supabase
-      .from('user_push_subscriptions')
-      .select('id, user_id, endpoint, p256dh, auth')
-      .in('user_id', targetUserIds);
+    const docList = Array.isArray(documentNames) ? documentNames.filter(Boolean) : [];
+    const title = isClientDocumentEvent
+      ? (clientCompanyName ? `Novo documento • ${clientCompanyName}` : 'Novo documento disponível')
+      : (senderName ? senderName : 'Task Account');
 
-    if (subsError || !subscriptions || subscriptions.length === 0) {
+    let messageBody = text || 'Nova mensagem recebida no chat';
+    if (isClientDocumentEvent) {
+      if (docList.length === 1) {
+        messageBody = `${docList[0]}${competence ? ` (${competence})` : ''}`;
+      } else if (docList.length > 1) {
+        messageBody = `${docList.length} novos documentos disponíveis${taskName ? ` • ${taskName}` : ''}${competence ? ` (${competence})` : ''}`;
+      } else {
+        messageBody = `Um novo documento foi publicado na Área do Cliente${competence ? ` (${competence})` : ''}.`;
+      }
+    }
+
+    // Para novos documentos do cliente, também registra notificação persistente no sininho (via service_role)
+    if (isClientDocumentEvent) {
+      try {
+        const notificationRows = targetUserIds.map((uid) => ({
+          user_id: uid,
+          org_id: resolvedOrgId,
+          title,
+          message: messageBody,
+          type: 'client_document',
+          link: '/?tab=client-portal',
+          related_entity_id: clientId,
+          read: false,
+          created_at: new Date().toISOString(),
+        }));
+        const { error: notifInsertError } = await supabase
+          .from('notifications')
+          .insert(notificationRows);
+        if (notifInsertError) {
+          console.warn('Aviso ao gravar notificação de documento:', notifInsertError.message);
+        }
+      } catch (notifErr: any) {
+        console.warn('Aviso ao registrar notificação na tabela notifications:', notifErr?.message || notifErr);
+      }
+    }
+
+    // Buscar inscrições push ativas para os destinatários (mais recentes primeiro)
+    const { data: rawSubscriptions, error: subsError } = await supabase
+      .from('user_push_subscriptions')
+      .select('id, user_id, endpoint, p256dh, auth, user_agent, updated_at')
+      .in('user_id', targetUserIds)
+      .order('updated_at', { ascending: false });
+
+    if (subsError || !rawSubscriptions || rawSubscriptions.length === 0) {
       return new Response(JSON.stringify({ message: 'Destinatários sem inscrições push ativas', sent: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    const title = senderName ? senderName : 'Task Account';
-    const messageBody = text || 'Nova mensagem recebida no chat';
-    const icon = senderAvatar || '/pwa-192x192.png';
+    // Deduplica por (user_id, dispositivo normalizado) mantendo apenas o registro mais recente
+    // para evitar notificações duplicadas no mesmo celular (ex.: Chrome vs PWA instalado).
+    const normalizeDeviceKey = (ua?: string | null, fallbackId?: string) => {
+      if (!ua) return `id:${fallbackId || 'unknown'}`;
+      return ua
+        .replace(/\b(Chrome|CriOS|Edg|EdgA|EdgiOS|Firefox|FxiOS|Version|Safari|OPR)\/[\d.]+/gi, '$1')
+        .trim();
+    };
+
+    const seenDeviceKeys = new Set<string>();
+    const subscriptions: any[] = [];
+    const staleDuplicateIds: string[] = [];
+
+    for (const sub of rawSubscriptions) {
+      const deviceKey = `${sub.user_id}::${normalizeDeviceKey(sub.user_agent, sub.id)}`;
+      if (seenDeviceKeys.has(deviceKey)) {
+        staleDuplicateIds.push(sub.id);
+        continue;
+      }
+      seenDeviceKeys.add(deviceKey);
+      subscriptions.push(sub);
+    }
+
+    const icon = isClientDocumentEvent ? '/pwa-192x192.png' : (senderAvatar || '/pwa-192x192.png');
     const badge = '/pwa-badge.png';
-    const tag = `chat-channel-${channelId || 'global'}`;
-    const targetPath = channelId ? `/?tab=chat&channelId=${channelId}` : '/?tab=chat';
+    const tag = isClientDocumentEvent
+      ? `client-docs-${clientId}`
+      : `chat-channel-${channelId || 'global'}`;
+    const targetPath = isClientDocumentEvent
+      ? '/?tab=client-portal'
+      : (channelId ? `/?tab=chat&channelId=${channelId}` : '/?tab=chat');
     const appOrigin = Deno.env.get('APP_PUBLIC_URL') || '';
     const navigateUrl = appOrigin ? `${appOrigin.replace(/\/$/, '')}${targetPath}` : targetPath;
 
@@ -184,8 +295,11 @@ serve(async (req) => {
       tag,
       data: {
         url: targetPath,
-        channelId,
-        senderId
+        tab: isClientDocumentEvent ? 'client-portal' : 'chat',
+        eventType: isClientDocumentEvent ? 'client_document' : 'chat',
+        clientId: clientId || undefined,
+        channelId: channelId || undefined,
+        senderId: senderId || undefined
       }
     });
 
@@ -220,18 +334,20 @@ serve(async (req) => {
       })
     );
 
-    if (expiredIds.length > 0) {
+    const idsToCleanup = [...expiredIds, ...staleDuplicateIds];
+    if (idsToCleanup.length > 0) {
       await supabase
         .from('user_push_subscriptions')
         .delete()
-        .in('id', expiredIds);
+        .in('id', idsToCleanup);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         sent: sentCount,
-        expiredRemoved: expiredIds.length
+        expiredRemoved: expiredIds.length,
+        duplicatesRemoved: staleDuplicateIds.length
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

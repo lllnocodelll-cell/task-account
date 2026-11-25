@@ -150,14 +150,14 @@ export const TutorialForm: React.FC<TutorialFormProps> = ({
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Descrição</label>
         <textarea
-          className="w-full h-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+          className="w-full h-24 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           placeholder="Detalhes ou passo a passo sobre este tutorial..."
         />
       </div>
 
-      <div className="border border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-6 bg-slate-50 dark:bg-slate-800/50 text-center">
+      <div className="border border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-6 bg-slate-50 dark:bg-slate-800/50 glass-card-inset text-center">
         <input
           type="file"
           id="tutorial-file-upload"

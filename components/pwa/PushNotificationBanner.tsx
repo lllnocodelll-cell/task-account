@@ -67,6 +67,11 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
       return;
     }
 
+    if (pushState === 'needs_android_install') {
+      addToast('info', 'Use o Aplicativo Instalado', 'Para evitar notificações duplicadas no navegador, abra o Task Account pelo ícone instalado na sua Tela Inicial.');
+      return;
+    }
+
     setIsSubscribing(true);
     try {
       const success = await registerPushSubscription(userId, orgId);
@@ -105,7 +110,9 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
                 ? 'Bloqueadas pelo navegador'
                 : pushState === 'in_app_browser'
                   ? 'Abra no Safari ou Chrome para ativar'
-                  : 'Receba avisos com o celular bloqueado'}
+                  : pushState === 'needs_android_install'
+                    ? 'Abra pelo aplicativo instalado para ativar'
+                    : 'Receba avisos com o celular bloqueado'}
             </p>
           </div>
         </div>
@@ -171,7 +178,9 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
                   ? 'Você abriu o portal pelo navegador interno de outro app (ex.: WhatsApp/Instagram). Abra no Safari ou Chrome e adicione à Tela Inicial para receber alertas.'
                   : pushState === 'needs_ios_install'
                     ? 'No iPhone, adicione o aplicativo à Tela de Início para poder receber avisos em tempo real.'
-                    : 'Receba alertas instantâneos de mensagens e novidades no seu smartphone mesmo com a tela bloqueada.'}
+                    : pushState === 'needs_android_install'
+                      ? 'Instale e abra o Task Account pelo ícone da sua Tela Inicial para centralizar as notificações apenas no aplicativo.'
+                      : 'Receba alertas instantâneos de mensagens e novidades no seu smartphone mesmo com a tela bloqueada.'}
               </p>
             </div>
           </div>
@@ -192,6 +201,11 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
                 <>
                   <Smartphone size={15} />
                   <span>Como Ativar no iPhone</span>
+                </>
+              ) : pushState === 'needs_android_install' ? (
+                <>
+                  <Smartphone size={15} />
+                  <span>Abrir pelo App Instalado</span>
                 </>
               ) : (
                 <>

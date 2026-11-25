@@ -11,6 +11,7 @@ import {
   Lock
 } from 'lucide-react';
 import { Client, TAX_REGIME_LABELS } from '../../types';
+import { Tooltip } from '../ui/Tooltip';
 import { DrawerBackButton } from '../ui/DrawerBackButton';
 
 interface BatchClientSelectionDrawerProps {
@@ -328,15 +329,15 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
       {/* Drawer Container Lateral Direito */}
       <div
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[540px] md:w-[620px] bg-white dark:bg-slate-900 shadow-2xl z-[9999] flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] border-l border-slate-200/80 dark:border-slate-800 ${
+        className={`fixed inset-y-0 right-0 w-full sm:w-[540px] md:w-[620px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] border-l border-slate-200/80 dark:border-slate-800 ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
         }`}
         onClick={e => e.stopPropagation()}
       >
         {/* Cabeçalho Padronizado no estilo do sistema */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 flex-shrink-0">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
               <Building2 size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -359,7 +360,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
         </div>
 
         {/* Área Superior de Filtros e Busca */}
-        <div className="p-4 sm:p-5 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/20 space-y-3 flex-shrink-0">
+        <div className="p-4 sm:p-5 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-800/20 glass-card-inset space-y-3 flex-shrink-0">
           {/* Campo de Busca */}
           <div className="relative">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -368,16 +369,18 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="Buscar por razão social, nome fantasia ou CPF/CNPJ..."
-              className="w-full pl-9 pr-9 py-2.5 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all shadow-xs"
+              className="w-full pl-9 pr-9 py-2.5 bg-white dark:bg-slate-800/80 glass-chat-field border border-slate-200 dark:border-slate-700/80 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all shadow-xs"
             />
             {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
-              >
-                <X size={14} />
-              </button>
+              <Tooltip content="Limpar busca" position="top" className="absolute right-3 top-1/2 -translate-y-1/2">
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer flex items-center justify-center"
+                >
+                  <X size={14} />
+                </button>
+              </Tooltip>
             )}
           </div>
 
@@ -399,18 +402,18 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
                   key={tab.id}
                   type="button"
                   onClick={() => setSelectedRegimeFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg font-bold transition-all shrink-0 flex items-center gap-1.5 text-xs ${
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all shrink-0 flex items-center gap-1.5 text-xs cursor-pointer ${
                     isSelected
                       ? 'bg-indigo-600 text-white shadow-sm'
                       : isTabLockedOut
-                        ? 'bg-slate-100/70 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/40 text-slate-400 dark:text-slate-500 hover:border-slate-300'
-                        : 'bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-600'
+                        ? 'bg-slate-100/70 dark:bg-slate-800/40 glass-control-pill border border-slate-200/50 dark:border-slate-700/40 text-slate-400 dark:text-slate-500 hover:border-slate-300'
+                        : 'bg-white dark:bg-slate-800/80 glass-control-pill border border-slate-200/80 dark:border-slate-700/60 text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-600'
                   }`}
                 >
                   {isTabLockedOut && <Lock size={10} className="text-slate-400 shrink-0" />}
                   <span>{tab.label}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 glass-control-pill text-slate-500 dark:text-slate-400'
                   }`}>
                     {tab.count}
                   </span>
@@ -444,7 +447,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
             <button
               type="button"
               onClick={clearAll}
-              className="px-2.5 py-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors shrink-0 shadow-2xs"
+              className="px-2.5 py-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-800 glass-control-pill rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors shrink-0 shadow-2xs cursor-pointer"
             >
               Trocar regime
             </button>
@@ -452,7 +455,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
         )}
 
         {/* Barra de Ações em Massa */}
-        <div className="px-5 py-2.5 bg-slate-50/80 dark:bg-slate-800/40 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-xs flex-shrink-0">
+        <div className="px-5 py-2.5 bg-slate-50/80 dark:bg-slate-800/40 glass-card-inset border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-xs flex-shrink-0">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -508,7 +511,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
         {/* Lista de Empresas com Rolagem */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2">
           {filteredClients.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+            <div className="h-64 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 glass-card-inset rounded-2xl">
               <Building2 size={36} className="text-slate-300 dark:text-slate-600 mb-2" />
               <p className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300">
                 Nenhuma empresa encontrada
@@ -533,10 +536,10 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
                   onClick={() => toggleClient(client)}
                   className={`group relative flex items-start gap-3 p-3 sm:p-3.5 rounded-xl border transition-all select-none ${
                     isDisabled
-                      ? 'opacity-40 bg-slate-50/60 dark:bg-slate-800/30 border-dashed border-slate-200 dark:border-slate-800 cursor-not-allowed'
+                      ? 'opacity-40 bg-slate-50/60 dark:bg-slate-800/30 glass-card-inset border-dashed border-slate-200 dark:border-slate-800 cursor-not-allowed'
                       : isSelected
-                        ? 'bg-indigo-50/70 dark:bg-indigo-950/30 border-indigo-500/70 dark:border-indigo-500/50 shadow-xs cursor-pointer'
-                        : 'bg-white dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/60 hover:border-indigo-200 dark:hover:border-indigo-800/80 hover:bg-slate-50/50 dark:hover:bg-slate-800 cursor-pointer'
+                        ? 'bg-indigo-50/70 dark:bg-indigo-950/30 glass-chat-item-active border-indigo-500/70 dark:border-indigo-500/50 shadow-xs cursor-pointer'
+                        : 'bg-white dark:bg-slate-800/60 glass-chat-item border-slate-200/80 dark:border-slate-700/60 hover:border-indigo-200 dark:hover:border-indigo-800/80 hover:bg-slate-50/50 dark:hover:bg-slate-800 cursor-pointer'
                   }`}
                 >
                   {/* Checkbox customizado com ícone de cadeado se bloqueado */}
@@ -567,7 +570,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
                         {client.companyName}
                       </span>
                       {isDisabled && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700/80 text-slate-500 dark:text-slate-400 shrink-0">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700/80 glass-control-pill text-slate-500 dark:text-slate-400 shrink-0">
                           Regime divergente
                         </span>
                       )}
@@ -582,7 +585,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
                     {/* Tags e Dados Complementares */}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       {formattedDoc && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 rounded border border-slate-200/60 dark:border-slate-700">
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700/60 glass-control-pill text-slate-600 dark:text-slate-300 rounded border border-slate-200/60 dark:border-slate-700">
                           {formattedDoc}
                         </span>
                       )}
@@ -592,7 +595,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
                       </span>
 
                       {client.segment && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 rounded">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700/60 glass-control-pill text-slate-500 dark:text-slate-400 rounded">
                           {client.segment}
                         </span>
                       )}
@@ -605,7 +608,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
         </div>
 
         {/* Rodapé Fixo */}
-        <div className="p-4 sm:p-5 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-between gap-3 flex-shrink-0">
+        <div className="p-4 sm:p-5 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/95 dark:bg-slate-900/95 glass-card-inset flex items-center justify-between gap-3 flex-shrink-0">
           <div className="flex flex-col text-left">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
               {tempSelected.length} de {activeClients.length}
@@ -619,7 +622,7 @@ export const BatchClientSelectionDrawer: React.FC<BatchClientSelectionDrawerProp
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 glass-control-pill rounded-xl transition-colors cursor-pointer"
             >
               Cancelar
             </button>

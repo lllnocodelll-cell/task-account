@@ -66,9 +66,10 @@ import { formatMessageText, stripFormatting } from '../utils/stringUtils';
 import { Tooltip } from '../components/ui/Tooltip';
 import { useToast } from '../contexts/ToastContext';
 import { MessageTemplatesDrawer } from '../components/chat/MessageTemplatesDrawer';
-import { triggerPushNotification, hasActivePushSubscriptionFlag } from '../utils/webPush';
+import { triggerPushNotification, hasActivePushSubscription } from '../utils/webPush';
 import { soundEffects } from '../utils/soundEffects';
 import { sendBrowserNotification } from '../utils/browserNotification';
+import { useMobileBackGesture } from '../hooks/useMobileBackGesture';
 import { AudioRecorder } from '../components/chat/AudioRecorder';
 import { AudioMessagePlayer } from '../components/chat/AudioMessagePlayer';
 import { ChatSidebarSkeleton, ChatMessagesSkeleton, ChatMessageBubblesSkeleton } from '../components/ui/Skeleton';
@@ -410,11 +411,11 @@ const playNotificationSound = () => {
   soundEffects.playNotificationSound();
 };
 
-const showBrowserNotification = (
+const showBrowserNotification = async (
   title: string,
   options?: { body?: string; icon?: string; tag?: string; channelId?: string }
 ) => {
-  if (hasActivePushSubscriptionFlag()) return;
+  if (await hasActivePushSubscription()) return;
   sendBrowserNotification(title, {
     body: options?.body,
     icon: options?.icon,
@@ -895,11 +896,14 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     const syncChannelFromUrl = () => {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const deepChannelId = params.get('channelId');
+        const url = new URL(window.location.href);
+        const deepChannelId = url.searchParams.get('channelId');
         if (deepChannelId) {
           setSelectedChannelId(deepChannelId);
           setShowSidebarOnMobile(false);
+          // Consome o parâmetro após abrir para evitar reentrada automática ao transitar de aba
+          url.searchParams.delete('channelId');
+          window.history.replaceState(null, '', url.toString());
         }
       } catch {
         // Ignora erro de URL
@@ -914,12 +918,26 @@ export const Chat: React.FC = () => {
       if (targetChannelId) {
         setSelectedChannelId(targetChannelId);
         setShowSidebarOnMobile(false);
+        try {
+          const url = new URL(window.location.href);
+          if (url.searchParams.has('channelId')) {
+            url.searchParams.delete('channelId');
+            window.history.replaceState(null, '', url.toString());
+          }
+        } catch {}
       }
     };
 
+    const handleResetChatHomeEvent = () => {
+      setSelectedChannelId(null);
+      setShowSidebarOnMobile(true);
+    };
+
     window.addEventListener('taskaccount:open-chat-channel', handleOpenChannelEvent);
+    window.addEventListener('taskaccount:reset-chat-home', handleResetChatHomeEvent);
     return () => {
       window.removeEventListener('taskaccount:open-chat-channel', handleOpenChannelEvent);
+      window.removeEventListener('taskaccount:reset-chat-home', handleResetChatHomeEvent);
     };
   }, []);
 
@@ -1116,6 +1134,18 @@ export const Chat: React.FC = () => {
   }, [enrichedChannels, currentUser, userId, profiles]);
 
   const selectedChannel = enrichedChannels.find(c => c.id === selectedChannelId);
+  const {
+    swipeOffset: mobileChatSwipeOffset,
+    isSwiping: isMobileChatSwiping,
+    touchHandlers: mobileChatSwipeHandlers,
+  } = useMobileBackGesture({
+    isActive: Boolean(selectedChannel && !showSidebarOnMobile),
+    onBack: () => {
+      setSelectedChannelId(null);
+      setShowSidebarOnMobile(true);
+    },
+    id: 'chat-thread',
+  });
   const isTeamChat = selectedChannel 
     ? selectedChannel.type !== 'support' 
     : activeTab === 'chats';
@@ -5747,7 +5777,17 @@ export const Chat: React.FC = () => {
 
       {/* Main Chat Area */}
       {selectedChannel ? (
-        <div className={`flex-1 flex-col min-w-0 h-full overflow-hidden ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'}`}>
+        <div
+          {...mobileChatSwipeHandlers}
+          style={
+            mobileChatSwipeOffset > 0
+              ? { transform: `translateX(${mobileChatSwipeOffset}px)` }
+              : undefined
+          }
+          className={`flex-1 flex-col min-w-0 h-full overflow-hidden ${!showSidebarOnMobile ? 'flex' : 'hidden md:flex'} ${
+            isMobileChatSwiping ? 'transition-none' : 'transition-transform duration-200 ease-out'
+          }`}
+        >
 
           {/* Header */}
           <div className="min-h-16 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 bg-white dark:bg-slate-900 glass-card-inset sticky top-0 z-20 shrink-0 select-none">
@@ -5755,7 +5795,10 @@ export const Chat: React.FC = () => {
               <button 
                 type="button"
                 className="md:hidden w-9 h-9 flex items-center justify-center -ml-1 mr-1 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-90 rounded-full transition-all shrink-0 shadow-2xs cursor-pointer"
-                onClick={() => setShowSidebarOnMobile(true)}
+                onClick={() => {
+                  setSelectedChannelId(null);
+                  setShowSidebarOnMobile(true);
+                }}
                 aria-label="Voltar para conversas"
               >
                 <ArrowLeft size={19} className="stroke-[2.5]" />
@@ -7304,7 +7347,10 @@ export const Chat: React.FC = () => {
             <button
               type="button"
               className="md:hidden w-9 h-9 flex items-center justify-center -ml-1 text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-90 rounded-full transition-all shrink-0 cursor-pointer"
-              onClick={() => setShowSidebarOnMobile(true)}
+              onClick={() => {
+                setSelectedChannelId(null);
+                setShowSidebarOnMobile(true);
+              }}
               aria-label="Voltar para conversas"
             >
               <ArrowLeft size={19} className="stroke-[2.5]" />

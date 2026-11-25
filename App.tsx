@@ -59,6 +59,17 @@ interface UserProfile {
   sector_ids?: string[];
 }
 
+const CLIENT_ALLOWED_TABS = new Set(['client-portal', 'chat', 'profile', 'notifications']);
+
+const canRoleAccessTab = (role: UserRole, tab: string): boolean => {
+  if (role === 'cliente') return CLIENT_ALLOWED_TABS.has(tab);
+  if (role !== 'gestor' && tab === 'settings') return false;
+  return Boolean(TAB_CONFIG[tab]);
+};
+
+const getDefaultTabForRole = (role: UserRole): string =>
+  role === 'cliente' ? 'client-portal' : 'dashboard';
+
 const getInitialTab = (): string => {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -129,6 +140,19 @@ function App() {
   const [updatedEmailInfo, setUpdatedEmailInfo] = useState<{ oldEmail: string; newEmail: string } | null>(null);
   const previousTabRef = useRef<string | null>(null);
   const prevActiveTabRef = useRef<string>(activeTab);
+  const hasSyncedInitialTabRef = useRef<boolean>(false);
+  const isHandlingPopStateRef = useRef<boolean>(false);
+  const shouldReplaceHistoryOnTabChangeRef = useRef<boolean>(false);
+  const activeTabRef = useRef<string>(activeTab);
+  const userRoleRef = useRef<UserRole>(userRole);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    userRoleRef.current = userRole;
+  }, [userRole]);
 
   useEffect(() => {
     if (prevActiveTabRef.current !== activeTab) {
@@ -147,6 +171,23 @@ function App() {
   const handleNavigateToTask = (taskId: string) => {
     setInitialTasksTabTaskId(taskId);
     setActiveTab('tasks');
+  };
+
+  /** Navega entre abas limpando qualquer deep-link residual de conversa ao abrir o Chat pelo menu. */
+  const navigateToTab = (tab: string) => {
+    if (tab === 'chat') {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('channelId')) {
+          url.searchParams.delete('channelId');
+          window.history.replaceState(null, '', url.toString());
+        }
+      } catch {
+        // Ignora erro ao manipular URL
+      }
+      window.dispatchEvent(new CustomEvent('taskaccount:reset-chat-home'));
+    }
+    setActiveTab(tab);
   };
 
   const fetchClients = async (orgId: string) => {
@@ -202,6 +243,17 @@ function App() {
       return;
     }
 
+    // Aguarda o perfil/role carregar antes de sincronizar URL/histórico para evitar gravar ?tab=dashboard para clientes
+    if (!userProfile) {
+      return;
+    }
+
+    if (!canRoleAccessTab(userRole, activeTab)) {
+      shouldReplaceHistoryOnTabChangeRef.current = true;
+      setActiveTab(getDefaultTabForRole(userRole));
+      return;
+    }
+
     updateTabMeta(activeTab, userRole, unreadNotificationsCount);
     if (activeTab === 'chat') {
       window.scrollTo(0, 0);
@@ -210,21 +262,65 @@ function App() {
     // Synchronize URL search params (?tab=...) without reloading page
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.get('tab') !== activeTab) {
+      const urlTab = url.searchParams.get('tab');
+      let changed = false;
+
+      if (urlTab !== activeTab) {
         url.searchParams.set('tab', activeTab);
-        window.history.replaceState(null, '', url.toString());
+        changed = true;
+      }
+
+      // Ao sair da aba de chat, remove channelId para não reabrir conversa sozinho ao voltar
+      if (activeTab !== 'chat' && url.searchParams.has('channelId')) {
+        url.searchParams.delete('channelId');
+        changed = true;
+      }
+
+      if (!hasSyncedInitialTabRef.current || shouldReplaceHistoryOnTabChangeRef.current) {
+        hasSyncedInitialTabRef.current = true;
+        shouldReplaceHistoryOnTabChangeRef.current = false;
+        if (changed || !window.history.state?.tab) {
+          window.history.replaceState({ tab: activeTab }, '', url.toString());
+        }
+      } else if (isHandlingPopStateRef.current) {
+        isHandlingPopStateRef.current = false;
+      } else if (changed && urlTab !== activeTab) {
+        // Empilha no histórico para que o gesto "Voltar" do celular retorne à aba anterior
+        window.history.pushState({ tab: activeTab }, '', url.toString());
+      } else if (changed) {
+        window.history.replaceState({ tab: activeTab }, '', url.toString());
       }
     } catch (e) {
       console.error('Error synchronizing tab in URL:', e);
     }
-  }, [activeTab, session, userRole, unreadNotificationsCount]);
+  }, [activeTab, session, userProfile, userRole, unreadNotificationsCount]);
 
   // Handle browser Back / Forward navigation (popstate)
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
-      if (tab && TAB_CONFIG[tab]) {
+      if (!tab || !TAB_CONFIG[tab]) return;
+
+      if (!canRoleAccessTab(userRoleRef.current, tab)) {
+        const fallbackTab = getDefaultTabForRole(userRoleRef.current);
+        shouldReplaceHistoryOnTabChangeRef.current = true;
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set('tab', fallbackTab);
+          url.searchParams.delete('channelId');
+          window.history.replaceState({ tab: fallbackTab }, '', url.toString());
+        } catch {
+          // Ignora falha ao atualizar URL
+        }
+        if (activeTabRef.current !== fallbackTab) {
+          setActiveTab(fallbackTab);
+        }
+        return;
+      }
+
+      if (tab !== activeTabRef.current) {
+        isHandlingPopStateRef.current = true;
         setActiveTab(tab);
       }
     };
@@ -654,8 +750,9 @@ function App() {
       const effectiveOrgId = finalProfile.org_id || session.user.id;
       fetchClients(effectiveOrgId);
       
-      if (profileData.role === 'cliente') {
-        setActiveTab(prev => prev === 'dashboard' ? 'client-portal' : prev);
+      if (!canRoleAccessTab(profileData.role as UserRole, activeTabRef.current)) {
+        shouldReplaceHistoryOnTabChangeRef.current = true;
+        setActiveTab(getDefaultTabForRole(profileData.role as UserRole));
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -794,12 +891,18 @@ function App() {
       }
     }
     await supabase.auth.signOut();
+    hasSyncedInitialTabRef.current = false;
+    shouldReplaceHistoryOnTabChangeRef.current = false;
     setActiveTab('dashboard'); // Reset tab on logout
     setUserProfile(null);
   };
 
   const renderContent = () => {
-    switch (activeTab) {
+    const effectiveTab = canRoleAccessTab(userRole, activeTab)
+      ? activeTab
+      : getDefaultTabForRole(userRole);
+
+    switch (effectiveTab) {
       case 'dashboard':
         return <Dashboard userProfile={userProfile} />;
       case 'tasks':
@@ -842,7 +945,7 @@ function App() {
             userProfile={userProfile}
             onNavigateToTask={handleNavigateToTask}
             onNavigateToClient={handleNavigateToClient}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={navigateToTab}
             onOpenTutorials={() => setIsTutorialsOpen(true)}
             onBack={() => setActiveTab(previousTabRef.current || (userRole === 'cliente' ? 'client-portal' : 'dashboard'))}
           />
@@ -851,7 +954,7 @@ function App() {
         return (
           <ClientPortal 
             userProfile={userProfile} 
-            onNavigateToChat={() => setActiveTab('chat')} 
+            onNavigateToChat={() => navigateToTab('chat')} 
             onPendingDocsCountChange={setPendingDocsCount}
             chatUnreadCount={chatUnreadCount}
           />
@@ -1040,6 +1143,7 @@ function App() {
             isDarkMode={isDarkMode}
             toggleTheme={toggleTheme}
           />
+          <PWAInstallPrompt />
           {renderDeactivatedModal()}
           {renderCredentialsChangedModal()}
         </div>
@@ -1052,6 +1156,7 @@ function App() {
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
         />
+        <PWAInstallPrompt />
         <ThemeTransitionOverlay isVisible={isThemeTransitioning} targetTheme={isDarkMode ? 'dark' : 'light'} />
         {renderDeactivatedModal()}
         {renderCredentialsChangedModal()}
@@ -1077,7 +1182,7 @@ function App() {
       <Sidebar
         activeTab={activeTab}
         setActiveTab={(tab) => {
-          setActiveTab(tab);
+          navigateToTab(tab);
           setIsMobileMenuOpen(false); // Close menu on navigation
         }}
         isCollapsed={isSidebarCollapsed}
@@ -1113,7 +1218,7 @@ function App() {
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
           onProfileClick={() => setIsProfileDrawerOpen(true)}
-          onNavigateToTab={(tab) => setActiveTab(tab)}
+          onNavigateToTab={navigateToTab}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           onOpenTutorials={() => setIsTutorialsOpen(true)}
           onNavigateToTask={handleNavigateToTask}
@@ -1176,6 +1281,7 @@ function App() {
             }
             setActiveTab('chat');
           }}
+          onNavigateToClientPortal={() => setActiveTab('client-portal')}
         />
       )}
 

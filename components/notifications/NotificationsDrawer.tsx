@@ -32,13 +32,16 @@ import {
   Building
 } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
+import { Select } from '../ui/Input';
 import { DrawerBackButton } from '../ui/DrawerBackButton';
+import { useMobileBackGesture } from '../../hooks/useMobileBackGesture';
 import { soundEffects } from '../../utils/soundEffects';
 import { 
   sendBrowserNotification, 
   requestBrowserNotificationPermission, 
   isBrowserNotificationSupported 
 } from '../../utils/browserNotification';
+import { hasActivePushSubscription } from '../../utils/webPush';
 
 const PAGE_SIZE = 30;
 
@@ -369,12 +372,16 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         setNotifications((prev) => [newNotif, ...prev]);
         setTotalCount(c => c + 1);
         
-        if (belongsToUser) {
+        if (belongsToUser && newNotif.type !== 'client_document') {
           soundEffects.playNotificationSound();
-          sendBrowserNotification(newNotif.title, {
-            body: newNotif.message || undefined,
-            onClick: () => handleNotificationClick(newNotif)
-          });
+          hasActivePushSubscription().then((hasPush) => {
+            if (!hasPush) {
+              sendBrowserNotification(newNotif.title, {
+                body: newNotif.message || undefined,
+                onClick: () => handleNotificationClick(newNotif)
+              });
+            }
+          }).catch(() => {});
         }
 
         fetchUnreadCount();
@@ -607,6 +614,13 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       return;
     }
 
+    // Documentos publicados na Área do Cliente
+    if ((notification.type === 'client_document' || notification.link?.includes('client-portal')) && onNavigate) {
+      onNavigate('client-portal');
+      onClose();
+      return;
+    }
+
     // Links gerais
     if (notification.link && onNavigate) {
       if (notification.link.includes('/tasks')) {
@@ -615,6 +629,8 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         onNavigate('tasks', taskId);
       } else if (notification.link.includes('/chat')) {
         onNavigate('chat');
+      } else if (notification.link.includes('client-portal')) {
+        onNavigate('client-portal');
       } else if (notification.link.includes('/clients')) {
         const match = notification.link.match(/[?&]id=([^&]+)/);
         const clientId = match ? match[1] : (notification.related_entity_id || undefined);
@@ -648,6 +664,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       case 'certificate_renewed': return <CheckCircle size={16} className="text-teal-500" />;
       case 'certificate_updated': return <KeyRound size={16} className="text-indigo-500" />;
       case 'client_created': return <Building2 size={16} className="text-emerald-500" />;
+      case 'client_document': return <FileText size={16} className="text-indigo-500" />;
       case 'task_reassigned': return <ArrowRightLeft size={16} className="text-indigo-500" />;
       case 'client_tax_regime_changed': return <Scale size={16} className="text-amber-500" />;
       case 'client_legislation_added': return <BookOpen size={16} className="text-cyan-500" />;
@@ -662,6 +679,12 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' - ' + date.toLocaleDateString('pt-BR');
   };
 
+  const { swipeOffset, isSwiping, touchHandlers } = useMobileBackGesture({
+    isActive: isOpen,
+    onBack: onClose,
+    id: 'notifications-drawer',
+  });
+
   if (!shouldRender) return null;
 
   return createPortal(
@@ -674,12 +697,16 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       
       {/* Panel */}
       <div 
+        {...touchHandlers}
+        style={swipeOffset > 0 ? { transform: `translateX(${swipeOffset}px)` } : undefined}
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col border-l border-white/20 dark:border-slate-800/50 ${
+          isSwiping ? 'transition-none' : 'transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)]'
+        } ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 shrink-0">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg flex-shrink-0 shadow-sm">
               <Bell size={18} className="text-indigo-600 dark:text-indigo-400" />
@@ -710,18 +737,18 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         {/* Scope Selector para Gestor: Minhas Notificações vs Escritório */}
         {isGestor && (
           <div className="px-4 pt-3 shrink-0">
-            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold shadow-2xs">
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800/80 glass-card-inset rounded-xl border border-slate-200/60 dark:border-slate-700/60 text-xs font-bold shadow-2xs">
               <button
                 onClick={() => handleScopeChange('mine')}
                 className={`flex-1 py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   scope === 'mine'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    ? 'bg-white dark:bg-slate-900 glass-card-clear text-indigo-600 dark:text-indigo-400 shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <User size={13} />
                 <span>Minhas</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold">
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-slate-700 glass-control-pill text-slate-700 dark:text-slate-300 font-bold">
                   {mineTotalCount}
                 </span>
               </button>
@@ -729,13 +756,13 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                 onClick={() => handleScopeChange('org')}
                 className={`flex-1 py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   scope === 'org'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    ? 'bg-white dark:bg-slate-900 glass-card-clear text-indigo-600 dark:text-indigo-400 shadow-sm'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Building size={13} />
                 <span>Escritório</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold">
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/70 dark:bg-slate-700 glass-control-pill text-slate-700 dark:text-slate-300 font-bold">
                   {orgTotalCount > 999 ? `${(orgTotalCount / 1000).toFixed(1)}k` : orgTotalCount}
                 </span>
               </button>
@@ -763,7 +790,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         )}
 
         {/* Search and Filters Section */}
-        <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 shrink-0 space-y-2.5">
+        <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 glass-card-inset shrink-0 space-y-2.5">
           {/* Search Input */}
           <div className="relative">
             <input 
@@ -771,16 +798,17 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Buscar por título ou mensagem..."
-              className="w-full px-3 pr-8 py-1.5 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/70 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+              className="w-full px-3 pr-8 py-1.5 bg-white dark:bg-slate-800/90 glass-chat-field border border-slate-200 dark:border-slate-700/70 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
             />
             {searchQuery && (
-              <button 
-                onClick={() => handleSearchChange('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full cursor-pointer"
-                title="Limpar busca"
-              >
-                <X size={13} />
-              </button>
+              <Tooltip content="Limpar busca" position="top" className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                <button 
+                  onClick={() => handleSearchChange('')}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full cursor-pointer flex items-center justify-center"
+                >
+                  <X size={13} />
+                </button>
+              </Tooltip>
             )}
           </div>
 
@@ -791,7 +819,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'all' && typeFilter === 'all'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <Bell size={11} className={categoryFilter === 'all' && typeFilter === 'all' ? 'text-white' : 'text-slate-400'} />
@@ -803,7 +831,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 text-[11px] cursor-pointer ${
                 categoryFilter === 'unread'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <Mail size={11} className={categoryFilter === 'unread' ? 'text-white' : 'text-slate-400'} />
@@ -819,7 +847,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'tasks'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <Clock size={11} className={categoryFilter === 'tasks' ? 'text-white' : 'text-slate-400'} />
@@ -831,7 +859,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'clients'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <Building2 size={11} className={categoryFilter === 'clients' ? 'text-white' : 'text-slate-400'} />
@@ -843,7 +871,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'tax'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <Scale size={11} className={categoryFilter === 'tax' ? 'text-white' : 'text-slate-400'} />
@@ -855,7 +883,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'certificates'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <KeyRound size={11} className={categoryFilter === 'certificates' ? 'text-white' : 'text-slate-400'} />
@@ -867,7 +895,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 text-[11px] cursor-pointer ${
                 categoryFilter === 'licenses'
                   ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-750'
+                  : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <ShieldCheck size={11} className={categoryFilter === 'licenses' ? 'text-white' : 'text-slate-400'} />
@@ -882,46 +910,50 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
               <Filter size={12} />
               <span>Tipo:</span>
             </div>
-            <select
-              value={typeFilter}
-              onChange={(e) => handleTypeChange(e.target.value)}
-              className="flex-1 px-2.5 py-1 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/70 rounded-lg text-[11px] font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-sm truncate"
-            >
-              <option value="all">Todos os tipos</option>
-              <option value="task_assigned">Nova Tarefa Atribuída</option>
-              <option value="task_reassigned">Tarefa Transferida (Reatribuição)</option>
-              <option value="task_concluded">Tarefa Concluída</option>
-              <option value="task_due_soon">Tarefa Próxima do Vencimento</option>
-              <option value="task_overdue">Tarefa Atrasada</option>
-              <option value="client_created">Novo Cliente Cadastrado</option>
-              <option value="client_tax_regime_changed">Regime Tributário Alterado</option>
-              <option value="client_legislation_added">Nova Legislação Vinculada</option>
-              <option value="client_contact_updated">Contato Adicionado / Atualizado</option>
-              <option value="client_address_changed">Mudança de Domicílio Fiscal / Endereço</option>
-              <option value="certificate_renewed">Certificado Digital Renovado</option>
-              <option value="certificate_updated">Certificado Digital Atualizado</option>
-              <option value="certificate_expired">Certificado Digital Vencido</option>
-              <option value="license_renewed">Licença / Alvará Renovado</option>
-              <option value="license_updated">Licença / Alvará Atualizado</option>
-              <option value="license_expiring">Certificado / Licença Expirando</option>
-              <option value="license_expired">Licença / Alvará Vencido</option>
-              <option value="task_alert">Alertas Fiscais (Sublimite / Exclusão)</option>
-              <option value="new_tutorial">Novos Tutoriais</option>
-            </select>
+            <div className="flex-1 min-w-0">
+              <Select
+                value={typeFilter}
+                onChange={(e) => handleTypeChange(e.target.value)}
+                className="text-[11px] py-1.5"
+                options={[
+                  { value: 'all', label: 'Todos os tipos' },
+                  { value: 'task_assigned', label: 'Nova Tarefa Atribuída' },
+                  { value: 'task_reassigned', label: 'Tarefa Transferida (Reatribuição)' },
+                  { value: 'task_concluded', label: 'Tarefa Concluída' },
+                  { value: 'task_due_soon', label: 'Tarefa Próxima do Vencimento' },
+                  { value: 'task_overdue', label: 'Tarefa Atrasada' },
+                  { value: 'client_created', label: 'Novo Cliente Cadastrado' },
+                  { value: 'client_tax_regime_changed', label: 'Regime Tributário Alterado' },
+                  { value: 'client_legislation_added', label: 'Nova Legislação Vinculada' },
+                  { value: 'client_contact_updated', label: 'Contato Adicionado / Atualizado' },
+                  { value: 'client_address_changed', label: 'Mudança de Domicílio Fiscal / Endereço' },
+                  { value: 'certificate_renewed', label: 'Certificado Digital Renovado' },
+                  { value: 'certificate_updated', label: 'Certificado Digital Atualizado' },
+                  { value: 'certificate_expired', label: 'Certificado Digital Vencido' },
+                  { value: 'license_renewed', label: 'Licença / Alvará Renovado' },
+                  { value: 'license_updated', label: 'Licença / Alvará Atualizado' },
+                  { value: 'license_expiring', label: 'Certificado / Licença Expirando' },
+                  { value: 'license_expired', label: 'Licença / Alvará Vencido' },
+                  { value: 'task_alert', label: 'Alertas Fiscais (Sublimite / Exclusão)' },
+                  { value: 'new_tutorial', label: 'Novos Tutoriais' },
+                ]}
+              />
+            </div>
             {(typeFilter !== 'all' || searchQuery || categoryFilter !== 'all') && (
-              <button
-                onClick={() => {
-                  setTypeFilter('all');
-                  setCategoryFilter('all');
-                  setSearchQuery('');
-                  setPage(0);
-                  fetchNotifications(0, false, scope, 'all', 'all', '');
-                }}
-                className="px-2 py-1 text-[10px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors shrink-0 cursor-pointer"
-                title="Limpar todos os filtros"
-              >
-                Limpar
-              </button>
+              <Tooltip content="Limpar todos os filtros" position="top">
+                <button
+                  onClick={() => {
+                    setTypeFilter('all');
+                    setCategoryFilter('all');
+                    setSearchQuery('');
+                    setPage(0);
+                    fetchNotifications(0, false, scope, 'all', 'all', '');
+                  }}
+                  className="px-2 py-1 text-[10px] font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors shrink-0 cursor-pointer"
+                >
+                  Limpar
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -948,11 +980,11 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                   onClick={() => handleNotificationClick(notif)}
                   className={`p-3.5 rounded-xl flex gap-3.5 border transition-all cursor-pointer ${
                     notif.read 
-                      ? 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-850/50 opacity-60 hover:opacity-90 hover:bg-slate-50 dark:hover:bg-slate-800/40' 
-                      : 'bg-indigo-50/40 dark:bg-indigo-950/10 border-indigo-100/40 dark:border-indigo-900/30 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/20 shadow-sm'
+                      ? 'bg-slate-50/50 dark:bg-slate-900/20 glass-card-inset border-slate-100 dark:border-slate-800/60 opacity-65 hover:opacity-95 hover:bg-slate-50 dark:hover:bg-slate-800/40' 
+                      : 'bg-indigo-50/40 dark:bg-indigo-950/10 glass-chat-item border-indigo-100/40 dark:border-indigo-900/30 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/20 shadow-sm'
                   }`}
                 >
-                  <div className="mt-0.5 shrink-0 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-100/80 dark:border-slate-800 flex items-center justify-center w-9 h-9">
+                  <div className="mt-0.5 shrink-0 bg-white dark:bg-slate-800 glass-control-pill p-2 rounded-xl shadow-sm border border-slate-100/80 dark:border-slate-800 flex items-center justify-center w-9 h-9">
                     {getIcon(notif.type)}
                   </div>
                   
@@ -964,23 +996,25 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                       
                       <div className="flex gap-1.5 shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
                         {notif.read ? (
-                          <button
-                            onClick={(e) => handleMarkAsUnread(notif.id, e)}
-                            className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0 cursor-pointer"
-                            title="Marcar como não lida"
-                          >
-                            <Mail size={12} />
-                          </button>
+                          <Tooltip content="Marcar como não lida" position="top">
+                            <button
+                              onClick={(e) => handleMarkAsUnread(notif.id, e)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0 cursor-pointer"
+                            >
+                              <Mail size={12} />
+                            </button>
+                          </Tooltip>
                         ) : (
                           <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-500 shrink-0 mt-1 mr-1" />
                         )}
-                        <button
-                          onClick={(e) => handleDeleteNotification(notif.id, e)}
-                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0 cursor-pointer"
-                          title="Excluir notificação"
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        <Tooltip content="Excluir notificação" position="top">
+                          <button
+                            onClick={(e) => handleDeleteNotification(notif.id, e)}
+                            className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0 cursor-pointer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                     
@@ -993,7 +1027,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                         {formatTime(notif.created_at)}
                       </p>
                       {scope === 'org' && notif.user_id !== userId && profilesMap[notif.user_id] && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200/60 dark:border-slate-700/50">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 font-semibold border border-slate-200/60 dark:border-slate-700/50">
                           Para: {profilesMap[notif.user_id]}
                         </span>
                       )}
@@ -1031,10 +1065,10 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+        <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 glass-card-inset shrink-0">
           <button 
             onClick={() => { onClose(); if (onNavigate) onNavigate('notifications'); }}
-            className="w-full py-2.5 text-xs text-center text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold rounded-lg border border-slate-200/60 dark:border-slate-800/60 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
+            className="w-full py-2.5 text-xs text-center text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold rounded-lg border border-slate-200/60 dark:border-slate-800/60 glass-control-pill hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
           >
             Ver histórico completo
           </button>

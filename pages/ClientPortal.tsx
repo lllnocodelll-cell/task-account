@@ -265,6 +265,34 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     fetchCompanies();
   }, [userClientIds]);
 
+  // Atualiza automaticamente a lista de documentos quando um novo documento é publicado
+  useEffect(() => {
+    if (userClientIds.length === 0) return;
+
+    const clientIdSet = new Set(userClientIds);
+    const docsChannel = supabase
+      .channel(`client-portal-docs-${userProfile?.id || userClientIds[0]}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'client_documents',
+        },
+        (payload) => {
+          const row = (payload.new || payload.old) as any;
+          if (!row?.client_id || clientIdSet.has(row.client_id)) {
+            fetchDocuments();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(docsChannel);
+    };
+  }, [userClientIds, userProfile?.id]);
+
   const fetchCompanies = async () => {
     if (userClientIds.length === 0) return;
     try {

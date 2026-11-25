@@ -54,18 +54,24 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const isClientDoc =
+    notificationData.data?.eventType === 'client_document' ||
+    notificationData.data?.tab === 'client-portal';
+
   const options = {
     body: notificationData.body,
     icon: notificationData.icon || '/pwa-192x192.png',
     badge: '/pwa-badge.png',
     ...(notificationData.image ? { image: notificationData.image } : {}),
-    tag: notificationData.tag || 'task-account-chat',
+    tag: notificationData.tag || (isClientDoc ? 'client-docs' : 'task-account-chat'),
     renotify: true,
     silent: false,
     vibrate: [200, 100, 200],
     data: notificationData.data,
     actions: [
-      { action: 'open_chat', title: 'Abrir Conversa' }
+      isClientDoc
+        ? { action: 'open_portal', title: 'Ver Documentos' }
+        : { action: 'open_chat', title: 'Abrir Conversa' }
     ]
   };
 
@@ -80,13 +86,14 @@ self.addEventListener('push', (event) => {
       // Ignora caso o navegador não suporte Badging API no SW
     }
 
-    // Evita banner redundante somente se o usuário estiver ativamente focado na tela de chat
+    // Evita banner redundante somente se o usuário estiver ativamente focado na tela correspondente
+    const expectedTabParam = isClientDoc ? 'tab=client-portal' : 'tab=chat';
     const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const isActivelyViewingChat = clientList.some(
-      (c) => c.focused && c.visibilityState === 'visible' && (c.url || '').includes('tab=chat')
+    const isActivelyViewingTarget = clientList.some(
+      (c) => c.focused && c.visibilityState === 'visible' && (c.url || '').includes(expectedTabParam)
     );
 
-    if (isActivelyViewingChat) {
+    if (isActivelyViewingTarget) {
       return;
     }
 
@@ -99,7 +106,8 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetUrl = event.notification?.data?.url || '/?tab=chat';
+  const rawTargetUrl = event.notification?.data?.url || '/?tab=chat';
+  const targetUrl = new URL(rawTargetUrl, self.location.origin).href;
   const notificationData = event.notification?.data || {};
 
   event.waitUntil(
@@ -111,19 +119,34 @@ self.addEventListener('notificationclick', (event) => {
       } catch (_) {}
 
       const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      for (const client of clientList) {
-        if ('focus' in client) {
-          await client.focus();
-          try {
-            client.postMessage({
-              type: 'PUSH_NOTIFICATION_CLICKED',
-              data: notificationData
-            });
-          } catch (err) {
-            console.warn('Erro ao enviar postMessage para o cliente:', err);
-          }
-          return;
+      const sameOriginClients = clientList.filter((client) => {
+        try {
+          return new URL(client.url).origin === self.location.origin;
+        } catch {
+          return false;
         }
+      });
+
+      const targetTabHint = notificationData?.tab === 'client-portal' || notificationData?.eventType === 'client_document'
+        ? 'tab=client-portal'
+        : 'tab=chat';
+
+      const preferredClient =
+        sameOriginClients.find((c) => c.focused) ||
+        sameOriginClients.find((c) => (c.url || '').includes(targetTabHint)) ||
+        sameOriginClients[0];
+
+      if (preferredClient && 'focus' in preferredClient) {
+        await preferredClient.focus();
+        try {
+          preferredClient.postMessage({
+            type: 'PUSH_NOTIFICATION_CLICKED',
+            data: notificationData
+          });
+        } catch (err) {
+          console.warn('Erro ao enviar postMessage para o cliente:', err);
+        }
+        return;
       }
 
       if (self.clients.openWindow) {

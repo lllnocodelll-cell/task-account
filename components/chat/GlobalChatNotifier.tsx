@@ -2,20 +2,22 @@ import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../../utils/supabaseClient';
 import { soundEffects } from '../../utils/soundEffects';
 import { sendBrowserNotification } from '../../utils/browserNotification';
-import { hasActivePushSubscriptionFlag } from '../../utils/webPush';
+import { hasActivePushSubscription } from '../../utils/webPush';
 import { Tooltip } from '../ui/Tooltip';
-import { X, ArrowRight, User } from 'lucide-react';
+import { X, ArrowRight, User, FileText } from 'lucide-react';
 
 interface GlobalChatNotifierProps {
   userProfile: any;
   activeTab: string;
   onNavigateToChat: (channelId?: string) => void;
+  onNavigateToClientPortal?: () => void;
 }
 
 interface IncomingMessageAlert {
   id: string;
-  channelId: string;
-  senderId: string;
+  kind: 'chat' | 'document';
+  channelId?: string;
+  senderId?: string;
   senderName: string;
   senderAvatar?: string | null;
   text: string;
@@ -25,7 +27,8 @@ interface IncomingMessageAlert {
 export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
   userProfile,
   activeTab,
-  onNavigateToChat
+  onNavigateToChat,
+  onNavigateToClientPortal
 }) => {
   const [activeAlert, setActiveAlert] = useState<IncomingMessageAlert | null>(null);
   const userChannelIdsRef = useRef<Set<string>>(new Set());
@@ -102,7 +105,18 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
 
     const handleServiceWorkerMessage = (event: MessageEvent) => {
       if (event.data?.type === 'PUSH_NOTIFICATION_CLICKED') {
-        const channelId = event.data.data?.channelId;
+        const notifData = event.data.data || {};
+        const isClientPortalTarget =
+          notifData.tab === 'client-portal' ||
+          notifData.eventType === 'client_document' ||
+          (typeof notifData.url === 'string' && notifData.url.includes('tab=client-portal'));
+
+        if (isClientPortalTarget) {
+          onNavigateToClientPortal?.();
+          return;
+        }
+
+        const channelId = notifData.channelId;
         onNavigateToChat(channelId);
       }
     };
@@ -111,7 +125,7 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
     };
-  }, [onNavigateToChat]);
+  }, [onNavigateToChat, onNavigateToClientPortal]);
 
   // Ouvinte global em tempo real para novas mensagens de chat
   useEffect(() => {
@@ -196,6 +210,7 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
 
           const alertData: IncomingMessageAlert = {
             id: newMsg.id,
+            kind: 'chat',
             channelId: newMsg.channel_id,
             senderId: newMsg.sender_id,
             senderName,
@@ -213,7 +228,7 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
           // Se a página estiver minimizada/oculta e NÃO houver assinatura Web Push ativa
           // (para evitar notificação duplicada com o sw-push.js), usa notificação local do SW como fallback
           const isDocHidden = typeof document !== 'undefined' && document.hidden;
-          if (isDocHidden && !hasActivePushSubscriptionFlag()) {
+          if (isDocHidden && !(await hasActivePushSubscription())) {
             sendBrowserNotification(senderName || 'Task Account', {
               body: alertData.text,
               icon: senderAvatar || '/pwa-192x192.png',
@@ -241,24 +256,99 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
     };
   }, [userProfile?.id, userProfile?.role, userProfile?.client_id, activeTab]);
 
+  // Ouvinte em tempo real de novos documentos publicados na Área do Cliente
+  useEffect(() => {
+    if (!userProfile?.id || userProfile.role !== 'cliente') return;
+
+    const userClientIds: string[] = Array.isArray(userProfile.client_ids) && userProfile.client_ids.length > 0
+      ? userProfile.client_ids.filter(Boolean)
+      : userProfile.client_id
+        ? [userProfile.client_id]
+        : [];
+
+    if (userClientIds.length === 0) return;
+
+    const clientIdSet = new Set(userClientIds);
+
+    const docChannel = supabase
+      .channel(`global-client-docs-alerts-${userProfile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'client_documents',
+        },
+        async (payload) => {
+          const newDoc = payload.new as any;
+          if (!newDoc || !newDoc.client_id || newDoc.status === 'Excluído') return;
+          if (!clientIdSet.has(newDoc.client_id)) return;
+
+          soundEffects.playNotificationSound();
+
+          const docLabel = newDoc.name || 'Novo documento disponível';
+          const competenceLabel = newDoc.competence_month ? ` (${newDoc.competence_month})` : '';
+          const bodyText = `${docLabel}${competenceLabel}`;
+
+          const isDocHidden = typeof document !== 'undefined' && document.hidden;
+          if (isDocHidden && !(await hasActivePushSubscription())) {
+            sendBrowserNotification('Novo documento disponível', {
+              body: bodyText,
+              icon: '/pwa-192x192.png',
+              tag: `client-docs-${newDoc.client_id}`,
+              url: '/?tab=client-portal',
+            });
+          }
+
+          if (activeTab !== 'client-portal') {
+            if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+            setActiveAlert({
+              id: newDoc.id,
+              kind: 'document',
+              senderName: 'Novo documento na Área do Cliente',
+              text: bodyText,
+              createdAt: newDoc.created_at || new Date().toISOString(),
+            });
+
+            alertTimerRef.current = setTimeout(() => {
+              setActiveAlert(null);
+            }, 7000);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(docChannel);
+    };
+  }, [userProfile?.id, userProfile?.role, userProfile?.client_id, userProfile?.client_ids, activeTab]);
+
   if (!activeAlert) return null;
 
   return (
     <div className="fixed top-4 right-4 sm:top-5 sm:right-6 z-[99999] max-w-md w-[calc(100vw-2rem)] sm:w-96 animate-in slide-in-from-top-4 duration-300">
       <div 
         onClick={() => {
-          const chId = activeAlert.channelId;
+          const currentAlert = activeAlert;
           setActiveAlert(null);
-          onNavigateToChat(chId);
+          if (currentAlert.kind === 'document') {
+            onNavigateToClientPortal?.();
+          } else {
+            onNavigateToChat(currentAlert.channelId);
+          }
         }}
         className="cursor-pointer group flex items-start gap-3 p-3.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-700/80 rounded-2xl shadow-xl shadow-slate-900/10 dark:shadow-black/40 hover:border-indigo-400 dark:hover:border-indigo-500/60 transition-all duration-200"
       >
         <div className="relative shrink-0 mt-0.5">
-          {activeAlert.senderAvatar ? (
-            <img 
-              src={activeAlert.senderAvatar} 
-              alt={activeAlert.senderName} 
-              className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700" 
+          {activeAlert.kind === 'document' ? (
+            <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+              <FileText size={20} />
+            </div>
+          ) : activeAlert.senderAvatar ? (
+            <img
+              src={activeAlert.senderAvatar}
+              alt={activeAlert.senderName}
+              className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-semibold text-sm">
@@ -281,7 +371,7 @@ export const GlobalChatNotifier: React.FC<GlobalChatNotifierProps> = ({
             {activeAlert.text}
           </p>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400 group-hover:translate-x-0.5 transition-transform">
-            <span>Abrir conversa</span>
+            <span>{activeAlert.kind === 'document' ? 'Ver documentos' : 'Abrir conversa'}</span>
             <ArrowRight size={12} />
           </div>
         </div>

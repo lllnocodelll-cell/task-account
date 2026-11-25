@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { Input, Select } from './ui/Input';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { DrawerBackButton } from './ui/DrawerBackButton';
+import { Tooltip } from './ui/Tooltip';
 import { useToast } from '../contexts/ToastContext';
 
 interface UsefulLinksDrawerProps {
@@ -267,13 +268,13 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
       
       <div 
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[101] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[101] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header com Design Premium */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
               <Link2 size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -299,7 +300,7 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
 
         {/* Form Add Link - Modernizado */}
         {adding && (
-          <div className="p-6 border-b border-indigo-100/50 dark:border-indigo-900/20 bg-indigo-50/30 dark:bg-indigo-500/5 animate-in slide-in-from-top duration-300">
+          <div className="p-6 border-b border-indigo-100/50 dark:border-indigo-900/20 bg-indigo-50/30 dark:bg-indigo-500/5 glass-card-inset animate-in slide-in-from-top duration-300">
             <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
               <Plus size={16} className="text-indigo-500" />
               Configurar Novo Link
@@ -356,8 +357,8 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
               <p className="text-sm text-slate-500 animate-pulse">Carregando seus links...</p>
             </div>
           ) : links.length === 0 ? (
-            <div className="text-center py-20 px-8 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
-              <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+            <div className="text-center py-20 px-8 bg-slate-50/50 dark:bg-slate-800/20 glass-card-inset rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+              <div className="w-16 h-16 bg-white dark:bg-slate-800 glass-control-pill rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
                 <Link2 className="text-slate-300 dark:text-slate-600" size={32} />
               </div>
               <p className="text-slate-600 dark:text-slate-300 font-bold">Sua biblioteca está vazia</p>
@@ -447,7 +448,7 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
 
     if (isEditing) {
       return (
-        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border-2 border-indigo-500/50 shadow-lg shadow-indigo-500/10 space-y-4 animate-in zoom-in-95 duration-200">
+        <div className="p-4 bg-white dark:bg-slate-800 glass-card-clear rounded-xl border-2 border-indigo-500/50 shadow-lg shadow-indigo-500/10 space-y-4 animate-in zoom-in-95 duration-200">
           <Input label="Título" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
           <Input label="URL" value={editUrl} onChange={e => setEditUrl(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
@@ -477,12 +478,12 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
         href={link.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="group flex items-center gap-4 p-3 bg-white/50 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-0.5 relative overflow-hidden"
+        className="group flex items-center gap-4 p-3 bg-white/50 dark:bg-slate-800/40 glass-chat-item hover:bg-white dark:hover:bg-slate-800 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-0.5 relative overflow-hidden"
       >
         {/* Glow de hover lateral */}
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300" />
         
-        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-slate-200 dark:ring-slate-700">
+        <div className="p-3 bg-white dark:bg-slate-900 glass-control-pill rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300 ring-1 ring-slate-200 dark:ring-slate-700">
           {renderIcon(link.icon_name)}
         </div>
         
@@ -497,20 +498,24 @@ export const UsefulLinksDrawer: React.FC<UsefulLinksDrawerProps> = ({ isOpen, on
 
         {/* Action Buttons - Aparecem no Hover */}
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 absolute right-3 translate-x-2 group-hover:translate-x-0">
-          <button 
-            onClick={(e) => startEditing(link, e)}
-            className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
-            title="Editar"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button 
-            onClick={(e) => promptDelete(link.id, e)}
-            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-            title="Excluir"
-          >
-            <Trash2 size={14} />
-          </button>
+          <Tooltip content="Editar" position="top">
+            <button 
+              type="button"
+              onClick={(e) => startEditing(link, e)}
+              className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors cursor-pointer"
+            >
+              <Edit2 size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Excluir" position="top">
+            <button 
+              type="button"
+              onClick={(e) => promptDelete(link.id, e)}
+              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+            >
+              <Trash2 size={14} />
+            </button>
+          </Tooltip>
         </div>
       </a>
     );

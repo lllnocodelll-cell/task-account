@@ -19,7 +19,9 @@ import {
   Landmark
 } from 'lucide-react';
 import { supabase } from '../utils/supabaseClient';
+import { Tooltip } from './ui/Tooltip';
 import { DrawerBackButton } from './ui/DrawerBackButton';
+import { useMobileBackGesture } from '../hooks/useMobileBackGesture';
 import { calculateStoragePercentage, getStorageUsageStatus, bytesToGb, formatStorageUsed } from '../constants/plans';
 
 interface UserProfile {
@@ -126,6 +128,12 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
     setTimeout(() => setCopyFeedback(null), 2000);
   };
 
+  const { swipeOffset, isSwiping, touchHandlers } = useMobileBackGesture({
+    isActive: isOpen && Boolean(userProfile),
+    onBack: onClose,
+    id: 'profile-drawer',
+  });
+
   if (!shouldRender || !userProfile) return null;
 
   const InfoField = ({ 
@@ -141,7 +149,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
   }) => {
     return (
       <div 
-        className="flex flex-col gap-1.5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group relative overflow-hidden"
+        className="flex flex-col gap-1.5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 glass-chat-item border border-slate-100 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group relative overflow-hidden"
         onClick={(e) => copyToClipboard(value, id, e)}
       >
         {/* Background icon decoration */}
@@ -177,12 +185,16 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
       />
       
       <div 
+        {...touchHandlers}
+        style={swipeOffset > 0 ? { transform: `translateX(${swipeOffset}px)` } : undefined}
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col border-l border-white/20 dark:border-slate-800/50 ${
+          isSwiping ? 'transition-none' : 'transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)]'
+        } ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 shrink-0">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg flex-shrink-0 shadow-sm">
               <ScanFace size={18} className="text-indigo-600 dark:text-indigo-400" />
@@ -225,7 +237,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
               {userProfile.full_name || 'Usuário'}
             </h2>
             <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 glass-control-pill px-2.5 py-1 rounded-md">
                 {userProfile.job_title || 'Usuário'}
               </span>
             </div>
@@ -275,7 +287,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                     <span className="text-[9px] font-bold uppercase tracking-wider">Buscando dados...</span>
                   </div>
                 ) : !officeDetails ? (
-                  <div className="py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                  <div className="py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 glass-card-inset rounded-xl">
                     <p className="text-xs text-slate-500 dark:text-slate-400">Dados do escritório ainda não cadastrados.</p>
                   </div>
                 ) : (
@@ -312,7 +324,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                   <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Plano & Contrato</span>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 space-y-4">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 glass-card-inset border border-slate-100 dark:border-slate-700/50 space-y-4">
                   {/* Plano e Valor */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -394,7 +406,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
               <div className="mt-4">
                 <div className="mb-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-5">
                   <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest pl-1">Minhas Empresas</span>
-                  <span className="text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                  <span className="text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 glass-control-pill px-2 py-0.5 rounded-full">
                     {companies.length}
                   </span>
                 </div>
@@ -405,7 +417,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                     <span className="text-[9px] font-bold uppercase tracking-wider">Buscando empresas...</span>
                   </div>
                 ) : companies.length === 0 ? (
-                  <div className="py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                  <div className="py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 glass-card-inset rounded-xl">
                     <p className="text-xs text-slate-500 dark:text-slate-400">Nenhuma empresa vinculada.</p>
                   </div>
                 ) : (
@@ -420,16 +432,20 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                         : 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20';
 
                       return (
-                        <div key={company.id} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 flex flex-col gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                        <div key={company.id} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 glass-chat-item border border-slate-100 dark:border-slate-700/50 flex flex-col gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                           <div className="flex justify-between items-start gap-2">
                             <div className="min-w-0">
-                              <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 leading-snug truncate" title={company.company_name}>
-                                {company.company_name}
-                              </h4>
+                              <Tooltip content={company.company_name} position="top" className="block min-w-0">
+                                <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 leading-snug truncate">
+                                  {company.company_name}
+                                </h4>
+                              </Tooltip>
                               {company.trade_name && (
-                                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate" title={company.trade_name}>
-                                  {company.trade_name}
-                                </p>
+                                <Tooltip content={company.trade_name} position="top" className="block min-w-0">
+                                  <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate">
+                                    {company.trade_name}
+                                  </p>
+                                </Tooltip>
                               )}
                             </div>
                             <div className="flex gap-1 shrink-0">
@@ -447,11 +463,13 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                           <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800/80">
                             <div>
                               <span className="text-[8px] font-black uppercase text-slate-400 block mb-0.5">CNPJ</span>
-                              <span className="font-mono text-slate-700 dark:text-slate-350 select-all">{company.document || '---'}</span>
+                              <span className="font-mono text-slate-700 dark:text-slate-300 select-all">{company.document || '---'}</span>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <span className="text-[8px] font-black uppercase text-slate-400 block mb-0.5">Localidade</span>
-                              <span className="text-slate-700 dark:text-slate-350 truncate block" title={company.city}>{company.city && company.state ? `${company.city}-${company.state}` : company.city || '---'}</span>
+                              <Tooltip content={company.city || ''} position="top" className="block min-w-0">
+                                <span className="text-slate-700 dark:text-slate-300 truncate block">{company.city && company.state ? `${company.city}-${company.state}` : company.city || '---'}</span>
+                              </Tooltip>
                             </div>
                           </div>
                         </div>

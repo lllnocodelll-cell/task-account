@@ -189,11 +189,11 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
       {/* Panel */}
       <div 
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[650px] lg:w-[750px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[650px] lg:w-[750px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 shrink-0">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg flex-shrink-0 shadow-sm">
               {view === 'list' ? (
@@ -252,7 +252,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
                   <input
                     type="text"
                     placeholder="Buscar tutoriais..."
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -265,18 +265,19 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
                     placeholder="Filtrar por Cliente"
                   />
                 </div>
-                <button
-                  onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
-                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors w-full ${
-                    showOnlyFavorites 
-                    ? 'bg-amber-50 border-amber-200 text-amber-600' 
-                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50'
-                  }`}
-                  title="Filtrar Favoritos"
-                >
-                  <Star size={18} fill={showOnlyFavorites ? 'currentColor' : 'none'} />
-                  <span className="font-medium text-sm">Favoritos</span>
-                </button>
+                <Tooltip content="Filtrar Favoritos" position="bottom" className="w-full">
+                  <button
+                    onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors w-full cursor-pointer ${
+                      showOnlyFavorites 
+                      ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400' 
+                      : 'bg-white dark:bg-slate-900 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <Star size={18} fill={showOnlyFavorites ? 'currentColor' : 'none'} />
+                    <span className="font-medium text-sm">Favoritos</span>
+                  </button>
+                </Tooltip>
               </div>
 
               {loading ? (
@@ -284,7 +285,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
                   <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
               ) : filteredTutorials.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-12 text-slate-500 dark:text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                <div className="flex flex-col items-center justify-center p-12 text-slate-500 dark:text-slate-400 border-2 border-dashed border-slate-200 dark:border-slate-800 glass-card-inset rounded-xl">
                   <FileText size={48} className="mb-4 text-slate-400 dark:text-slate-600" />
                   <p className="text-lg font-medium">Nenhum tutorial encontrado</p>
                   <p className="text-sm">Clique em "Novo Manual" para adicionar um.</p>
@@ -292,7 +293,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {filteredTutorials.map((tutorial) => (
-                    <div key={tutorial.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow relative group flex flex-col h-full">
+                    <div key={tutorial.id} className="bg-white dark:bg-slate-800 glass-chat-item border border-slate-200 dark:border-slate-700 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow relative group flex flex-col h-full">
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-slate-800 dark:text-slate-100 line-clamp-2 pr-24">
                           {tutorial.subject}
@@ -301,10 +302,10 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
                           <Tooltip content={tutorial.is_favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
                             <button
                               onClick={() => toggleFavorite(tutorial)}
-                              className={`p-1.5 transition-colors rounded shadow-sm border ${
+                              className={`p-1.5 transition-colors rounded shadow-sm border cursor-pointer ${
                                 tutorial.is_favorite 
-                                ? 'text-amber-500 border-amber-200 bg-amber-50' 
-                                : 'text-slate-400 hover:text-amber-500 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600'
+                                ? 'text-amber-500 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10' 
+                                : 'text-slate-400 hover:text-amber-500 bg-white dark:bg-slate-800 glass-control-pill border-slate-200 dark:border-slate-600'
                               }`}
                             >
                               <Star size={14} fill={tutorial.is_favorite ? 'currentColor' : 'none'} />
@@ -316,7 +317,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
                                 setSelectedTutorial(tutorial);
                                 setView('form');
                               }}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-600"
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-800 glass-control-pill rounded shadow-sm border border-slate-200 dark:border-slate-600 cursor-pointer"
                             >
                               <Edit size={14} />
                             </button>
@@ -324,7 +325,7 @@ export const TutorialsDrawer: React.FC<TutorialsDrawerProps> = ({
                           <Tooltip content="Excluir">
                             <button
                               onClick={() => handleDeleteClick(tutorial)}
-                              className="p-1.5 text-slate-400 hover:text-red-600 bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-600"
+                              className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 bg-white dark:bg-slate-800 glass-control-pill rounded shadow-sm border border-slate-200 dark:border-slate-600 cursor-pointer"
                             >
                               <Trash2 size={14} />
                             </button>

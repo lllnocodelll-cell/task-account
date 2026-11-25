@@ -1118,8 +1118,8 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
             isDragged ? 'opacity-35 border-dashed border-indigo-500 scale-[0.98]' :
             isDragOver ? 'border-indigo-500 scale-[1.01] shadow-md bg-indigo-50/5 dark:bg-indigo-500/5' :
             isActive 
-                ? 'bg-indigo-50/10 dark:bg-indigo-950/10 border-indigo-100/80 dark:border-indigo-950/60 hover:bg-indigo-50/20' 
-                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 hover:bg-slate-50/50 hover:border-slate-300'
+                ? 'glass-chat-item-active border-indigo-200 dark:border-indigo-500/40' 
+                : 'bg-white dark:bg-slate-900 glass-chat-item border-slate-200 dark:border-slate-800/80'
         }`;
     };
 
@@ -1193,10 +1193,10 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
             {/* Drawer */}
             <div 
                 onTransitionEnd={handleTransitionEnd}
-                className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-slate-200 dark:border-slate-800 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+                className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-slate-200 dark:border-slate-800 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
+                <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-white dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
                             <LayoutGrid size={18} className="text-slate-500 dark:text-slate-400" />
@@ -1225,15 +1225,18 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Buscar widgets pelo nome..."
-                            className="w-full pl-8 pr-8 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 transition-all duration-200"
+                            className="w-full pl-8 pr-8 py-1.5 bg-slate-50 dark:bg-slate-800/50 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500 transition-all duration-200"
                         />
                         {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                            >
-                                <X size={12} />
-                            </button>
+                            <Tooltip content="Limpar busca" position="top" className="absolute right-4 top-1/2 -translate-y-1/2 flex">
+                                <button
+                                    type="button"
+                                    onClick={() => setSearchQuery('')}
+                                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </Tooltip>
                         )}
                     </div>
 
@@ -1248,7 +1251,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                                 type="button"
                                 onClick={() => toggleAllWidgets(true)}
                                 disabled={allWidgets.length > 0 && allWidgets.every(id => activeWidgets.includes(id))}
-                                className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1"
+                                className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 glass-control-pill text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 cursor-pointer"
                             >
                                 <CheckSquare size={12} className="text-indigo-500" />
                                 Selecionar tudo
@@ -1258,7 +1261,7 @@ const WidgetManagerDrawer: React.FC<WidgetManagerDrawerProps> = ({
                                 type="button"
                                 onClick={() => toggleAllWidgets(false)}
                                 disabled={activeWidgets.length === 0}
-                                className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1"
+                                className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 glass-control-pill text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 cursor-pointer"
                             >
                                 <Square size={12} className="text-slate-400" />
                                 Desmarcar tudo

@@ -1916,7 +1916,7 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
                 <Input label="Nome do Setor" value={name} onChange={e => setName(e.target.value)} />
                 <Input label="Líder" value={leader} onChange={e => setLeader(e.target.value)} />
                 <Input label="Centro de Custo" value={costCenter} onChange={e => setCostCenter(e.target.value)} />
-                <div className="flex items-center gap-2 h-10 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+                <div className="flex items-center gap-2 h-10 px-3 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
                   <Toggle checked={chatAvailable} onChange={() => setChatAvailable(!chatAvailable)} />
                   <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Disponível no Chat</span>
                 </div>
@@ -1930,7 +1930,7 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
       </div>
 
       {/* Barra de Filtros de Setores */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
+      <div className="bg-slate-50/80 dark:bg-slate-900/60 glass-card-inset border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
         {/* Linha Superior: Busca textual e MultiSelect de Setores */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
           {/* Busca por Nome, Líder ou Centro de Custo */}
@@ -1941,17 +1941,18 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
               placeholder="Buscar por setor, líder ou centro de custo..."
               value={sectorSearchTerm}
               onChange={(e) => setSectorSearchTerm(e.target.value)}
-              className="w-full h-10 pl-9 pr-8 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+              className="w-full h-10 pl-9 pr-8 text-xs bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
             />
             {sectorSearchTerm && (
-              <button
-                type="button"
-                onClick={() => setSectorSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                title="Limpar busca"
-              >
-                <X size={13} />
-              </button>
+              <Tooltip content="Limpar busca" position="top" className="absolute right-2.5 top-1/2 -translate-y-1/2 flex">
+                <button
+                  type="button"
+                  onClick={() => setSectorSearchTerm('')}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
+              </Tooltip>
             )}
           </div>
 
@@ -1970,7 +1971,7 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
         </div>
 
         {/* Linha Inferior: Filtros em estilo Pílula para Situação e Chat do Cliente */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
           <div className="flex flex-wrap items-center gap-4">
             {/* Filtro por Situação (Status) */}
             <div className="flex items-center gap-1">
@@ -1984,14 +1985,14 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
                   key={st.id}
                   type="button"
                   onClick={() => setSectorStatusFilter(st.id as any)}
-                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     sectorStatusFilter === st.id
                       ? st.id === 'Inativo'
                         ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/20'
                         : st.id === 'Ativo'
                         ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
                         : 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700/60'
+                      : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700'
                   }`}
                 >
                   {st.label}
@@ -2011,14 +2012,14 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
                   key={ch.id}
                   type="button"
                   onClick={() => setSectorChatFilter(ch.id as any)}
-                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                     sectorChatFilter === ch.id
                       ? ch.id === 'available'
                         ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
                         : ch.id === 'unavailable'
                         ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/20'
                         : 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700/60'
+                      : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-slate-200 dark:border-slate-700'
                   }`}
                 >
                   {ch.label}
@@ -2029,23 +2030,24 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
 
           {/* Contador & Limpar Filtros */}
           <div className="flex items-center gap-2 self-end lg:self-auto">
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
               {filteredSectors.length} de {sectors.length} setores
             </span>
             {(sectorSearchTerm || sectorIdsFilter.length > 0 || sectorStatusFilter !== 'all' || sectorChatFilter !== 'all') && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSectorSearchTerm('');
-                  setSectorIdsFilter([]);
-                  setSectorStatusFilter('all');
-                  setSectorChatFilter('all');
-                }}
-                className="p-1 text-xs text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg font-bold transition-all flex items-center gap-1"
-                title="Limpar todos os filtros"
-              >
-                <X size={14} /> Limpar
-              </button>
+              <Tooltip content="Limpar todos os filtros" position="top">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSectorSearchTerm('');
+                    setSectorIdsFilter([]);
+                    setSectorStatusFilter('all');
+                    setSectorChatFilter('all');
+                  }}
+                  className="p-1 text-xs text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <X size={14} /> Limpar
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -2053,7 +2055,7 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredSectors.length === 0 ? (
-          <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+          <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
             <Briefcase size={36} className="mb-3 opacity-40 stroke-1" />
             <p className="text-sm font-semibold">Nenhum setor encontrado com os filtros aplicados.</p>
           </div>
@@ -2063,8 +2065,8 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
             key={sector.id} 
             className={`group relative bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-4 flex flex-col justify-between ${
               editingSectorId === sector.id 
-                ? 'border-indigo-500 ring-4 ring-indigo-500/10 shadow-xl' 
-                : 'border-slate-200 dark:border-slate-800/80 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5 dark:hover:border-indigo-400/30'
+                ? 'glass-card-clear border-indigo-500 ring-4 ring-indigo-500/10 shadow-xl' 
+                : 'glass-chat-item border-slate-200 dark:border-slate-800/80 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5 dark:hover:border-indigo-400/30'
             }`}
           >
             {editingSectorId === sector.id ? (
@@ -2082,7 +2084,7 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
                     <Input label="Líder" value={editLeader} onChange={e => setEditLeader(e.target.value)} placeholder="Responsável" />
                     <Input label="C. Custo" value={editCostCenter} onChange={e => setEditCostCenter(e.target.value)} placeholder="001.01" />
                   </div>
-                  <div className="flex items-center justify-between h-9 px-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl">
+                  <div className="flex items-center justify-between h-9 px-3 bg-slate-50 dark:bg-slate-950 glass-card-inset border border-slate-200 dark:border-slate-800 rounded-xl">
                     <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Disponível no Chat</span>
                     <Toggle checked={editChatAvailable} onChange={() => setEditChatAvailable(!editChatAvailable)} />
                   </div>
@@ -2117,9 +2119,11 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
                       </div>
 
                       <div className="min-w-0">
-                        <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-tight truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" title={sector.name}>
-                          {sector.name}
-                        </h4>
+                        <Tooltip content={sector.name} position="top" className="block max-w-full">
+                          <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-tight truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {sector.name}
+                          </h4>
+                        </Tooltip>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className={`text-[10px] font-black uppercase tracking-wider ${
                             sector.status === 'Inativo' ? 'text-slate-400 dark:text-slate-500' : 'text-emerald-600 dark:text-emerald-400'
@@ -2161,27 +2165,31 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
 
                   {/* Informações Compactas em Grid de 2 Colunas */}
                   <div className="grid grid-cols-2 gap-2 mb-3">
-                    <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-2 min-w-0">
-                      <div className="p-1 rounded-lg bg-white dark:bg-slate-800 text-slate-400 shrink-0 shadow-2xs">
+                    <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 glass-card-inset border border-slate-100 dark:border-slate-800/60 flex items-center gap-2 min-w-0">
+                      <div className="p-1 rounded-lg bg-white dark:bg-slate-800 glass-control-pill text-slate-400 shrink-0 shadow-2xs">
                         <UserCircle size={13} />
                       </div>
                       <div className="min-w-0 flex flex-col">
                         <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider leading-none">Líder</span>
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate mt-0.5" title={sector.leader || 'Não definido'}>
-                          {sector.leader || 'Não definido'}
-                        </span>
+                        <Tooltip content={sector.leader || null} position="top" className="block max-w-full">
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate mt-0.5 block">
+                            {sector.leader || 'Não definido'}
+                          </span>
+                        </Tooltip>
                       </div>
                     </div>
 
-                    <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-2 min-w-0">
-                      <div className="p-1 rounded-lg bg-white dark:bg-slate-800 text-slate-400 shrink-0 shadow-2xs">
+                    <div className="p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 glass-card-inset border border-slate-100 dark:border-slate-800/60 flex items-center gap-2 min-w-0">
+                      <div className="p-1 rounded-lg bg-white dark:bg-slate-800 glass-control-pill text-slate-400 shrink-0 shadow-2xs">
                         <Target size={13} />
                       </div>
                       <div className="min-w-0 flex flex-col">
                         <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider leading-none">C. Custo</span>
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate mt-0.5" title={sector.cost_center || '---'}>
-                          {sector.cost_center || '---'}
-                        </span>
+                        <Tooltip content={sector.cost_center || null} position="top" className="block max-w-full">
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate mt-0.5 block">
+                            {sector.cost_center || '---'}
+                          </span>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>
@@ -2384,15 +2392,15 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
           {/* Drawer Panel */}
           <div 
             onTransitionEnd={handleDrawerTransitionEnd}
-            className={`fixed inset-y-0 right-0 w-full sm:w-[650px] lg:w-[740px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col justify-between transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${
+            className={`fixed inset-y-0 right-0 w-full sm:w-[650px] lg:w-[740px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col justify-between transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${
               isDrawerVisible ? 'translate-x-0' : 'translate-x-full'
             }`}
             onClick={e => e.stopPropagation()}
           >
             {/* Header com Design Padrão Slate da Aplicação */}
-            <div className="flex items-center justify-between px-6 h-16 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0">
+            <div className="flex items-center justify-between px-6 h-16 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 glass-card-inset shrink-0">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                <div className="p-2 bg-white dark:bg-slate-800/50 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
                   <Briefcase size={18} className="text-slate-500 dark:text-slate-400" />
                 </div>
                 <div className="flex flex-col text-left">
@@ -2408,7 +2416,7 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
             </div>
 
             {/* Sub-header com Busca e Seleção Global Compacto */}
-            <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 space-y-2.5 shrink-0">
+            <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 glass-card-inset space-y-2.5 shrink-0">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -2417,7 +2425,7 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
                     placeholder="Buscar setor por nome, centro de custo ou descrição..."
                     value={drawerSearchTerm}
                     onChange={(e) => setDrawerSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                    className="w-full pl-9 pr-7 py-1.5 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                   />
                   {drawerSearchTerm && (
                     <button
@@ -2469,10 +2477,10 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
                         onClick={() => toggleSectorSelection(sector.name)}
                         className={`group relative p-3.5 rounded-2xl border transition-all select-none flex flex-col justify-between gap-2.5 h-full ${
                           alreadyExists
-                            ? 'bg-slate-50/70 dark:bg-slate-950/50 border-slate-200/60 dark:border-slate-800/70 opacity-70 cursor-not-allowed'
+                            ? 'bg-slate-50/70 dark:bg-slate-950/50 glass-card-inset border-slate-200/60 dark:border-slate-800/70 opacity-70 cursor-not-allowed'
                             : isSelected
-                              ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm cursor-pointer'
-                              : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
+                              ? 'bg-indigo-50/70 dark:bg-indigo-950/40 glass-chat-item-active border-indigo-300 dark:border-indigo-500/50 shadow-sm cursor-pointer'
+                              : 'bg-white dark:bg-slate-900 glass-chat-item border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -2544,7 +2552,7 @@ const SectorSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (count
             </div>
 
             {/* Rodapé Fixo */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0">
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 glass-card-inset flex items-center justify-between shrink-0">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 {selectedSuggestedSectors.length} setor(es) selecionado(s)
               </span>
@@ -3349,7 +3357,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
       </div>
 
       {/* Barra de Filtros de Tipos de Tarefa */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
+      <div className="bg-slate-50/80 dark:bg-slate-900/60 glass-card-inset border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-center">
           {/* Busca por Nome */}
           <div className="relative">
@@ -3359,17 +3367,18 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
               placeholder="Buscar por nome da tarefa..."
               value={taskTypeSearchTerm}
               onChange={(e) => setTaskTypeSearchTerm(e.target.value)}
-              className="w-full h-10 pl-9 pr-8 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+              className="w-full h-10 pl-9 pr-8 text-xs bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
             />
             {taskTypeSearchTerm && (
-              <button
-                type="button"
-                onClick={() => setTaskTypeSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                title="Limpar busca"
-              >
-                <X size={13} />
-              </button>
+              <Tooltip content="Limpar busca" position="top" className="absolute right-2.5 top-1/2 -translate-y-1/2 flex">
+                <button
+                  type="button"
+                  onClick={() => setTaskTypeSearchTerm('')}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <X size={13} />
+                </button>
+              </Tooltip>
             )}
           </div>
 
@@ -3387,21 +3396,22 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
 
           {/* Contador & Limpar */}
           <div className="flex items-center justify-between sm:justify-end gap-3 sm:col-span-2 lg:col-span-1">
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
               {filteredTaskTypes.length} de {taskTypes.length} tarefas
             </span>
             {(taskTypeSearchTerm || taskTypeSectorFilter) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setTaskTypeSearchTerm('');
-                  setTaskTypeSectorFilter('');
-                }}
-                className="p-1 text-xs text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg font-bold transition-all flex items-center gap-1"
-                title="Limpar filtros"
-              >
-                <X size={14} /> Limpar
-              </button>
+              <Tooltip content="Limpar filtros" position="top">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTaskTypeSearchTerm('');
+                    setTaskTypeSectorFilter('');
+                  }}
+                  className="p-1 text-xs text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <X size={14} /> Limpar
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -3409,7 +3419,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {filteredTaskTypes.length === 0 ? (
-          <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+          <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
             <LayoutList size={36} className="mb-3 opacity-40 stroke-1" />
             <p className="text-sm font-semibold">Nenhum tipo de tarefa encontrado com os filtros aplicados.</p>
           </div>
@@ -3433,8 +3443,8 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
               key={task.id} 
               className={`group relative h-full bg-white dark:bg-slate-900 border transition-all duration-300 rounded-2xl p-4 flex flex-col justify-between ${
                 editingTaskTypeId === task.id 
-                  ? 'border-indigo-500 ring-4 ring-indigo-500/10 shadow-xl' 
-                  : 'border-slate-200 dark:border-slate-800/80 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5 dark:hover:border-indigo-400/30'
+                  ? 'glass-card-clear border-indigo-500 ring-4 ring-indigo-500/10 shadow-xl' 
+                  : 'glass-chat-item border-slate-200 dark:border-slate-800/80 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5 dark:hover:border-indigo-400/30'
               }`}
             >
               {editingTaskTypeId === task.id ? (
@@ -3516,33 +3526,39 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
                     </div>
 
                     {/* Nome da Tarefa */}
-                    <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm leading-snug mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2 min-h-[2.2rem]" title={task.name}>
-                      {task.name}
-                    </h3>
+                    <Tooltip content={task.name} position="top" className="block max-w-full">
+                      <h3 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm leading-snug mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2 min-h-[2.2rem]">
+                        {task.name}
+                      </h3>
+                    </Tooltip>
 
                     {/* Metadados em Grid Compacto (2 Colunas) */}
                     <div className="space-y-1.5 mb-3 text-xs">
                       <div className="grid grid-cols-2 gap-1.5">
                         {/* Setor */}
-                        <div className="p-1.5 rounded-lg bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-1.5 min-w-0" title={task.sectors?.name ? `Setor: ${task.sectors.name}` : 'Todos os setores'}>
-                          <SectorIcon size={12} className="text-slate-400 shrink-0" />
-                          <span className="truncate text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                            {task.sectors?.name || 'Geral'}
-                          </span>
-                        </div>
+                        <Tooltip content={task.sectors?.name ? `Setor: ${task.sectors.name}` : 'Todos os setores'} position="top" className="block min-w-0">
+                          <div className="p-1.5 rounded-lg bg-slate-50/70 dark:bg-slate-800/40 glass-card-inset border border-slate-100 dark:border-slate-800/60 flex items-center gap-1.5 min-w-0">
+                            <SectorIcon size={12} className="text-slate-400 shrink-0" />
+                            <span className="truncate text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                              {task.sectors?.name || 'Geral'}
+                            </span>
+                          </div>
+                        </Tooltip>
 
                         {/* Vencimento */}
-                        <div className="p-1.5 rounded-lg bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 flex items-center gap-1.5 min-w-0" title={task.due_day ? `Vencimento no dia ${task.due_day}` : 'Sem dia fixo'}>
-                          <Clock size={12} className="text-slate-400 shrink-0" />
-                          <span className="truncate text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                            {task.due_day ? `Dia ${task.due_day}` : 'Flexível'}
-                          </span>
-                        </div>
+                        <Tooltip content={task.due_day ? `Vencimento no dia ${task.due_day}` : 'Sem dia fixo'} position="top" className="block min-w-0">
+                          <div className="p-1.5 rounded-lg bg-slate-50/70 dark:bg-slate-800/40 glass-card-inset border border-slate-100 dark:border-slate-800/60 flex items-center gap-1.5 min-w-0">
+                            <Clock size={12} className="text-slate-400 shrink-0" />
+                            <span className="truncate text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                              {task.due_day ? `Dia ${task.due_day}` : 'Flexível'}
+                            </span>
+                          </div>
+                        </Tooltip>
                       </div>
 
                       {/* Regra de Dia não útil */}
                       {task.non_working_day_action && task.non_working_day_action !== 'nao_se_aplica' && (
-                        <div className="px-2 py-1 rounded-lg bg-slate-50/40 dark:bg-slate-800/20 border border-slate-100/60 dark:border-slate-800/40 flex items-center justify-between text-[10px]">
+                        <div className="px-2 py-1 rounded-lg bg-slate-50/40 dark:bg-slate-800/20 glass-card-inset border border-slate-100/60 dark:border-slate-800/40 flex items-center justify-between text-[10px]">
                           <span className="text-slate-400 dark:text-slate-500 font-semibold flex items-center gap-1">
                             <Calendar size={11} /> Não útil:
                           </span>
@@ -3672,15 +3688,15 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
           {/* Drawer Panel */}
           <div 
             onTransitionEnd={handleDrawerTransitionEnd}
-            className={`fixed inset-y-0 right-0 w-full sm:w-[650px] lg:w-[740px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col justify-between transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${
+            className={`fixed inset-y-0 right-0 w-full sm:w-[650px] lg:w-[740px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col justify-between transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${
               isDrawerVisible ? 'translate-x-0' : 'translate-x-full'
             }`}
             onClick={e => e.stopPropagation()}
           >
             {/* Header com Design Padrão Slate da Aplicação (Altura Otimizada h-16) */}
-            <div className="flex items-center justify-between px-6 h-16 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0">
+            <div className="flex items-center justify-between px-6 h-16 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 glass-card-inset shrink-0">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                <div className="p-2 bg-white dark:bg-slate-800/50 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
                   <Sparkles size={18} className="text-slate-500 dark:text-slate-400" />
                 </div>
                 <div className="flex flex-col text-left">
@@ -3696,7 +3712,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
             </div>
 
             {/* Sub-header com Busca e Seleção Global Compacto */}
-            <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 space-y-2.5 shrink-0">
+            <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 glass-card-inset space-y-2.5 shrink-0">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -3705,7 +3721,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
                     placeholder="Buscar obrigação por nome ou ente..."
                     value={drawerSearchTerm}
                     onChange={(e) => setDrawerSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-7 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                    className="w-full pl-9 pr-7 py-1.5 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                   />
                   {drawerSearchTerm && (
                     <button
@@ -3770,7 +3786,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
                 const isSectorActive = !!targetSector;
 
                 return (
-                  <div key={secName} className="bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-200/70 dark:border-slate-800 overflow-hidden transition-all duration-200 shadow-sm">
+                  <div key={secName} className="bg-slate-50/60 dark:bg-slate-950/40 glass-card-inset rounded-2xl border border-slate-200/70 dark:border-slate-800 overflow-hidden transition-all duration-200 shadow-sm">
                     {/* Setor Header Accordion Toggle */}
                     <div 
                       onClick={() => toggleSuggestedSectorAccordion(secName)}
@@ -3828,8 +3844,8 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
                             </button>
 
                             {sectors.filter(s => s.status !== 'Inativo').length > 0 && (
-                              <div className="relative inline-flex items-center">
-                                <select
+                              <div className="w-40">
+                                <Select
                                   value={overrideSectorId || ''}
                                   onChange={(e) => {
                                     const val = e.target.value;
@@ -3838,16 +3854,15 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
                                       [secName]: val
                                     }));
                                   }}
-                                  className="text-[10px] font-medium bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-2 py-1 pr-5 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                >
-                                  <option value="">Ou vincular a...</option>
-                                  {sectors.filter(s => s.status !== 'Inativo').map(s => (
-                                    <option key={s.id} value={s.id}>
-                                      {s.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                <ChevronDown size={10} className="absolute right-1.5 text-slate-400 pointer-events-none" />
+                                  options={[
+                                    { value: '', label: 'Ou vincular a...' },
+                                    ...sectors.filter(s => s.status !== 'Inativo').map(s => ({
+                                      value: s.id,
+                                      label: s.name
+                                    }))
+                                  ]}
+                                  className="!h-7 !py-0.5 !text-[10px]"
+                                />
                               </div>
                             )}
                           </div>
@@ -3882,10 +3897,10 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
                                 onClick={() => toggleTaskSelection(t.name)}
                                 className={`group relative p-2.5 rounded-xl border transition-all select-none flex items-center justify-between gap-2 h-full ${
                                   alreadyExists
-                                    ? 'bg-slate-50/70 dark:bg-slate-950/50 border-slate-200/60 dark:border-slate-800/70 opacity-70 cursor-not-allowed'
+                                    ? 'bg-slate-50/70 dark:bg-slate-950/50 glass-card-inset border-slate-200/60 dark:border-slate-800/70 opacity-70 cursor-not-allowed'
                                     : isSelected
-                                      ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-500/50 shadow-sm cursor-pointer'
-                                      : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
+                                      ? 'bg-indigo-50/70 dark:bg-indigo-950/40 glass-chat-item-active border-indigo-300 dark:border-indigo-500/50 shadow-sm cursor-pointer'
+                                      : 'bg-white dark:bg-slate-900 glass-chat-item border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
                                 }`}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
@@ -3949,7 +3964,7 @@ const TaskTypeSettings: React.FC<{ userProfile: any; onSectorsCountChange?: (cou
             </div>
 
             {/* Rodapé Fixo */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shrink-0">
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 glass-card-inset flex items-center justify-between shrink-0">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 {selectedSuggestedNames.length} tarefas selecionadas
               </span>
@@ -4361,9 +4376,9 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
       </div>
 
       {/* Lista de Feriados Redesenhada em Grid */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden transition-all">
+      <div className="bg-white dark:bg-slate-900 glass-card-clear border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden transition-all">
         {/* Header com Titulo e Seletor de Ano */}
-        <div className="p-4 md:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-4 md:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 glass-card-inset flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-400 shrink-0">
               <Calendar size={20} />
@@ -4382,31 +4397,33 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
           </div>
 
           {/* Seletor de Ano */}
-          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-1 shadow-sm shrink-0 self-start md:self-auto">
-            <button
-              type="button"
-              onClick={() => setYear(year - 1)}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-              title="Ano anterior"
-            >
-              <ChevronLeft size={16} />
-            </button>
+          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 glass-control-pill rounded-xl border border-slate-200 dark:border-slate-800 p-1 shadow-sm shrink-0 self-start md:self-auto">
+            <Tooltip content="Ano anterior" position="top">
+              <button
+                type="button"
+                onClick={() => setYear(year - 1)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </Tooltip>
             <span className="text-xs font-black px-3 text-slate-800 dark:text-slate-100 tracking-wider">
               {year}
             </span>
-            <button
-              type="button"
-              onClick={() => setYear(year + 1)}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-              title="Próximo ano"
-            >
-              <ChevronRight size={16} />
-            </button>
+            <Tooltip content="Próximo ano" position="top">
+              <button
+                type="button"
+                onClick={() => setYear(year + 1)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </Tooltip>
           </div>
         </div>
 
         {/* Barra de Filtros e Busca */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/80 dark:bg-slate-900/60 glass-card-inset flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 max-w-xl">
             {/* Campo de Busca por nome */}
             <div className="relative flex-1">
@@ -4416,48 +4433,55 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 placeholder="Buscar feriado por nome..."
                 value={holidaySearchTerm}
                 onChange={(e) => setHolidaySearchTerm(e.target.value)}
-                className="w-full pl-9 pr-8 py-1.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
+                className="w-full h-10 pl-9 pr-8 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
               />
               {holidaySearchTerm && (
-                <button
-                  onClick={() => setHolidaySearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white p-0.5"
-                >
-                  <X size={12} />
-                </button>
+                <Tooltip content="Limpar busca" position="top" className="absolute right-2.5 top-1/2 -translate-y-1/2 flex">
+                  <button
+                    type="button"
+                    onClick={() => setHolidaySearchTerm('')}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-0.5 cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </Tooltip>
               )}
             </div>
 
             {/* Filtro por Intervalo de Datas (De / Até) */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 shrink-0 bg-slate-50/80 dark:bg-slate-950/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 shrink-0 bg-slate-50/80 dark:bg-slate-950/80 glass-card-inset p-1 rounded-xl border border-slate-200/80 dark:border-slate-800">
               <div className="flex items-center px-1.5">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mr-1.5 uppercase tracking-wider shrink-0">De:</span>
-                <input
-                  type="date"
-                  value={holidayStartDateFilter}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                  className="w-full sm:w-auto px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 dark:[color-scheme:dark] transition-all cursor-pointer shadow-sm"
-                  title="Data Inicial"
-                />
+                <div className="w-full sm:w-36">
+                  <Input
+                    type="date"
+                    value={holidayStartDateFilter}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    className="!h-8 !py-1 !text-xs"
+                  />
+                </div>
               </div>
               <div className="flex items-center px-1.5">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mr-1.5 uppercase tracking-wider shrink-0">Até:</span>
-                <input
-                  type="date"
-                  value={holidayEndDateFilter}
-                  onChange={(e) => handleEndDateChange(e.target.value)}
-                  className="w-full sm:w-auto px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 dark:[color-scheme:dark] transition-all cursor-pointer shadow-sm"
-                  title="Data Final"
-                />
+                <div className="w-full sm:w-36">
+                  <Input
+                    type="date"
+                    value={holidayEndDateFilter}
+                    onChange={(e) => handleEndDateChange(e.target.value)}
+                    className="!h-8 !py-1 !text-xs"
+                  />
+                </div>
               </div>
               {(holidayStartDateFilter || holidayEndDateFilter) && (
-                <button
-                  onClick={() => { setHolidayStartDateFilter(''); setHolidayEndDateFilter(''); }}
-                  className="p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shrink-0 self-center"
-                  title="Limpar intervalo de datas"
-                >
-                  <X size={13} />
-                </button>
+                <Tooltip content="Limpar intervalo de datas" position="top">
+                  <button
+                    type="button"
+                    onClick={() => { setHolidayStartDateFilter(''); setHolidayEndDateFilter(''); }}
+                    className="p-1 text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shrink-0 self-center cursor-pointer"
+                  >
+                    <X size={13} />
+                  </button>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -4475,10 +4499,10 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 key={tab.id}
                 type="button"
                 onClick={() => setHolidayTypeFilter(tab.id as any)}
-                className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all whitespace-nowrap ${
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                   holidayTypeFilter === tab.id
                     ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
-                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                    : 'bg-white dark:bg-slate-800 glass-control-pill text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700'
                 }`}
               >
                 {tab.label}
@@ -4488,9 +4512,9 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
         </div>
 
         {/* Grid de Cards Compactos */}
-        <div className="p-4 md:p-5 bg-slate-50/30 dark:bg-slate-950/40">
+        <div className="p-4 md:p-5 bg-slate-50/30 dark:bg-slate-950/30 glass-card-clear">
           {sortedHolidays.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+            <div className="py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/50 glass-card-inset rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
               <Calendar size={32} className="mb-2 opacity-40 stroke-1" />
               <p className="text-xs font-semibold">
                 {holidaySearchTerm || holidayTypeFilter !== 'all'
@@ -4511,7 +4535,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                   return (
                     <div
                       key={h.id}
-                      className="col-span-1 sm:col-span-2 lg:col-span-1 bg-white dark:bg-slate-900 border-2 border-indigo-500 dark:border-indigo-500/80 rounded-xl p-3.5 shadow-lg shadow-indigo-500/10 flex flex-col justify-between gap-3 animate-in fade-in zoom-in-95 duration-150"
+                      className="col-span-1 sm:col-span-2 lg:col-span-1 bg-white dark:bg-slate-900 glass-card-clear border-2 border-indigo-500 dark:border-indigo-500/80 rounded-xl p-3.5 shadow-lg shadow-indigo-500/10 flex flex-col justify-between gap-3 animate-in fade-in zoom-in-95 duration-150"
                     >
                       {/* Header da Edição */}
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
@@ -4523,58 +4547,46 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                             Editar Feriado
                           </span>
                         </div>
-                        <button
-                          onClick={cancelEditingHoliday}
-                          className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                          title="Cancelar edição"
-                        >
-                          <X size={14} />
-                        </button>
+                        <Tooltip content="Cancelar edição" position="top">
+                          <button
+                            type="button"
+                            onClick={cancelEditingHoliday}
+                            className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                        </Tooltip>
                       </div>
 
                       {/* Formulário de Edição */}
                       <div className="space-y-2.5">
                         <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
-                              Data
-                            </label>
-                            <input
-                              type="date"
-                              value={editDate}
-                              onChange={e => setEditDate(e.target.value)}
-                              className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 dark:[color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
-                              Tipo
-                            </label>
-                            <select
-                              value={editType}
-                              onChange={e => setEditType(e.target.value)}
-                              className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
-                            >
-                              <option value="Nacional">Nacional</option>
-                              <option value="Estadual">Estadual</option>
-                              <option value="Municipal">Municipal</option>
-                              <option value="Facultativo">Facultativo</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
-                            Descrição / Nome
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Ex: Aniversário da Cidade"
-                            value={editName}
-                            onChange={e => setEditName(e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+                          <Input
+                            label="Data"
+                            type="date"
+                            value={editDate}
+                            onChange={e => setEditDate(e.target.value)}
+                          />
+                          <Select
+                            label="Tipo"
+                            value={editType}
+                            onChange={e => setEditType(e.target.value)}
+                            options={[
+                              { value: 'Nacional', label: 'Nacional' },
+                              { value: 'Estadual', label: 'Estadual' },
+                              { value: 'Municipal', label: 'Municipal' },
+                              { value: 'Facultativo', label: 'Facultativo' },
+                            ]}
                           />
                         </div>
+
+                        <Input
+                          label="Descrição / Nome"
+                          type="text"
+                          placeholder="Ex: Aniversário da Cidade"
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                        />
                       </div>
 
                       {/* Botões de Ação */}
@@ -4593,7 +4605,7 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
                 return (
                   <div
                     key={h.id}
-                    className="group relative bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 rounded-xl p-3 shadow-sm hover:shadow-md hover:shadow-indigo-500/5 transition-all duration-200 flex items-center justify-between gap-3 min-w-0 min-h-[76px]"
+                    className="group relative bg-white dark:bg-slate-900 glass-chat-item border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 dark:hover:border-indigo-500/40 rounded-xl p-3 shadow-sm hover:shadow-md hover:shadow-indigo-500/5 transition-all duration-200 flex items-center justify-between gap-3 min-w-0 min-h-[76px]"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Data Badge */}
@@ -4604,9 +4616,11 @@ const CalendarSettings: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
                       {/* Conteúdo */}
                       <div className="min-w-0 flex flex-col">
-                        <h5 className="font-bold text-slate-800 dark:text-slate-100 text-xs truncate leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" title={h.name}>
-                          {h.name}
-                        </h5>
+                        <Tooltip content={h.name} position="top" className="block max-w-full">
+                          <h5 className="font-bold text-slate-800 dark:text-slate-100 text-xs truncate leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {h.name}
+                          </h5>
+                        </Tooltip>
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                           <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 capitalize">{weekday}</span>
                           <span className="text-[9px] text-slate-300 dark:text-slate-700">•</span>
@@ -5774,7 +5788,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
           <div className="overflow-hidden">
             <div className="space-y-6 pt-4">
               {/* Seleção do Destino / Público-Alvo */}
-              <div className="flex flex-col gap-2 p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-xl">
+              <div className="flex flex-col gap-2 p-3.5 bg-slate-50 dark:bg-slate-800/40 glass-card-inset border border-slate-200/80 dark:border-slate-800 rounded-xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Target size={14} className="text-indigo-500" />
@@ -5791,10 +5805,10 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   <button
                     type="button"
                     onClick={() => setTargetAudience('external')}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all ${
+                    className={`flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       targetAudience === 'external'
-                        ? 'bg-white dark:bg-slate-900 border-indigo-500 dark:border-indigo-400 shadow-sm ring-2 ring-indigo-500/20'
-                        : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-white dark:bg-slate-900 glass-chat-tab-active border-indigo-500 dark:border-indigo-400 shadow-sm ring-2 ring-indigo-500/20'
+                        : 'bg-white/60 dark:bg-slate-900/40 glass-control-pill border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <div className={`p-2 rounded-lg shrink-0 ${
@@ -5821,10 +5835,10 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   <button
                     type="button"
                     onClick={() => setTargetAudience('internal')}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all ${
+                    className={`flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                       targetAudience === 'internal'
-                        ? 'bg-white dark:bg-slate-900 border-purple-500 dark:border-purple-400 shadow-sm ring-2 ring-purple-500/20'
-                        : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-white dark:bg-slate-900 glass-chat-tab-active border-purple-500 dark:border-purple-400 shadow-sm ring-2 ring-purple-500/20'
+                        : 'bg-white/60 dark:bg-slate-900/40 glass-control-pill border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <div className={`p-2 rounded-lg shrink-0 ${
@@ -5878,7 +5892,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                       placeholder="Pgdas, Feriado Nacional..." 
                     />
 
-                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 rounded-xl h-10 self-end">
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 glass-card-inset border border-slate-200/80 dark:border-slate-800 rounded-xl h-10 self-end">
                       <div className="flex flex-col text-left">
                         <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                           Associar modelo a tarefa?
@@ -5937,12 +5951,12 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
               )}
 
               {/* Imagem de Cabeçalho / Banner do Modelo */}
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="bg-white dark:bg-slate-900 glass-card-inset p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <ImageIcon size={14} /> Imagem de Cabeçalho (Banner do Modelo)
                   </h3>
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-800 glass-control-pill px-2 py-0.5 rounded">
                     Opcional
                   </span>
                 </div>
@@ -5970,7 +5984,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     </div>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/50 dark:bg-slate-900/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-all group/upload">
+                  <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-400 rounded-xl cursor-pointer bg-slate-50/50 dark:bg-slate-900/50 glass-card-inset hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20 transition-all group/upload">
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -6045,14 +6059,14 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   )}
 
                   {/* Barra de Ferramentas de Formatação e Placeholders */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 dark:bg-slate-800/60 p-2 rounded-t-xl border-t border-x border-slate-200 dark:border-slate-700/50">
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 dark:bg-slate-800/60 glass-card-inset p-2 rounded-t-xl border-t border-x border-slate-200 dark:border-slate-700/50">
                     {/* Botões de Formatação */}
                     <div className="flex items-center gap-1">
                       <Tooltip content="Negrito" position="top">
                         <button
                           type="button"
                           onClick={() => insertMarkdownFormatting('**')}
-                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 glass-control-pill hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
                         >
                           <strong>B</strong>
                         </button>
@@ -6061,7 +6075,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                         <button
                           type="button"
                           onClick={() => insertMarkdownFormatting('*')}
-                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 italic flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 glass-control-pill hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 italic flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
                         >
                           <em>I</em>
                         </button>
@@ -6070,7 +6084,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                         <button
                           type="button"
                           onClick={() => insertMarkdownFormatting('_')}
-                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 underline flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 glass-control-pill hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 underline flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
                         >
                           <u>U</u>
                         </button>
@@ -6079,7 +6093,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                         <button
                           type="button"
                           onClick={() => insertMarkdownFormatting('~')}
-                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 line-through flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
+                          className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-800 glass-control-pill hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 line-through flex items-center justify-center min-w-[28px] h-[28px] shadow-sm"
                         >
                           <s>S</s>
                         </button>
@@ -6093,7 +6107,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                             ref={emojiButtonRef}
                             type="button"
                             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                            className={`px-2 py-1 text-xs bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center h-[28px] gap-1 transition-colors shadow-sm ${showEmojiPicker ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400' : ''}`}
+                            className={`px-2 py-1 text-xs bg-white dark:bg-slate-800 glass-control-pill hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-slate-700 dark:text-slate-200 flex items-center justify-center h-[28px] gap-1 transition-colors shadow-sm ${showEmojiPicker ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400' : ''}`}
                           >
                             <Smile size={14} className={showEmojiPicker ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'} />
                             <span className="text-[10px] font-bold">Emoji</span>
@@ -6220,7 +6234,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                         ? "Convidamos nossa equipe para o próximo [nome do evento da empresa], onde vamos discutir [descrição do assunto principal]."
                         : "Olá {nome_contato}, informamos que a guia de {nome_tarefa} da empresa {razao_social} referente a {mes_competencia} já está disponível no portal."
                     }
-                    className="w-full min-h-[120px] overflow-hidden resize-none px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-b-xl border-t-0 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-100 placeholder:text-slate-400 dark:text-white leading-relaxed"
+                    className="w-full min-h-[120px] overflow-hidden resize-none px-4 py-3 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-b-xl border-t-0 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-100 placeholder:text-slate-400 dark:text-white leading-relaxed"
                   />
                 </div>
               </div>
@@ -6245,7 +6259,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
               ) : (
                 <>
                   {/* Segmentação & Destinatários */}
-                  <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="bg-white dark:bg-slate-900 glass-card-inset p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg">
@@ -6268,7 +6282,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     </div>
 
                     {/* Barra de Filtros */}
-                    <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/70 dark:border-slate-800/70 space-y-3">
+                    <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 glass-card-clear rounded-xl border border-slate-200/70 dark:border-slate-800/70 space-y-3">
                       <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                         <ListFilter size={14} className="text-indigo-500" />
                         <span>Filtros da Lista de Clientes</span>
@@ -6285,7 +6299,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                               Status do Cliente
                             </label>
                           </div>
-                          <div className="grid grid-cols-3 gap-1 p-1 h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg box-border">
+                          <div className="grid grid-cols-3 gap-1 p-1 h-10 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg box-border">
                             <button
                               type="button"
                               onClick={() => setClientListStatusFilter('all')}
@@ -6388,7 +6402,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   </div>
 
                   {/* Agendamento Automático */}
-                  <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="bg-white dark:bg-slate-900 glass-card-inset p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
                         <Clock size={14} /> Agendamento e Disparo Automático (pg_cron)
@@ -6421,7 +6435,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                         </div>
 
                         {schedules.map((sched, index) => (
-                          <div key={index} className="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 space-y-2.5">
+                          <div key={index} className="bg-slate-50 dark:bg-slate-950 glass-card-clear p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 space-y-2.5">
                             {/* Grid de Inputs Perfeitamente Alinhados */}
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                               <div className="md:col-span-5">
@@ -6527,7 +6541,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                   </div>
 
                   {/* Cópia Multicanal */}
-                  <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="bg-white dark:bg-slate-900 glass-card-inset p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
                         <Mail size={14} /> Enviar também cópia por E-mail
@@ -6567,7 +6581,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
       <div className="space-y-4 pt-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <div className="p-2 bg-slate-50 dark:bg-slate-800/50 glass-card-inset border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
               <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col">
@@ -6580,7 +6594,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
         </div>
 
         {/* Barra de Busca e Filtros */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+        <div className="bg-slate-50/80 dark:bg-slate-900/60 glass-card-inset p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-sm">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Busca de texto livre */}
             <div className="relative flex items-center w-full">
@@ -6590,16 +6604,18 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                 placeholder="Buscar por nome ou conteúdo..."
                 value={searchFilter}
                 onChange={e => setSearchFilter(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white placeholder:text-slate-400 h-[38px] shadow-sm transition-all"
+                className="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white placeholder:text-slate-400 h-[38px] shadow-sm transition-all"
               />
               {searchFilter && (
-                <button
-                  type="button"
-                  onClick={() => setSearchFilter('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
-                >
-                  <X size={14} />
-                </button>
+                <Tooltip content="Limpar busca" position="top" className="absolute right-2.5 top-1/2 -translate-y-1/2 flex">
+                  <button
+                    type="button"
+                    onClick={() => setSearchFilter('')}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                </Tooltip>
               )}
             </div>
 
@@ -6670,8 +6686,8 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
 
         {/* Grid de Cards ou Estado Vazio */}
         {filteredTemplates.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-400 flex items-center justify-center mx-auto">
+          <div className="bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800/80 glass-control-pill text-slate-400 flex items-center justify-center mx-auto">
               <LayoutList size={22} />
             </div>
             <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">
@@ -6688,7 +6704,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
             {filteredTemplates.map(tmpl => (
               <div
                 key={tmpl.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden relative group/card"
+                className="bg-white dark:bg-slate-900 glass-chat-item border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden relative group/card"
               >
                 <div>
                   {tmpl.header_image_url && (
@@ -6766,7 +6782,7 @@ export const MessageTemplateSettings: React.FC<{ userProfile: any }> = ({ userPr
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 mb-4 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/50 font-medium">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 mb-4 bg-slate-50 dark:bg-slate-950 glass-card-inset p-3 rounded-lg border border-slate-200/50 dark:border-slate-800/50 font-medium">
                     {tmpl.content}
                   </p>
 

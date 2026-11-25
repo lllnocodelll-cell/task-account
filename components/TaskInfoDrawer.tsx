@@ -16,6 +16,7 @@ import {
 import { Task } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { DrawerBackButton } from './ui/DrawerBackButton';
+import { Tooltip } from './ui/Tooltip';
 
 interface TaskInfoDrawerProps {
   isOpen: boolean;
@@ -122,14 +123,14 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
       {/* Drawer Container */}
       <div 
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[450px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+              <div className="p-2 bg-white dark:bg-slate-800/50 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
                 <MoveHorizontal size={18} className="text-slate-500 dark:text-slate-400" />
               </div>
               <div className="flex flex-col text-left">
@@ -148,7 +149,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
           
           {/* Summary */}
           <div className="grid grid-cols-1 gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 glass-card-inset border border-slate-100 dark:border-slate-800">
               <span className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Cliente</span>
               <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{localTask.clientName}</p>
             </div>
@@ -158,7 +159,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
           <div className="space-y-2">
             <button 
               onClick={() => toggleSection('access')}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${expandedSections['access'] ? 'bg-amber-50 dark:bg-amber-500/10 ring-1 ring-amber-200 dark:ring-amber-500/30' : 'bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800'}`}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${expandedSections['access'] ? 'bg-amber-50 dark:bg-amber-500/10 ring-1 ring-amber-200 dark:ring-amber-500/30' : 'bg-slate-50 dark:bg-slate-800/40 glass-card-inset border border-slate-100 dark:border-slate-800'}`}
             >
               <div className={`p-1.5 rounded-lg transition-colors ${expandedSections['access'] ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20'}`}>
                 <Code size={16} />
@@ -178,7 +179,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                     const isSimples = isSimplesAccess(acc.access_name);
 
                     return (
-                      <div key={acc.id} className="p-3 bg-white dark:bg-slate-800/60 rounded-xl border border-amber-100 dark:border-amber-500/20 shadow-sm hover:border-amber-300 dark:hover:border-amber-500/40 transition-all group">
+                      <div key={acc.id} className="p-3 bg-white dark:bg-slate-800/60 glass-chat-item rounded-xl border border-amber-100 dark:border-amber-500/20 shadow-sm hover:border-amber-300 dark:hover:border-amber-500/40 transition-all group">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="p-1 bg-amber-50 dark:bg-amber-500/10 rounded text-amber-500 shrink-0">
@@ -196,7 +197,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                         <div className="grid grid-cols-2 gap-2">
                           <div 
                             onClick={(e) => acc.username && copyToClipboard(acc.username, `acc-${acc.id}-user`, e)}
-                            className="relative p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-transparent hover:border-amber-200 dark:hover:border-amber-500/30 cursor-pointer transition-all active:scale-95 group/cred"
+                            className="relative p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-transparent hover:border-amber-200 dark:hover:border-amber-500/30 cursor-pointer transition-all active:scale-95 group/cred"
                           >
                             <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Usuário</span>
                             <p className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-200 truncate pr-4">{acc.username || '—'}</p>
@@ -206,7 +207,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                           </div>
                           <div 
                             onClick={(e) => acc.password && copyToClipboard(acc.password, `acc-${acc.id}-pass`, e)}
-                            className="relative p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-transparent hover:border-amber-200 dark:hover:border-amber-500/30 cursor-pointer transition-all active:scale-95 group/cred"
+                            className="relative p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-transparent hover:border-amber-200 dark:hover:border-amber-500/30 cursor-pointer transition-all active:scale-95 group/cred"
                           >
                             <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Senha</span>
                             <p className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-200 truncate pr-4">{acc.password || '—'}</p>
@@ -227,9 +228,11 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                                 </span>
                               </div>
                               {adminPartner.name && (
-                                <span className="text-[9px] text-slate-500 dark:text-slate-400 truncate max-w-[150px]" title={adminPartner.name}>
-                                  {adminPartner.name}
-                                </span>
+                                <Tooltip content={adminPartner.name} position="top" className="inline-block max-w-[150px]">
+                                  <span className="text-[9px] text-slate-500 dark:text-slate-400 truncate block">
+                                    {adminPartner.name}
+                                  </span>
+                                </Tooltip>
                               )}
                             </div>
 
@@ -272,7 +275,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                     );
                   })
                 ) : (
-                  <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl italic">Nenhuma credencial vinculada.</p>
+                  <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-800/40 glass-card-inset rounded-xl italic">Nenhuma credencial vinculada.</p>
                 )}
               </div>
             </div>
@@ -282,7 +285,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
           <div className="space-y-2">
             <button 
               onClick={() => toggleSection('dfe')}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${expandedSections['dfe'] ? 'bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-200 dark:ring-indigo-500/30' : 'bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800'}`}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${expandedSections['dfe'] ? 'bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-200 dark:ring-indigo-500/30' : 'bg-slate-50 dark:bg-slate-800/40 glass-card-inset border border-slate-100 dark:border-slate-800'}`}
             >
               <div className={`p-1.5 rounded-lg transition-colors ${expandedSections['dfe'] ? 'bg-indigo-500 text-white' : 'bg-indigo-100 text-indigo-500 dark:bg-indigo-500/20'}`}>
                 <FileCode size={16} />
@@ -299,7 +302,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
               <div className="overflow-hidden space-y-3 px-1">
                 {localTask.clientDfes && localTask.clientDfes.length > 0 ? (
                   localTask.clientDfes.map((dfe) => (
-                    <div key={dfe.id} className="p-3 bg-white dark:bg-slate-800/60 rounded-xl border border-indigo-100 dark:border-indigo-500/20 shadow-sm hover:border-indigo-300 dark:hover:border-indigo-500/40 transition-all group">
+                    <div key={dfe.id} className="p-3 bg-white dark:bg-slate-800/60 glass-chat-item rounded-xl border border-indigo-100 dark:border-indigo-500/20 shadow-sm hover:border-indigo-300 dark:hover:border-indigo-500/40 transition-all group">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded">{dfe.dfe_type}</span>
@@ -315,7 +318,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                       <div className="grid grid-cols-2 gap-2">
                         <div 
                           onClick={(e) => dfe.username && copyToClipboard(dfe.username, `dfe-${dfe.id}-user`, e)}
-                          className="relative p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-500/30 cursor-pointer transition-all active:scale-95 group/cred"
+                          className="relative p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-transparent hover:border-indigo-200 dark:hover:border-indigo-500/30 cursor-pointer transition-all active:scale-95 group/cred"
                         >
                           <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Usuário</span>
                           <p className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-200 truncate pr-4">{dfe.username || '—'}</p>
@@ -325,7 +328,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                         </div>
                         <div 
                           onClick={(e) => dfe.password && copyToClipboard(dfe.password, `dfe-${dfe.id}-pass`, e)}
-                          className="relative p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-500/30 cursor-pointer transition-all active:scale-95 group/cred"
+                          className="relative p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-transparent hover:border-indigo-200 dark:hover:border-indigo-500/30 cursor-pointer transition-all active:scale-95 group/cred"
                         >
                           <span className="text-[8px] font-black text-slate-400 uppercase block mb-0.5">Senha</span>
                           <p className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-200 truncate pr-4">{dfe.password || '—'}</p>
@@ -337,7 +340,7 @@ export const TaskInfoDrawer: React.FC<TaskInfoDrawerProps> = ({ isOpen, onClose,
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl italic">Nenhum documento fiscal vinculado.</p>
+                  <p className="text-xs text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-800/40 glass-card-inset rounded-xl italic">Nenhum documento fiscal vinculado.</p>
                 )}
               </div>
             </div>

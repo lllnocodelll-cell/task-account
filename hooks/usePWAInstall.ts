@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-interface BeforeInstallPromptEvent extends Event {
+export interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{
     outcome: 'accepted' | 'dismissed';
@@ -9,87 +9,128 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+// Estado global em módulo para preservar o evento beforeinstallprompt
+// entre transições de rota (Landing -> Login -> Sistema logado).
+let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+let globalIsInstalled = false;
+let listenersInitialized = false;
+const subscribers = new Set<() => void>();
+
+const notifySubscribers = () => {
+  subscribers.forEach((cb) => cb());
+};
+
+const detectPlatformFlags = () => {
+  if (typeof window === 'undefined') {
+    return {
+      isStandalone: false,
+      isIOS: false,
+      isIOSSafari: false,
+      isAndroid: false,
+      isMobile: false,
+    };
+  }
+
+  const ua = window.navigator.userAgent.toLowerCase();
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true ||
+    document.referrer.includes('android-app://');
+
+  const isIPadOS =
+    window.navigator.platform === 'MacIntel' &&
+    typeof window.navigator.maxTouchPoints === 'number' &&
+    window.navigator.maxTouchPoints > 1;
+
+  const isIOS = (/iphone|ipad|ipod/.test(ua) || isIPadOS) && !(window as Window & { MSStream?: unknown }).MSStream;
+  const isIOSSafari =
+    isIOS &&
+    /safari/i.test(ua) &&
+    !/crios|fxios|edgios|opios|fban|fbav|instagram|whatsapp|line/i.test(ua);
+
+  const isAndroid = /android/i.test(ua);
+  const isMobile =
+    isIOS ||
+    isAndroid ||
+    /webos|blackberry|iemobile|opera mini/i.test(ua);
+
+  return { isStandalone, isIOS, isIOSSafari, isAndroid, isMobile };
+};
+
+const ensureGlobalListeners = () => {
+  if (listenersInitialized || typeof window === 'undefined') return;
+  listenersInitialized = true;
+
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    e.preventDefault();
+    globalDeferredPrompt = e as BeforeInstallPromptEvent;
+    notifySubscribers();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    globalDeferredPrompt = null;
+    globalIsInstalled = true;
+    notifySubscribers();
+  });
+};
+
+ensureGlobalListeners();
+
 export function usePWAInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isStandalone, setIsStandalone] = useState<boolean>(false);
-  const [isIOS, setIsIOS] = useState<boolean>(false);
-  const [isInstalled, setIsInstalled] = useState<boolean>(false);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
-    // Check if running in standalone mode (already installed)
-    const checkStandalone = () => {
-      const isStandaloneMode = 
-        window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as any).standalone === true ||
-        document.referrer.includes('android-app://');
-      
-      setIsStandalone(isStandaloneMode);
-      if (isStandaloneMode) {
-        setIsInstalled(true);
-      }
-    };
+    ensureGlobalListeners();
+    const forceUpdate = () => setTick((t) => t + 1);
+    subscribers.add(forceUpdate);
 
-    checkStandalone();
-
-    // Detect iOS
-    const ua = window.navigator.userAgent.toLowerCase();
-    const isIosDevice = /iphone|ipad|ipod/.test(ua) && !(window as any).MSStream;
-    setIsIOS(isIosDevice);
-
-    const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
-
-    // Capture beforeinstallprompt event (Android / Desktop Chrome / Edge)
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-
-    // Capture appinstalled event
-    const handleAppInstalled = () => {
-      setDeferredPrompt(null);
-      setIsInstalled(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleDisplayModeChange = () => forceUpdate();
+    mediaQuery.addEventListener?.('change', handleDisplayModeChange);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
+      subscribers.delete(forceUpdate);
+      mediaQuery.removeEventListener?.('change', handleDisplayModeChange);
     };
   }, []);
 
+  const { isStandalone, isIOS, isIOSSafari, isAndroid, isMobile } = detectPlatformFlags();
+  const isInstalled = globalIsInstalled || isStandalone;
+
   const installApp = useCallback(async (): Promise<'accepted' | 'dismissed' | 'ios' | 'unsupported'> => {
-    if (deferredPrompt) {
+    if (globalDeferredPrompt) {
       try {
-        await deferredPrompt.prompt();
-        const choice = await deferredPrompt.userChoice;
+        await globalDeferredPrompt.prompt();
+        const choice = await globalDeferredPrompt.userChoice;
         if (choice.outcome === 'accepted') {
-          setIsInstalled(true);
-          setDeferredPrompt(null);
+          globalIsInstalled = true;
+          globalDeferredPrompt = null;
+          notifySubscribers();
           return 'accepted';
-        } else {
-          return 'dismissed';
         }
+        return 'dismissed';
       } catch (err) {
         console.error('Error prompting PWA install:', err);
         return 'dismissed';
       }
-    } else if (isIOS && !isStandalone) {
+    }
+
+    if (isIOS && !isStandalone) {
       return 'ios';
     }
-    return 'unsupported';
-  }, [deferredPrompt, isIOS, isStandalone]);
 
-  const isMobile = typeof window !== 'undefined' && /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(window.navigator.userAgent.toLowerCase());
+    return 'unsupported';
+  }, [isIOS, isStandalone]);
 
   return {
-    canInstall: (!!deferredPrompt || isMobile) && !isInstalled && !isStandalone,
+    canInstall: (!!globalDeferredPrompt || isMobile) && !isInstalled && !isStandalone,
     isStandalone,
     isIOS,
+    isIOSSafari,
+    isAndroid,
     isMobile,
     isInstalled,
     installApp,
-    hasNativePrompt: !!deferredPrompt
+    hasNativePrompt: !!globalDeferredPrompt,
   };
 }

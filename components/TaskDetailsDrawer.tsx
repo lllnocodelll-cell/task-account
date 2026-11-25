@@ -293,7 +293,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
 
     return (
       <div 
-        className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
+        className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer group"
         onClick={(e) => copyToClipboard(value, id, e)}
       >
         <div className="flex items-center justify-between">
@@ -369,7 +369,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
       }
     };
 
-    const sectionWrapperClass = `bg-white dark:bg-slate-800/40 border rounded-2xl overflow-hidden shadow-sm transition-all duration-200 ${
+    const sectionWrapperClass = `bg-white dark:bg-slate-800/40 glass-card-inset border rounded-2xl overflow-hidden shadow-sm transition-all duration-200 ${
       isDragged ? 'opacity-30 border-dashed border-indigo-500 dark:border-indigo-400 scale-[0.98]' : 
       isDragOver ? 'border-indigo-500 scale-[1.01] shadow-md bg-indigo-50/5 dark:bg-indigo-500/5' : 
       'border-slate-200 dark:border-slate-700/50'
@@ -599,7 +599,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               <div className="overflow-hidden">
                 <div className="p-4 pt-0 grid grid-cols-1 gap-3">
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
+                    <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-slate-100 dark:border-slate-800/50">
                       <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Fator R</span>
                       <div className="flex items-center justify-center gap-1.5">
                         <Zap size={11} className={localTask.factorR ? 'text-emerald-500' : 'text-slate-300'} fill={localTask.factorR ? 'currentColor' : 'none'} />
@@ -608,7 +608,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
+                    <div className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-slate-100 dark:border-slate-800/50">
                       <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">Sublimite</span>
                       <div className="flex items-center justify-center gap-1.5">
                         <AlertTriangle size={11} className={localTask.exceededSublimit ? 'text-rose-500' : 'text-slate-300'} />
@@ -617,7 +617,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         </span>
                       </div>
                     </div>
-                    <div className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border ${localTask.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/5 border-rose-100 dark:border-rose-900/20' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800/50'}`}>
+                    <div className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border ${localTask.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/5 border-rose-100 dark:border-rose-900/20' : 'bg-slate-50 dark:bg-slate-900/50 glass-card-inset border-slate-100 dark:border-slate-800/50'}`}>
                       <span className={`text-[9px] font-black uppercase tracking-wider text-center ${localTask.notifiedExclusion ? 'text-rose-400' : 'text-slate-400 dark:text-slate-500'}`}>Notificação</span>
                       <div className="flex items-center justify-center gap-1.5">
                          <AlertCircle size={11} className={localTask.notifiedExclusion ? 'text-rose-500' : 'text-slate-300'} />
@@ -631,11 +631,11 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     const drawerVisibleAnnexes = localTask.selectedAnnexes?.filter(a => a !== 'Nulo' && a !== 'Sem Anexo') || [];
                     if (drawerVisibleAnnexes.length === 0) return null;
                     return (
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50">
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-card-inset border border-slate-100 dark:border-slate-800/50">
                         <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-2">Anexos Vinculados</span>
                         <div className="flex flex-wrap gap-2">
                           {drawerVisibleAnnexes.map(annex => (
-                            <span key={annex} className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                            <span key={annex} className="px-2 py-1 bg-white dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
                               <Layers size={10} className="text-indigo-500" />
                               {annex}
                             </span>
@@ -659,7 +659,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
             >
               <div className="flex items-center gap-3">
                 {renderDragHandle()}
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 glass-control-pill px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Observação</span>
               </div>
               <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openSections.obs ? 'rotate-180' : ''}`} size={16} />
@@ -668,7 +668,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
               <div className="overflow-hidden">
                 <div className="p-4 pt-0">
                   <div 
-                    className="relative p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 group cursor-pointer"
+                    className="relative p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-100 dark:border-slate-800/50 group cursor-pointer"
                     onClick={(e) => copyToClipboard(localTask.observation || '', 'obs', e)}
                   >
                     <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/40 rounded-l-xl" />
@@ -713,7 +713,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 <div className="p-4 pt-0 space-y-3">
                   {localTask.clientLegislations && localTask.clientLegislations.length > 0 ? (
                     localTask.clientLegislations.map((legis) => (
-                      <div key={legis.id} className="group relative p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer" onClick={(e) => copyToClipboard(legis.description, `legis-${legis.id}`, e)}>
+                      <div key={legis.id} className="group relative p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-100 dark:border-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer" onClick={(e) => copyToClipboard(legis.description, `legis-${legis.id}`, e)}>
                         <div className="absolute top-0 left-0 w-1 h-full bg-purple-500/40 rounded-l-xl" />
                         <div className="flex items-center justify-between mb-2">
                           <Scale size={14} className="text-purple-500" />
@@ -761,7 +761,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 {renderDragHandle()}
                 <span className="text-[10px] font-black text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider">{sectionIndexLabel}</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">Arquivos</span>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 glass-control-pill rounded-full border border-slate-200 dark:border-slate-700">
                   <FileStack size={10} className="text-indigo-500" />
                   <span className="text-[10px] font-black text-slate-600 dark:text-slate-300">{localTask.attachments?.length || 0}</span>
                 </div>
@@ -775,16 +775,15 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     localTask.attachments.map((file, idx) => {
                       const isDownloading = downloadingFile === file.name;
                       return (
-                        <div 
-                          key={idx} 
-                          onClick={(e) => !isDownloading && handleDownloadFile(file, e)}
-                          className={`group flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 rounded-xl hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/30 hover:shadow-sm cursor-pointer transition-all active:scale-[0.99] select-none ${
-                            isDownloading ? 'opacity-70 pointer-events-none' : ''
-                          }`}
-                          title="Clique para baixar o arquivo"
-                        >
-                          <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
-                            <div className="p-2 bg-white dark:bg-slate-800 rounded-lg text-indigo-500 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:border-indigo-200 dark:group-hover:border-indigo-500/30 transition-colors shrink-0">
+                        <Tooltip key={idx} content="Clique para baixar o arquivo" position="top" className="block">
+                          <div 
+                            onClick={(e) => !isDownloading && handleDownloadFile(file, e)}
+                            className={`group flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 glass-chat-item border border-slate-100 dark:border-slate-800/50 rounded-xl hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-500/30 hover:shadow-sm cursor-pointer transition-all active:scale-[0.99] select-none ${
+                              isDownloading ? 'opacity-70 pointer-events-none' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
+                              <div className="p-2 bg-white dark:bg-slate-800 glass-control-pill rounded-lg text-indigo-500 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:border-indigo-200 dark:group-hover:border-indigo-500/30 transition-colors shrink-0">
                               {isDownloading ? (
                                 <Loader2 size={16} className="animate-spin text-indigo-600 dark:text-indigo-400" />
                               ) : (
@@ -812,6 +811,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                             )}
                           </div>
                         </div>
+                        </Tooltip>
                       );
                     })
                   ) : (
@@ -837,13 +837,13 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
       
       <div 
         onTransitionEnd={handleTransitionEnd}
-        className={`fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-y-0 right-0 w-full sm:w-[500px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}
       >
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 sticky top-0 z-10">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+            <div className="p-2 bg-white dark:bg-slate-800/50 glass-control-pill border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
               <LayoutList size={18} className="text-slate-500 dark:text-slate-400" />
             </div>
             <div className="flex flex-col text-left">
@@ -854,22 +854,23 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (localTask.status === TaskStatus.CONCLUIDA) return;
-                onEdit(localTask);
-              }}
-              disabled={localTask.status === TaskStatus.CONCLUIDA}
-              className={`flex items-center gap-2 px-4 py-2 text-white text-xs font-bold rounded-full transition-all shadow-lg ${
-                localTask.status === TaskStatus.CONCLUIDA
-                  ? 'bg-slate-400 cursor-not-allowed opacity-50 shadow-none'
-                  : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-indigo-600/20'
-              }`}
-              title={localTask.status === TaskStatus.CONCLUIDA ? "Tarefas concluídas não podem ser editadas" : "Editar Tarefa"}
-            >
-              <Pencil size={14} />
-              Editar
-            </button>
+            <Tooltip content={localTask.status === TaskStatus.CONCLUIDA ? "Tarefas concluídas não podem ser editadas" : "Editar Tarefa"} position="bottom">
+              <button
+                onClick={() => {
+                  if (localTask.status === TaskStatus.CONCLUIDA) return;
+                  onEdit(localTask);
+                }}
+                disabled={localTask.status === TaskStatus.CONCLUIDA}
+                className={`flex items-center gap-2 px-4 py-2 text-white text-xs font-bold rounded-full transition-all shadow-lg ${
+                  localTask.status === TaskStatus.CONCLUIDA
+                    ? 'bg-slate-400 cursor-not-allowed opacity-50 shadow-none'
+                    : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 shadow-indigo-600/20 cursor-pointer'
+                }`}
+              >
+                <Pencil size={14} />
+                Editar
+              </button>
+            </Tooltip>
             <DrawerBackButton onClick={onClose} />
           </div>
         </div>
@@ -880,7 +881,7 @@ export const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
         </div>
 
         {/* Footer Audit - Estilo sutil */}
-        <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50">
+        <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset">
           <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 dark:text-slate-600">
             <span>Audit LOG</span>
             {localTask.id && <span className="font-mono">ID: {localTask.id.substring(0, 18)}...</span>}

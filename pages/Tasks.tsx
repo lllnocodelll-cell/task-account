@@ -64,6 +64,7 @@ import { TableSkeleton, KanbanSkeleton } from '../components/ui/Skeleton';
 import { Modal } from '../components/ui/Modal';
 import { Input, Select, SearchableSelect, Toggle, GroupedSelect } from '../components/ui/Input';
 import { supabase } from '../utils/supabaseClient';
+import { triggerClientDocumentNotification } from '../utils/webPush';
 import { compressFileIfNeeded } from '../utils/fileCompression';
 import { calculateAdjustedDate } from '../utils/dateUtils';
 import { ClientForm } from '../components/ClientForm';
@@ -3146,6 +3147,19 @@ export const Tasks: React.FC<{
 
       if (finalStatusError) {
         throw new Error(`Arquivos salvos com sucesso, mas ocorreu erro ao atualizar o status da tarefa: ${finalStatusError.message}`);
+      }
+
+      // Notifica os usuários do cliente caso documentos tenham sido publicados na Área do Cliente
+      if (concludeSendToClient && validClientId && uploadedDocIds.length > 0) {
+        triggerClientDocumentNotification({
+          clientId: validClientId,
+          orgId: userProfile?.org_id || null,
+          senderId: userProfile?.id || null,
+          senderName: userProfile?.org_name || userProfile?.full_name || null,
+          documentNames: uploadedFileNames,
+          taskName: taskToConclude.taskName || null,
+          competence: competenceMonth || taskToConclude.competence || null,
+        });
       }
 
       // 6. Sucesso Confirmado

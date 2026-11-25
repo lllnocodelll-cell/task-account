@@ -549,6 +549,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
       case 'client_legislation_added': return <BookOpen size={20} className="text-cyan-500" />;
       case 'client_contact_updated': return <Users size={20} className="text-sky-500" />;
       case 'client_address_changed': return <MapPin size={20} className="text-rose-500" />;
+      case 'client_document': return <FileText size={20} className="text-indigo-500" />;
       default: return <Info size={20} className="text-slate-500" />;
     }
   };
@@ -629,6 +630,12 @@ export const Notifications: React.FC<NotificationsProps> = ({
       if (onNavigateToTab) {
         onNavigateToTab('tasks');
       }
+      return;
+    }
+
+    // Documentos publicados na Área do Cliente
+    if ((notification.type === 'client_document' || notification.link?.includes('client-portal')) && onNavigateToTab) {
+      onNavigateToTab('client-portal');
       return;
     }
 

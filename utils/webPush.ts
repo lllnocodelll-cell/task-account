@@ -53,10 +53,24 @@ export function isStandalone(): boolean {
   );
 }
 
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent.toLowerCase();
+  return isIOS() || /android|webos|blackberry|iemobile|opera mini/i.test(ua);
+}
+
+function normalizeDeviceUserAgent(ua?: string | null): string {
+  if (!ua) return '';
+  return ua
+    .replace(/\b(Chrome|CriOS|Edg|EdgA|EdgiOS|Firefox|FxiOS|Version|Safari|OPR)\/[\d.]+/gi, '$1')
+    .trim();
+}
+
 export type PushNotificationState =
   | 'unsupported'
   | 'in_app_browser'
   | 'needs_ios_install'
+  | 'needs_android_install'
   | 'denied'
   | 'granted'
   | 'default';
@@ -74,6 +88,12 @@ export async function getPushNotificationState(): Promise<PushNotificationState>
   // No iOS, a Apple só permite Web Push se estiver instalado como PWA na Tela de Início
   if (isIOS() && !isStandalone()) {
     return 'needs_ios_install';
+  }
+
+  // No Android/Mobile fora do app instalado, centralizamos as notificações apenas no PWA instalado
+  // para evitar notificações duplicadas abrindo abas no navegador.
+  if (isMobileDevice() && !isStandalone()) {
+    return 'needs_android_install';
   }
 
   if (!isWebPushSupported()) {
@@ -99,6 +119,57 @@ export function hasActivePushSubscriptionFlag(): boolean {
       window.localStorage.getItem(PUSH_SUBSCRIBED_FLAG_KEY) === 'true';
   } catch {
     return false;
+  }
+}
+
+export async function hasActivePushSubscription(): Promise<boolean> {
+  if (hasActivePushSubscriptionFlag()) return true;
+  try {
+    if (!isWebPushSupported() || Notification.permission !== 'granted') return false;
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = await reg?.pushManager?.getSubscription();
+    if (sub) {
+      try {
+        window.localStorage.setItem(PUSH_SUBSCRIBED_FLAG_KEY, 'true');
+      } catch {
+        // Ignora falha de localStorage
+      }
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function cleanupDuplicateDeviceSubscriptions(
+  userId: string,
+  currentEndpoint: string
+): Promise<void> {
+  try {
+    const currentDeviceKey = normalizeDeviceUserAgent(navigator.userAgent);
+    if (!currentDeviceKey) return;
+
+    const { data: existingRows } = await (supabase as any)
+      .from('user_push_subscriptions')
+      .select('id, endpoint, user_agent')
+      .eq('user_id', userId)
+      .neq('endpoint', currentEndpoint);
+
+    if (!existingRows || existingRows.length === 0) return;
+
+    const idsToDelete = existingRows
+      .filter((row: any) => normalizeDeviceUserAgent(row.user_agent) === currentDeviceKey)
+      .map((row: any) => row.id);
+
+    if (idsToDelete.length > 0) {
+      await (supabase as any)
+        .from('user_push_subscriptions')
+        .delete()
+        .in('id', idsToDelete);
+    }
+  } catch (err) {
+    console.warn('Aviso ao limpar inscrições duplicadas do dispositivo:', err);
   }
 }
 
@@ -134,6 +205,10 @@ async function saveSubscriptionToDatabase(
     console.warn('Erro ao persistir inscrição push no Supabase:', error.message);
     return false;
   }
+
+  // Remove inscrições anteriores do mesmo dispositivo (ex.: navegador Chrome ou links antigos)
+  // mantendo apenas o endpoint atual para evitar notificações duplicadas.
+  await cleanupDuplicateDeviceSubscriptions(userId, endpoint);
 
   try {
     window.localStorage.setItem(PUSH_SUBSCRIBED_FLAG_KEY, 'true');
@@ -195,6 +270,8 @@ async function ensureAndSyncSubscription(userId: string, orgId?: string | null):
 export async function syncExistingPushSubscription(userId: string, orgId?: string | null): Promise<boolean> {
   if (!isWebPushSupported() || !userId) return false;
   if (Notification.permission !== 'granted') return false;
+  // No celular, evita sincronizar inscrição pelo navegador comum quando já existe/haverá PWA instalado
+  if (isMobileDevice() && !isStandalone()) return false;
 
   try {
     return await ensureAndSyncSubscription(userId, orgId);
@@ -323,9 +400,46 @@ export async function triggerPushNotification(params: {
 }): Promise<void> {
   try {
     await supabase.functions.invoke('send-push', {
-      body: params
+      body: {
+        eventType: 'chat',
+        ...params,
+      }
     });
   } catch (err) {
     console.warn('Falha silenciosa ao disparar push notification via Edge Function:', err);
+  }
+}
+
+/**
+ * Invoca a Edge Function 'send-push' para notificar clientes sobre novo(s) documento(s) na Área do Cliente
+ */
+export async function triggerClientDocumentNotification(params: {
+  clientId: string;
+  orgId?: string | null;
+  senderId?: string | null;
+  senderName?: string | null;
+  documentNames: string[];
+  taskName?: string | null;
+  competence?: string | null;
+}): Promise<void> {
+  try {
+    if (!params.clientId || !params.documentNames || params.documentNames.length === 0) {
+      return;
+    }
+
+    await supabase.functions.invoke('send-push', {
+      body: {
+        eventType: 'client_document',
+        clientId: params.clientId,
+        orgId: params.orgId || undefined,
+        senderId: params.senderId || undefined,
+        senderName: params.senderName || undefined,
+        documentNames: params.documentNames,
+        taskName: params.taskName || undefined,
+        competence: params.competence || undefined,
+      }
+    });
+  } catch (err) {
+    console.warn('Falha silenciosa ao notificar documento na Área do Cliente:', err);
   }
 }
