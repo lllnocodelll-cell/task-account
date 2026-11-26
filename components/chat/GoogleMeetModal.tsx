@@ -84,7 +84,7 @@ export const GoogleMeetModal: React.FC<GoogleMeetModalProps> = ({
       onClose={onClose}
       title={
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+          <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm glass-control-pill">
             <Video size={18} className="text-slate-500 dark:text-slate-400" />
           </div>
           <div className="flex flex-col text-left">
@@ -114,7 +114,7 @@ export const GoogleMeetModal: React.FC<GoogleMeetModalProps> = ({
     >
       <div className="space-y-4">
         {/* Banner com atalho de geração de link do Meet */}
-        <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 glass-card-inset">
           <div className="space-y-0.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
               <Sparkles size={14} className="text-indigo-500 dark:text-indigo-400" />

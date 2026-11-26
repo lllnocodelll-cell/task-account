@@ -207,15 +207,23 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
       if (
-        panelRef.current && !panelRef.current.contains(e.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+        panelRef.current && !panelRef.current.contains(target) &&
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        !document.getElementById('custom-select-portal')?.contains(target) &&
+        !document.getElementById('grouped-select-portal')?.contains(target)
       ) {
         setIsOpen(false);
       }
     };
     const handleScroll = (e: Event) => {
-      if (panelRef.current && panelRef.current.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (
+        (panelRef.current && panelRef.current.contains(target)) ||
+        document.getElementById('custom-select-portal')?.contains(target) ||
+        document.getElementById('grouped-select-portal')?.contains(target)
+      ) return;
       
       if (buttonRef.current) {
         const rect = buttonRef.current.getBoundingClientRect();
@@ -268,9 +276,9 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({
           className={`fixed z-[9999] ${widthClass} animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200`}
           onClick={e => e.stopPropagation()}
         >
-          <div className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden ${minHeightClass}`}>
+          <div className={`bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden ${minHeightClass}`}>
             {/* Header do painel */}
-            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60 glass-card-inset">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                 <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
@@ -481,7 +489,7 @@ const TaskWorkflowPopover: React.FC<TaskWorkflowPopoverProps> = ({ task, onToggl
           className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all duration-200 active:scale-95 group/wf ${
             isFullyCompleted 
               ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400' 
-              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:shadow-sm'
+              : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:shadow-sm glass-control-pill'
           }`}
         >
           <CheckCircle2 
@@ -505,8 +513,8 @@ const TaskWorkflowPopover: React.FC<TaskWorkflowPopoverProps> = ({ task, onToggl
           className="fixed z-[9999] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200"
           onClick={e => e.stopPropagation()}
         >
-          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden flex flex-col h-full">
-            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
+          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden flex flex-col h-full glass-surface">
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30 shrink-0 glass-card-inset">
               <div className="flex items-center gap-2">
                 <div className={`w-1.5 h-1.5 rounded-full ${isFullyCompleted ? 'bg-emerald-500' : 'bg-indigo-500'} animate-pulse`} />
                 <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Workflow</span>
@@ -514,7 +522,7 @@ const TaskWorkflowPopover: React.FC<TaskWorkflowPopoverProps> = ({ task, onToggl
               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
                 isFullyCompleted 
                   ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30' 
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 glass-control-pill'
               }`}>
                 {completedCount}/{totalCount}
               </span>
@@ -528,7 +536,7 @@ const TaskWorkflowPopover: React.FC<TaskWorkflowPopoverProps> = ({ task, onToggl
                   className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-all text-left group/item ${
                     wf.is_completed 
                       ? 'bg-emerald-50/30 dark:bg-emerald-500/5 opacity-70 hover:opacity-100' 
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 glass-chat-item'
                   } ${task.status === TaskStatus.CONCLUIDA ? 'cursor-not-allowed opacity-60' : ''}`}
                 >
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
@@ -595,7 +603,7 @@ const ResponsibleFilterPanel: React.FC<ResponsibleFilterPanelProps> = ({ tasks, 
         placeholder="Buscar colaborador..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="w-full text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
+        className="w-full text-[11px] bg-slate-50 dark:bg-slate-950 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all"
       />
       {/* Lista com scroll */}
       <div className="max-h-[160px] overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
@@ -608,7 +616,7 @@ const ResponsibleFilterPanel: React.FC<ResponsibleFilterPanelProps> = ({ tasks, 
               <button
                 key={name}
                 onClick={() => toggle(name)}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all text-left ${isChecked ? 'bg-indigo-50 dark:bg-indigo-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all text-left ${isChecked ? 'bg-indigo-50 dark:bg-indigo-500/10 glass-chat-item-active' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 glass-chat-item'}`}
               >
                 <span className={`flex-shrink-0 w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 dark:border-slate-600'}`}>
                   {isChecked && <span className="text-[8px] text-white font-black leading-none">✓</span>}
@@ -752,9 +760,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   useEffect(() => {
     if (!isFilterOpen) return;
     const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
       if (
-        filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node) &&
-        filterBtnRef.current && !filterBtnRef.current.contains(e.target as Node)
+        filterPanelRef.current && !filterPanelRef.current.contains(target) &&
+        filterBtnRef.current && !filterBtnRef.current.contains(target) &&
+        !document.getElementById('custom-select-portal')?.contains(target) &&
+        !document.getElementById('grouped-select-portal')?.contains(target)
       ) {
         setIsFilterOpen(false);
       }
@@ -852,7 +863,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   };
   const accent = accentMap[accentColor] || accentMap.indigo;
 
-  const inputBase = `w-full text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${accent.input}`;
+  const inputBase = `w-full text-[11px] bg-slate-50 dark:bg-slate-950 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${accent.input}`;
 
   return (
     <div
@@ -927,7 +938,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             <div className="bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
 
               {/* Topo do painel */}
-              <div className="flex items-center justify-between px-3.5 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center justify-between px-3.5 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60 glass-card-inset">
                 <div className="flex items-center gap-2">
                   <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
                   <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
@@ -982,16 +993,17 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                         value={colFilter.responsible}
                         onChange={e => setColFilter(p => ({ ...p, responsible: e.target.value }))}
                       />
-                      <select
-                        className={inputBase}
+                      <Select
+                        className="!h-8 !text-[11px] !px-2.5 !py-1.5 bg-slate-50 dark:bg-slate-950 glass-chat-field"
                         value={colFilter.priority}
                         onChange={e => setColFilter(p => ({ ...p, priority: e.target.value }))}
-                      >
-                        <option value="">Todas as Prioridades</option>
-                        <option value="Alta">Prioridade Alta</option>
-                        <option value="Média">Prioridade Média</option>
-                        <option value="Baixa">Prioridade Baixa</option>
-                      </select>
+                        options={[
+                          { value: '', label: 'Todas as Prioridades' },
+                          { value: 'Alta', label: 'Prioridade Alta' },
+                          { value: 'Média', label: 'Prioridade Média' },
+                          { value: 'Baixa', label: 'Prioridade Baixa' },
+                        ]}
+                      />
                     </div>
                   )}
                 </div>
@@ -1044,16 +1056,15 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           value={colFilter.clientCity}
                           onChange={e => setColFilter(p => ({ ...p, clientCity: e.target.value }))}
                         />
-                        <select
-                          className={inputBase}
+                        <Select
+                          className="!h-8 !text-[11px] !px-2.5 !py-1.5 bg-slate-50 dark:bg-slate-950 glass-chat-field"
                           value={colFilter.clientState}
                           onChange={e => setColFilter(p => ({ ...p, clientState: e.target.value }))}
-                        >
-                          <option value="">UF</option>
-                          {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
-                            <option key={uf} value={uf}>{uf}</option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: '', label: 'UF' },
+                            ...['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => ({ value: uf, label: uf })),
+                          ]}
+                        />
                       </div>
                     </div>
                   )}
@@ -1085,24 +1096,20 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
                   {expandedFilterSections.fiscal && (
                     <div className="space-y-2 mt-2 px-1 pb-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <select
-                        className={inputBase}
+                      <GroupedSelect
+                        className="!min-h-8 !h-8 !text-[11px] !px-2.5 !py-1.5 bg-slate-50 dark:bg-slate-950 glass-chat-field"
                         value={colFilter.taxRegime}
-                        onChange={e => setColFilter(p => ({ ...p, taxRegime: e.target.value }))}
-                      >
-                        <option value="">Todos os Regimes</option>
-                        {TAX_REGIME_GROUPS.map(group => (
-                          <optgroup key={group.category} label={group.category}>
-                            {group.options.map(opt => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
+                        onChange={val => setColFilter(p => ({ ...p, taxRegime: val }))}
+                        placeholder="Todos os Regimes"
+                        groups={[
+                          { category: 'Geral', options: [{ value: '', label: 'Todos os Regimes' }] },
+                          ...TAX_REGIME_GROUPS,
+                        ]}
+                      />
 
                       <div className="grid grid-cols-2 gap-2">
                         <div className="relative group">
-                          <div className="w-full text-[11px] bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100 pointer-events-none group-focus-within:ring-2">
+                          <div className="w-full text-[11px] bg-slate-50 dark:bg-slate-950 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 flex items-center justify-between text-slate-800 dark:text-slate-100 pointer-events-none group-focus-within:ring-2">
                             <span className="text-[9.5px] font-bold uppercase truncate">
                               {colFilter.competence ? colFilter.competence.split('-').reverse().join('/') : <span className="text-slate-400 dark:text-slate-500 font-normal">Competência</span>}
                             </span>
@@ -1131,28 +1138,28 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         <button
                           onClick={() => setColFilter(p => ({ ...p, noMovement: !p.noMovement }))}
-                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.noMovement ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
+                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.noMovement ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
                         >
                           <span>S. Mov.</span>
                           {colFilter.noMovement && <span className="ml-1">✓</span>}
                         </button>
                         <button
                           onClick={() => setColFilter(p => ({ ...p, exceededSublimit: !p.exceededSublimit }))}
-                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.exceededSublimit ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
+                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.exceededSublimit ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
                         >
                           <span>Sublim.</span>
                           {colFilter.exceededSublimit && <span className="ml-1">✓</span>}
                         </button>
                         <button
                           onClick={() => setColFilter(p => ({ ...p, notifiedExclusion: !p.notifiedExclusion }))}
-                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
+                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
                         >
                           <span>Exclus.</span>
                           {colFilter.notifiedExclusion && <span className="ml-1">✓</span>}
                         </button>
                         <button
                           onClick={() => setColFilter(p => ({ ...p, hasTag: !p.hasTag }))}
-                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.hasTag ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
+                          className={`flex-1 flex items-center justify-between px-2 py-1.5 rounded-lg border transition-all text-[10px] font-bold ${colFilter.hasTag ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-500'}`}
                         >
                           <span>Tags</span>
                           {colFilter.hasTag && <span className="ml-1">✓</span>}
@@ -1165,7 +1172,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
               {/* Rodapé — Limpar */}
               <div className="px-3.5 pb-3 pt-0">
-                <div className="border-t border-slate-100 dark:border-slate-800/60 pt-2.5 flex items-center justify-between">
+                <div className="border-t border-slate-100 dark:border-slate-800/60 glass-card-inset -mx-3.5 px-3.5 pt-2.5 flex items-center justify-between">
                   <span className="text-[9px] text-slate-400 dark:text-slate-500">
                     {activeFilterCount === 0
                       ? 'Sem filtros ativos'
@@ -3216,7 +3223,7 @@ export const Tasks: React.FC<{
     setIsTaskInfoDrawerOpen(true);
   };
 
-  const headerInputClass = "mt-2 w-full h-8 text-xs px-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-sm animate-in fade-in slide-in-from-top-1 duration-200";
+  const headerInputClass = "mt-2 w-full h-8 text-xs px-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-sm animate-in fade-in slide-in-from-top-1 duration-200";
 
   const isKanbanLimitBannerVisible = layoutMode === 'kanban' && (
     kanbanBaseTasks.filter(t => t.status === TaskStatus.PENDENTE).length > MAX_RENDER_KANBAN ||
@@ -3473,12 +3480,15 @@ export const Tasks: React.FC<{
                                 </div>
                                 <div>
                                   <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">UF</label>
-                                  <select className={headerInputClass} value={filters.clientState} onChange={e => handleFilterChange('clientState', e.target.value)}>
-                                    <option value="">Todos</option>
-                                    {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
-                                      <option key={uf} value={uf}>{uf}</option>
-                                    ))}
-                                  </select>
+                                  <Select
+                                    className="mt-2 !h-8 !text-xs !px-2 glass-chat-field"
+                                    value={filters.clientState}
+                                    onChange={e => handleFilterChange('clientState', e.target.value)}
+                                    options={[
+                                      { value: '', label: 'Todos' },
+                                      ...['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => ({ value: uf, label: uf })),
+                                    ]}
+                                  />
                                 </div>
                               </div>
                               {/* Limpar */}
@@ -3510,7 +3520,7 @@ export const Tasks: React.FC<{
                               {/* Toggle Sem Movimento */}
                               <button
                                 onClick={() => setFilters(p => ({ ...p, noMovement: !p.noMovement }))}
-                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.noMovement ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.noMovement ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400' : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
                               >
                                 <span>Sem Movimento</span>
                                 <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${filters.noMovement ? 'bg-red-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
@@ -3520,7 +3530,7 @@ export const Tasks: React.FC<{
                               {/* Toggle Com TAG */}
                               <button
                                 onClick={() => setFilters(p => ({ ...p, hasTag: !p.hasTag }))}
-                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.hasTag ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.hasTag ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}
                               >
                                 <span>Com TAG</span>
                                 <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${filters.hasTag ? 'bg-indigo-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
@@ -3562,18 +3572,18 @@ export const Tasks: React.FC<{
                             >
                               {/* Toggle mês único / intervalo */}
                               <div>
-                                <div className="flex items-center gap-1 mb-2.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                                <div className="flex items-center gap-1 mb-2.5 p-1 bg-slate-100 dark:bg-slate-800 glass-chat-tab-bar rounded-lg">
                                   <button 
                                     type="button" 
                                     onClick={(e) => { e.stopPropagation(); setRangeMode(false); }} 
-                                    className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
+                                    className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${!rangeMode ? 'bg-white dark:bg-slate-700 glass-chat-tab-active text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
                                   >
                                     Mês único
                                   </button>
                                   <button 
                                     type="button" 
                                     onClick={(e) => { e.stopPropagation(); setRangeMode(true); }} 
-                                    className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
+                                    className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${rangeMode ? 'bg-white dark:bg-slate-700 glass-chat-tab-active text-slate-700 dark:text-slate-200 shadow-sm' : 'text-slate-400 dark:text-slate-500'}`}
                                   >
                                     Intervalo
                                   </button>
@@ -3582,7 +3592,7 @@ export const Tasks: React.FC<{
                                   <div className="relative group">
                                     <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Competência</label>
                                     <div className="relative">
-                                      <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
+                                      <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
                                         <span className="text-[11px] font-bold uppercase tracking-wide">
                                           {formatMonthDisplay(filters.competence) || <span className="text-slate-400 dark:text-slate-500 font-normal">MM/AAAA</span>}
                                         </span>
@@ -3606,7 +3616,7 @@ export const Tasks: React.FC<{
                                     <div className="relative group">
                                       <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">De</label>
                                       <div className="relative">
-                                        <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
+                                        <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
                                           <span className="text-[11px] font-bold uppercase tracking-wide">
                                             {formatMonthDisplay(filters.competenceFrom) || <span className="text-slate-400 dark:text-slate-500 font-normal">MM/AAAA</span>}
                                           </span>
@@ -3628,7 +3638,7 @@ export const Tasks: React.FC<{
                                     <div className="relative group">
                                       <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Até</label>
                                       <div className="relative">
-                                        <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
+                                        <div className="mt-2 w-full h-8 text-xs px-2.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field flex items-center justify-between text-slate-700 dark:text-slate-200 shadow-sm pointer-events-none group-focus-within:ring-1 group-focus-within:ring-indigo-500">
                                           <span className="text-[11px] font-bold uppercase tracking-wide">
                                             {formatMonthDisplay(filters.competenceTo) || <span className="text-slate-400 dark:text-slate-500 font-normal">MM/AAAA</span>}
                                           </span>
@@ -3665,20 +3675,21 @@ export const Tasks: React.FC<{
                               {/* Recorrência */}
                               <div>
                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Tipo de Recorrência</label>
-                                <select 
-                                  className={headerInputClass} 
-                                  value={filters.recurrence} 
+                                <Select
+                                  className="mt-2 !h-8 !text-xs !px-2 glass-chat-field"
+                                  value={filters.recurrence}
                                   onChange={e => handleFilterChange('recurrence', e.target.value)}
-                                >
-                                  <option value="">Todas as recorrências</option>
-                                  <option value="unica">Única</option>
-                                  <option value="mensal">Mensal</option>
-                                  <option value="bimestral">Bimestral</option>
-                                  <option value="trimestral">Trimestral</option>
-                                  <option value="semestral">Semestral</option>
-                                  <option value="anual">Anual</option>
-                                  <option value="personalizado">Personalizada</option>
-                                </select>
+                                  options={[
+                                    { value: '', label: 'Todas as recorrências' },
+                                    { value: 'unica', label: 'Única' },
+                                    { value: 'mensal', label: 'Mensal' },
+                                    { value: 'bimestral', label: 'Bimestral' },
+                                    { value: 'trimestral', label: 'Trimestral' },
+                                    { value: 'semestral', label: 'Semestral' },
+                                    { value: 'anual', label: 'Anual' },
+                                    { value: 'personalizado', label: 'Personalizada' },
+                                  ]}
+                                />
                               </div>
                               {/* Limpar */}
                               {periodActive && (
@@ -3716,7 +3727,7 @@ export const Tasks: React.FC<{
                                 <div style={{ height: '160px' }} className="overflow-y-auto custom-scrollbar pr-1 space-y-3">
                                   {TAX_REGIME_GROUPS.map(group => (
                                     <div key={group.category} className="space-y-1">
-                                      <div className="px-2 py-0.5 text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-100 dark:border-slate-800/50">
+                                      <div className="px-2 py-0.5 text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-800/50 glass-card-inset rounded-md border border-slate-100 dark:border-slate-800/50">
                                         {group.category}
                                       </div>
                                       <div className="space-y-1">
@@ -3731,7 +3742,7 @@ export const Tasks: React.FC<{
                                             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
                                               filters.taxRegime === opt.value
                                                 ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-400'
-                                                : 'bg-white dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-800'
+                                                : 'bg-white dark:bg-slate-900/40 glass-control-pill border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-800'
                                             }`}
                                           >
                                             <span>{opt.label}</span>
@@ -3753,19 +3764,24 @@ export const Tasks: React.FC<{
                               {['simples', 'simples_iva'].includes(filters.taxRegime) && (
                                 <div>
                                   <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Anexo do Simples</label>
-                                  <select className={headerInputClass} value={filters.selectedAnnex} onChange={e => handleFilterChange('selectedAnnex', e.target.value)}>
-                                    <option value="">Todos os Anexos</option>
-                                    {SIMPLES_ANNEXES.map(a => <option key={a} value={a}>{a}</option>)}
-                                  </select>
+                                  <Select
+                                    className="mt-2 !h-8 !text-xs !px-2 glass-chat-field"
+                                    value={filters.selectedAnnex}
+                                    onChange={e => handleFilterChange('selectedAnnex', e.target.value)}
+                                    options={[
+                                      { value: '', label: 'Todos os Anexos' },
+                                      ...SIMPLES_ANNEXES.map(a => ({ value: a, label: a })),
+                                    ]}
+                                  />
                                 </div>
                               )}
                               {/* Toggles */}
                               <div className="space-y-1.5">
-                                <button onClick={() => setFilters(p => ({ ...p, exceededSublimit: !p.exceededSublimit }))} className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.exceededSublimit ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>
+                                <button onClick={() => setFilters(p => ({ ...p, exceededSublimit: !p.exceededSublimit }))} className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.exceededSublimit ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>
                                   <span>Sublimite Excedido</span>
                                   <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${filters.exceededSublimit ? 'bg-amber-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>{filters.exceededSublimit ? '✓' : ''}</span>
                                 </button>
-                                <button onClick={() => setFilters(p => ({ ...p, notifiedExclusion: !p.notifiedExclusion }))} className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>
+                                <button onClick={() => setFilters(p => ({ ...p, notifiedExclusion: !p.notifiedExclusion }))} className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${filters.notifiedExclusion ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'}`}>
                                   <span>Exclusão Notificada</span>
                                   <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black ${filters.notifiedExclusion ? 'bg-rose-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>{filters.notifiedExclusion ? '✓' : ''}</span>
                                 </button>
@@ -3804,7 +3820,7 @@ export const Tasks: React.FC<{
                                     className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
                                       filters.priority === opt.value
                                         ? opt.color
-                                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                        : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                                     }`}
                                   >
                                     <span>{opt.label}</span>
@@ -3878,7 +3894,7 @@ export const Tasks: React.FC<{
                                     className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
                                       filters.status === opt.value
                                         ? opt.color
-                                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                        : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                                     }`}
                                   >
                                     <span>{opt.label}</span>
@@ -4473,7 +4489,7 @@ export const Tasks: React.FC<{
               </div>
 
               {reopenSuccessData && (
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 text-left text-xs space-y-2 max-w-md mx-auto">
+                <div className="bg-slate-50 dark:bg-slate-800/60 glass-card-inset border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 text-left text-xs space-y-2 max-w-md mx-auto">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 dark:text-slate-400">Novo Status da Tarefa:</span>
                     <span className="font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
@@ -4553,7 +4569,7 @@ export const Tasks: React.FC<{
                 </div>
 
                 {/* Barra com Gradiente */}
-                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 glass-card-inset h-2.5 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
                   <div
                     className="h-full bg-gradient-to-r from-amber-500 via-indigo-500 to-emerald-500 transition-all duration-300 ease-out rounded-full shadow-xs"
                     style={{ width: `${reopenProgress}%` }}
@@ -4566,7 +4582,7 @@ export const Tasks: React.FC<{
               </div>
 
               {/* Stepper Pipeline de Validação */}
-              <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+              <div className="bg-slate-50 dark:bg-slate-900/60 glass-card-inset border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
                   Etapas do Processo
                 </span>
@@ -4642,7 +4658,7 @@ export const Tasks: React.FC<{
             return (
               <div className="space-y-4 min-w-0">
                 {/* Resumo da Tarefa */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 text-xs space-y-1.5">
+                <div className="bg-slate-50 dark:bg-slate-800/60 glass-card-inset border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 text-xs space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 dark:text-slate-400">Tarefa:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[260px]">
@@ -4680,12 +4696,14 @@ export const Tasks: React.FC<{
                         Esta tarefa possui comprovantes já entregues ao portal do cliente. O que você deseja fazer com eles ao reabrir a tarefa?
                       </p>
                       
-                      <div className="bg-white/70 dark:bg-black/30 rounded-lg p-2 flex flex-col gap-2 min-w-0 border border-amber-200/50 dark:border-amber-800/40">
+                      <div className="bg-white/70 dark:bg-black/30 glass-card-inset rounded-lg p-2 flex flex-col gap-2 min-w-0 border border-amber-200/50 dark:border-amber-800/40">
                         {displayDocs.map((file, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-amber-100 dark:border-amber-800/50 shadow-xs gap-2 min-w-0">
-                            <span className="font-medium text-slate-700 dark:text-slate-300 truncate min-w-0 flex-1" title={file.name}>
-                              {file.name}
-                            </span>
+                          <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 glass-chat-item p-2.5 rounded-lg border border-amber-100 dark:border-amber-800/50 shadow-xs gap-2 min-w-0">
+                            <Tooltip content={file.name} position="top" className="min-w-0 flex-1">
+                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate block">
+                                {file.name}
+                              </span>
+                            </Tooltip>
                             {file.status === 'Lido' ? (
                               <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-emerald-500 text-white uppercase tracking-tighter shadow-2xs">
                                 LIDO PELO CLIENTE
@@ -4710,7 +4728,7 @@ export const Tasks: React.FC<{
                 
                 {/* Comparativo de Ações */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 glass-card-inset rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1">
                     <p className="font-bold text-slate-800 dark:text-slate-200">Reabrir e Manter</p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                       A tarefa volta ao status selecionado, mas os comprovantes permanecem ativos e disponíveis para o cliente no Portal.
@@ -4929,7 +4947,7 @@ export const Tasks: React.FC<{
               </div>
 
               {concludeSuccessData && concludeSuccessData.fileCount > 0 && (
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 text-left text-xs space-y-2 max-w-md mx-auto">
+                <div className="bg-slate-50 dark:bg-slate-800/60 glass-card-inset border border-slate-200 dark:border-slate-700/80 rounded-xl p-3.5 text-left text-xs space-y-2 max-w-md mx-auto">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500 dark:text-slate-400">Cliente Destinatário:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[210px]">
@@ -4997,7 +5015,7 @@ export const Tasks: React.FC<{
                 </div>
 
                 {/* Barra com Gradiente */}
-                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 glass-card-inset h-2.5 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
                   <div
                     className="h-full bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 transition-all duration-300 ease-out rounded-full shadow-xs"
                     style={{ width: `${concludeProgress}%` }}
@@ -5010,7 +5028,7 @@ export const Tasks: React.FC<{
               </div>
 
               {/* Stepper Pipeline de Validação */}
-              <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+              <div className="bg-slate-50 dark:bg-slate-900/60 glass-card-inset border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
                 <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
                   Auditoria de Etapas
                 </span>
@@ -5104,7 +5122,7 @@ export const Tasks: React.FC<{
                 const task = tasks.find(t => t.id === selectedTaskForConclude);
                 if (!task) return null;
                 return (
-                  <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3 text-xs space-y-1.5">
+                  <div className="bg-slate-50 dark:bg-slate-900/60 glass-card-inset border border-slate-200/80 dark:border-slate-800 rounded-xl p-3 text-xs space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500 dark:text-slate-400">Tarefa:</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[220px]">{task.taskName}</span>
@@ -5143,7 +5161,7 @@ export const Tasks: React.FC<{
                   onClick={() => {
                     if (!isConcludingTask) concludeFileInputRef.current?.click();
                   }}
-                  className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
+                  className="border-2 border-dashed border-slate-200 dark:border-slate-800 glass-card-inset rounded-xl p-5 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                 >
                   <Upload size={22} className="text-indigo-500 mb-1.5 group-hover:scale-110 transition-transform" />
                   <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Clique para anexar comprovantes</p>
@@ -5153,7 +5171,7 @@ export const Tasks: React.FC<{
                 {concludeFiles.length > 0 && (
                   <div className="space-y-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-1">
                     {concludeFiles.map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+                      <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 glass-chat-item rounded-lg border border-slate-200/80 dark:border-slate-700 shadow-2xs">
                         <div className="flex items-center gap-2 overflow-hidden">
                           <File size={13} className="text-indigo-500 shrink-0" />
                           <div className="flex flex-col truncate">
@@ -5161,13 +5179,14 @@ export const Tasks: React.FC<{
                             <span className="text-[9px] text-slate-400 font-mono">{(file.size / 1024).toFixed(1)} KB</span>
                           </div>
                         </div>
-                        <button
-                          onClick={() => setConcludeFiles(files => files.filter((_, i) => i !== idx))}
-                          className="p-1 text-slate-400 hover:text-rose-500 transition-colors rounded hover:bg-slate-100 dark:hover:bg-slate-700"
-                          title="Remover arquivo"
-                        >
-                          <X size={13} />
-                        </button>
+                        <Tooltip content="Remover arquivo" position="top">
+                          <button
+                            onClick={() => setConcludeFiles(files => files.filter((_, i) => i !== idx))}
+                            className="p-1 text-slate-400 hover:text-rose-500 transition-colors rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+                          >
+                            <X size={13} />
+                          </button>
+                        </Tooltip>
                       </div>
                     ))}
                   </div>
@@ -5175,7 +5194,7 @@ export const Tasks: React.FC<{
 
                 {/* Card de Configuração de Destino: Área do Cliente vs Anexo Interno */}
                 {concludeFiles.length > 0 && (
-                  <div className="p-3.5 rounded-xl border transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-white dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <div className="p-3.5 rounded-xl border transition-all duration-200 animate-in fade-in slide-in-from-top-2 bg-white dark:bg-slate-800/90 glass-chat-item border-slate-200 dark:border-slate-700 shadow-2xs">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-lg shrink-0 transition-colors ${
@@ -5207,22 +5226,26 @@ export const Tasks: React.FC<{
                       </div>
 
                       {/* Switch Toggle */}
-                      <button
-                        type="button"
-                        onClick={() => setConcludeSendToClient(!concludeSendToClient)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 ${
-                          concludeSendToClient ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
-                        }`}
-                        role="switch"
-                        aria-checked={concludeSendToClient}
-                        title={concludeSendToClient ? 'Desativar envio para o portal (manter apenas interno)' : 'Ativar envio para a Área do Cliente'}
+                      <Tooltip
+                        content={concludeSendToClient ? 'Desativar envio para o portal (manter apenas interno)' : 'Ativar envio para a Área do Cliente'}
+                        position="top"
                       >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            concludeSendToClient ? 'translate-x-5' : 'translate-x-0'
+                        <button
+                          type="button"
+                          onClick={() => setConcludeSendToClient(!concludeSendToClient)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 ${
+                            concludeSendToClient ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
                           }`}
-                        />
-                      </button>
+                          role="switch"
+                          aria-checked={concludeSendToClient}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              concludeSendToClient ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </Tooltip>
                     </div>
                   </div>
                 )}

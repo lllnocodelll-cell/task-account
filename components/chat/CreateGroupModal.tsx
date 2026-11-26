@@ -131,7 +131,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
             onClose={onClose}
             title={
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm glass-control-pill">
                         <UserRoundPlus size={18} className="text-slate-500 dark:text-slate-400" />
                     </div>
                     <div className="flex flex-col text-left">
@@ -170,7 +170,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
                         <Users size={16} /> Selecionar Participantes
                     </label>
 
-                    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 max-h-60 overflow-y-auto custom-scrollbar">
+                    <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-2 max-h-60 overflow-y-auto custom-scrollbar glass-card-inset">
                         {loading ? (
                             <div className="flex justify-center p-4">
                                 <Loader2 size={24} className="animate-spin text-indigo-500" />
@@ -182,7 +182,7 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({ isOpen, onCl
                                 {profiles.map(profile => (
                                     <label
                                         key={profile.id}
-                                        className="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-slate-800 rounded-md cursor-pointer transition-colors"
+                                        className="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-slate-800 rounded-md cursor-pointer transition-colors glass-chat-item"
                                     >
                                         <input
                                             type="checkbox"

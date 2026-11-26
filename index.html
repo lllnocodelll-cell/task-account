@@ -458,6 +458,74 @@
         background: rgba(30, 41, 59, 0.72);
         border-color: rgba(255, 255, 255, 0.15);
       }
+
+      /* iOS Safe Area (Dynamic Island / Notch / Status Bar em portrait no iPhone) */
+      .landing-header-safe {
+        padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+        padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+        padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
+        padding-bottom: 0.875rem;
+      }
+      .landing-header-safe.is-scrolled {
+        padding-top: calc(0.625rem + env(safe-area-inset-top, 0px));
+        padding-bottom: 0.625rem;
+      }
+      @media (min-width: 640px) {
+        .landing-header-safe {
+          padding-left: 2rem;
+          padding-right: 2rem;
+          padding-top: calc(1.5rem + env(safe-area-inset-top, 0px));
+          padding-bottom: 1.5rem;
+        }
+        .landing-header-safe.is-scrolled {
+          padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
+          padding-bottom: 0.875rem;
+        }
+      }
+      .landing-menu-safe-top {
+        top: calc(4.25rem + env(safe-area-inset-top, 0px));
+      }
+      @media (min-width: 640px) {
+        .landing-menu-safe-top {
+          top: calc(5rem + env(safe-area-inset-top, 0px));
+        }
+      }
+      .landing-hero-safe-top {
+        padding-top: calc(7rem + env(safe-area-inset-top, 0px));
+      }
+      @media (min-width: 640px) {
+        .landing-hero-safe-top {
+          padding-top: 9rem;
+        }
+      }
+      @media (min-width: 768px) {
+        .landing-hero-safe-top {
+          padding-top: 10rem;
+        }
+      }
+      @media (min-width: 1024px) {
+        .landing-hero-safe-top {
+          padding-top: 11rem;
+        }
+      }
+      .auth-theme-btn-safe {
+        top: calc(1.5rem + env(safe-area-inset-top, 0px));
+      }
+      @media (max-width: 767px) {
+        .mobile-header-safe {
+          padding-top: env(safe-area-inset-top, 0px);
+          padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+          padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+          min-height: calc(4rem + env(safe-area-inset-top, 0px));
+        }
+        .mobile-sidebar-safe {
+          padding-top: env(safe-area-inset-top, 0px);
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        .mobile-chat-safe-top {
+          top: calc(4rem + env(safe-area-inset-top, 0px));
+        }
+      }
     </style>
   <script type="importmap">
 {

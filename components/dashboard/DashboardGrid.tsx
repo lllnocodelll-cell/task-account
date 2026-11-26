@@ -730,7 +730,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
 
                     {isDropdownOpen && (
                         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-                            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 glass-card-inset text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                 Cenários Disponíveis
                             </div>
                             <div className="max-h-48 overflow-y-auto">
@@ -833,7 +833,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
             {/* Modal para criar novo cenário */}
             {showNewScenarioModal && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
-                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
+                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
                         <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase mb-4">
                             Criar Novo Cenário
                         </h3>
@@ -845,13 +845,13 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                             value={newScenarioName}
                             onChange={(e) => setNewScenarioName(e.target.value)}
                             placeholder="Nome do cenário (ex: Operação)"
-                            className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-lg focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 text-slate-800 dark:text-slate-200 mb-6"
+                            className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 glass-chat-field rounded-lg focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 text-slate-800 dark:text-slate-200 mb-6"
                             autoFocus
                         />
                         <div className="flex justify-end gap-2 text-xs font-semibold">
                             <button
                                 onClick={() => setShowNewScenarioModal(false)}
-                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 glass-control-pill hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                             >
                                 Cancelar
                             </button>
@@ -871,7 +871,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
             {/* Modal para renomear cenário */}
             {showRenameModal && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm">
-                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
+                    <div className="w-full max-w-sm bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 overflow-hidden">
                         <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase mb-4">
                             Renomear Cenário
                         </h3>
@@ -880,13 +880,13 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ userId, role, orgI
                             value={renameScenarioName}
                             onChange={(e) => setRenameScenarioName(e.target.value)}
                             placeholder="Novo nome do cenário"
-                            className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-lg focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 text-slate-800 dark:text-slate-200 mb-6"
+                            className="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 glass-chat-field rounded-lg focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 text-slate-800 dark:text-slate-200 mb-6"
                             autoFocus
                         />
                         <div className="flex justify-end gap-2 text-xs font-semibold">
                             <button
                                 onClick={() => setShowRenameModal(false)}
-                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-800 glass-control-pill hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                             >
                                 Cancelar
                             </button>

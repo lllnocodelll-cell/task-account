@@ -140,8 +140,8 @@ const TableColumnFilter: React.FC<TableColumnFilterProps> = ({ label, isActive, 
           className="fixed z-[9999] w-72 animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-200"
           onClick={e => e.stopPropagation()}
         >
-          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
-            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60">
+          <div className="bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-md border border-slate-200/80 dark:border-slate-700/60 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-slate-100 dark:border-slate-800/60 glass-card-inset">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                 <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">
@@ -557,7 +557,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
 
     const getClientPercent = (count: number) => totalCurrent > 0 ? (count / totalCurrent * 100) : 0;
 
-    const headerInputClass = "mt-2 w-full h-8 text-xs px-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-sm animate-in fade-in slide-in-from-top-1 duration-200";
+    const headerInputClass = "mt-2 w-full h-8 text-xs px-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 glass-chat-field text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500 focus:outline-none shadow-sm animate-in fade-in slide-in-from-top-1 duration-200";
 
     if (viewState === 'create' || viewState === 'edit') {
         return (
@@ -604,9 +604,11 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                 </Button>
                             </Tooltip>
 
-                            {isGridFilterOpen && (
-                                <div className="fixed inset-x-4 top-24 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 w-auto md:w-[340px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 p-4 z-[999] animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+                            {isGridFilterOpen && (() => {
+                                const advancedInputClass = "w-full text-[11px] bg-slate-50 dark:bg-slate-900 glass-chat-field border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all";
+                                return (
+                                <div className="fixed inset-x-4 top-24 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 w-auto md:w-[340px] bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-md rounded-xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 p-4 overflow-hidden z-[999] animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="flex items-center justify-between -mx-4 -mt-4 px-4 pt-3.5 pb-3 mb-4 border-b border-slate-100 dark:border-slate-800 glass-card-inset">
                                         <h3 className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.1em] flex items-center gap-2">
                                             <SlidersHorizontal size={14} className="text-indigo-500" />
                                             Filtros Avancados
@@ -618,33 +620,33 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Código</label>
-                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.code} onChange={e => handleFilterChange('code', e.target.value)} placeholder="000000" />
+                                            <input type="text" className={advancedInputClass} value={filters.code} onChange={e => handleFilterChange('code', e.target.value)} placeholder="000000" />
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Buscar Empresa / Local</label>
-                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.companyName} onChange={e => handleFilterChange('companyName', e.target.value)} placeholder="Nome, Cidade ou UF..." />
+                                            <input type="text" className={advancedInputClass} value={filters.companyName} onChange={e => handleFilterChange('companyName', e.target.value)} placeholder="Nome, Cidade ou UF..." />
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">CPF / CNPJ</label>
-                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.document} onChange={e => handleFilterChange('document', formatCpfCnpjFilter(e.target.value))} placeholder="000.000.000-00 ou CNPJ..." />
+                                            <input type="text" className={advancedInputClass} value={filters.document} onChange={e => handleFilterChange('document', formatCpfCnpjFilter(e.target.value))} placeholder="000.000.000-00 ou CNPJ..." />
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Contato</label>
-                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.contactName} onChange={e => handleFilterChange('contactName', e.target.value)} placeholder="nome do contato" />
+                                            <input type="text" className={advancedInputClass} value={filters.contactName} onChange={e => handleFilterChange('contactName', e.target.value)} placeholder="nome do contato" />
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Fixo</label>
-                                                <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.phoneFixed} onChange={e => handleFilterChange('phoneFixed', formatPhone(e.target.value, 'fixed'))} placeholder="(00) ..." />
+                                                <input type="text" className={advancedInputClass} value={filters.phoneFixed} onChange={e => handleFilterChange('phoneFixed', formatPhone(e.target.value, 'fixed'))} placeholder="(00) ..." />
                                             </div>
                                             <div>
                                                 <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Celular</label>
-                                                <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.phoneMobile} onChange={e => handleFilterChange('phoneMobile', formatPhone(e.target.value, 'mobile'))} placeholder="(00) 9 ..." />
+                                                <input type="text" className={advancedInputClass} value={filters.phoneMobile} onChange={e => handleFilterChange('phoneMobile', formatPhone(e.target.value, 'mobile'))} placeholder="(00) 9 ..." />
                                             </div>
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">E-mail</label>
-                                            <input type="text" className="w-full text-[11px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all" value={filters.email} onChange={e => handleFilterChange('email', e.target.value)} placeholder="cliente@email.com" />
+                                            <input type="text" className={advancedInputClass} value={filters.email} onChange={e => handleFilterChange('email', e.target.value)} placeholder="cliente@email.com" />
                                         </div>
                                         <div>
                                             <label className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Situação</label>
@@ -659,7 +661,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
                                                         filters.status === opt.value
                                                             ? opt.color
-                                                            : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                                            : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                                                         }`}
                                                     >
                                                         <span>{opt.label}</span>
@@ -677,14 +679,15 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                     </div>
                                     
                                     {Object.values(filters).filter(v => v !== '').length > 0 && (
-                                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                        <div className="-mx-4 -mb-4 mt-4 px-4 py-3 border-t border-slate-100 dark:border-slate-800 glass-card-inset">
                                             <button onClick={clearFilters} className="w-full text-center text-[10px] font-black uppercase tracking-wider text-rose-500 dark:text-rose-400 hover:text-rose-700 py-2.5 bg-rose-50 dark:bg-rose-500/10 rounded-lg transition-colors border border-rose-200 dark:border-rose-500/30">
                                                 Limpar Todos os Filtros
                                             </button>
                                         </div>
                                     )}
                                 </div>
-                            )}
+                                );
+                            })()}
                         </div>
                     
                     <div className="flex items-center gap-0.5 bg-white dark:bg-slate-800 glass-control-pill p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm h-10">
@@ -963,7 +966,7 @@ export const Clients: React.FC<{ userProfile: any, initialClientId?: string | nu
                                                                         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-all text-[11px] font-semibold ${
                                                                         filters.status === opt.value
                                                                             ? opt.color
-                                                                            : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                                                            : 'bg-slate-50 dark:bg-slate-800/50 glass-control-pill border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
                                                                         }`}
                                                                     >
                                                                         <span>{opt.label}</span>

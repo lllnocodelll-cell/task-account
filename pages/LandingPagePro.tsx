@@ -399,8 +399,9 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
     <div className="min-h-screen bg-slate-50 dark:bg-[#0B0E14] text-slate-900 dark:text-slate-100 selection:bg-yellow-400 selection:text-black font-sans antialiased [overflow-x:clip] transition-colors duration-300">
 
       {/* ─── HEADER / NAVBAR FLUTUANTE DINÂMICA COM BLUR AVANÇADO ─── */}
-      <header className={`fixed top-0 left-0 right-0 z-50 px-3 sm:px-8 transition-all duration-300 pointer-events-none ${isScrolled ? 'py-2.5 sm:py-3.5' : 'py-3.5 sm:py-6'
-        }`}>
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 pointer-events-none landing-header-safe ${isScrolled ? 'is-scrolled' : ''}`}
+      >
         <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto">
 
           {/* Brand Logo - Clique para rolar ao topo com feedback tátil e badge Live */}
@@ -525,8 +526,9 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
             {/* Botão Acessar Sistema com Efeito Shimmer e Gradiente Rico */}
             <button
+              type="button"
               onClick={onLoginClick}
-              className="relative overflow-hidden group/btn flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-400 hover:from-yellow-300 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-[11px] sm:text-xs tracking-wider uppercase px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl shadow-[0_0_25px_-5px_rgba(250,204,21,0.6)] hover:shadow-[0_0_35px_-5px_rgba(250,204,21,0.85)] border border-yellow-300/60 transition-all cursor-pointer shrink-0"
+              className="relative overflow-hidden group/btn flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-400 hover:from-yellow-300 hover:to-amber-400 active:scale-95 text-slate-950 font-black text-[11px] sm:text-xs tracking-wider uppercase px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl shadow-[0_0_25px_-5px_rgba(250,204,21,0.6)] hover:shadow-[0_0_35px_-5px_rgba(250,204,21,0.85)] border border-yellow-300/60 transition-all cursor-pointer shrink-0 touch-manipulation"
             >
               <div className="absolute inset-0 -translate-x-full group-hover/btn:translate-x-full duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform pointer-events-none" />
 
@@ -539,8 +541,9 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
 
             {/* Botão Menu Hambúrguer (Mobile only) */}
             <button
+              type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={`md:hidden w-9 h-9 rounded-xl backdrop-blur-2xl border flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-amber-500 dark:hover:text-yellow-400 transition-all cursor-pointer shrink-0 active:scale-95 ${isScrolled
+              className={`md:hidden w-9 h-9 rounded-xl backdrop-blur-2xl border flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-amber-500 dark:hover:text-yellow-400 transition-all cursor-pointer shrink-0 active:scale-95 touch-manipulation ${isScrolled
                   ? 'bg-white/95 dark:bg-[#0E131F]/90 border-slate-200/90 dark:border-white/15 shadow-xl'
                   : 'bg-white/90 dark:bg-[#121722]/80 border-slate-200/80 dark:border-white/10 shadow-lg'
                 } ${isMobileMenuOpen ? 'border-amber-400 text-amber-500 dark:border-yellow-400 dark:text-yellow-400' : ''}`}
@@ -560,7 +563,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -15, scale: 0.96 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              className="md:hidden fixed top-16 sm:top-20 left-3 right-3 z-50 pointer-events-auto bg-white/95 dark:bg-[#0E131F]/95 backdrop-blur-3xl border border-slate-200 dark:border-white/15 rounded-3xl p-4 shadow-2xl shadow-slate-900/30 dark:shadow-black/90 overflow-hidden"
+              className="md:hidden fixed landing-menu-safe-top left-3 right-3 z-50 pointer-events-auto bg-white/95 dark:bg-[#0E131F]/95 backdrop-blur-3xl border border-slate-200 dark:border-white/15 rounded-3xl p-4 shadow-2xl shadow-slate-900/30 dark:shadow-black/90 overflow-hidden"
             >
               {/* Header do Menu Mobile */}
               <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 dark:border-white/10">
@@ -774,7 +777,7 @@ export const LandingPagePro: React.FC<LandingPageProProps> = ({
       )}
 
       {/* ─── HERO SECTION: ARQUITETURA TÉCNICA + DISPLAY GIGANTE ─── */}
-      <section className="relative pt-28 sm:pt-36 md:pt-40 lg:pt-44 pb-8 sm:pb-12 px-3 sm:px-8 overflow-hidden">
+      <section className="relative landing-hero-safe-top pb-8 sm:pb-12 px-3 sm:px-8 overflow-hidden">
 
         {/* ─── ILUMINAÇÃO ZENITAL & ATMOSFERA DE FUNDO (SEM VÍDEO EXPANDIDO EM TELA CHEIA) ─── */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none">

@@ -1234,7 +1234,7 @@ function App() {
         <main
           className={`flex-1 min-h-0 ${
             activeTab === 'chat'
-              ? `fixed inset-x-0 top-16 bottom-0 md:relative md:inset-auto md:top-auto p-0 ${isSidebarMinimized ? 'md:p-6' : 'md:p-8'} overflow-hidden flex flex-col`
+              ? `fixed inset-x-0 mobile-chat-safe-top bottom-0 md:relative md:inset-auto md:top-auto p-0 ${isSidebarMinimized ? 'md:p-6' : 'md:p-8'} overflow-hidden flex flex-col`
               : ['tasks', 'clients'].includes(activeTab)
                 ? `overflow-x-clip px-4 pb-4 pt-2 ${isSidebarMinimized ? 'md:px-6' : 'md:px-8'} md:pb-8 md:pt-4`
                 : `overflow-x-clip p-4 ${isSidebarMinimized ? 'md:p-6' : 'md:p-8'}`

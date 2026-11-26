@@ -717,18 +717,19 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       </div>
 
       {/* ── Toolbar de Filtros Compacta ── */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
-        <div className="p-3 sm:p-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-b border-slate-100 dark:border-slate-800">
+      <div className="bg-white dark:bg-slate-900 glass-surface border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+        <div className="p-3 sm:p-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-b border-slate-100 dark:border-slate-800/80">
           {/* Tabs de status e Alternador de Visualização */}
           <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
-            <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl gap-0.5 shrink-0">
+            <div className="flex bg-slate-100 dark:bg-slate-950 glass-chat-tab-bar p-1 rounded-xl gap-0.5 shrink-0">
               {([['all', 'Todos'], ['pending', 'Pendentes'], ['read', 'Lidos']] as const).map(([tab, label]) => (
                 <button
                   key={tab}
+                  type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`px-3 sm:px-5 py-1.5 text-[11px] sm:text-xs font-black tracking-tight rounded-lg transition-all ${
+                  className={`px-3 sm:px-5 py-1.5 text-[11px] sm:text-xs font-black tracking-tight rounded-lg transition-all cursor-pointer ${
                     activeTab === tab
-                      ? 'bg-white dark:bg-slate-800 shadow-md text-indigo-600 dark:text-indigo-400'
+                      ? 'bg-white dark:bg-slate-800 glass-chat-tab-active shadow-md text-indigo-600 dark:text-indigo-400'
                       : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
                 >
@@ -743,14 +744,14 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
 
             {/* Alternador de Modo: Lista vs Cards */}
-            <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl gap-0.5 shrink-0 border border-slate-200/60 dark:border-slate-800">
+            <div className="flex bg-slate-100 dark:bg-slate-950 glass-chat-tab-bar p-1 rounded-xl gap-0.5 shrink-0 border border-slate-200/60 dark:border-slate-800">
               <Tooltip content="Visualizar em Lista" position="bottom">
                 <button
                   type="button"
                   onClick={() => handleViewModeChange('list')}
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'list'
-                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-sm'
                       : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                   }`}
                   aria-label="Modo Lista"
@@ -765,7 +766,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   onClick={() => handleViewModeChange('card')}
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'card'
-                      ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      ? 'bg-white dark:bg-slate-800 glass-chat-tab-active text-indigo-600 dark:text-indigo-400 shadow-sm'
                       : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                   }`}
                   aria-label="Modo Cards"
@@ -783,14 +784,20 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               <input
                 type="text"
                 placeholder="Buscar documento..."
-                className="pl-8 pr-3 py-2 w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                className="pl-8 pr-7 py-2 w-full bg-slate-50 dark:bg-slate-950 glass-chat-field border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
               {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  <X size={12} />
-                </button>
+                <Tooltip content="Limpar busca" position="bottom" className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full cursor-pointer flex items-center justify-center"
+                  >
+                    <X size={12} />
+                  </button>
+                </Tooltip>
               )}
             </div>
 
@@ -801,8 +808,8 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 onClick={() => setIsFilterDrawerOpen(true)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer shrink-0 ${
                   activeFiltersCount > 0
-                    ? 'border-indigo-500/50 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 shadow-xs ring-1 ring-indigo-500/20'
-                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'
+                    ? 'border-indigo-500/50 bg-indigo-50 dark:bg-indigo-950/40 glass-chat-item-active text-indigo-600 dark:text-indigo-400 shadow-xs ring-1 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 glass-control-pill text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
                 aria-label="Abrir gaveta de filtros"
               >
@@ -840,7 +847,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
         {/* Pílulas / Chips de Filtros Ativos para remoção rápida */}
         {activeFiltersCount > 0 && (
-          <div className="px-3 sm:px-4 py-2 bg-slate-50/70 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 flex-wrap text-xs">
+          <div className="px-3 sm:px-4 py-2 bg-slate-50/70 dark:bg-slate-950/40 glass-card-inset border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 flex-wrap text-xs">
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1 flex items-center gap-1">
               <SlidersHorizontal size={11} /> Filtros:
             </span>
@@ -849,14 +856,15 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 text-[11px] font-bold">
                 <Building2 size={11} />
                 <span className="max-w-[150px] truncate">{selectedCompany.name}</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCompanyId('')}
-                  className="hover:bg-indigo-200/50 dark:hover:bg-indigo-900/60 rounded p-0.5 ml-0.5 cursor-pointer"
-                  title="Remover filtro de empresa"
-                >
-                  <X size={10} className="stroke-[3]" />
-                </button>
+                <Tooltip content="Remover filtro de empresa" position="bottom">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCompanyId('')}
+                    className="hover:bg-indigo-200/50 dark:hover:bg-indigo-900/60 rounded p-0.5 ml-0.5 cursor-pointer flex items-center"
+                  >
+                    <X size={10} className="stroke-[3]" />
+                  </button>
+                </Tooltip>
               </span>
             )}
 
@@ -864,14 +872,15 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60 text-[11px] font-bold">
                 <Clock size={11} />
                 <span>{getDueDateButtonLabel()}</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDueDate('')}
-                  className="hover:bg-amber-200/50 dark:hover:bg-amber-900/60 rounded p-0.5 ml-0.5 cursor-pointer"
-                  title="Remover filtro de vencimento"
-                >
-                  <X size={10} className="stroke-[3]" />
-                </button>
+                <Tooltip content="Remover filtro de vencimento" position="bottom">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDueDate('')}
+                    className="hover:bg-amber-200/50 dark:hover:bg-amber-900/60 rounded p-0.5 ml-0.5 cursor-pointer flex items-center"
+                  >
+                    <X size={10} className="stroke-[3]" />
+                  </button>
+                </Tooltip>
               </span>
             )}
 
@@ -879,14 +888,15 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 text-[11px] font-bold">
                 <Calendar size={11} />
                 <span>{getShortCompetenceLabel(selectedCompetence)}</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedCompetence('')}
-                  className="hover:bg-indigo-200/50 dark:hover:bg-indigo-900/60 rounded p-0.5 ml-0.5 cursor-pointer"
-                  title="Remover filtro de período"
-                >
-                  <X size={10} className="stroke-[3]" />
-                </button>
+                <Tooltip content="Remover filtro de período" position="bottom">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCompetence('')}
+                    className="hover:bg-indigo-200/50 dark:hover:bg-indigo-900/60 rounded p-0.5 ml-0.5 cursor-pointer flex items-center"
+                  >
+                    <X size={10} className="stroke-[3]" />
+                  </button>
+                </Tooltip>
               </span>
             )}
 
@@ -894,14 +904,15 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60 text-[11px] font-bold">
                 <SlidersHorizontal size={11} />
                 <span>{selectedSector}</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedSector('')}
-                  className="hover:bg-purple-200/50 dark:hover:bg-purple-900/60 rounded p-0.5 ml-0.5 cursor-pointer"
-                  title="Remover filtro de setor"
-                >
-                  <X size={10} className="stroke-[3]" />
-                </button>
+                <Tooltip content="Remover filtro de setor" position="bottom">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSector('')}
+                    className="hover:bg-purple-200/50 dark:hover:bg-purple-900/60 rounded p-0.5 ml-0.5 cursor-pointer flex items-center"
+                  >
+                    <X size={10} className="stroke-[3]" />
+                  </button>
+                </Tooltip>
               </span>
             )}
 
@@ -929,7 +940,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
           ) : sortedGroups.length === 0 ? (
             <div className="py-20 text-center">
-              <div className="inline-flex items-center justify-center p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl text-slate-300 dark:text-slate-700 mb-5">
+              <div className="inline-flex items-center justify-center p-6 bg-slate-100 dark:bg-slate-800 glass-card-inset rounded-3xl text-slate-300 dark:text-slate-700 mb-5">
                 <FileText size={40} />
               </div>
               <h3 className="text-slate-800 dark:text-white font-bold text-base mb-1">Nenhum documento encontrado</h3>
@@ -943,7 +954,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   {/* Cabeçalho do grupo */}
                   <button
                     onClick={() => toggleGroup(groupKey)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 bg-slate-100 dark:bg-slate-800/50 hover:bg-slate-200/50 dark:hover:bg-slate-800 border-y border-slate-200 dark:border-slate-800 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 bg-slate-100 dark:bg-slate-800/50 glass-card-inset hover:bg-slate-200/50 dark:hover:bg-slate-800 border-y border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
                   >
                     <ChevronDown
                       size={14}
@@ -952,7 +963,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                     <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                       {groupKey !== 'Sem Competência' ? formatCompetenceLabel(groupKey) : 'Sem Competência'}
                     </span>
-                    <span className="ml-auto text-[10px] font-black text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">
+                    <span className="ml-auto text-[10px] font-black text-slate-400 bg-slate-200 dark:bg-slate-700 glass-control-pill px-2 py-0.5 rounded-full">
                       {groupDocs.length}
                     </span>
                   </button>
@@ -969,7 +980,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                         return (
                           <div
                             key={doc.id}
-                            className={`flex gap-0 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all group border-b border-slate-100 dark:border-slate-800 last:border-b-0 ${isUrgent ? 'bg-red-50/30 dark:bg-red-500/5' : ''}`}
+                            className={`flex gap-0 glass-chat-item hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-all group border-b border-slate-100 dark:border-slate-800 last:border-b-0 ${isUrgent ? 'bg-red-50/30 dark:bg-red-500/5' : ''}`}
                           >
                             {/* Faixa lateral com Setor na Vertical (90º) */}
                             <div className={`w-8 shrink-0 flex items-center justify-center ${sectorStyle.bar} relative`}>
@@ -980,19 +991,23 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
                             <div className="flex flex-col sm:flex-row sm:items-stretch flex-1 min-w-0">
                               {/* Coluna 2: Nome da Tarefa e Empresa (centralizado verticalmente) */}
-                              <div className="flex flex-col justify-center items-start min-w-0 shrink-0 sm:w-[16cm] p-3 sm:p-4 sm:border-r border-slate-100 dark:border-slate-800 gap-1.5">
+                              <div className="flex flex-col justify-center items-start min-w-0 shrink-0 sm:w-[16cm] p-3 sm:p-4 sm:border-r border-slate-100 dark:border-slate-800/80 gap-1.5">
                                 <span className="inline-flex items-center w-full px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/40 shadow-sm truncate">
                                   {doc.name}
                                 </span>
                                 {doc.type && (
-                                  <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 pl-1 truncate w-full" title={doc.type}>
-                                    <span className="text-indigo-500/80">📋</span> <span className="text-slate-400">Tarefa:</span> {doc.type}
-                                  </span>
+                                  <Tooltip content={doc.type} position="top" className="block w-full min-w-0">
+                                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 pl-1 truncate w-full">
+                                      <span className="text-indigo-500/80">📋</span> <span className="text-slate-400">Tarefa:</span> {doc.type}
+                                    </span>
+                                  </Tooltip>
                                 )}
                                 {doc.clients && (
-                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 pl-1 truncate w-full" title={doc.clients.company_name}>
-                                    <span className="text-indigo-500/80">🏢</span> {doc.clients.trade_name || doc.clients.company_name}
-                                  </span>
+                                  <Tooltip content={doc.clients.company_name} position="top" className="block w-full min-w-0">
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 pl-1 truncate w-full">
+                                      <span className="text-indigo-500/80">🏢</span> {doc.clients.trade_name || doc.clients.company_name}
+                                    </span>
+                                  </Tooltip>
                                 )}
                               </div>
 
@@ -1051,7 +1066,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                                 {doc.status === 'Lido' && (
                                   <button
                                     onClick={() => handleViewProtocol(doc)}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-500/30 rounded-xl text-[11px] font-black transition-all active:scale-95 cursor-pointer"
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 glass-control-pill hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-500/30 rounded-xl text-[11px] font-black transition-all active:scale-95 cursor-pointer"
                                   >
                                     <Eye size={13} />
                                     <span className="hidden sm:inline">Protocolo</span>
@@ -1076,7 +1091,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       })
                     ) : (
                       /* Modo Card (Grade Responsiva) */
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 p-3.5 sm:p-4 bg-slate-50/50 dark:bg-slate-950/20">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 p-3.5 sm:p-4 bg-slate-50/40 dark:bg-slate-950/15 glass-card-inset">
                         {groupDocs.map((doc) => {
                           const sectorStyle = getSectorStyle(doc.sectors?.name);
                           const dueDateStatus = getDueDateStatus(doc.due_date);
@@ -1085,7 +1100,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                           return (
                             <div
                               key={doc.id}
-                              className={`relative flex flex-col justify-between rounded-2xl border bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all group overflow-hidden ${
+                              className={`relative flex flex-col justify-between rounded-2xl border bg-white dark:bg-slate-900 glass-chat-item shadow-sm hover:shadow-md transition-all group overflow-hidden ${
                                 isUrgent 
                                   ? 'border-red-300/80 dark:border-red-900/60 ring-1 ring-red-400/20' 
                                   : 'border-slate-200/80 dark:border-slate-800 hover:border-indigo-400/50 dark:hover:border-indigo-500/50'
@@ -1135,33 +1150,37 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                                   </h4>
 
                                   {doc.type && (
-                                    <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate" title={doc.type}>
-                                      <span className="text-indigo-500">📋</span> {doc.type}
-                                    </p>
+                                    <Tooltip content={doc.type} position="top" className="block min-w-0">
+                                      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
+                                        <span className="text-indigo-500">📋</span> {doc.type}
+                                      </p>
+                                    </Tooltip>
                                   )}
 
                                   {doc.clients && (
-                                    <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 truncate" title={doc.clients.company_name}>
-                                      <span className="text-indigo-500">🏢</span> {doc.clients.trade_name || doc.clients.company_name}
-                                    </p>
+                                    <Tooltip content={doc.clients.company_name} position="top" className="block min-w-0">
+                                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1 truncate">
+                                        <span className="text-indigo-500">🏢</span> {doc.clients.trade_name || doc.clients.company_name}
+                                      </p>
+                                    </Tooltip>
                                   )}
                                 </div>
 
                                 {/* Vencimento e Competência */}
-                                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] font-bold">
+                                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] font-bold">
                                   <span className={`inline-flex items-center gap-1 ${dueDateStatus ? dueDateStatus.className : 'text-slate-400 dark:text-slate-500'}`}>
                                     <Calendar size={11} />
                                     <span>{dueDateStatus ? dueDateStatus.label : 'Sem vencimento'}</span>
                                   </span>
 
-                                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 bg-slate-100 dark:bg-slate-800 glass-control-pill px-1.5 py-0.5 rounded">
                                     {doc.competence_month || 'Geral'}
                                   </span>
                                 </div>
                               </div>
 
                               {/* Rodapé de Ações Rápidas do Card */}
-                              <div className="px-3 sm:px-4 py-2.5 bg-slate-50/80 dark:bg-slate-950/60 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5">
+                              <div className="px-3 sm:px-4 py-2.5 bg-slate-50/80 dark:bg-slate-950/60 glass-card-inset border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-1.5">
                                 <div className="flex items-center gap-1">
                                   {doc.due_date && (
                                     <Tooltip content={doc.is_paid ? 'Marcar como não pago' : 'Marcar como pago'} position="top">
@@ -1170,7 +1189,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                                         className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
                                           doc.is_paid
                                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                            : 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 border-slate-200 dark:border-slate-700'
+                                            : 'bg-white dark:bg-slate-800 glass-control-pill text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 border-slate-200 dark:border-slate-700'
                                         }`}
                                       >
                                         <BanknoteArrowDown size={14} />
@@ -1182,7 +1201,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                                     <Tooltip content="Ver protocolo e histórico" position="top">
                                       <button
                                         onClick={() => handleViewProtocol(doc)}
-                                        className="p-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg transition-all cursor-pointer"
+                                        className="p-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-800 glass-control-pill border border-slate-200 dark:border-slate-700 rounded-lg transition-all cursor-pointer"
                                       >
                                         <Eye size={14} />
                                       </button>
@@ -1217,13 +1236,16 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       </div>
 
       {/* ── FAB Chat (mobile) ── */}
-      <button
-        onClick={onNavigateToChat}
-        className="fixed bottom-6 right-6 md:hidden p-4 bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-500/40 z-50 hover:bg-indigo-700 active:scale-90 transition-all"
-        title="Abrir Chat"
-      >
-        <MessageSquare size={22} />
-      </button>
+      <Tooltip content="Abrir Chat" position="left" className="fixed bottom-6 right-6 md:hidden z-50">
+        <button
+          type="button"
+          onClick={onNavigateToChat}
+          aria-label="Abrir Chat"
+          className="p-4 bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 active:scale-90 transition-all cursor-pointer touch-manipulation"
+        >
+          <MessageSquare size={22} />
+        </button>
+      </Tooltip>
 
 
 
@@ -1247,7 +1269,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
           </div>
 
-          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+          <div className="border border-slate-200 dark:border-slate-800 glass-card-inset rounded-2xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
             {logsLoading ? (
               <div className="flex flex-col items-center justify-center p-10 text-slate-400">
                 <Loader2 size={22} className="animate-spin mb-2 text-indigo-500" />
@@ -1271,7 +1293,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                     </span>
                   </div>
                   {log.user_agent && (
-                    <div className="mt-2 text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-100 dark:border-slate-800 break-all leading-relaxed">
+                    <div className="mt-2 text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-950 glass-card-inset p-2 rounded-lg border border-slate-100 dark:border-slate-800 break-all leading-relaxed">
                       {log.user_agent}
                     </div>
                   )}
@@ -1301,7 +1323,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
           {/* Painel da Gaveta Deslizante - z-[9999], top-0 bottom-0 h-screen sem restrição de container */}
           <div 
-            className={`fixed top-0 bottom-0 right-0 h-screen w-full sm:w-[390px] md:w-[410px] max-w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${
+            className={`fixed top-0 bottom-0 right-0 h-screen w-full sm:w-[390px] md:w-[410px] max-w-full bg-white/95 dark:bg-slate-900/95 glass-surface backdrop-blur-xl mobile-sidebar-safe shadow-2xl z-[9999] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.25, 0.1, 0.25, 1)] border-l border-white/20 dark:border-slate-800/50 ${
               isFilterDrawerOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
             role="dialog"
@@ -1309,7 +1331,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             aria-label="Filtros de documentos"
           >
             {/* Header Padronizado com os Demais Drawers */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 shrink-0">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/50 dark:bg-slate-900/50 glass-card-inset shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg flex-shrink-0 shadow-sm">
                   <SlidersHorizontal size={18} className="text-indigo-600 dark:text-indigo-400" />
@@ -1341,7 +1363,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
 
         {/* Barra de Atalhos Rápidos para Navegação das Seções */}
-        <div className="px-4 sm:px-5 py-2 bg-slate-50/80 dark:bg-slate-950/60 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+        <div className="px-4 sm:px-5 py-2 bg-slate-50/80 dark:bg-slate-950/60 glass-card-inset border-b border-slate-100 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1 shrink-0">
             Ir para:
           </span>
@@ -1354,7 +1376,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
                 selectedCompanyId
                   ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800'
-                  : 'bg-white dark:bg-slate-900 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
+                  : 'bg-white dark:bg-slate-900 glass-control-pill hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
               }`}
             >
               <Building2 size={12} className={selectedCompanyId ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
@@ -1371,7 +1393,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
               selectedDueDate
                 ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
-                : 'bg-white dark:bg-slate-900 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
+                : 'bg-white dark:bg-slate-900 glass-control-pill hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
             }`}
           >
             <Clock size={12} className={selectedDueDate ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'} />
@@ -1387,7 +1409,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
               selectedCompetence
                 ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800'
-                : 'bg-white dark:bg-slate-900 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
+                : 'bg-white dark:bg-slate-900 glass-control-pill hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800'
             }`}
           >
             <Calendar size={12} className={selectedCompetence ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'} />
@@ -1426,16 +1448,18 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                     placeholder="Buscar por nome ou CNPJ..."
                     value={companySearchTerm}
                     onChange={e => setCompanySearchTerm(e.target.value)}
-                    className="w-full pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
+                    className="w-full pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-950 glass-chat-field border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-200 placeholder:text-slate-400"
                   />
                   {companySearchTerm && (
-                    <button
-                      type="button"
-                      onClick={() => setCompanySearchTerm('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-                    >
-                      <X size={12} />
-                    </button>
+                    <Tooltip content="Limpar busca" position="bottom" className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <button
+                        type="button"
+                        onClick={() => setCompanySearchTerm('')}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer flex items-center justify-center"
+                      >
+                        <X size={12} />
+                      </button>
+                    </Tooltip>
                   )}
                 </div>
               )}
@@ -1448,13 +1472,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   onClick={() => setSelectedCompanyId('')}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                     !selectedCompanyId
-                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-xs'
-                      : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 glass-chat-item-active border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-xs'
+                      : 'border-transparent glass-chat-item hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
                   }`}
                 >
                   <span className="text-xs font-bold">Todas as Empresas</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300">
                       {documents.length} docs
                     </span>
                     {!selectedCompanyId && <Check size={14} className="text-indigo-600 dark:text-indigo-400 stroke-[3]" />}
@@ -1471,8 +1495,8 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       onClick={() => setSelectedCompanyId(c.id)}
                       className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-xs'
-                          : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 glass-chat-item-active border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-xs'
+                          : 'border-transparent glass-chat-item hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       <div className="min-w-0 pr-2 flex-1">
@@ -1482,7 +1506,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300">
                           {count} {count === 1 ? 'doc' : 'docs'}
                         </span>
                         {isSelected && <Check size={14} className="text-indigo-600 dark:text-indigo-400 stroke-[3]" />}
@@ -1550,7 +1574,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
 
             {/* Calendário Mensal com Dots */}
-            <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-3">
+            <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset border border-slate-200 dark:border-slate-800 rounded-2xl p-3">
               {/* Header do Mês */}
               <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-200 dark:border-slate-800">
                 <button
@@ -1562,7 +1586,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       return { month: newMonth, year: newYear };
                     });
                   }}
-                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
+                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 glass-control-pill rounded-lg text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -1578,7 +1602,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       return { month: newMonth, year: newYear };
                     });
                   }}
-                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
+                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 glass-control-pill rounded-lg text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -1657,13 +1681,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               )}
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-3">
+            <div className="bg-slate-50 dark:bg-slate-950 glass-card-inset border border-slate-200 dark:border-slate-800 rounded-2xl p-3">
               {/* Seletor de Ano */}
               <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setCalendarYear(prev => prev - 1)}
-                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
+                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 glass-control-pill rounded-lg text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -1673,7 +1697,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 <button
                   type="button"
                   onClick={() => setCalendarYear(prev => prev + 1)}
-                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
+                  className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 glass-control-pill rounded-lg text-slate-500 dark:text-slate-400 transition-all cursor-pointer"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -1693,7 +1717,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       className={`py-2 text-[10px] font-black rounded-lg transition-all text-center cursor-pointer ${
                         isSelected
                           ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                          : 'bg-white dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-800'
+                          : 'bg-white dark:bg-slate-900 glass-control-pill hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-800'
                       }`}
                     >
                       {mLabel}
@@ -1730,13 +1754,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   onClick={() => setSelectedSector('')}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                     !selectedSector
-                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-xs'
-                      : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 glass-chat-item-active border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-xs'
+                      : 'border-transparent glass-chat-item hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
                   }`}
                 >
                   <span className="text-xs font-bold">Todos os Setores</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300">
                       {companyDocs.length} docs
                     </span>
                     {!selectedSector && <Check size={14} className="text-indigo-600 dark:text-indigo-400 stroke-[3]" />}
@@ -1755,8 +1779,8 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       onClick={() => setSelectedSector(isSelected ? '' : sector)}
                       className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-xs'
-                          : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 glass-chat-item-active border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-xs'
+                          : 'border-transparent glass-chat-item hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
@@ -1766,7 +1790,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                         <span className="text-xs font-bold block truncate">{sector}</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 glass-control-pill text-slate-600 dark:text-slate-300">
                           {count} {count === 1 ? 'doc' : 'docs'}
                         </span>
                         {isSelected && <Check size={14} className="text-indigo-600 dark:text-indigo-400 stroke-[3]" />}
@@ -1780,7 +1804,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
         </div>
 
         {/* Rodapé Fixo da Gaveta */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 flex items-center gap-2.5">
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 glass-card-inset flex items-center gap-2.5">
           {activeFiltersCount > 0 && (
             <button
               type="button"
@@ -1790,7 +1814,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 setSelectedCompetence('');
                 setSelectedSector('');
               }}
-              className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-all text-center cursor-pointer"
+              className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-800 glass-control-pill text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-all text-center cursor-pointer"
             >
               Limpar Filtros
             </button>

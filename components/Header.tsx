@@ -84,11 +84,14 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       <div className={`sticky top-0 z-[60] md:pt-3 md:pr-3 pointer-events-none transition-all duration-300 ${isSidebarMinimized ? 'md:ml-[calc(4rem+1.5rem)]' : ''}`}>
-        <header className="relative pointer-events-auto h-16 bg-gradient-to-r from-white/55 via-white/40 to-white/50 dark:from-slate-900/55 dark:via-slate-950/40 dark:to-slate-900/55 backdrop-blur-md backdrop-saturate-150 border-b md:border border-white/80 dark:border-white/15 md:ring-1 md:ring-slate-900/5 dark:md:ring-white/5 md:rounded-2xl md:shadow-[0_12px_36px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.95)] md:dark:shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.16)] flex items-center justify-between px-3 sm:px-4 md:px-6 transition-all duration-300">
+        <header
+          className="relative pointer-events-auto mobile-header-safe md:h-16 bg-gradient-to-r from-white/55 via-white/40 to-white/50 dark:from-slate-900/55 dark:via-slate-950/40 dark:to-slate-900/55 backdrop-blur-md backdrop-saturate-150 border-b md:border border-white/80 dark:border-white/15 md:ring-1 md:ring-slate-900/5 dark:md:ring-white/5 md:rounded-2xl md:shadow-[0_12px_36px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.95)] md:dark:shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.16)] flex items-center justify-between sm:px-4 md:px-6 transition-all duration-300"
+        >
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
+              type="button"
               onClick={onToggleMobileMenu}
-              className="md:hidden p-1.5 -ml-1 text-slate-500 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-900/5 dark:hover:bg-white/[0.08] rounded-xl transition-colors shrink-0"
+              className="md:hidden p-2 -ml-1 text-slate-500 hover:text-indigo-600 dark:hover:text-white hover:bg-slate-900/5 dark:hover:bg-white/[0.08] rounded-xl transition-colors shrink-0 touch-manipulation cursor-pointer"
               aria-label="Toggle menu"
             >
               <Menu size={22} />

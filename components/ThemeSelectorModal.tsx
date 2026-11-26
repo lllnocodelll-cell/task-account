@@ -65,7 +65,7 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
       size="4xl"
       title={
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm">
+          <div className="p-2 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg flex-shrink-0 shadow-sm glass-control-pill">
             <Palette size={18} className="text-slate-500 dark:text-slate-400" />
           </div>
           <div className="flex flex-col text-left">
@@ -94,18 +94,18 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
         </p>
 
         {/* Barra de controle da prévia Light / Dark */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 glass-card-inset">
           <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
             Pré-visualizar miniaturas no modo:
           </span>
-          <div className="inline-flex items-center p-1 rounded-lg bg-slate-200/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 gap-1">
+          <div className="inline-flex items-center p-1 rounded-lg bg-slate-200/70 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 gap-1 glass-chat-tab-bar">
             <Tooltip content="Prévia no Modo Claro" position="top">
               <button
                 type="button"
                 onClick={() => setPreviewDarkMode(false)}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                   !previewDarkMode
-                    ? 'bg-white text-slate-900 shadow-sm'
+                    ? 'bg-white text-slate-900 shadow-sm glass-chat-tab-active'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -145,8 +145,8 @@ export const ThemeSelectorModal: React.FC<ThemeSelectorModalProps> = ({
                 disabled={Boolean(savingThemeId)}
                 className={`group text-left rounded-xl border p-2.5 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                   isSelected
-                    ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-500/10 ring-2 ring-indigo-500/30 shadow-md'
-                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-500/10 ring-2 ring-indigo-500/30 shadow-md glass-chat-item-active'
+                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 glass-chat-item'
                 }`}
               >
                 {/* Miniatura ao vivo simulando Sidebar + Header (translúcidos ou sólidos no Clássico) */}

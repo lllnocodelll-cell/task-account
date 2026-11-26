@@ -5998,7 +5998,7 @@ export const Chat: React.FC = () => {
                   </Tooltip>
 
                   {showSupportActionsMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-52 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200 glass-surface">
                       {(() => {
                         const isGestor = currentUser?.role === 'gestor';
                         const isAssignedToMe = selectedChannel.assigned_to === userId;
@@ -7488,8 +7488,8 @@ export const Chat: React.FC = () => {
 
         return createPortal(
           <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300 glass-surface">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20 glass-card-inset">
                 <h2 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none flex items-center gap-2">
                   <MessageCirclePlus size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Novo Atendimento</span>
@@ -7531,7 +7531,7 @@ export const Chat: React.FC = () => {
                 </div>
 
                 {scopeList.length > 0 && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800/60 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800/60 animate-in fade-in slide-in-from-top-2 duration-300 glass-card-inset">
                     <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2">
                       Assuntos atendidos por este setor:
                     </div>
@@ -7549,10 +7549,10 @@ export const Chat: React.FC = () => {
                 )}
               </div>
 
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-950/20">
+              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-950/20 glass-card-inset">
                 <button
                   onClick={() => setIsSupportCreateModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all glass-control-pill"
                 >
                   Cancelar
                 </button>
@@ -7576,8 +7576,8 @@ export const Chat: React.FC = () => {
 
         return createPortal(
           <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 dark:bg-slate-950/80 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300">
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col transition-all duration-300 glass-surface">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20 glass-card-inset">
                 <h2 className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 tracking-[0.3em] uppercase leading-none flex items-center gap-2">
                   <MessageCirclePlus size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>Iniciar Atendimento</span>
@@ -7624,7 +7624,7 @@ export const Chat: React.FC = () => {
                 </div>
 
                 {scopeList.length > 0 && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800/60 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800/60 animate-in fade-in slide-in-from-top-2 duration-300 glass-card-inset">
                     <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-2">
                       Assuntos atendidos por este setor:
                     </div>
@@ -7642,10 +7642,10 @@ export const Chat: React.FC = () => {
                 )}
               </div>
 
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-950/20">
+              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-950/20 glass-card-inset">
                 <button
                   onClick={() => { setIsStaffSupportModalOpen(false); setStaffSupportClientId(''); setStaffSupportSectorId(''); }}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all glass-control-pill"
                 >
                   Cancelar
                 </button>

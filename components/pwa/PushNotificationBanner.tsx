@@ -96,7 +96,7 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
 
   if (compact) {
     return (
-      <div className={`flex items-center justify-between p-3 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 rounded-xl ${className}`}>
+      <div className={`flex items-center justify-between p-3 bg-indigo-50/80 dark:bg-indigo-950/40 glass-surface border border-indigo-200/80 dark:border-indigo-800/60 rounded-xl ${className}`}>
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 rounded-lg">
             <BellRing size={16} />
@@ -139,7 +139,7 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
 
   return (
     <>
-      <div className={`relative overflow-hidden p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent dark:from-indigo-950/50 dark:via-purple-950/30 border border-indigo-200/70 dark:border-indigo-800/60 shadow-xs ${className}`}>
+      <div className={`relative overflow-hidden p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent dark:from-indigo-950/50 dark:via-purple-950/30 glass-surface border border-indigo-200/70 dark:border-indigo-800/60 shadow-xs ${className}`}>
         <div className="absolute top-2.5 right-2.5">
           <Tooltip content="Fechar aviso" position="left">
             <button
@@ -221,7 +221,7 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
       {/* Modal explicativo para iOS / iPhone */}
       {showIOSModal && createPortal(
         <div className="fixed inset-0 z-[99999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 text-center animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 glass-surface rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 text-center animate-in zoom-in-95 duration-200">
             <div className="w-14 h-14 mx-auto mb-4 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center border border-indigo-100 dark:border-indigo-900 shadow-sm">
               <Smartphone size={28} />
             </div>
@@ -233,7 +233,7 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
               O sistema iOS (Apple) requer que a aplicação seja adicionada à <strong>Tela de Início</strong> pelo Safari para permitir notificações push e avisos no ícone.
             </p>
 
-            <div className="text-left space-y-3 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
+            <div className="text-left space-y-3 bg-slate-50 dark:bg-slate-950/60 glass-card-inset p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
               <div className="flex items-start gap-3 text-xs text-slate-700 dark:text-slate-300">
                 <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 font-bold flex items-center justify-center shrink-0 text-[11px]">1</span>
                 <p>No Safari do iPhone, toque no botão <strong>Compartilhar</strong> <Share size={13} className="inline mx-0.5 text-indigo-500" /> na barra inferior.</p>

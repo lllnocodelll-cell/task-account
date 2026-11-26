@@ -19,6 +19,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { supabase } from '../utils/supabaseClient';
 import { BrandLogo } from '../components/ui/BrandLogo';
+import { Tooltip } from '../components/ui/Tooltip';
 
 interface AuthProps {
   onLogin: () => void;
@@ -129,13 +130,18 @@ export const Auth: React.FC<AuthProps> = ({
       </div>
 
       {/* Botão de Alternância de Tema */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-6 right-6 w-10 h-10 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-yellow-400 shadow-lg shadow-slate-200/50 dark:shadow-black/40 transition-all z-20 cursor-pointer"
-        title={isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}
-      >
-        {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-      </button>
+      <div className="absolute auth-theme-btn-safe right-6 z-20">
+        <Tooltip content={isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"} position="left">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}
+            className="w-10 h-10 rounded-2xl bg-white/90 dark:bg-[#121722]/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-amber-500 dark:hover:text-yellow-400 shadow-lg shadow-slate-200/50 dark:shadow-black/40 transition-all cursor-pointer touch-manipulation"
+          >
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </Tooltip>
+      </div>
 
       <div className="w-full max-w-md bg-white/95 dark:bg-[#121722]/90 backdrop-blur-2xl rounded-2xl sm:rounded-3xl shadow-2xl shadow-slate-300/40 dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] overflow-hidden border border-slate-200/80 dark:border-white/10 z-10 transition-colors">
 

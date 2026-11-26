@@ -483,7 +483,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
-        className={`fixed left-0 top-0 bottom-0 md:left-3 md:top-3 md:bottom-auto rounded-r-2xl md:rounded-2xl flex flex-col z-[80] transition-all duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 bottom-0 md:left-3 md:top-3 md:bottom-auto mobile-sidebar-safe rounded-r-2xl md:rounded-2xl flex flex-col z-[80] transition-all duration-300 ease-in-out ${
           isGlassMode
             ? 'p-1.5 bg-white/35 dark:bg-slate-800/35 backdrop-blur-lg backdrop-saturate-150 border-r md:border border-white/85 dark:border-white/20 md:ring-1 md:ring-slate-900/5 dark:md:ring-white/10 shadow-[0_14px_38px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.95)] dark:shadow-[0_22px_52px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.20)]'
             : 'bg-white dark:bg-slate-900 border-r md:border border-slate-200 dark:border-slate-800 shadow-[0_12px_36px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.55)]'
